@@ -32479,3 +32479,60 @@ loosened, no assertion weakened, full suite 14 failed / 3291 passed at baseline
 membership.
 
 Commits: 0eec95fe (c1), bd7184cd (c2), dd6c7b56 (c3).
+
+## Cycle 1194 -- 2026-08-10 -- phase=86.12 result=PASS
+
+**The kill switch does NOT evaluate drawdown against a stale NAV.** An
+investigation step; the deliverable was an answer and no production file was
+changed, no threshold touched, and the live journal is byte-identical
+(`ea78508bee73887c82df...`) across all three cycles.
+
+**The answer.** The daily-loss leg CAN fire on a drawdown present at cycle time,
+and the ORDERING is what makes it true: `autonomous_loop` marks at Step 5
+(`:1368`) and enforces at Step 5.5 (`:1400`), 32 lines later, so the NAV the
+breach reads was written by that mark. Demonstrated firing at 4.01/4.1/12%
+against a 4.0% limit, and NOT firing on a 20% collapse while the anchor is from
+a previous UTC day -- phase-36.9's deliberate protection -- with the trailing
+leg asserted to still fire there, since it is the only cover in that window.
+
+**The equality that prompted the step is not a defect.** `current_nav` is the
+stored `paper_portfolio.total_nav` and the SOD roll anchors `sod_nav` to that
+same value, so they are equal by construction after a mark. Measured across the
+journal: **7 of 10 row-comparisons over 9 distinct dates (70%) -- SOMETIMES.**
+The step claimed 8 sod_snapshot rows; measured, 10.
+
+**The $0.06 delta reproduced LIVE**, which took three cycles to get right. The
+cockpit renders **23,833.88** (stored cash + LIVE-priced positions,
+`useLiveNav.ts:30-44`) against the kill switch's **23,833.94** (stored cash +
+LAST-MARKED positions). Two different quantities, not two readings of one --
+an ASOF difference plus a bounded rounding component measured at -0.004196.
+
+**Two weaknesses documented, neither a defect in enforcement, both queued rather
+than fixed here:** `evaluate_breach` checks BASELINE staleness but validates
+`current_nav` only for None/<=0 (the brief's JFE-2004 citation: a nonsynchronous
+pair biases the measured move DOWNWARD, so the error direction is *fires late*);
+and the sod_snapshots are stamped 13:00-20:58 UTC, at or after the US close, so
+"start of day" is in practice the prior close.
+
+**Three cycles, and all three of my errors were about EVIDENCE, not the answer.**
+Cycle 1: I explained the delta with a "race across a mark_to_market write" built
+on a premise (same stored source) true of the three backend endpoints I measured
+and false of the cockpit -- the one surface the criterion is about. Cycle 2: a
+test whose docstring claimed it drove `check_and_enforce_kill_switch` used
+neither the trader nor the stub it built, and survived replacing that method
+with a raiser. Cycle 3: **I reported a successful Playwright capture as a
+failure** because an nb-NO comma decimal defeated my regex and the em-dash I
+found was the kill strip's `Daily: —`, a different widget. The Q/A found my own
+file on disk and read it correctly.
+
+Cycle-3 Q/A took its OWN Playwright capture (not my supplied one), re-ran its
+raiser mutation (KILLED) plus a second differently-constructed one, and verified
+the journal hash before and after. One NOTE: I placed the on-screen `0,06` in
+the NAV tile when it belongs to the adjacent P&L-today tile -- corrected, and
+noted as the third element-attribution slip in one criterion.
+
+Also of note: the first cycle-3 Q/A spawn DROPPED at 179K tokens with no
+StructuredOutput call. An empty return is NO VERDICT; the lean re-run produced
+the PASS.
+
+Commits: 9c3e0f1a (c1), 9a380d90 (c2), 79f5a5ab (c3).

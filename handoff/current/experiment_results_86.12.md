@@ -190,10 +190,23 @@ Capture: `handoff/current/captures_86.12/cockpit_nav_2026-08-10T0408Z.yml`
 (Playwright, authenticated, `http://localhost:3000/`, 04:08:31 CEST).
 
 ```
-group "NAV"  status "live"   ->   23 833,88 USD
-                                   0,06 USD        <- the delta, on screen
-same-instant immutable command  ->  23833.94 23833.94
+group "NAV"          status "live"  ->  23 833,88 USD
+group "P&L (today)"                 ->   0,06 USD     <- the delta, on screen
+same-instant immutable command      ->  23833.94 23833.94
 ```
+
+**Element attribution corrected after the cycle-3 Q/A.** I first wrote the
+`0,06` as being *inside* the NAV tile; it belongs to the adjacent **P&L (today)**
+tile, which ends the NAV group at its sparkline. The figure, its magnitude and
+the conclusion are unchanged and were independently reproduced -- but this was
+the **third** time in this one criterion that I named the wrong element (the
+first two: reading the kill strip's `Daily: —` as the NAV tile, and concluding
+"nothing rendered" from a regex that could not match a comma decimal). Recorded
+rather than quietly amended, because three of a kind is a habit, not a slip.
+
+The P&L-today tile is the cockpit's own `liveNav - stored anchor` computation,
+so it genuinely corroborates the delta -- it is the same $0.06 arrived at by the
+cockpit's own arithmetic.
 
 **Rendered 23,833.88 vs kill-switch 23,833.94 = $0.06.** The step's reported
 delta, reproduced live, and the cockpit prints the $0.06 itself.
