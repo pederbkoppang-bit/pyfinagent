@@ -1638,3 +1638,98 @@ removed: []
 86.31 status: pending (PARKED -- not flipped)
 86.33 criterion 1 BROADENED this cycle -- disclosed in experiment_results CYCLE 3
 ```
+
+
+---
+
+## [ADDED d38c5dac] The separation, PROVEN BY EXECUTION -- criteria 1, 2, 5
+
+The step says *"that separation is the whole difficulty, so prove it, do not
+assert it."* Until now criteria 1/2/5 rested partly on reading the hook. This
+drives it: `scripts/qa/prove_qa_write_separation_86_31.py` runs
+`.claude/hooks/qa-write-guard.sh` as a subprocess with real PreToolUse payloads
+and asserts the **exit code** (2 = block, 0 = allow).
+
+```
+hook: .claude/hooks/qa-write-guard.sh
+
+[LIVENESS] OK -- embedded python compiles and contains no apostrophe
+[LIVENESS-CONTROL] OK -- an injected apostrophe DOES trip it
+
+result   exit  expect  case
+------------------------------------------------------------------------------------------------
+ok       0     ALLOW   verdict file (the whole point of 86.31)
+ok       0     ALLOW   qa memory curation
+ok       2     BLOCK   production source
+ok       2     BLOCK   the critique Main is scribe for
+ok       2     BLOCK   frontend source
+ok       2     BLOCK   the experiment_results it is grading
+ok       2     BLOCK   named spawn qa-86-34-c2
+ok       2     BLOCK   named spawn qa_85_5_c3 (underscore)
+ok       2     BLOCK   named spawn QA-Upper (case)
+ok       0     ALLOW   named spawn writes its OWN verdict
+ok       2     BLOCK   traversal out of the memory dir
+ok       0     ALLOW   Main (no agent_type)
+ok       0     ALLOW   researcher writing its brief
+ok       0     ALLOW   qa READING (not Write/Edit)
+ok       0     ALLOW   an agent merely named qa-adjacent
+------------------------------------------------------------------------------------------------
+15 cases: 8 must BLOCK, 7 must ALLOW (both directions exercised, so neither always-allow nor always-block can pass)
+
+OK -- the Q/A can write its verdict file and NOTHING ELSE, across the literal type, named spawns, case and underscore variants, and path traversal; Main and the researcher rail are unaffected.
+```
+
+**Why both directions are present (criterion 5).** 8 cases must BLOCK and 7 must
+ALLOW, so an always-allow guard and an always-block guard each fail. The ALLOW
+set deliberately includes the **researcher rail**, for which write-first is
+mandatory -- over-blocking would break the other Layer-3 rail, and that is a
+real risk, not a hypothetical: the hook's own docstring records
+`workflow-subagent` and `general-purpose` being left unmatched for exactly this
+reason.
+
+**Liveness is checked FIRST, and the liveness probe has its own control
+(criterion 5).** The hook is **fail-open** and its python lives inside a bash
+single-quoted block, so a single apostrophe makes it a `SyntaxError` -- at which
+point it ALLOWS EVERYTHING while every deny assertion above still passes for the
+wrong reason. That break really occurred on 2026-08-10. The probe compiles the
+embedded source, and an injected apostrophe is verified to trip it, so a dead
+guard fails the run before any decision is graded.
+
+**Criterion 2 -- which mechanism enforces no-self-eval now that the blanket deny
+is gone:** the path allowlist, checked after `os.path.normpath`. The traversal
+case in the matrix is what proves the collapse actually happens rather than the
+substring appearing anywhere in the path.
+
+### Production corroboration, and a correction to my own first reading
+
+From `handoff/logs/qa_write_guard.log`, Q/A `Write`/`Edit` events on 2026-08-10,
+classified by **the hook's own rule** (`normpath`, not a substring test):
+
+```
+Q/A Write/Edit today : 1282
+  hook ALLOWS        :  252
+  hook BLOCKS        : 1030
+```
+
+**My first pass reported 370/912 and it was WRONG.** It classified with `MEM in
+file_path`, a substring test weaker than the subject it was checking, and so
+counted **118 traversal paths** -- e.g.
+`.../qa/verdicts/../../../../backend/main.py` -- as *inside* the memory dir. The
+hook blocks them. Corrected above; the error is recorded rather than quietly
+replaced, because it is the same probe-weaker-than-subject shape this file
+already documents twice.
+
+**The log is also contaminated by my own test drives** (identities `QA-Upper`,
+`qa_85_5_c3`, ... come from the prover minutes earlier). Stripping synthetic
+identities leaves **156 organic allowed writes**, every one a `verdict_wip_*.md`
+or a qa memory file:
+
+```
+ 42x verdict_wip_86.31.md      17x MEMORY.md            7x verdict_wip_86.25.md
+ 33x verdict_wip_86.24.md      11x verdict_wip_86.34.md 7x verdict_wip_86.30.md
+ 30x feedback_probe_self_contamination.md               7x verdict_wip_86.37.md
+```
+
+Those `verdict_wip_86.34.md` writes are this evening's two evaluations
+persisting themselves -- the mechanism working in production, on the day it
+shipped, on the step that produced tonight's FAIL.
