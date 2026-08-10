@@ -86,20 +86,44 @@ def test_a_TODAY_anchor_arms_the_daily_leg(isolated, monkeypatch):
     assert r["daily_loss_breached"] is True, r
 
 
-def test_a_YESTERDAY_anchor_DISARMS_the_daily_leg_but_the_trailing_leg_still_fires(
-        isolated, monkeypatch):
-    """THE ADJUDICATION. This is the behaviour phase-86.24 examined and found
-    CORRECT, so it is pinned rather than removed.
+def test_a_YESTERDAY_anchor_DISARMS_the_daily_leg(isolated, monkeypatch):
+    """THE ADJUDICATION -- and the rationale here was WRONG in cycle 1.
 
-    phase-36.9 made the daily leg unevaluable on a stale anchor after a MEASURED
-    live incident on 2026-07-26: the badge served `sod_date=2026-07-24` with
-    `armed: true`, and a TWO-DAY move was being reported as a same-day loss --
-    losing same-day coverage and biasing toward a spurious flatten at once.
+    phase-36.9 makes the daily leg unevaluable on a stale anchor, after a
+    MEASURED live incident on 2026-07-26 in which the badge served
+    `sod_date=2026-07-24` with `armed: true` and a TWO-DAY move was reported as
+    a same-day loss -- losing same-day coverage and biasing toward a spurious
+    flatten at once.
 
-    The rule is PER-LEG, and that is the part worth asserting: the trailing
-    drawdown limit is a high-water mark, not date-scoped, so it keeps firing
-    while the daily leg sleeps. A reader who sees `armed: false` overnight
-    should be able to point at this test for why the book is still covered.
+    **What cycle 1 claimed, and what is actually true.** This test was called
+    `..._but_the_trailing_leg_still_fires` and asserted that the overnight
+    window "is not naked" because the date-independent trailing leg keeps
+    firing. The cycle-1 Q/A measured that to be FALSE IN A BAND, and I
+    reproduced it:
+
+        anchor    nav   armed  stale  daily  trailing  ANY
+        STALE     99.0  False  True   False  False     False
+        STALE     95.0  False  True   False  False     False     <-- 5% loss
+        STALE     92.0  False  True   False  False     False     <-- 8% loss
+        STALE     89.0  False  True   False  True      True
+        TODAY     95.0  True   False  True   False     True
+
+    Between the daily limit (4%) and the trailing limit (10%) a stale anchor
+    leaves **nothing** firing. The cycle-1 guard only exercised `nav=80.0` -- a
+    20% drop, above the trailing limit -- so it could not detect the gap it
+    claimed to close. That is asserting a general property from a single point.
+
+    **The conclusion is unchanged and still correct, but for a different
+    reason**: the enforcement path never evaluates against a stale anchor.
+    Measured in `paper_trader.check_and_enforce_kill_switch`: the re-anchor at
+    `:1413` (`if sod_anchor_needs_reroll(snap, today)`) runs BEFORE
+    `evaluate_breach` at `:1460`, and the flatten branch at `:1468` keys on
+    `breach["any_breached"]`, never on `armed`. The order gate at `:1372` reads
+    `baselines_present`, also never `armed`.
+
+    So the band above is reachable only by a READ-ONLY caller (the badge
+    endpoint), never by the code that decides whether to flatten. That is why
+    this is not a live defect -- not because the trailing leg covers it.
     """
     _journal(isolated, _day(-1))
     st = ks.KillSwitchState()
@@ -110,11 +134,46 @@ def test_a_YESTERDAY_anchor_DISARMS_the_daily_leg_but_the_trailing_leg_still_fir
     assert r["armed"] is False, r
     assert r["daily_loss_breached"] is False, (
         "an UNEVALUABLE leg must not fire -- that is the whole point of 36.9", r)
-    # ...and the book is NOT uncovered while it sleeps:
+    # Above the TRAILING limit the trailing leg does still fire. This is true
+    # here and is NOT true across the whole range -- see the band test below.
     assert r["trailing_dd_breached"] is True, r
-    assert r["any_breached"] is True, (
-        "the trailing leg is date-independent and must still fire on a stale "
-        "daily anchor; if this ever goes False the overnight window is naked", r)
+    assert r["any_breached"] is True, r
+
+
+def test_a_stale_anchor_leaves_the_band_between_the_two_limits_UNCOVERED(
+        isolated, monkeypatch):
+    """The measurement that refutes cycle 1's rationale, pinned as a test.
+
+    This asserts an UNCOMFORTABLE fact rather than a reassuring one, and that is
+    deliberate: the previous version asserted the comfortable claim and was
+    wrong. A loss between the daily and trailing limits, evaluated against a
+    STALE anchor, breaches neither leg.
+
+    **This is safe ONLY because the enforcement path re-anchors first**
+    (`paper_trader.py:1413` before `:1460`), so the flatten decision never sees
+    a stale anchor. If that ordering is ever changed, this test is the one that
+    should be re-read: it documents exactly what the ordering is protecting.
+    """
+    _journal(isolated, _day(-1))
+    st = ks.KillSwitchState()
+    monkeypatch.setattr(ks, "_state", st)
+
+    for nav in (95.0, 92.0):                 # 5% and 8% -- inside (4%, 10%)
+        r = ks.evaluate_breach(nav, 4.0, 10.0)
+        assert r["armed"] is False, (nav, r)
+        assert r["any_breached"] is False, (
+            f"nav={nav} against a stale anchor now reports a breach; the band "
+            "this test documents has changed and the adjudication in "
+            "experiment_results_86.24.md must be re-derived", r)
+
+    # CONTROL: the same losses against a FRESH anchor DO breach, so the result
+    # above is the staleness rule and not an inert threshold.
+    _journal(isolated, _day(0))
+    fresh = ks.KillSwitchState()
+    monkeypatch.setattr(ks, "_state", fresh)
+    for nav in (95.0, 92.0):
+        r = ks.evaluate_breach(nav, 4.0, 10.0)
+        assert r["armed"] is True and r["any_breached"] is True, (nav, r)
 
 
 @pytest.mark.parametrize("offset", [-1, -2, -7, -365])
@@ -208,3 +267,53 @@ def test_the_two_repaired_modules_PASS_AT_A_SHIFTED_CLOCK():
         "the repaired modules FAIL when the local calendar day differs from the "
         f"UTC day -- the clock-dependence is still there:\n{proc.stdout[-2500:]}"
     )
+
+
+def test_the_poison_row_fixture_date_is_RECOMPUTED_not_snapshotted():
+    """The cycle-1 Q/A's second finding, pinned so it cannot come back.
+
+    `test_phase_86_2_replay_poison_row.py` originally read
+    `_UTC_TODAY = datetime.now(timezone.utc).date()` ONCE at module import,
+    while the value it is judged against (`kill_switch.py:986`) recomputes at
+    call time. If UTC midnight fell between collection and execution the fixture
+    would write yesterday's anchor and the test would go red -- the masterplan's
+    own definition of case (a), "a fixture that hard-codes or ONCE-COMPUTES a
+    date while the assertion recomputes it", introduced by the very step that
+    exists to remove it.
+
+    Why this test rather than another mutation cell: the failure only manifests
+    if the clock crosses midnight mid-run, so a mutant that re-snapshots CANNOT
+    be killed by an ordinary run -- it is an equivalent mutant under normal
+    conditions. Asserting the PROPERTY directly, with an injected clock that
+    advances a day between calls, makes it killable.
+    """
+    import importlib.util
+    import types
+
+    # TEST SEAM, disclosed: the mutation matrix needs to point this at a mutant
+    # COPY, because it reads the module by PATH and a copy elsewhere would
+    # otherwise never be exercised. Unset in every normal run.
+    import os
+    target = os.environ.get(
+        "PYFINAGENT_86_24_PROW_PATH",
+        str(REPO / "backend" / "tests" / "test_phase_86_2_replay_poison_row.py"))
+    spec = importlib.util.spec_from_file_location(
+        "_prow_for_recompute_check", target)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+
+    real_day = _dt.datetime.now(_dt.timezone.utc)
+    seq = iter([real_day, real_day + _dt.timedelta(days=1)])
+    mod._dt = types.SimpleNamespace(
+        datetime=types.SimpleNamespace(now=lambda tz=None: next(seq)),
+        timezone=_dt.timezone,
+        timedelta=_dt.timedelta,
+    )
+
+    first, second = mod._day(0), mod._day(0)
+    assert first != second, (
+        "the fixture date is SNAPSHOTTED, not recomputed: two calls straddling "
+        f"a clock advance both returned {first!r}. That is the once-computes "
+        "shape phase-86.24 exists to remove."
+    )
+    assert second == (real_day + _dt.timedelta(days=1)).date().isoformat()

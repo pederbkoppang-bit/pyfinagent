@@ -58,11 +58,31 @@ _POISON_INT = "1" + "0" * 400
 # MEASURED live incident where a two-day move was reported as a same-day loss.
 # So the assertion is NOT relaxed -- the fixture is made relative, and the stale
 # case gets its own test below instead of arriving by accident once a day.
-_UTC_TODAY = _dt.datetime.now(_dt.timezone.utc).date()
+# RECOMPUTED PER CALL, NOT SNAPSHOTTED AT IMPORT -- and the first version of
+# this helper got that wrong, in the file this very step was repairing.
+#
+# It read `_UTC_TODAY = datetime.now(timezone.utc).date()` at module level. The
+# value it is judged against (`kill_switch.py:986`, `_sod_date_is_stale`)
+# recomputes at CALL time, so if UTC midnight fell between this module's import
+# at collection and the execution of the test below, the fixture would write
+# YESTERDAY's anchor, the daily leg would correctly disarm, and the test would
+# go red -- which is precisely the failure phase-86.24 exists to remove, and
+# precisely the masterplan's own definition of case (a): "a fixture that
+# hard-codes or ONCE-COMPUTES a date while the assertion recomputes it".
+#
+# The evidence was already in this step's own mutation matrix and I misread it:
+# cell M2 pins `_UTC_TODAY` to a past date and is scored KILLED, i.e. the module
+# is PROVEN to go red whenever the import-time snapshot is a day behind
+# evaluation time. I read that as the guard working rather than as my own helper
+# being a member of the class. Found by the cycle-1 Q/A.
+#
+# The window was minutes rather than 24h (collection -> execution, ~376s on a
+# full run), but a narrower instance of a defect is still an instance of it.
 
 
 def _day(offset_days: int = 0) -> str:
-    return (_UTC_TODAY + _dt.timedelta(days=offset_days)).isoformat()
+    return (_dt.datetime.now(_dt.timezone.utc).date()
+            + _dt.timedelta(days=offset_days)).isoformat()
 
 
 def _ts(offset_days: int = 0, hhmmss: str = "00:00:00") -> str:
