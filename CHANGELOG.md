@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-10 | `9df1239f` | phase-86.31 cycle 3: correct both claim-accuracy defects the FAIL named |
 | 2026-08-10 | `fc17b0d1` | phase-86.31: record cycle-3 Q/A verdict VERBATIM -- FAIL by escalation |
 | 2026-08-10 | `9bf5e78b` | phase-86.31: add the execution-based separation proof + corrected production figures to the live_che |
 | 2026-08-10 | `d4638584` | fix(86.31): drop unused import -- I committed an F401 because my '&&' guarded only the echo, not the |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-10 | `9acce561` | phase-86: queue 86.38 (P1 deep-pipeline quota) and 86.39 (P3 cc_rail attribution) |
 | 2026-08-10 | `691e24a3` | docs: day report -- cycle a5654ab9 outcome, rail recovery, restarts done |
 | 2026-08-10 | `73ce11ba` | phase-86.34: close criterion 3's missing half -- poisoned-conftest cell + test seam |
-| 2026-08-10 | `1b7e4601` | phase-86.34: executable mutation matrix + live_check; repair two clock-dependent cells |
 
 ---
 
+### v6.93.80 — phase-86.31 cycle 3: correct both claim-accuracy defects the FAIL named (2026-08-10)
+
+- **phase-86.31 cycle 3: correct both claim-accuracy defects the FAIL named**
 ### v6.93.79 — phase-86.31: record cycle-3 Q/A verdict VERBATIM -- FAIL by escalation (2026-08-10)
 
 - **phase-86.31: record cycle-3 Q/A verdict VERBATIM -- FAIL by escalation**
