@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-10 | `a271ad1e` | phase-86.21: record the measured counter-blindness in the step text |
 | 2026-08-10 | `54f9eb0f` | docs: day report -- late-session append (86.31 proof, 86.29 started, rail drop) |
 | 2026-08-10 | `c806cad6` | phase-86.29: PLAN -- contract written, mechanism demonstrated before planning |
 | 2026-08-10 | `5f2a7caa` | phase-86.31: harness_log cycle 1209 -- NO VERDICT (rail drop); the step proved itself |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-10 | `ea7eb194` | phase-86.34: record cycle-2 Q/A verdict VERBATIM -- CONDITIONAL |
 | 2026-08-10 | `34302f05` | phase-86.34: harness_log cycle 1206 -- FAIL on a vacuous oracle I published as proof |
 | 2026-08-10 | `4e97374f` | phase-86.34 cycle 2: fix the FAIL -- correct the claim that survived, kill the vacuous oracle |
-| 2026-08-10 | `551d5188` | phase-86.34: record the Q/A verdict VERBATIM -- FAIL |
 
 ---
 
+### v6.93.85 — phase-86.21: record the measured counter-blindness in the step text (2026-08-10)
+
+- **phase-86.21: record the measured counter-blindness in the step text**
 ### v6.93.84 — phase-86.29: PLAN -- contract written, mechanism demonstrated before... (2026-08-10)
 
 - **phase-86.29: PLAN -- contract written, mechanism demonstrated before planning**
