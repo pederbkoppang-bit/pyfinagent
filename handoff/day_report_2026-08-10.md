@@ -209,3 +209,60 @@ longer writes the fabricated `"SELL"`.
 restart and no masterplan flip. The 86.19 work after that hour was a hook-file
 edit plus read-only checks, committed 19:47; that hook fires only on masterplan
 edits and has no interaction with the trading cycle.
+
+---
+
+## Late session (21:40-23:30 CEST) -- appended after the first close-out
+
+**86.31 -- the separation is now PROVEN, and the step still is not closed.**
+`scripts/qa/prove_qa_write_separation_86_31.py` drives the real hook as a
+subprocess and asserts exit codes: **15 cases, 8 BLOCK / 7 ALLOW**, so neither an
+always-allow nor an always-block guard passes. The ALLOW set deliberately
+includes the researcher rail (write-first is mandatory there). Liveness is
+checked first, with its own control.
+
+Four Q/A cycles: two CONDITIONAL, one **FAIL** (escalation, on two prose defects
+since corrected), one **rail drop**. The cycle-3 evaluator found **all 7 criteria
+MET**, built its own 4-mutant matrix against the real hook and found **no
+survivor**, and wrote: *"the mechanism is sound; the remedy is two paragraph
+corrections... no code change."* Those corrections landed. **Status stays
+`pending`** -- Main records verdicts, never authors them.
+
+**THE BEST EVIDENCE ARRIVED BY ACCIDENT.** Cycle 4 dropped -- 187,369 tokens, 36
+tool uses, empty return -- and **6,239 bytes of the evaluation survived on disk**,
+written 4 seconds after spawn. Before 86.31 that would have been zero. The
+artifact carried `STATUS: INCOMPLETE`, `qa_wip.py` returned `is_verdict: false`,
+and it was **not** treated as a verdict. Criterion 3 permits a real interrupted
+run or a simulation; this was the real one, unplanned, on the step whose purpose
+is exactly that.
+
+**86.29 STARTED** (`c806cad6`) -- contract on `origin/main`, criterion 2 proved
+inside it rather than deferred. The step-specific globs match **zero** files for
+every sid (they expect the sid at the front before a hyphen; the convention puts
+it at the end after an underscore), so the rolling branch is the only one that
+fires. And it is worse than the step recorded: the four rolling files are stale
+from **three different steps** (82.54, 82.6, 80.2), so an archive dir gets a
+mixture, not one wrong step.
+
+### Probe failures: SIX, not three
+
+The count in the first half of this report is now wrong and this supersedes it.
+Added late: a `grep -cF "one day behind"` whose literal was **line-wrapped** so it
+returned 0 at every SHA -- **that one cost a FAIL**; an apostrophe-injection test
+whose injected string contained **no apostrophe**; and a `--spawned-at` I took
+from my own narration instead of measuring, which the WIP reader correctly
+refused as STALE. Every one was a probe that could not produce the finding it
+searched for. Memory: `suspect-the-clean-check`.
+
+### What I could not verify
+
+- **86.31 is not closed and I will not flip it.** Four cycles, no PASS. The
+  mechanism is certified sound by an evaluator; the status is not mine to set.
+- **86.29 is at a PLAN boundary.** GENERATE needs a scratch-tree hook drive plus
+  mutation testing -- real work, not a 23:30 job.
+- **86.25 is closeable** (no outstanding remedy, one Q/A) but is parked under the
+  two-cycle rule. **86.30 can never reach PASS** -- contract written after code,
+  un-repairable.
+- **Budget: >8.7M subagent tokens, 9 rail drops in 51 runs (17.6%)** against a
+  7.5% all-time rate. Cycle 4 cost 187,369 tokens and returned nothing. This
+  remains the operator decision I flagged at 20:10 and have not had answered.
