@@ -29,6 +29,7 @@ redirect-before-construction (`__init__` replays).
 from __future__ import annotations
 
 import importlib.util
+import datetime as _dt
 import json
 import pathlib
 
@@ -43,6 +44,29 @@ _LIVE_AUDIT = REPO_ROOT / "handoff" / "kill_switch_audit.jsonl"
 # Below 310 `float()` succeeds; above 4300 `json.loads` itself raises ValueError
 # (int_max_str_digits) and the pre-existing per-line handler already caught it.
 _POISON_INT = "1" + "0" * 400
+
+# ── phase-86.24: the fixture's day must track the clock ─────────────────────
+# This module's fixtures used to pin "2026-08-09" -- the day they were written.
+# The kill switch judges a daily anchor against `datetime.now(timezone.utc).date()`
+# (kill_switch.py:986 via `_sod_date_is_stale`), so from 2026-08-10 onward the
+# anchor read STALE, the daily leg disarmed, and the assertion below that the
+# switch "can now actually fire" failed -- on any day but one.
+#
+# ADJUDICATED in phase-86.24: the staleness rule is CORRECT. It is per-LEG (the
+# date-independent trailing leg still fires), the order gate reads
+# `baselines_present` rather than `armed`, and phase-36.9 installed it against a
+# MEASURED live incident where a two-day move was reported as a same-day loss.
+# So the assertion is NOT relaxed -- the fixture is made relative, and the stale
+# case gets its own test below instead of arriving by accident once a day.
+_UTC_TODAY = _dt.datetime.now(_dt.timezone.utc).date()
+
+
+def _day(offset_days: int = 0) -> str:
+    return (_UTC_TODAY + _dt.timedelta(days=offset_days)).isoformat()
+
+
+def _ts(offset_days: int = 0, hhmmss: str = "00:00:00") -> str:
+    return f"{_day(offset_days)}T{hhmmss}+00:00"
 
 
 @pytest.fixture(autouse=True)
@@ -93,12 +117,12 @@ def test_c1_c2_a_poison_row_first_no_longer_strands_the_replay(monkeypatch, tmp_
     _write(
         tmp_path,
         # BEFORE the poison row (criterion 2's "before" half)
-        _row("2026-08-09T00:00:00+00:00", event="peak_update", nav=90.0),
+        _row(_ts(0, "00:00:00"), event="peak_update", nav=90.0),
         # the poison row
-        '{"ts": "2026-08-09T00:00:30+00:00", "event": "peak_update", "nav": %s}' % _POISON_INT,
+        '{"ts": "%s", "event": "peak_update", "nav": %s}' % (_ts(0, "00:00:30"), _POISON_INT),
         # AFTER it (criterion 2's "after" half)
-        _row("2026-08-09T00:01:00+00:00", event="sod_snapshot", nav=100.0, date="2026-08-09"),
-        _row("2026-08-09T00:02:00+00:00", event="peak_update", nav=100.0),
+        _row(_ts(0, "00:01:00"), event="sod_snapshot", nav=100.0, date=_day(0)),
+        _row(_ts(0, "00:02:00"), event="peak_update", nav=100.0),
     )
 
     st = ks.KillSwitchState()          # DETACHED, replays on construction
@@ -106,7 +130,7 @@ def test_c1_c2_a_poison_row_first_no_longer_strands_the_replay(monkeypatch, tmp_
 
     # Every WELL-FORMED row applied -- the ones before AND after the bad one.
     assert snap["sod_nav"] == 100.0, snap
-    assert snap["sod_date"] == "2026-08-09", snap
+    assert snap["sod_date"] == _day(0), snap
     assert snap["peak_nav"] == 100.0, snap
 
     # ...and the switch can now actually fire on a real 20% drawdown.
@@ -123,8 +147,8 @@ def test_c2_the_poison_value_itself_is_still_rejected(monkeypatch, tmp_path):
     _isolate(monkeypatch, tmp_path)
     _write(
         tmp_path,
-        '{"ts": "2026-08-09T00:00:30+00:00", "event": "peak_update", "nav": %s}' % _POISON_INT,
-        _row("2026-08-09T00:01:00+00:00", event="peak_update", nav=100.0),
+        '{"ts": "%s", "event": "peak_update", "nav": %s}' % (_ts(0, "00:00:30"), _POISON_INT),
+        _row(_ts(0, "00:01:00"), event="peak_update", nav=100.0),
     )
     st = ks.KillSwitchState()
     assert st.snapshot()["peak_nav"] == 100.0, "the oversized value must never become the peak"
@@ -183,9 +207,9 @@ def test_c3_a_skipped_row_marks_history_INCOMPLETE(monkeypatch, tmp_path):
     (tmp_path / "audit").mkdir(exist_ok=True)      # (1) -- else fixture-guaranteed
     _write(
         tmp_path,
-        _row("2026-08-09T00:00:00+00:00", event="peak_update", nav=90.0),
-        _row("2026-08-09T00:00:30+00:00", event="peak_update", nav=95.0),   # made to raise
-        _row("2026-08-09T00:01:00+00:00", event="sod_snapshot", nav=100.0, date="2026-08-09"),
+        _row(_ts(0, "00:00:00"), event="peak_update", nav=90.0),
+        _row(_ts(0, "00:00:30"), event="peak_update", nav=95.0),   # made to raise
+        _row(_ts(0, "00:01:00"), event="sod_snapshot", nav=100.0, date=_day(0)),
     )
 
     # PRECONDITION: without an injected fault this replay is CLEAN and the flag
@@ -230,8 +254,8 @@ def test_c3_MUTATION_the_bookkeeping_is_load_bearing(monkeypatch, tmp_path):
     audit = tmp_path / "c3_mutant.jsonl"
     (tmp_path / "audit").mkdir(exist_ok=True)
     audit.write_text(
-        _row("2026-08-09T00:00:30+00:00", event="peak_update", nav=95.0) + "\n"
-        + _row("2026-08-09T00:01:00+00:00", event="sod_snapshot", nav=100.0, date="2026-08-09") + "\n",
+        _row(_ts(0, "00:00:30"), event="peak_update", nav=95.0) + "\n"
+        + _row(_ts(0, "00:01:00"), event="sod_snapshot", nav=100.0, date=_day(0)) + "\n",
         encoding="utf-8",
     )
     mut._AUDIT_PATH = audit
@@ -263,7 +287,7 @@ def test_c3_a_clean_replay_still_reports_history_COMPLETE(monkeypatch, tmp_path)
     """
     _isolate(monkeypatch, tmp_path)
     (tmp_path / "audit").mkdir(exist_ok=True)
-    _write(tmp_path, _row("2026-08-09T00:01:00+00:00", event="peak_update", nav=100.0))
+    _write(tmp_path, _row(_ts(0, "00:01:00"), event="peak_update", nav=100.0))
     st = ks.KillSwitchState()
     assert st._history_complete is True, (
         "a replay with every source readable and no bad row must report COMPLETE"
@@ -334,9 +358,9 @@ def test_c4_mutation_reverting_BOTH_guards_strands_the_replay_again(monkeypatch,
     )
     audit = tmp_path / "mutant_audit.jsonl"
     audit.write_text(
-        '{"ts": "2026-08-09T00:00:30+00:00", "event": "peak_update", "nav": %s}\n' % _POISON_INT
-        + _row("2026-08-09T00:01:00+00:00", event="sod_snapshot", nav=100.0, date="2026-08-09") + "\n"
-        + _row("2026-08-09T00:02:00+00:00", event="peak_update", nav=100.0) + "\n",
+        '{"ts": "%s", "event": "peak_update", "nav": %s}\n' % (_ts(0, "00:00:30"), _POISON_INT)
+        + _row(_ts(0, "00:01:00"), event="sod_snapshot", nav=100.0, date=_day(0)) + "\n"
+        + _row(_ts(0, "00:02:00"), event="peak_update", nav=100.0) + "\n",
         encoding="utf-8",
     )
     mut._AUDIT_PATH = audit
@@ -366,8 +390,8 @@ def test_c4_reverting_only_the_except_is_now_HARMLESS(monkeypatch, tmp_path):
     )
     audit = tmp_path / "single_mutant_audit.jsonl"
     audit.write_text(
-        '{"ts": "2026-08-09T00:00:30+00:00", "event": "peak_update", "nav": %s}\n' % _POISON_INT
-        + _row("2026-08-09T00:01:00+00:00", event="sod_snapshot", nav=100.0, date="2026-08-09") + "\n",
+        '{"ts": "%s", "event": "peak_update", "nav": %s}\n' % (_ts(0, "00:00:30"), _POISON_INT)
+        + _row(_ts(0, "00:01:00"), event="sod_snapshot", nav=100.0, date=_day(0)) + "\n",
         encoding="utf-8",
     )
     mut._AUDIT_PATH = audit

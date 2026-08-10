@@ -8,7 +8,22 @@ does not count as a guard.
 from __future__ import annotations
 
 import json
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
+
+
+def _utc_today() -> str:
+    """phase-86.24: the clock domain PRODUCTION uses.
+
+    `data_ingestion._resolve_macro_end_date` (:344) and the vintage stamp
+    (:375) both read `datetime.now(timezone.utc).date()`. These tests used to
+    assert against `date.today()`, which is LOCAL. On CEST the two disagree
+    for exactly the window 00:00-02:00 every night, so both tests went red at
+    midnight on 2026-08-09 and healed themselves once the local date caught
+    up. That is a TIMEZONE-DOMAIN MISMATCH, not a time bomb -- the fix is to
+    ask production's question in production's units, and it makes the
+    assertion stricter rather than looser: it now fails if production ever
+    silently switches to local time."""
+    return datetime.now(timezone.utc).date().isoformat()
 
 import pytest
 
@@ -96,7 +111,7 @@ def test_macro_end_date_is_severed_from_backtest_end_date():
         f"macro observation_end resolved to {resolved!r}, which is not later than "
         "the pinned backtest_end_date -- the coupling that froze the table is back"
     )
-    assert resolved == date.today().isoformat()
+    assert resolved == _utc_today()
 
 
 def test_pinned_macro_end_date_is_honoured():
@@ -403,7 +418,7 @@ def test_ingested_rows_carry_a_vintage(monkeypatch):
     assert inserted_rows, "no rows were built"
     for r in inserted_rows:
         assert r.get("realtime_start"), f"row missing vintage stamp: {r}"
-        assert r["realtime_start"] == date.today().isoformat()
+        assert r["realtime_start"] == _utc_today()
 
     # and the URL must not carry the backtest cap
     assert "observation_end=2025-12-31" not in captured["url"]
