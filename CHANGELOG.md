@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-10 | `bd7184cd` | fix(isolation): phase-86.6 cycle 2 -- close a LIVE hole the Q/A found in my coverage claim |
 | 2026-08-10 | `0eec95fe` | fix(isolation): phase-86.6 -- close the subprocess channel, and test the filesystem preventer |
 | 2026-08-10 | `34dfbb39` | chore(masterplan): queue 86.24/86.25/86.26 -- defects found during 86.22 |
 | 2026-08-10 | `5631a161` | phase-86.22: close -- one recommendation vocabulary across seven consumers (Q/A PASS) |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-09 | `b9e4962c` | docs(86.17): cycle-2 Q/A returns PASS -- verdict verbatim + harness log |
 | 2026-08-09 | `a212dfe9` | fix(86.17): cycle-2 -- my checker sliced away the guard it was checking |
 | 2026-08-09 | `98b5eee9` | phase-86.17: close the args boundary on BOTH Layer-3 Workflow scripts |
-| 2026-08-09 | `178a6a59` | phase-86.17: contract (written BEFORE any code) |
 
 ---
 
+### v6.93.21 — fix(isolation): phase-86.6 cycle 2 -- close a LIVE hole the Q/A found... (2026-08-10)
+
+- **fix(isolation): phase-86.6 cycle 2 -- close a LIVE hole the Q/A found in my coverage claim**
 ### v6.93.20 — fix(isolation): phase-86.6 -- close the subprocess channel, and test... (2026-08-10)
 
 - **fix(isolation): phase-86.6 -- close the subprocess channel, and test the filesystem preventer**
