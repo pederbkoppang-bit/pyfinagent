@@ -58,8 +58,33 @@ more (3362) -- the uncovered-band test and the recompute property test.
 ## D. Criterion 3 -- the adjudication, measured not argued
 
 **CORRECTED IN CYCLE 2. The cycle-1 text here claimed the trailing leg covers the
-overnight window. That is FALSE IN A BAND, and the claim is replaced rather than
-softened.** Full sweep, `_AUDIT_PATH` redirected to tmp:
+overnight window. That is FALSE IN A BAND.**
+
+**Where the claim was withdrawn, stated as a location list rather than as a
+completeness claim** -- cycle 2's first attempt said "replaced rather than
+softened", which is a claim about the whole tree, and the cycle-2 Q/A showed it
+did not survive a recall test: the withdrawn sentence was still standing in live
+source two lines above an edit I had just made. Derived over the seven files this
+step owns or edited:
+
+| location | state |
+|---|---|
+| `experiment_results_86.24.md` §1 | struck through + replaced (cycle 2) |
+| `live_check_86.24.md` §D (this section) | replaced (cycle 2) |
+| `test_phase_86_24_clock_dependence.py` | test renamed; the false claim quoted only as history (cycle 2) |
+| `test_phase_86_2_replay_poison_row.py:55-58` | **MISSED in cycle 2, rewritten in cycle 3** -- live source, inside the comment block cycle 2 edited |
+| `contract_86.24.md` §2 | annotated in cycle 3 (dated artifact -- annotated, not rewritten) |
+| `research_brief_86.24.md` `:24/:101/:143/:356/:441` | annotated at the head in cycle 3 (dated artifact) |
+
+**Out of scope, and deliberately so:** a words-based sweep of the whole tree
+returns 161 hits for "trailing leg still fires" / "per-leg" / "still fires", and
+almost all are OTHER steps' claims about other guards. Prior work also stated the
+BOUNDED form correctly -- `experiment_results_85.6.md:244` says "bounding
+exposure to `[daily_limit, trailing_limit)`", which is exactly right. It was this
+step's cycle-1 wording that dropped the bound; other steps' dated artifacts are
+not rewritten here.
+
+Full sweep, `_AUDIT_PATH` redirected to tmp:
 
 ```
 anchor    nav   armed  stale  daily  trailing  ANY

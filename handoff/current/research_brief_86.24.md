@@ -1,5 +1,23 @@
 # Research Brief -- step 86.24
 
+> **ANNOTATION ADDED 2026-08-10 (phase-86.24 cycle 2) -- this brief is a DATED
+> artifact and is annotated, not rewritten.**
+>
+> This brief states in several places (`:24`, `:101`, `:143`, `:356`, `:441`)
+> that a stale daily anchor is covered because "the date-independent trailing leg
+> still fires". **That support is FALSE IN A BAND.** Measured after the brief was
+> written: with `sod=100/peak=100` at limits 4%/10%, a STALE anchor gives
+> `any_breached=False` at nav 95 (5% loss) and 92 (8%); the trailing leg only
+> picks up at a >=10% drawdown, so `[4%, 10%)` is uncovered.
+>
+> The brief's CONCLUSION -- that the staleness rule is correct and there is no
+> live defect -- **stands**, and the brief itself already reaches the decisive
+> support at `:143` (the 85.6 Step-0 roll). What is wrong is the emphasis: the
+> load-bearing reason is the ORDERING, `paper_trader.py:1413` re-anchoring before
+> `evaluate_breach` at `:1460`, with `:1468` keying on `any_breached` and never on
+> `armed`. See `experiment_results_86.24.md` §1 and its CYCLE 2 section.
+
+
 **Topic:** How should a long-running project stop its test suite from changing colour
 with the wall clock, WITHOUT hiding real staleness defects?
 **Tier:** moderate. **Audit-class:** YES (loop-until-dry, K=2).

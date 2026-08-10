@@ -52,12 +52,30 @@ _POISON_INT = "1" + "0" * 400
 # anchor read STALE, the daily leg disarmed, and the assertion below that the
 # switch "can now actually fire" failed -- on any day but one.
 #
-# ADJUDICATED in phase-86.24: the staleness rule is CORRECT. It is per-LEG (the
-# date-independent trailing leg still fires), the order gate reads
-# `baselines_present` rather than `armed`, and phase-36.9 installed it against a
-# MEASURED live incident where a two-day move was reported as a same-day loss.
-# So the assertion is NOT relaxed -- the fixture is made relative, and the stale
-# case gets its own test below instead of arriving by accident once a day.
+# ADJUDICATED in phase-86.24: the staleness rule is CORRECT, and phase-36.9
+# installed it against a MEASURED live incident where a two-day move was reported
+# as a same-day loss. So the assertion below is NOT relaxed -- only the fixture's
+# DAY is made relative.
+#
+# WHY IT IS HARMLESS -- and this sentence was WRONG in cycle 1 of 86.24, so read
+# it carefully. The cycle-1 wording said "the date-independent trailing leg still
+# fires", i.e. that a stale anchor leaves the book covered. MEASURED, that is
+# FALSE between the two limits: with sod=100/peak=100 at 4%/10%, a STALE anchor
+# gives any_breached=False at nav 95 (5% loss) and 92 (8%). The trailing leg only
+# picks up at a >=10% drawdown.
+#
+# The real reason there is no live defect is the ORDERING in the enforcement
+# path: `paper_trader.check_and_enforce_kill_switch` re-anchors at :1413
+# (`sod_anchor_needs_reroll`) BEFORE calling `evaluate_breach` at :1460, and the
+# flatten branch at :1468 keys on `any_breached`, never on `armed`. So the code
+# that decides whether to flatten is never handed a stale anchor at all; the
+# uncovered band is reachable only by a READ-ONLY caller such as the badge
+# endpoint.
+#
+# That band is pinned by
+# `test_phase_86_24_clock_dependence.py::test_a_stale_anchor_leaves_the_band_between_the_two_limits_UNCOVERED`
+# (a different module -- this one's fixtures need an ARMED daily leg, which is
+# why the stale case cannot live here).
 # RECOMPUTED PER CALL, NOT SNAPSHOTTED AT IMPORT -- and the first version of
 # this helper got that wrong, in the file this very step was repairing.
 #

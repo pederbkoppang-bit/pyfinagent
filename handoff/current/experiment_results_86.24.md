@@ -296,3 +296,88 @@ assertion and is KILLED.
   `PYFINAGENT_86_24_PROW_PATH` so the mutation matrix can point it at a mutant
   copy. Unset in every normal run; it exists because the test reads its subject
   by path and a copy elsewhere would otherwise never be exercised.
+
+---
+
+# CYCLE 3 -- the cycle-2 finding fixed, and the step is PARKED (not closed)
+
+The cycle-2 verdict was **CONDITIONAL** with ONE violation, and it was the
+sharpest of the three findings across this step:
+
+> the support I had *myself withdrawn as false* survived verbatim and unannotated
+> in **live source**, at `test_phase_86_2_replay_poison_row.py:55-58` -- inside
+> the very comment block cycle 2 edited two lines below -- while
+> `live_check_86.24.md` §D asserted the claim "is replaced rather than softened".
+
+**That is a completeness claim, and it did not survive a recall test.** It is the
+same shape as the two findings before it and the same shape as this step's own
+subject: I fixed the occurrences I was looking at and asserted the class was
+closed.
+
+## What was actually wrong with my first attempt at the fix
+
+My first sweep for the withdrawn proposition was a **words-based grep** for
+"trailing leg still fires" / "per-leg" / "still fires", and it returned **161
+hits tree-wide**. Almost none were the proposition: `36.12`'s per-leg
+independence, `82.11`'s "still fires", dozens of archived critiques. That is the
+same proxy error as the "no pinned calendar dates" tripwire earlier in this step
+-- a check that flags legitimate cases is not a check.
+
+Two facts that narrowed it correctly:
+
+1. **The population is the files THIS step owns or edited** -- seven of them.
+   Other steps' dated artifacts are not mine to rewrite, and the cycle-2 Q/A said
+   so explicitly.
+2. **Prior work already had it right.** `experiment_results_85.6.md:244` says
+   *"trailing leg still fires, bounding exposure to `[daily_limit,
+   trailing_limit)`"* -- the bounded form, which is exactly correct and matches
+   my measurement. **It was this step's cycle-1 wording that dropped the bound.**
+   So the defect is mine and local, not a tree-wide myth.
+
+## Fixed
+
+| location | action |
+|---|---|
+| `test_phase_86_2_replay_poison_row.py:55-58` | **rewritten** -- states the roll-before-evaluate ordering, gives the measured band, and cross-references the band test in the other module (with a note on why the stale case cannot live in this one) |
+| `contract_86.24.md` §2 | **annotated**, struck through with the measurement and the corrected support -- a dated artifact, so annotated rather than rewritten |
+| `research_brief_86.24.md` `:24/:101/:143/:356/:441` | **annotated at the head** -- dated artifact; notes that the brief's own `:143` already reached the decisive support |
+| `live_check_86.24.md` §D | the completeness claim is **replaced by a location table**, which is auditable in a way "replaced rather than softened" was not |
+
+Verified after: immutable command **24 passed**; all three modules **34 passed**;
+under `TZ=Pacific/Midway` **34 passed**; `handoff/kill_switch_audit.jsonl`
+`ea78508bee73887c...` byte-identical.
+
+## DISPOSITION -- PARKED, and why not a third Q/A
+
+The operator's standing rule is **park any step that will not close after 2 Q/A
+cycles, with a written disposition**. This step has had two, both CONDITIONAL.
+A third Q/A would also arm the 3rd-CONDITIONAL escalation, which converts an
+honest CONDITIONAL into a FAIL -- and every finding so far has been a
+rationale/disclosure defect on top of substance that both evaluators measured as
+correct. Turning that into a FAIL on a counter would be the harness logging
+instead of correcting.
+
+**Nothing here is unsafe to leave as it stands, and everything shipped is a
+tightening:**
+
+- The immutable command went from **1 failed / 23 passed** to **24 passed**.
+- The clock-dependence population is empty along the covered axis: **15 failed /
+  3362 passed under BOTH clocks, delta empty**.
+- `kill_switch.py` is byte-unchanged and **no assertion was weakened** --
+  `daily_loss_breached is True` is byte-identical across `d5180e27^..HEAD`.
+- The staleness rule GAINED coverage it never had: the stale path, the
+  uncovered band, four staleness offsets, and the recompute property.
+- Both evaluators independently verified the adjudication's conclusion: **there
+  is no live defect.** The cycle-2 Q/A enumerated all six `evaluate_breach`
+  callers to confirm it.
+
+**What a fresh session needs to do to close it:** one Q/A pass on the cycle-3
+tree. There is no known outstanding remedy -- the cycle-2 path-to-pass is fully
+executed. If a third CONDITIONAL does arrive, the escalation makes it a FAIL, so
+the next session should read this disposition first and decide deliberately
+rather than spawn reflexively.
+
+**Open and disclosed, unchanged:** the TZ-vs-UTC blind spot (needs
+`time-machine`, not installed, an operator ask); the `.json`/`.csv` fixture-date
+gap; the disclosed `PYFINAGENT_86_24_PROW_PATH` test seam; and phase-86.27's
+`ebeb03da` fix, which no Q/A has graded.

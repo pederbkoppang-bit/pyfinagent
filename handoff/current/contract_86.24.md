@@ -29,10 +29,18 @@ production staleness defect. The TEST hard-codes an ageing date.**
 
 The evidence, measured rather than argued:
 
-- **The rule is PER-LEG.** `kill_switch.py:865-867` computes
-  `daily_baseline_stale` and disarms only the **daily** leg. Measured:
-  `evaluate_breach` returns `any_breached: True` with `armed: False` -- the
-  date-independent **trailing** leg still fires. The book is not uncovered.
+- ~~**The rule is PER-LEG.** ... the date-independent **trailing** leg still
+  fires. The book is not uncovered.~~
+  **WITHDRAWN 2026-08-10 (86.24 cycle 2). This support is FALSE IN A BAND and
+  the contract is annotated rather than rewritten, because it is a dated
+  artifact.** Measured: with a STALE anchor, `sod=100/peak=100` at limits
+  4%/10%, `any_breached` is **False** at nav 95 (5% loss) and 92 (8%) -- the
+  trailing leg only picks up at a >=10% drawdown, so the band `[4%, 10%)` is
+  uncovered. The adjudication's CONCLUSION is unchanged and correct; the
+  decisive support is instead that the enforcement path re-anchors at
+  `paper_trader.py:1413` BEFORE `evaluate_breach` at `:1460`, and `:1468` keys
+  on `any_breached`, never on `armed`. See `experiment_results_86.24.md` §1 and
+  the CYCLE 2 section.
 - **It was installed against a MEASURED live incident** (`kill_switch.py:857-861`):
   on 2026-07-26 the badge served `sod_date=2026-07-24` with `armed: true`, and a
   **two-day** move was being reported as a same-day loss -- losing same-day

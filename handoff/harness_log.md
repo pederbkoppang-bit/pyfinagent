@@ -32762,3 +32762,66 @@ request reusing a socket opened by an earlier GET emits no fresh
 assertion (`example.com:8000 -> False`), disclosed rather than discovered later.
 Nothing in this step touches production code: `git diff --name-only cad38647 HEAD
 -- '*.py'` outside `backend/tests`, `scripts/qa` and `conftest.py` is empty.
+
+---
+
+## Cycle 1198 -- 2026-08-10 -- phase=86.24 result=PARKED
+
+**Two Q/A cycles, both CONDITIONAL, both on rationale/disclosure rather than
+behaviour. Parked per the operator's 2-cycle rule with the disposition in
+`experiment_results_86.24.md`. Status stays `pending`; nothing is claimed closed.**
+
+**What the step established, and both evaluators verified independently:** the
+kill-switch daily-anchor staleness is **correct by design** -- there is no live
+defect. And the three tests that changed colour at midnight had **two different
+mechanisms**, two hours apart: a pinned fixture date judged against now, and a
+timezone-domain mismatch (production resolves in UTC, the tests asserted against
+local `date.today()`, which on CEST disagree exactly 00:00-02:00 nightly).
+
+**Shipped:** immutable command `1 failed / 23 passed` -> `24 passed`; the
+clock-dependence population empty along the covered axis (`15 failed / 3362
+passed` under BOTH clocks, delta empty); mutation matrix 7/7; `kill_switch.py`
+byte-unchanged; **no assertion weakened**; and the staleness rule gained coverage
+it never had.
+
+**Three findings across two cycles, and they are ONE defect wearing three
+costumes -- I had the disconfirming evidence in hand each time and read it as
+confirmation:**
+
+1. **(cycle 1) My headline support was false in a band.** I justified "a stale
+   anchor is harmless" with "the trailing leg still fires". Measured: with
+   `sod=100/peak=100` at 4%/10%, a STALE anchor gives `any_breached=False` at nav
+   95 and 92 -- the band `[4%, 10%)` is uncovered. **My guard exercised only
+   `nav=80.0`**, above the trailing limit, so it was structurally incapable of
+   seeing the gap it claimed to close. The conclusion survives on the ORDERING:
+   `paper_trader.py:1413` re-anchors before `evaluate_breach` at `:1460`, and
+   `:1468` keys on `any_breached`, never `armed`.
+2. **(cycle 1) I introduced a member of the class this step removes**, in the
+   file it repaired: `_UTC_TODAY` computed once at import while production
+   recomputes at call time -- the masterplan's case (a) verbatim. **The proof was
+   already in my own mutation matrix**: cell M2 pins that date and is scored
+   KILLED, which demonstrates the failure mode. I read it as the guard working.
+3. **(cycle 2) The support I had myself withdrawn survived in LIVE SOURCE**, two
+   lines above an edit I had just made, while my artifact asserted the claim
+   "is replaced rather than softened" -- a completeness claim that did not
+   survive a recall test.
+
+**And the first attempt at fixing (3) repeated the same error a fourth time:** a
+words-based grep for the proposition returned **161 tree-wide hits**, almost all
+other steps' unrelated claims. Narrowing it needed two facts -- the population is
+the seven files this step owns, and **prior work already stated the BOUNDED form
+correctly** (`experiment_results_85.6.md:244`: "bounding exposure to
+`[daily_limit, trailing_limit)`"). The dropped bound was mine alone.
+
+**Cycle 3 fixed it in the right places:** live source rewritten to the ordering
+with the measured band and a cross-reference; the contract and the brief
+**annotated rather than rewritten** (dated artifacts); and `live_check` §D's
+completeness claim replaced by an auditable **location table**.
+
+**To close:** one Q/A pass on the cycle-3 tree. The cycle-2 path-to-pass is fully
+executed and no remedy is outstanding. **A third CONDITIONAL would arm the
+escalation and become a FAIL**, so the next session should read the disposition
+and decide deliberately rather than spawn reflexively.
+
+Commits: `d5180e27` (cycle 1 code), `7a829c09` (cycle-1 artifacts), `7eb85983`
+(cycle-2 code), `14b8d32b` (cycle-2 artifacts), plus cycle 3.
