@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-10 | `a108b9c9` | phase-86.26: close -- the Q/A lint gate is usable on the learn-loop modules again (Q/A PASS) |
 | 2026-08-10 | `55c40973` | phase-86.26 cycle 2: exhibit the failure SETS instead of asserting they match |
 | 2026-08-10 | `1ed39ccd` | fix(hygiene): phase-86.26 -- remove 7 dead imports so the Q/A lint gate is usable again |
 | 2026-08-10 | `a16fa5a2` | phase-86.26: research gate PASSED + contract (before any removal) |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-10 | `a87add72` | fix(vocab): phase-86.22 -- one recommendation vocabulary across six consumers |
 | 2026-08-10 | `f21129e5` | phase-86.22: research gate PASSED + contract; day report corrected with the measured corpus state |
 | 2026-08-10 | `73398c5a` | docs: regenerate the goal from measured state (cycles resume at 200) |
-| 2026-08-10 | `802a8535` | docs: day report 2026-08-10 -- the book CAN trade, next cycle 14:00 ET today |
 
 ---
 
+### v6.93.32 — phase-86.26: close -- the Q/A lint gate is usable on the learn-loop m... (2026-08-10)
+
+- **phase-86.26: close -- the Q/A lint gate is usable on the learn-loop modules again (Q/A PASS)**
 ### v6.93.31 — phase-86.26 cycle 2: exhibit the failure SETS instead of asserting th... (2026-08-10)
 
 - **phase-86.26 cycle 2: exhibit the failure SETS instead of asserting they match**
