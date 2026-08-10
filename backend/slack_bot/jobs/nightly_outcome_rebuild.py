@@ -5,6 +5,7 @@ import logging
 from typing import Any, Callable
 
 from backend.slack_bot.job_runtime import IdempotencyKey, IdempotencyStore, heartbeat
+from backend.services.recommendation_vocab import resolve_outcome_recommendation  # phase-86.25
 
 logger = logging.getLogger(__name__)
 JOB_NAME = "nightly_outcome_rebuild"
@@ -61,10 +62,30 @@ def _compute_outcomes(trades: list[dict]) -> list[dict]:
             pnl = 0.0
         # `analysis_date` and `recommendation` are REQUIRED at the destination,
         # so neither may fall through as None: analysis_id is the recommendation
-        # identity and created_at is the SELL timestamp; risk_judge_decision is
-        # the decision that was acted on, and the trade action is the fallback.
+        # identity and created_at is the SELL timestamp.
+        #
+        # CORRECTED phase-86.25: this comment used to continue "...risk_judge_decision
+        # is the decision that was acted on, and the trade action is the fallback",
+        # which described the line below as it was AND asserted that the fallback was
+        # legitimate. It was not -- the trade action is not a recommendation -- and a
+        # comment blessing the defect is how it survived review. Left as a correction
+        # rather than a deletion so the next reader can see what was believed.
         analysis_date = t.get("analysis_id") or t.get("created_at")
-        recommendation = t.get("risk_judge_decision") or t.get("action")
+        # phase-86.25 (S2). WAS: `t.get("risk_judge_decision") or t.get("action")`.
+        # THIS is the seam that wrote the three live 'SELL'-spelled
+        # outcome_tracking rows: `risk_judge_decision` is empty on 32/32 SELL
+        # trades (MEASURED), so the `or` fell through to the trade ACTION and a
+        # literal "SELL" was persisted where an ANALYST RECOMMENDATION was
+        # expected. An action is not a recommendation -- the trade going out is
+        # not a call that it should. Unlike S1 this job is NOT behind
+        # `paper_learn_loop_enabled`; it runs on cron at 04:00 UTC, so this line
+        # has been producing mislabelled rows in production.
+        #
+        # Resolved at the boundary now: a real analyst recommendation or an
+        # explicit UNKNOWN. Row COUNT is unchanged -- UNKNOWN is truthy, so the
+        # skip below still does not fire and no close is silently dropped; only
+        # the label changes, from a fabricated direction to an honest absence.
+        recommendation = resolve_outcome_recommendation(t.get("analyst_recommendation"))
         if not analysis_date or not recommendation:
             # SKIP rather than fabricate. BigQuery's REQUIRED mode rejects NULL
             # but ACCEPTS an empty string, so a `or ""` fallback would happily

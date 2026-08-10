@@ -1,5 +1,6 @@
 # Researcher Agent Memory Index
 
+- [Degraded-branch direction 86.30](project_degraded_branch_direction_86_30.md) — `is_global` = ROUTABILITY not OWNERSHIP (6 of this Mac's 17 own addrs are is_global=True); the defect was already Q/A note N1; psutil in ZERO requirements files
 - [Clock-dependent tests 86.24](project_clock_dependent_tests_86_24.md) — three midnight tests = TWO bugs 2h apart (local-vs-UTC window vs a true time bomb); staleness is correct-by-design; only a shifted-clock differential run has validatable recall
 - [Unknown direction 86.25](project_unknown_direction_86_25.md) — live symptom is 100% HOLD not APPROVE/BUY; `.get` default never fires on a present-but-EMPTY value; attribute writer-less rows by NULL-constant columns + identical-MICROSECOND timestamps; `is_directional` already built, uncalled
 - [Silent tier downgrade 86.28](project_silent_tier_downgrade_86_28.md) — ABSENT vs UNSUPPORTED is the whole question; `enum` is NOT stripped so it can make an honest report unrepresentable; coverage.dry unverifiable in principle

@@ -145,23 +145,55 @@ def test_phase_35_1_flag_on_yfinance_early_return_triggers_fallback(mock_bq, set
         assert instance._generate_and_persist_reflections.called
 
 
-def test_phase_35_1_empty_risk_judge_decision_coerced_to_hold(mock_bq, settings_flag_on):
-    """closure_roadmap §3 BQ-probe B-5: stop_loss_trigger SELLs have
-    risk_judge_decision=''. The dispatcher MUST coerce empty/whitespace
-    to 'HOLD' so OutcomeTracker doesn't barf on the empty string."""
+def test_phase_86_25_empty_risk_judge_decision_becomes_UNKNOWN_not_HOLD(
+        mock_bq, settings_flag_on):
+    """REPLACES `test_phase_35_1_empty_risk_judge_decision_coerced_to_hold`,
+    which pinned the DEFECT.
+
+    The old test asserted `rec_arg == "HOLD"` and described the coercion as
+    something the dispatcher "MUST" do so OutcomeTracker "doesn't barf on the
+    empty string". Avoiding a barf was a real need; spelling the marker "HOLD"
+    was the wrong way to meet it. "HOLD" is IN-DOMAIN -- a considered neutral
+    call -- so once persisted no reader can tell "the analyst said hold" from
+    "we had nothing to say". That is PEP 661's named anti-pattern, and the test
+    froze it in place.
+
+    phase-86.25 resolves the vocabulary at the boundary instead: the dispatcher
+    hands `evaluate_recommendation` a real analyst recommendation or an explicit
+    out-of-domain UNKNOWN. The empty string is still never passed through, so
+    the original concern is still met.
+
+    This test is kept (not deleted) and still drives the REAL
+    `_learn_from_closed_trades`, because it is the behavioural coverage of that
+    call site: revert the fix and this goes red.
+    """
+    from backend.services.recommendation_vocab import (
+        UNKNOWN_RECOMMENDATION, is_directional,
+    )
+
     with patch("backend.services.outcome_tracker.OutcomeTracker") as MockTracker:
         instance = MockTracker.return_value
         instance.evaluate_recommendation.return_value = {
             "ticker": "COHR", "analysis_date": "2026-04-27T00:00:00",
-            "recommendation": "HOLD", "return_pct": 17.89, "holding_days": 25,
+            "recommendation": UNKNOWN_RECOMMENDATION,
+            "return_pct": 17.89, "holding_days": 25,
         }
         instance._generate_and_persist_reflections = MagicMock()
         _run_learn(mock_bq, settings_flag_on)
 
-        # evaluate_recommendation called with 'HOLD' (coerced from '')
         call_args = instance.evaluate_recommendation.call_args
         ticker_arg, date_arg, rec_arg, price_arg = call_args.args
-        assert rec_arg == "HOLD"
+
+        assert rec_arg == UNKNOWN_RECOMMENDATION, (
+            f"got {rec_arg!r}; the dispatcher must pass an explicit unknown, not a "
+            "fabricated HOLD and not a risk-approval token"
+        )
+        assert rec_arg != "HOLD", "REGRESSION: the in-domain marker is back"
+        assert rec_arg != "", "the empty string must still never reach the tracker"
+        assert not is_directional(rec_arg), (
+            "the marker must be non-directional, or every unlabelled outcome starts "
+            "scoring as a real call"
+        )
 
 
 def test_phase_35_1_field_default_off():

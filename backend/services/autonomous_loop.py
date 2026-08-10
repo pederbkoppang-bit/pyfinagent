@@ -23,6 +23,7 @@ from backend.db.bigquery_client import BigQueryClient
 from backend.services.paper_trader import PaperTrader
 from backend.services.portfolio_manager import decide_trades
 from backend.tools.screener import screen_universe, rank_candidates, get_sp500_tickers, get_russell1000_tickers
+from backend.services.recommendation_vocab import resolve_outcome_recommendation  # phase-86.25
 
 logger = logging.getLogger(__name__)
 
@@ -3409,12 +3410,30 @@ async def _learn_from_closed_trades(tickers: list[str], bq: BigQueryClient, sett
             analysis_date = trade.get("analysis_id") or trade.get("created_at", "")
             if hasattr(analysis_date, "isoformat"):
                 analysis_date = analysis_date.isoformat()
-            recommendation = trade.get("risk_judge_decision", "HOLD")
-            # phase-35.1: stop_loss_trigger SELLs may have empty risk_judge_decision
-            # (per BQ-probe B-5 in closure_roadmap §3); coerce empty string to a
-            # neutral recommendation so OutcomeTracker doesn't barf downstream.
-            if not recommendation or not str(recommendation).strip():
-                recommendation = "HOLD"
+            # phase-86.25 (S1). WAS: `recommendation = trade.get(
+            # "risk_judge_decision", "HOLD")` followed by an empty-string coercion
+            # to the literal "HOLD". Two defects in one line.
+            #
+            # (a) `risk_judge_decision` is an APPROVAL vocabulary -- MEASURED over
+            #     the same table this reads: APPROVE_REDUCED 15, REJECT 3,
+            #     APPROVE_HEDGED 1, and NOT ONE value on the BUY/HOLD/SELL scale.
+            #     Passing it to a parameter typed for an analyst recommendation is
+            #     the phase-86.22 defect arriving through a different door.
+            # (b) the "HOLD" coercion used an IN-DOMAIN value as the missing-data
+            #     marker (PEP 661's named anti-pattern), so a reader could not tell
+            #     "the analyst said hold" from "we had nothing".
+            #
+            # The vocabulary is now resolved AT THE BOUNDARY: hand over a real
+            # analyst recommendation or nothing. Nothing is what is available --
+            # MEASURED 2026-08-10: the anchor is reachable for 0 of 32 SELL rows
+            # (analysis_id empty 32/32; round_trip_id one-sided 32/32 SELL vs 0/33
+            # BUY, so the BUY leg cannot be reached). So this resolves to
+            # UNKNOWN today, and UNKNOWN is non-directional by construction --
+            # `directionally_correct` becomes False for an honest reason (no
+            # direction was known) instead of a dishonest one (a fabricated hold).
+            recommendation = resolve_outcome_recommendation(
+                trade.get("analyst_recommendation")
+            )
             price_at_rec = trade.get("price", 0.0)
             outcome = tracker.evaluate_recommendation(
                 ticker, str(analysis_date), recommendation, price_at_rec

@@ -24571,6 +24571,27 @@
             ],
             "live_check": "live_check_86.34.md with: the zoneinfo direction measurement for N1 plus a grep proving the old sentence is gone from both files; the before/after swept-conftest counts for N2; the mutation output for the new cell; the REGENERATED capture block for N3; and the masterplan diff showing 86.24 untouched."
           }
+        },
+        {
+          "id": "86.35",
+          "status": "pending",
+          "priority": "P2",
+          "harness_required": true,
+          "retry_count": 0,
+          "max_retries": 3,
+          "name": "[P2 -- THE LEARN LOOP'S SCORER RAISES TypeError ON EVERY REAL ROW, AND A COMMENT ASSERTS THE OPPOSITE] FOUND 2026-08-10 while building 86.25's reproduce case; filed per the standing queue-discovered-defects rule and NOT fixed there (different defect, different fix, and 86.25's tree stays scoped). REPRODUCE BEFORE FIXING. `backend/services/outcome_tracker.py::evaluate_recommendation` does `rec_date = datetime.fromisoformat(analysis_date)` and then `(datetime.now(timezone.utc).replace(tzinfo=None) - rec_date).days`. The comment immediately above it reads 'phase-16.36: rec_date from fromisoformat is naive; strip tzinfo from datetime.now(timezone.utc) before subtraction to avoid TypeError'. THAT COMMENT IS FALSE FOR THE ACTUAL INPUTS, and the code it justifies is what raises. MEASURED 2026-08-10: `_learn_from_closed_trades` sets `analysis_date = trade.get('analysis_id') or trade.get('created_at')`; `analysis_id` is EMPTY on 32/32 SELL rows, so the anchor is always `created_at`, and 32/32 SELL rows carry a tz-AWARE created_at (e.g. '2026-05-14T18:02:54.506004+00:00'). `fromisoformat` on that returns an AWARE datetime, so subtracting it from a NAIVE now() raises `TypeError: can't subtract offset-naive and offset-aware datetimes` -- for every candidate row, every time. Verify with: `python3 -c \"from datetime import datetime,timezone; d=datetime.fromisoformat('2026-05-14T18:02:54.506004+00:00'); print(d.tzinfo); (datetime.now(timezone.utc).replace(tzinfo=None)-d)\"`. WHY NOBODY NOTICED: the call sits inside a broad `try:` in `_learn_from_closed_trades` whose handler logs and continues, so the raise is swallowed per ticker. The learn loop therefore does not merely MISLABEL outcomes on this path (that is 86.25) -- it never scores them AT ALL. The two defects stack: 86.25 fixes the label, this fixes whether the scorer is reached. CONSEQUENCE: `outcome_tracking` is not being populated from the S1 path regardless of `paper_learn_loop_enabled`, and any claim that the learn loop 'runs' on this path is unsupported until this is fixed. NOT CLAIMED: no money path, no lost trade, no lost P&L -- this is the evaluation path. SCOPE NOTE: the fix is NOT simply `.replace(tzinfo=None)` on rec_date -- that discards a real offset and silently shifts holding_days for any non-UTC anchor. Normalise BOTH sides to aware-UTC, or parse to aware and compare aware. Decide deliberately and state which. NON-SCOPE: do not widen the surrounding try/except to hide the class again; do not change 86.25's vocabulary boundary; do not alter `holding_days` semantics beyond making the subtraction well-defined.",
+          "verification": {
+            "command": "bash -c 'source .venv/bin/activate && python -m pytest backend/tests/ -q -k \"outcome_tracker or learn_loop\"'",
+            "success_criteria": [
+              "REPRODUCE FIRST: drive the REAL evaluate_recommendation with a tz-aware anchor taken from the live table and capture the verbatim TypeError, then show the same call succeeding after the fix. A fix whose defect was never demonstrated does not count.",
+              "The population is RE-DERIVED, not copied: report how many SELL rows carry a tz-aware created_at and how many carry a non-empty analysis_id, with the query shown. (Measured 2026-08-10: 32/32 aware, 0/32 analysis_id -- re-derive, do not trust.)",
+              "The FALSE COMMENT is corrected in place, not deleted: state that fromisoformat preserves the offset and that the inputs are aware, so a future reader cannot re-derive the same wrong conclusion.",
+              "holding_days is proven UNCHANGED for an anchor that was already naive, and CORRECT for an aware one: show both, with the expected integer computed independently of the code under test.",
+              "The swallowing try/except is addressed explicitly: either the exception is no longer possible, or the handler distinguishes 'no data' from 'the scorer crashed' in what it logs. A silent per-ticker continue that hides a crash class is what let this run unnoticed.",
+              "Mutation-test the fix: revert it and prove a NAMED assertion goes red; and mutate the naive/aware normalisation itself (e.g. drop one side's tz) and prove holding_days changes detectably."
+            ],
+            "live_check": "live_check_86.35.md with: the verbatim TypeError before the fix and the successful call after; the re-derived tz-aware / analysis_id counts with the query; the naive-anchor and aware-anchor holding_days comparison; and the mutation output."
+          }
         }
       ]
     }
