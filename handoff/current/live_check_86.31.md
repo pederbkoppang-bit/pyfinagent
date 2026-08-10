@@ -1689,11 +1689,29 @@ reason.
 
 **Liveness is checked FIRST, and the liveness probe has its own control
 (criterion 5).** The hook is **fail-open** and its python lives inside a bash
-single-quoted block, so a single apostrophe makes it a `SyntaxError` -- at which
-point it ALLOWS EVERYTHING while every deny assertion above still passes for the
-wrong reason. That break really occurred on 2026-08-10. The probe compiles the
-embedded source, and an injected apostrophe is verified to trip it, so a dead
-guard fails the run before any decision is graded.
+single-quoted block, so a stray apostrophe breaks it. The probe compiles the
+embedded source; a dead guard fails the run before any decision is graded.
+
+**[CORRECTED -- the cycle-3 Q/A measured this and my account was wrong.]** The
+paragraph here previously said "a single apostrophe makes it a `SyntaxError` --
+at which point it ALLOWS EVERYTHING". **Both halves are false.** Measured by
+running each variant as a real script:
+
+| injection | `qa`->prod | `Main`->prod | effect |
+|---|---|---|---|
+| **1 apostrophe (odd)** | rc=2 | **rc=2** | **BLOCKS EVERYTHING**, Main included -- a **bash** parse error, not a Python one. Loud, session-bricking, not silent. |
+| **2 apostrophes (even)** | **rc=0** | **rc=0** | quotes RE-PAIR, the script parses, the python body is mangled -> **SILENT FAIL-OPEN** |
+| compile error, no apostrophe | rc=0 | rc=0 | silent fail-open |
+
+The real hazard is the **even** case and the plain compile/runtime/missing-python
+shapes -- my text named the loud one and so **understated** it. The probe itself
+is unaffected and catches all three (verified DEAD on each). This is recorded
+rather than silently rewritten because the error is the same shape as the rest of
+this file: a plausible causal story asserted instead of measured.
+
+**My own first attempt to verify this was also broken** -- I injected the string
+`# it is here`, which contains no apostrophe at all, measured no change, and was
+one step from reporting the evaluator wrong. The fifth broken probe of the day.
 
 **Criterion 2 -- which mechanism enforces no-self-eval now that the blanket deny
 is gone:** the path allowlist, checked after `os.path.normpath`. The traversal
@@ -1719,16 +1737,27 @@ hook blocks them. Corrected above; the error is recorded rather than quietly
 replaced, because it is the same probe-weaker-than-subject shape this file
 already documents twice.
 
-**The log is also contaminated by my own test drives** (identities `QA-Upper`,
-`qa_85_5_c3`, ... come from the prover minutes earlier). Stripping synthetic
-identities leaves **156 organic allowed writes**, every one a `verdict_wip_*.md`
-or a qa memory file:
+**[CORRECTED] The "156 organic allowed writes" figure does NOT reproduce, and
+the partition is not recoverable in principle.** The cycle-3 Q/A ran an
+exhaustive identity-subset search and found that 156 is produced by, and only by,
+stripping **four of five byte-identical synthetic probe identities** (each n=24).
+My own stated rule -- strip the synthetics -- gives **132**, not 156. Two further
+defects: the per-file block I published **sums to 154**, silently dropping two
+1-count rows; and the log records **DECISIONS, not writes** --
+`feedback_probe_self_contamination.md` (credited 30x) has mtime 2026-07-25 and
+`MEMORY.md` (credited 17x) has mtime 2026-08-09, so at least 47 of the 156 are
+probe drives against files provably not written on 2026-08-10.
 
-```
- 42x verdict_wip_86.31.md      17x MEMORY.md            7x verdict_wip_86.25.md
- 33x verdict_wip_86.24.md      11x verdict_wip_86.34.md 7x verdict_wip_86.30.md
- 30x feedback_probe_self_contamination.md               7x verdict_wip_86.37.md
-```
+**Why no corrected number is offered in its place:** identity `qa` is
+*simultaneously* the real Workflow-rail production identity and the identity the
+prover and mutation matrix drive with -- the evaluator's own verdict write was
+logged as plain `qa`. Organic and synthetic are therefore indistinguishable in
+this log. **The defensible statement is `252 allowed DECISIONS`**, and that is
+what this file now claims.
+
+The headline correction above is unaffected and reproduces exactly: at log prefix
+`ts <= 2026-08-10T20:10:09Z`, N=1282, substring rule 370/912, normpath rule
+252/1030, delta 118 -- all four independently confirmed by the evaluator.
 
 Those `verdict_wip_86.34.md` writes are this evening's two evaluations
 persisting themselves -- the mechanism working in production, on the day it

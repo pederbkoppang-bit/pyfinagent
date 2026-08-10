@@ -12,12 +12,30 @@ PreToolUse JSON on stdin, and asserts the exit code.
 
 TWO THINGS IT CHECKS THAT AN OBVIOUS VERSION WOULD MISS
 ------------------------------------------------------
-1. **LIVENESS FIRST.** The hook is FAIL-OPEN by design, and its python lives
-   inside a bash single-quoted block -- one apostrophe anywhere makes it a
-   SyntaxError, at which point it allows EVERYTHING while every deny-case
-   assertion below still "passes" for the wrong reason. On 2026-08-10 that
-   exact break happened. So the first cell compiles the embedded source, and
-   a dead guard fails the run before any decision is graded.
+1. **LIVENESS FIRST.** The hook is FAIL-OPEN and its python lives inside a bash
+   single-quoted block, so a stray apostrophe breaks it. The first cell compiles
+   the embedded source, and a dead guard fails the run before any decision is
+   graded.
+
+   **The failure shape is parity-dependent, and an earlier revision of this
+   docstring described it WRONGLY** -- it said one apostrophe yields a Python
+   SyntaxError that "allows EVERYTHING". Measured by driving each variant as a
+   real script (qa->production source, then Main->production source):
+
+       injection                 qa    Main   effect
+       1 apostrophe  (odd)       rc=2  rc=2   BLOCKS EVERYTHING -- a BASH parse
+                                              error, not a Python one. Loud and
+                                              session-bricking, but not silent.
+       2 apostrophes (even)      rc=0  rc=0   quotes RE-PAIR, the script parses,
+                                              the python body is mangled ->
+                                              SILENT FAIL-OPEN. This is the
+                                              dangerous one.
+       compile error, no apos    rc=0  rc=0   silent fail-open
+
+   So the hazard is the EVEN case and the plain compile/runtime errors, not the
+   odd case the old text named. The check is unchanged and catches all of them
+   (verified DEAD on each of the three shapes above); only the rationale was
+   wrong, and it understated the hazard by pointing at the loud shape.
 2. **FALSE POSITIVES.** A guard that blocks everything would pass every deny
    case. Main and the researcher rail must remain able to write -- write-first
    is mandatory for the researcher, so over-blocking would break the other
@@ -128,8 +146,11 @@ def main() -> int:
     alive, why = guard_is_alive()
     print(f"\n[LIVENESS] {'OK' if alive else 'DEAD'} -- {why}")
     if not alive:
-        print("\nFAIL -- the guard is fail-open, so a dead guard ALLOWS EVERYTHING "
-              "while every deny assertion below would pass for the wrong reason.")
+        print("\nFAIL -- the guard is not alive. Depending on the break shape it "
+              "either allows everything (even-apostrophe / compile / runtime "
+              "error) or blocks everything (odd apostrophe -> bash parse error); "
+              "measured, both happen. Either way the decisions below would be "
+              "graded against a guard that is not the one in production.")
         return 1
 
     # The liveness check must itself be able to fail, or it is decoration.
