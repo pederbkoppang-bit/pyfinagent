@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-10 | `cad38647` | phase-86.6: P1 THE CHANNELS A CONFTEST GUARD CANNOT REACH ARE STILL OPEN: (A) an in-process test ... |
 | 2026-08-10 | `85acb789` | docs(86.28): file the research-gate defects surfaced by the fan-out audit |
 | 2026-08-10 | `636faad1` | docs: final day-report section -- the night's tally and the one operator action |
 | 2026-08-10 | `681f813b` | chore(handoff): archive 86.12 and 86.22, file the stray capture, add researcher memories |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-10 | `0eec95fe` | fix(isolation): phase-86.6 -- close the subprocess channel, and test the filesystem preventer |
 | 2026-08-10 | `34dfbb39` | chore(masterplan): queue 86.24/86.25/86.26 -- defects found during 86.22 |
 | 2026-08-10 | `5631a161` | phase-86.22: close -- one recommendation vocabulary across seven consumers (Q/A PASS) |
-| 2026-08-10 | `95398fae` | fix(vocab): phase-86.22 cycle 2 -- guard every migrated SITE, not just the vocabulary |
 
 ---
 
+### v6.93.33 — phase-86.6: P1 THE CHANNELS A CONFTEST GUARD CANNOT REACH ARE STILL O... (2026-08-10)
+
+- **phase-86.6: P1 THE CHANNELS A CONFTEST GUARD CANNOT REACH ARE STILL OPEN: (A) an in-process test ...**
 ### v6.93.32 — phase-86.26: close -- the Q/A lint gate is usable on the learn-loop m... (2026-08-10)
 
 - **phase-86.26: close -- the Q/A lint gate is usable on the learn-loop modules again (Q/A PASS)**
