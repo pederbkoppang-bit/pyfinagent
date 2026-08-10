@@ -7,6 +7,13 @@
 
 ---
 
+> **Line-number note (added cycle 2).** Every `file:line` citation below
+> refers to the files AS THEY WERE WHEN THIS PLAN WAS WRITTEN. This
+> cycle's own edits moved most of them (e.g. the `agentType` pin ran
+> from `:419` to `:584`; `researcher.md` shifted ~7 lines). They are
+> left as-written because a PLAN records what was planned; do not cite
+> them as current. Grep the symbol instead.
+
 ## 1. Research gate summary
 
 **Gate result: PASSED** (run `wf_60de95f7-5dc`, Workflow rail

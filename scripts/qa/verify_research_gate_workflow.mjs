@@ -405,13 +405,73 @@ console.log('\n[8] structural -- no stripped schema keywords, no forbidden runti
   // Structural + ordering, because the module-level driver cannot be executed
   // outside the Workflow runtime; the LIVE spawn recorded in the step's
   // live_check is the behavioural half of this pair.
+  //
+  // CYCLE 2 -- THIS GUARD WAS DEFEATED AND IS NOW HARDENED. The cycle-1 version
+  // used a bare `src.indexOf('if (tierUnsupported) {')` over RAW source. The
+  // Q/A (wf_10c6cbd2-cad) executed a mutant that inserted the comment
+  //     // harmless note: if (tierUnsupported) { we would refuse here }
+  // before the spawn and moved the REAL refusal block AFTER it -- and the
+  // checker still printed "ALL GREEN: 61 passed, 0 failed". First-match
+  // indexOf over source-including-comments means a comment token satisfies an
+  // ordering guard while production does the opposite. qa.md §4c shapes #2
+  // (source scan defeated by moving the scanned text) and #8 (comment token).
+  //
+  // Two changes: (a) comment lines are stripped before indexing, so a comment
+  // cannot stand in for code; (b) the refusal is matched as a BLOCK that
+  // reaches its `return {`, not as a bare opening token. And the predicate is
+  // extracted so it can be run against a deliberately-broken source below --
+  // a guard nobody has watched fail is not a guard.
+  const stripLineComments = (s) => s.split('\n').filter(l => !/^\s*\/\//.test(l)).join('\n')
+  const refusalPrecedesSpawn = (rawSrc) => {
+    const code = stripLineComments(rawSrc)
+    const m = /if \(tierUnsupported\) \{[\s\S]*?return \{/.exec(code)
+    const spawnAt = code.indexOf('const envelope = await agent(PROMPT')
+    return m !== null && spawnAt !== -1 && m.index < spawnAt
+  }
   {
-    const refusalAt = src.indexOf('if (tierUnsupported) {')
-    const spawnAt = src.indexOf('const envelope = await agent(PROMPT')
-    check('driver REFUSES TO SPAWN on an unsupported tier', refusalAt !== -1)
+    check('driver REFUSES TO SPAWN on an unsupported tier',
+      /if \(tierUnsupported\) \{[\s\S]*?return \{/.test(stripLineComments(src)))
     check('the refusal is placed BEFORE the researcher spawn (else it saves no tokens)',
-      refusalAt !== -1 && spawnAt !== -1 && refusalAt < spawnAt)
-    check('the refusal path returns gate_passed:false', /if \(tierUnsupported\) \{[\s\S]*?gate_passed: false/.test(src))
+      refusalPrecedesSpawn(src) === true)
+    check('the refusal path returns gate_passed:false',
+      /if \(tierUnsupported\) \{[\s\S]*?gate_passed: false/.test(stripLineComments(src)))
+
+    // VACUITY TESTS -- the Q/A's M5, promoted from a one-time live observation
+    // to a standing regression. M5 is TWO edits, and reproducing only the
+    // first is not a test: a source carrying a decoy comment whose real
+    // refusal is still correctly placed SHOULD pass, because it is correct.
+    // The defeat needs the real block MOVED as well.
+    const naivePrecedesSpawn = (rawSrc) => {
+      const a = rawSrc.indexOf('if (tierUnsupported) {')
+      const b = rawSrc.indexOf('const envelope = await agent(PROMPT')
+      return a !== -1 && b !== -1 && a < b
+    }
+    const refusalBlock = /if \(tierUnsupported\) \{[\s\S]*?\n\}\n/.exec(stripLineComments(src))
+    if (!refusalBlock) {
+      check('M5 decoy could be constructed', false, 'could not isolate the refusal block; vacuity tests did not run')
+    } else {
+      // Faithful M5: real refusal REMOVED from its position and appended after
+      // the spawn, plus a comment token left behind where it used to be.
+      const m5 = stripLineComments(src)
+        .replace(refusalBlock[0], '// harmless note: if (tierUnsupported) { we would refuse here } return {\n')
+        + '\n' + refusalBlock[0]
+
+      // The old guard is DEFEATED by it -- this is what makes M5 a real test
+      // rather than a decorative one. If this ever goes false, M5 has stopped
+      // reproducing the defect and the guard below is no longer being probed.
+      check('M5 genuinely defeats the ORIGINAL naive guard (else it probes nothing)',
+        naivePrecedesSpawn(m5) === true)
+      // ...and the hardened guard rejects it.
+      check('ordering guard REJECTS the M5 comment-token + relocation defeat',
+        refusalPrecedesSpawn(m5) === false)
+    }
+
+    // Plain relocation, no comment involved.
+    if (refusalBlock) {
+      const moved = stripLineComments(src).replace(refusalBlock[0], '') + '\n' + refusalBlock[0]
+      check('ordering guard REJECTS a refusal relocated AFTER the spawn',
+        refusalPrecedesSpawn(moved) === false)
+    }
   }
 
   check('enforceGate is pure -- no fs/process use in its body',

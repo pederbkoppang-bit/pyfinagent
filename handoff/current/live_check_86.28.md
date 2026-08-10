@@ -157,15 +157,16 @@ real research gate on any step exercises the path. Not claimed as verified.
 
 ## 7. Operator decision owed -- the deep-tier divergence (criterion 3)
 
-`.claude/agents/researcher.md:204,206-273` documents a `deep` tier with
+`.claude/agents/researcher.md` (grep the "### `deep` tier" heading)
+documents a `deep` tier with
 materially stricter conditions (>=20 sources read in full vs 5, >=1
 `[ADVERSARIAL]` source, explicit multi-pass structure). This rail does not
 implement it.
 
 That divergence is now **loud** -- a caller gets `tier_supported: false`,
 a refusal, and zero spend -- but it is **not resolved**, deliberately.
-`researcher.md:248-263` makes deep's fourth requirement a MULTI-SUBAGENT
-PRODUCER FORK, so implementing the tier means first deciding the
+`researcher.md`'s "Multi-subagent fork option" makes deep's fourth listed
+element a CONDITIONAL MULTI-SUBAGENT PRODUCER FORK, so implementing the tier means first deciding the
 producer-fan-out question that audit `wf_d61fef3b-25c` left open (both
 adversarial refuters returned `refuted: true` on the recommendation's
 evidence base).
@@ -186,6 +187,112 @@ Not decided here.
 `.claude/agents/researcher.md` was edited this cycle (the `agentType`
 doc-drift line). Per CLAUDE.md's separation-of-duties rule this is flagged
 for Peder's review. The edit is a one-line factual correction so the doc
-matches shipped code (`research-gate.js:419`, asserted by the checker at
-`verify_research_gate_workflow.mjs:271`); it changes no behaviour of the
-role.
+matches shipped code (the stage-1 `agent()` call in `research-gate.js` --
+grep `agentType: 'researcher'` -- asserted by the checker's
+`"agentType is 'researcher'"` assertion); it changes no behaviour of the
+role. Line numbers omitted deliberately: cycle 1 of this step cited
+`:419` and `:271`, both of which were accurate before this cycle's own
+edits moved them. Measured at cycle 2: the pin is at `research-gate.js:584`
+and the assertion at `verify_research_gate_workflow.mjs:399`, and those
+numbers will move again -- grep the symbol.
+
+---
+
+# CYCLE 2 -- after the CONDITIONAL (Q/A run `wf_10c6cbd2-cad`)
+
+**Sections 2 and 5 above are the CYCLE-1 measurement (61 passed).** They
+are left as recorded. The current state is below.
+
+## 9. Immutable command -- cycle 2
+
+```
+$ node scripts/qa/verify_research_gate_workflow.mjs
+ALL GREEN: 64 passed, 0 failed
+```
+
+40 (baseline) -> 61 (cycle 1) -> 64 (cycle 2). Nothing removed or weakened.
+
+## 10. W1 FIXED -- the ordering guard now fails when its subject is broken
+
+The Q/A defeated the cycle-1 guard with mutant M5 (comment token before
+the spawn + the real refusal relocated after it) and measured
+`ALL GREEN: 61 passed, 0 failed`. The guard now strips `//` lines before
+indexing and matches the refusal as a block reaching its `return {`.
+
+Standing vacuity tests (verbatim):
+
+```
+  ok   driver REFUSES TO SPAWN on an unsupported tier
+  ok   the refusal is placed BEFORE the researcher spawn (else it saves no tokens)
+  ok   M5 genuinely defeats the ORIGINAL naive guard (else it probes nothing)
+  ok   ordering guard REJECTS the M5 comment-token + relocation defeat
+  ok   ordering guard REJECTS a refusal relocated AFTER the spawn
+```
+
+The first assertion is deliberate: if M5 ever stops defeating the ORIGINAL
+naive predicate, M5 has stopped reproducing the defect and the guard below
+it would be probing nothing. It prevents the vacuity test itself from
+going quietly stale.
+
+### Independent behavioural reproduction (the Q/A's own method)
+
+A copy of the repo with M5 applied to `research-gate.js`, run against the
+UNMODIFIED checker:
+
+```
+$ node scripts/qa/verify_research_gate_workflow.mjs      # M5-mutated copy
+FAILED: 62 passed, 2 failed
+  - the refusal is placed BEFORE the researcher spawn (else it saves no tokens)
+  - M5 genuinely defeats the ORIGINAL naive guard (else it probes nothing)
+```
+
+Cycle 1 measured `ALL GREEN: 61 passed, 0 failed` on this same mutation.
+**M5 is now KILLED.**
+
+## 11. W2 FIXED -- and the CLASS was audited, not just the 3 named instances
+
+The Q/A named three stale citations. I grepped every `file:line` citation
+written this cycle and found the class is larger:
+
+| Location | Cited | Measured | Action |
+|---|---|---|---|
+| `CLAUDE.md` | `research-gate.js:419` | `:584` | replaced with the symbol |
+| `.claude/agents/researcher.md` | `research-gate.js:419` | `:584` | replaced with the symbol |
+| `live_check` §8 | `verify_..._workflow.mjs:271` | `:399` | replaced with the symbol |
+| `experiment_results` "What was built" | `research-gate.js:419` | `:584` | **NOT flagged by the Q/A** -- found by auditing the class; fixed |
+| `experiment_results` "Not done" | `researcher.md:248-263` | `:255-267` | fixed (symbol) |
+| `live_check` §7 | `researcher.md:204,206-273` | `:211,213-...` | fixed (symbol) |
+
+Every `researcher.md` citation was stale by ~7 lines because THIS cycle's
+own edit to that file shifted them -- including the Q/A's own citation of
+`researcher.md:253` for "Multi-subagent fork option", which measures at
+`:255`. That is the systemic point: in this repo a line number is stale the
+moment anyone edits above it, so present-tense claims now cite the SYMBOL.
+
+Deliberately NOT rewritten:
+
+- `contract_86.28.md` -- a PLAN records what was planned; its citations
+  were accurate when written. Annotated with a cycle-2 note instead.
+- `research_brief_86.28.md` -- another agent's evidence artifact. Its
+  citations were accurate at research time. Rewriting another agent's
+  evidence is worse than a stale line number.
+- `evaluator_critique_86.28.md` -- verbatim Q/A transcription. Editing it
+  would break the no-self-eval guarantee.
+
+## 12. Q/A note N2 accepted -- I was overstated
+
+The Q/A observed that I called the multi-subagent fork deep's "FOURTH
+REQUIREMENT" while `researcher.md` titles it an "option" conditioned on
+caller request or >=3 separable sub-questions. **Correct; I overstated
+it.** It is deep's fourth listed element and it is conditional. Corrected
+in `experiment_results` and above. This does not change criterion 3, which
+independently mandates not adding `deep`, nor the reason for refusing: a
+conditional fork on an N=1 artifact rail is still a fork the rail cannot
+support.
+
+## 13. Q/A note N1 -- queued, not patched
+
+The `n()` sentinel renders an omitted count as "only -1 distinct URLs
+appear in the brief". It fails closed correctly; the message is confusing.
+Cosmetic, outside the frozen criteria, and the tree is under evaluation --
+queued rather than patched mid-grade.

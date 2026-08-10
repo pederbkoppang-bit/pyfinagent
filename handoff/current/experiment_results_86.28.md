@@ -74,7 +74,10 @@ alone (see "Not done").
 ### 4. Doc drift (`CLAUDE.md`, `.claude/agents/researcher.md`)
 
 Both said `agentType:'general-purpose'`; the shipped code pins
-`'researcher'` at `research-gate.js:419` and the checker asserts it.
+`'researcher'` on the stage-1 `agent()` call (grep `agentType:
+'researcher'`) and the checker asserts it. Line number deliberately
+omitted -- the cycle-1 text cited `:419`, which this same cycle's edits
+moved to `:584`.
 Corrected in both, with the reason (write-first needs `Write`).
 CLAUDE.md's internal contradiction is called out in the corrected text.
 
@@ -213,7 +216,7 @@ max-effort researcher session.
 
 | Item | Why |
 |---|---|
-| Add `'deep'` to `VALID_TIERS` | `researcher.md:248-263` makes deep's fourth requirement a MULTI-SUBAGENT PRODUCER FORK ("2-3 parallel deep-tier researcher subagents", "~1 Claude Max 5-hour rolling window per subagent"). Enabling it ships producer fan-out onto an N=1 artifact rail and pre-empts an open operator decision. **Disclosed for the operator, not resolved here.** |
+| Add `'deep'` to `VALID_TIERS` | `researcher.md`'s "Multi-subagent fork option" (grep the heading; line numbers move) makes deep's fourth listed element a CONDITIONAL MULTI-SUBAGENT PRODUCER FORK ("2-3 parallel deep-tier researcher subagents", "~1 Claude Max 5-hour rolling window per subagent"). Enabling it ships producer fan-out onto an N=1 artifact rail and pre-empts an open operator decision. **Disclosed for the operator, not resolved here.** |
 | Corroborate `coverage.dry` | "Dry" is K consecutive EXECUTED search rounds with no new findings -- a property of executed discovery, not of a file. No read-only file check establishes it. A proxy would be false assurance (EBTE). Left honest and uncorroborated. |
 | Wire `opts.floors` | Zero callers pass it. Its only consumer would be tier-aware floors, which depend on the deep decision. A change with no behaviour behind it. |
 | Change the envelope `tier` enum | The research flagged that `enum` is NOT stripped on the wire, so an honest `'deep'` is unrepresentable there. But the agent reports the tier it ACTUALLY operated at, always a supported value, so the enum is not lying. The requested-vs-applied distinction is the SCRIPT's to report, and it now does. Disclosed, not actioned. |
@@ -233,3 +236,103 @@ Note also: `.claude/agents/researcher.md` was edited this cycle (doc-drift
 line). Per CLAUDE.md's separation-of-duties rule this is flagged for
 review; the edit is a one-line factual correction to match shipped code,
 not a behavioural change to the role.
+
+---
+
+# Follow-up -- cycle 2 (after CONDITIONAL)
+
+Q/A run `wf_10c6cbd2-cad` returned **CONDITIONAL** with two WARN findings.
+Both were real, both are fixed. Neither impugned shipped behaviour; the
+Q/A found all 9 criteria met on their literal wording and reproduced every
+numeric claim independently.
+
+## W1 -- the ordering guard was an illusory guard (FIXED)
+
+The Q/A executed a mutant (M5) that inserted
+
+```
+// harmless note: if (tierUnsupported) { we would refuse here }
+```
+
+before the spawn and relocated the REAL refusal block to AFTER it. The
+cycle-1 checker still printed `ALL GREEN: 61 passed, 0 failed`. The guard
+used a bare `src.indexOf('if (tierUnsupported) {')` over raw source, so a
+COMMENT satisfied it while production did the opposite. That is qa.md §4c
+shape #2 (source scan defeated by moving the scanned text) and #8 (comment
+token) -- and it is precisely the "guards stop one seam short" class.
+
+**Fix.** The predicate is extracted as `refusalPrecedesSpawn(src)` and:
+
+- strips `//` comment lines before indexing, so a comment cannot stand in
+  for code;
+- matches the refusal as a BLOCK reaching its `return {`, not as a bare
+  opening token.
+
+**And it is now watched failing.** Three standing vacuity tests replace
+the one-time live observation:
+
+```
+  ok   M5 genuinely defeats the ORIGINAL naive guard (else it probes nothing)
+  ok   ordering guard REJECTS the M5 comment-token + relocation defeat
+  ok   ordering guard REJECTS a refusal relocated AFTER the spawn
+```
+
+The first is deliberate: if M5 ever stops defeating the naive predicate it
+has stopped reproducing the defect, and the guard below it would be
+probing nothing. A vacuity test that cannot itself go stale-silent.
+
+**Independent behavioural reproduction**, the way the Q/A did it -- a repo
+copy with M5 applied, checker unmodified:
+
+```
+$ node scripts/qa/verify_research_gate_workflow.mjs      # against the M5-mutated copy
+FAILED: 62 passed, 2 failed
+  - the refusal is placed BEFORE the researcher spawn (else it saves no tokens)
+  - M5 genuinely defeats the ORIGINAL naive guard (else it probes nothing)
+```
+
+Cycle 1 measured `ALL GREEN: 61 passed, 0 failed` on this same mutation.
+The mutant is now KILLED.
+
+## W2 -- I shipped three false line-number citations (FIXED)
+
+The doc-drift fix asserted the pin was at `research-gate.js:419` in BOTH
+`CLAUDE.md` and `.claude/agents/researcher.md`, and credited the checker's
+assertion to `verify_research_gate_workflow.mjs:271` in the live_check.
+
+**Measured**: the pin is at `:584`; `:419` is now a bare `}`. The
+assertion is at `:399`; `:271` is a comment.
+
+**Root cause, and it is not a typo.** `:419` was CORRECT at the base
+commit `089726f9`. My own +208-line edit to that file moved it. I wrote
+the citation before the edit and never re-derived it -- while CLAUDE.md
+carries a standing warning about this exact class two sections above
+("Re-derive the line number before citing it again -- it has moved
+twice"). I walked into a trap the file explicitly documents.
+
+**Fix**: cite the SYMBOL, not the line, in all three places -- `grep -n
+"agentType: 'researcher'"` and the checker's `"agentType is 'researcher'"`
+assertion. A symbol cannot go stale under an edit to an unrelated part of
+the file. The measured line numbers are recorded once in the live_check
+with an explicit note that they will move again.
+
+## Checker total
+
+40 (baseline) -> 61 (cycle 1) -> **64 (cycle 2)**, 0 failed. The three
+added are the ordering-guard vacuity tests. No check was removed or
+weakened.
+
+## Q/A notes accepted but NOT actioned this cycle
+
+- **N1** -- the `n()` `-1` sentinel renders as "only -1 distinct URLs
+  appear in the brief" when a field is omitted. Fails closed correctly;
+  the message is confusing. Cosmetic, out of the frozen criteria, and the
+  tree is being graded. Queued, not patched.
+- **N2** -- experiment_results called the multi-subagent fork deep's
+  "FOURTH REQUIREMENT"; `researcher.md` titles it an "option" conditioned
+  on caller request or >=3 separable sub-questions. **The Q/A is right and
+  I was overstated.** It is deep's fourth *listed element*, and it is
+  conditional. This does not change criterion 3, which independently
+  mandates not adding `deep`, nor the reasoning for refusing (a
+  conditional fork on an N=1 artifact rail is still a fork the rail
+  cannot support). Corrected here rather than silently.

@@ -272,9 +272,15 @@ command reaches criterion 1 only):
 `agent(prompt, {schema, agentType:'researcher', model:'opus',
 effort:'max'})` — `agentType:'researcher'`, NOT `general-purpose`, and the
 distinction is load-bearing: the researcher needs `Write` for write-first.
-The shipped code pins it at `.claude/workflows/research-gate.js:419` and
-`scripts/qa/verify_research_gate_workflow.mjs` asserts that pin, so this
-paragraph is the doc, not the source of truth. (Corrected phase-86.28:
+The shipped code pins it on the stage-1 `agent()` call in
+`.claude/workflows/research-gate.js` (locate with `grep -n "agentType:
+'researcher'"`), and `scripts/qa/verify_research_gate_workflow.mjs`
+asserts that pin, so this paragraph is the doc, not the source of truth.
+**Line numbers are deliberately omitted here**: the first version of this
+correction cited `:419`, which was accurate at the base commit and stale
+by the time the same cycle finished editing the file — the exact trap this
+file warns about two sections above ("Re-derive the line number before
+citing it again"). Grep for the symbol; it cannot go stale. (Corrected phase-86.28:
 this sentence used to say `general-purpose`, contradicting the
 `agentType:'researcher'` rationale stated a few sentences above it.) The
 **verdict is the captured return value** —

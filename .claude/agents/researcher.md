@@ -74,10 +74,12 @@ Like Q/A, the research gate can be launched two ways, and the
   role as `agent(prompt, {schema: ENVELOPE_SCHEMA,
   agentType:'researcher', model:'opus', effort:'max'})` — `'researcher'`,
   NOT `'general-purpose'`: this role needs `Write` because write-first is
-  non-negotiable, and the shipped rail pins it at
-  `.claude/workflows/research-gate.js:419` with the checker asserting the
-  pin. (Corrected phase-86.28; this line previously said
-  `general-purpose`, which is not what ships.) The
+  non-negotiable, and the shipped rail pins it on the stage-1 `agent()`
+  call in `.claude/workflows/research-gate.js` (grep `agentType:
+  'researcher'`), with `scripts/qa/verify_research_gate_workflow.mjs`
+  asserting the pin. Line numbers are omitted on purpose -- they move.
+  (Corrected phase-86.28; this line previously said `general-purpose`,
+  which is not what ships.) The
   **JSON envelope below is returned as the captured return value** —
   stall-immune (structured-outputs GA / constrained decoding), no
   dependence on a final flush. **Write-first STILL holds**: the workflow
