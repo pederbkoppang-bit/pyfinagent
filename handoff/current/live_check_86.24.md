@@ -9,9 +9,53 @@ only section F was regenerated.
 
 ## A. Criterion 4 -- both named modules, post-midnight boundary AND mid-day
 
-The "post-midnight boundary" is simulated by putting the LOCAL calendar day one
+**[phase-86.34 CORRECTION -- the sentence that stood here was DIRECTIONALLY
+INVERTED, and it survived one round of remediation.]** It read: *"The
+'post-midnight boundary' is simulated by putting the LOCAL calendar day one
 behind UTC, which is exactly the 00:00-02:00 CEST window in which these tests
-used to fail.
+used to fail."* The second clause is false. MEASURED with `zoneinfo`:
+
+```
+00:30 CEST -> local 2026-08-10 / UTC 2026-08-09   = local AHEAD of UTC
+01:30 CEST -> local 2026-08-10 / UTC 2026-08-09   = local AHEAD of UTC
+TZ=Pacific/Midway (UTC-11)                        = local BEHIND UTC
+```
+
+So the fixture is the **MIRROR** of the window it claims to reproduce, not that
+window. What is true, and is the operative property, is that both put the LOCAL
+calendar day on a DIFFERENT date from UTC -- which is what the tests are
+sensitive to, so no result in this file changes.
+
+The correction is recorded rather than the sentence silently deleted: a claim
+that is quietly removed teaches the next reader nothing about how it got there.
+
+**How this survived**: the phase-86.34 cycle-1 remediation corrected the test
+docstring and offered `grep -cF "one day behind" <this file>` = 0 as proof this
+file was clean. That oracle is VACUOUS -- the literal never appeared here (the
+wording is "calendar day one\nbehind UTC": no "day" between "one" and "behind",
+and line-wrapped), so it returned 0 at every commit whether or not the claim was
+present. The Q/A caught it and returned FAIL.
+
+**The honest count after this edit, and it is NOT zero.** A substring oracle
+cannot distinguish an assertion from a quotation of it, and this correction
+quotes the retired sentence deliberately:
+
+```
+$ grep -cF "which is exactly the 00:00-02:00 CEST window" handoff/current/live_check_86.24.md
+2          # before this edit: 1
+```
+
+Both occurrences are INSIDE this correction block -- one in the quoted original,
+one naming the oracle. **Zero occurrences remain outside it**, which is the
+property that matters and the one the checker below actually tests. Reporting
+"0" here would have been a third vacuous claim in the same paragraph that
+complains about the first two.
+
+Re-runnable, and it fails if the assertion returns anywhere else in the file:
+
+```
+$ python scripts/qa/verify_86_24_direction_claim.py
+```
 
 ```
 $ python -m pytest backend/tests/test_phase_82_0_macro_ingestion.py \
@@ -144,30 +188,38 @@ PATH.
 
 ## F. Criterion 6 -- mutation matrix
 
-`python scripts/qa/mutation_matrix_86_24.py`
+**[phase-86.34 -- REGENERATED IN FULL, cycle 2.]** The Q/A (`wf_839de1e6-c3c`)
+found this block still recorded `test_phase_86_24_clock_dependence.py =
+36f469402a7e8333` while the real value was `9b5cb2e44e6ba8a4`. **This step made
+it stale** (`36f469402a7e8333` -> `55e24bb26a93f131` at `a37f9da5` ->
+`9b5cb2e44e6ba8a4` at `73ce11ba`), and cycle 1 refreshed only the poison-row
+digest sitting beside it. So the whole block is replaced with fresh output rather
+than the one number edited -- criterion 4's rule, applied to the defect
+criterion 4 was written about.
+
+Producing command, re-run at tree `a9707993`:
 
 ```
-M1 KILLED  control rc=0 mutant rc=1   revert the macro tests to the LOCAL clock domain
-M2 KILLED  control rc=0 mutant rc=1   re-pin the poison-row fixture to the day it was written
-M6 KILLED  control rc=0 mutant rc=1   SNAPSHOT the fixture date at import (cycle-2 finding 2)
-M7 KILLED  control rc=0 mutant rc=1   point the band test OUTSIDE the band (cycle-2 finding 1)
-M3 KILLED  control rc=0 mutant rc=1   give the STALE-anchor test a FRESH anchor
-M4 KILLED  control rc=0 mutant rc=1   remove the clock shift from the differential test
-M5 KILLED  control rc=0 mutant rc=1   point the how-stale sweep at a FRESH anchor
-
-tracked sources UNCHANGED: True
-  test_phase_82_0_macro_ingestion.py     566a607e91365c67
-  test_phase_86_2_replay_poison_row.py   fb97b52ecf7fb5be
-  # REGENERATED phase-86.34, not edited in place. Producing command:
-  #   python3 -c "import hashlib;print(hashlib.sha256(open('backend/tests/"
-  #     "test_phase_86_2_replay_poison_row.py','rb').read()).hexdigest()[:16])"
-  # The previous value 5c1ce1116769d118 was stale via the LEGITIMATE commit
-  # da9263d6 (86.24 cycle-3 comment rewrite) -- the file changed for a good
-  # reason and the recorded evidence was not refreshed with it.
-  test_phase_86_24_clock_dependence.py   36f469402a7e8333
+$ python scripts/qa/mutation_matrix_86_24.py
+id   verdict   probe                                          mutation
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+M1   KILLED    control rc=0 mutant rc=1                       revert the macro tests to the LOCAL clock domain
+M2   KILLED    control rc=0 mutant rc=1                       re-pin the poison-row fixture to the day it was written
+M6   KILLED    control rc=0 mutant rc=1                       SNAPSHOT the fixture date at import instead of recomputing per call
+M7   KILLED    control rc=0 mutant rc=1                       point the band test OUTSIDE the band -- does it discriminate?
+M3   KILLED    control rc=0 mutant rc=1                       give the STALE-anchor test a FRESH anchor -- does it discriminate?
+M4   KILLED    control rc=0 mutant rc=1                       remove the clock shift from the differential test -- its positive control must fire rather than the test passing for free
+M5   KILLED    control rc=0 mutant rc=1                       point the how-stale sweep at a FRESH anchor
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+tracked sources UNCHANGED: True  [('test_phase_82_0_macro_ingestion.py', '566a607e91365c67'), ('test_phase_86_2_replay_poison_row.py', 'fb97b52ecf7fb5be'), ('test_phase_86_24_clock_dependence.py', '9b5cb2e44e6ba8a4')]
 stray mutant files left behind: none
+
 All 7 mutants killed.
 ```
+
+All three digests above are emitted by that command in the same run, so they
+cannot drift from each other again the way the hand-maintained list did.
+
 
 Every mutant is a COPY written under `backend/tests/` with a temporary name and
 removed in a `finally`; the tracked files are never opened for writing, and that

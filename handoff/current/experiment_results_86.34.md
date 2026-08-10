@@ -2,6 +2,13 @@
 
 **Step**: `86.34` (phase-86, P3) | **Phase**: GENERATE | **Date**: 2026-08-10
 
+> **UPDATED 2026-08-10 22:0x CEST, cycle 2/3.** The Q/A (`wf_839de1e6-c3c`)
+> returned **FAIL** and separately flagged THIS FILE as stale -- written 19:02,
+> never refreshed after commits `1b7e4601` (21:26) and `73ce11ba` (21:31), so it
+> asserted criterion 3 MET on evidence that did not yet exist. Both are fixed
+> below and the rows say which cycle actually closed them. The verdict is
+> recorded verbatim in `evaluator_critique_86.34.md`.
+
 ## 0. N1 was not a wording defect -- the suite was RED
 
 The step filed N1 as "a directionally inverted claim". Measuring it turned up
@@ -48,6 +55,10 @@ anyone reading "86.24 = PASS" deserves to know the suite was not a standing gate
 | `handoff/current/live_check_86.24.md` | section F digest **regenerated**, header staleness noted |
 | `docs/runbooks/per-step-protocol.md` | §4 records that contract-before-generate can be UNPROVABLE |
 | `scripts/qa/measure_tz_fixture_coverage_86_34.py` | new (committed `9424939c`) |
+| `scripts/qa/mutation_matrix_86_34.py` | **new, cycle 2** (`1b7e4601`, `73ce11ba`) -- carries criterion 3's cells. Omitted from this list in cycle 1, which the Q/A flagged: the file holding a criterion's whole evidence was missing from the file list. |
+| `scripts/qa/mutation_matrix_86_24.py` | **cycle 2** -- M4 re-anchored, M1 made hour-independent |
+| `scripts/qa/verify_86_24_direction_claim.py` | **new, cycle 3** -- the non-vacuous criterion-1 oracle |
+| `handoff/current/live_check_86.24.md` | **cycle 3** -- the inverted claim CORRECTED (it survived cycle 1); section F regenerated in full |
 
 **`.claude/masterplan.json` 86.24 verification block byte-identical: True;
 status still `done`.** (criterion 6)
@@ -56,9 +67,9 @@ status still `done`.** (criterion 6)
 
 | # | Criterion (abridged) | Evidence | Status |
 |---|---|---|---|
-| 1 | N1 corrected in BOTH locations, MEASURED, old sentence gone from source AND live_check | zoneinfo sweep; docstring rewritten; `live_check` corrected | MET |
+| 1 | N1 corrected in BOTH locations, MEASURED, old sentence gone from source AND live_check | **cycle 1 claimed MET and the Q/A returned FAIL on it.** Only the test docstring was corrected; the inverted claim still stood at `live_check_86.24.md:12-13`, and the grep offered as proof was a VACUOUS ORACLE (the literal never existed in that file at any commit). Corrected in cycle 3 with `scripts/qa/verify_86_24_direction_claim.py`, which is mutation-proven to fail | MET (cycle 3) |
 | 2 | sweep population DERIVED, excludes `.venv*`, count asserted non-zero AND printed | **34 kept / 32 vendored -> 2, both first-party**; `assert swept` + print | MET |
-| 3 | the N2 guard gets its mutation cell; reverting the rule fires a NAMED assertion | 3 cells, all KILLED (below) | MET |
+| 3 | the N2 guard gets its mutation cell; reverting the rule fires a NAMED assertion | **cycle 1 claimed MET on 3 cells and that was an OVERCLAIM** -- criterion 3 has TWO halves and the poisoned-conftest-into-a-fake-repo half was not done. Closed in cycle 2 with a 4th cell + the `PYFINAGENT_86_34_SWEEP_ROOT` seam; **4/4 KILLED** | MET (cycle 2) |
 | 4 | N3 fixed by REGENERATING, not editing the number; command stated | digest regenerated to `fb97b52ecf7fb5be`, producing command inline | MET |
 | 5 | the contract-before-generate blindness recorded where a future Q/A reads it | runbook §4 | MET |
 | 6 | 86.24 not re-opened; its verification block byte-identical | verified above | MET |
