@@ -24592,6 +24592,27 @@
             ],
             "live_check": "live_check_86.35.md with: the verbatim TypeError before the fix and the successful call after; the re-derived tz-aware / analysis_id counts with the query; the naive-anchor and aware-anchor holding_days comparison; and the mutation output."
           }
+        },
+        {
+          "id": "86.36",
+          "status": "pending",
+          "priority": "P2",
+          "harness_required": true,
+          "retry_count": 0,
+          "max_retries": 3,
+          "name": "[P2 -- THE Q/A WRITE-FIRST RECORD IS DESTROYED BY THE NEXT CYCLE'S SPAWN, SO ONLY THE LAST DROP IS RECOVERABLE] FOUND 2026-08-10 BY OPERATING phase-86.31 ON A REAL DROP, hours after shipping it; filed per the standing queue-discovered-defects rule. phase-86.31 gave the Q/A a crash-survival record at the FIXED path `.claude/agent-memory/qa/verdicts/verdict_wip_<step_id>.md` and it WORKED: the 86.30 cycle-1 rail drop (`subagent completed without calling StructuredOutput`, 174,972 tokens, 43 tool uses) left a COMPLETE 7,380-byte analysis on disk that named four real blockers, three of which were then fixed. THE GAP IS THE FIXED PATH. MEASURED: when cycle 2 spawned for the same step, it truncated that file to 441 bytes within seconds. The cycle-1 record survives ONLY because Main happened to include the verdicts directory in commit 5285699b -- `git show 5285699b:.claude/agent-memory/qa/verdicts/verdict_wip_86.30.md | wc -c` returns 7380 while the working-tree file is 441. That was luck, not design. WHY THE EXISTING MITIGATION DOES NOT COVER IT: 86.31 added `STEP`/`WRITTEN`/`COMPLETED` identity stamps and a `--spawned-at` staleness check, and those correctly answer 'is this artifact from the cycle I am recovering?'. They do NOT answer 'where did the PREVIOUS cycle's evidence go' -- the stamp detects staleness, it does not prevent destruction. The failure shape to picture: a step whose cycle-1 spawn drops with findings, whose cycle-2 spawn ALSO drops, and whose cycle-1 record was overwritten the moment cycle 2 began writing. Only the second drop is then recoverable, and the first cycle's analysis is gone exactly as it was before 86.31 existed. NON-SCOPE: do NOT widen `qa-write-guard.sh` beyond `.claude/agent-memory/qa/` (86.31 F1: the guard already permits this directory and NO allowlist was added; adding one risks the confused-deputy path 86.31 rejected); do NOT move the sink to any path `verdict_gate.py::resolve_verdict_source` consumes; do NOT make a recovered record readable as a verdict under any circumstance -- 'an errored return is NO VERDICT, NEVER PASS' is unchanged; and do NOT put per-cycle files at the TOP level of the memory dir (86.31 measured that a top-level file adds NO POINTER + MALFORMED FRONTMATTER to `scripts/housekeeping/audit_memory.py`, whose glob is non-recursive).",
+          "verification": {
+            "command": "bash -c 'source .venv/bin/activate && python scripts/qa/verify_qa_write_first_86_31.py'",
+            "success_criteria": [
+              "REPRODUCE FIRST: drive two spawns for one step id and show, with byte counts, that the second destroys the first's record under the CURRENT design. Use a faithful simulation if a real double-drop cannot be induced; state which was used.",
+              "After the fix, a second cycle's record does NOT destroy the first: demonstrate two cycles' records coexisting and readable, with each carrying its own WRITTEN/COMPLETED stamps, and show the byte counts of both. Whatever naming is chosen must keep the artifacts OUT of audit_memory.py's non-recursive top-level glob -- prove it by running that auditor before and after and showing the output is unchanged.",
+              "`scripts/qa/qa_wip.py` resolves the record for a GIVEN cycle, and its `--spawned-at` staleness logic still works: STALE and IDENTITY_UNKNOWN must still fire, proven by the existing assertions in verify_qa_write_first_86_31.py continuing to pass (or their successors, if the resolver's signature changes -- in which case say so explicitly rather than quietly dropping them).",
+              "No record is EVER readable as a verdict: `report()` still carries no `verdict` key and `is_verdict: false`, for every cycle's artifact including the newest. Assert it, do not state it.",
+              "The guard is UNCHANGED or strictly tightened: show `git diff` on .claude/hooks/qa-write-guard.sh is empty, or that the change denies strictly more. The qa-role predicate added in 86.31 must still deny all of production code, tests, .claude/masterplan.json and other steps' handoff artifacts -- re-run verify_qa_write_first_86_31.py and show it green.",
+              "MUTATION-TESTED: revert the retention change and prove a NAMED assertion goes red; and mutate the retention so it keeps only ONE record and prove the coexistence assertion fires. A guard that has not been observed failing does not count."
+            ],
+            "live_check": "live_check_86.36.md with: the before/after byte counts proving destruction under the current design and coexistence after the fix; the audit_memory.py output before and after showing it unchanged; the re-run of verify_qa_write_first_86_31.py; and the mutation output."
+          }
         }
       ]
     }
