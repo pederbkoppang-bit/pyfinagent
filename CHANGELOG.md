@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-10 | `fc17b0d1` | phase-86.31: record cycle-3 Q/A verdict VERBATIM -- FAIL by escalation |
 | 2026-08-10 | `9bf5e78b` | phase-86.31: add the execution-based separation proof + corrected production figures to the live_che |
 | 2026-08-10 | `d4638584` | fix(86.31): drop unused import -- I committed an F401 because my '&&' guarded only the echo, not the |
 | 2026-08-10 | `fceac931` | phase-86.31: PROVE the write separation by driving the real hook -- 15/15 |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-10 | `691e24a3` | docs: day report -- cycle a5654ab9 outcome, rail recovery, restarts done |
 | 2026-08-10 | `73ce11ba` | phase-86.34: close criterion 3's missing half -- poisoned-conftest cell + test seam |
 | 2026-08-10 | `1b7e4601` | phase-86.34: executable mutation matrix + live_check; repair two clock-dependent cells |
-| 2026-08-10 | `e5d537d6` | docs: day report 2026-08-10 -- 8 steps touched, 8.1M subagent tokens, 12 self-inflicted defects |
 
 ---
 
+### v6.93.79 — phase-86.31: record cycle-3 Q/A verdict VERBATIM -- FAIL by escalation (2026-08-10)
+
+- **phase-86.31: record cycle-3 Q/A verdict VERBATIM -- FAIL by escalation**
 ### v6.93.78 — phase-86.31: add the execution-based separation proof + corrected pro... (2026-08-10)
 
 - **phase-86.31: add the execution-based separation proof + corrected production figures to the live_che**
