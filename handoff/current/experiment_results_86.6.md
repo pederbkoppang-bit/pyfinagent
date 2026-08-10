@@ -201,7 +201,7 @@ definition. So:
 |---|---|---|
 | **filesystem** | **COVERED for the kill-switch journal + its derived archive dir** | `sys.addaudithook` preventer; mutation matrix M1/M2/M5 |
 | **filesystem (rest of `handoff/`)** | **NOT COVERED, deliberately** | blocking the whole tree turns **+7** tests red against a 14-failure baseline -- they write `.autonomous_loop.lock`, `.cycle_heartbeat.json` and a probe under `handoff/logs/`. None is a kill-switch write. A behaviour change to 7 real tests belongs to its own step. **MEASURED AGAIN TONIGHT:** a full-suite run wrote a real acquire/release into the live `handoff/.autonomous_loop.lock` (`released_at 2026-08-09T23:47:31Z`, pid 19697 already dead) -- so this channel is demonstrably still open, not theoretically open. |
-| **HTTP** | **COVERED (86.3 + a hole this step CLOSED)** | mutating verbs at loopback:8000 refused in-process. **This row was WRONG in cycle 1** -- see below. |
+| **HTTP** | **PARTIAL -- refused for 5 enumerated host STRINGS only** | `localhost`, `LOCALHOST`, `127.0.0.1`, `::1`, `0.0.0.0`. A host-string allowlist cannot cover every spelling that resolves to this machine while uvicorn binds `*:8000`. **8 spellings MEASURED reachable and un-refused** -- see the cycle-3 table. Class fix queued as phase-86.27. |
 | **subprocess** | **COVERED for `smoke_cc_rail_e2e.py`** | the seam above. **NOT covered generally**: research measured 72 files that shell out, and each would need its own seam. This step closed the one that MUTATES the live backend. |
 | **BigQuery** | **NOT COVERED** | no guard exists. Tests that construct a real `bigquery.Client` reach live datasets. Out of scope here; named so it cannot be mistaken for covered. |
 | **module singleton** | **NOT COVERED** | a test mutating `ks._state` in-process is invisible to a filesystem guard. This is 36.28's territory (tests READING live state) and 86.1's surviving mutant M2. |
@@ -317,3 +317,95 @@ All checks passed!    exit=0
   which also shows my "the obvious harness writes to the live journal"
   justification was not forced. That is a fair correction to my framing: the
   copy-only harness is sufficient, but it was not the ONLY safe option.
+
+---
+
+# CYCLE 3 -- I fixed the INSTANCE and left the CLASS open
+
+Cycle-2 verdict CONDITIONAL again, same criterion, same defect shape.
+Transcribed verbatim in `handoff/current/evaluator_critique_86.6.md`.
+
+Cycle 2 added `0.0.0.0` to the loopback set and I wrote that the HTTP row was
+now correct. **It was not.** The Q/A went looking for the CLASS instead of the
+instance and found eight more spellings that reach the operator's live book on
+:8000 and are NOT refused. I reproduced every one myself:
+
+```
+host                    GET /health  PUT refused?  conftest / 86.6 predicate
+127.0.0.1               200          yes           True / True
+localhost               200          yes           True / True
+LOCALHOST               200          yes           True / True
+0.0.0.0                 200          yes           True / True     <- cycle-2 fix
+127.1                   200          NO -> REACHES False / False
+0                       200          NO -> REACHES False / False
+2130706433              200          NO -> REACHES False / False
+localhost.              200          NO -> REACHES False / False
+127.000.000.001         200          NO -> REACHES False / False
+[::ffff:127.0.0.1]      200          NO -> REACHES False / False
+192.168.86.85           200          NO -> REACHES False / False   <- the LAN address
+ford-sin-mini.lan       200          NO -> REACHES False / False   <- the hostname
+```
+
+Measured with `_REAL_URLOPEN` replaced by a sentinel, so no mutating request
+was ever sent; reachability probed read-only with `GET /api/health`.
+
+Two of those are not loopback spellings at all -- the machine's LAN address and
+its hostname. `uvicorn --host 0.0.0.0` binds the IPv4 wildcard (`lsof`: `TCP
+*:8000 LISTEN`), so **every** address of this host reaches the book. A host-STRING
+allowlist is the wrong shape for that question, and no amount of adding
+spellings fixes it.
+
+## And my drift alarm is structurally incapable of finding this
+
+Both predicates return `False` on all eight. They **agree**, and they are both
+**wrong**. The alarm detects *disagreement*, never *incorrectness* -- so it will
+stay green forever while the channel stays open. That is a real limit of the
+check, and it is now written down rather than discovered again later.
+
+## What I keep doing
+
+Three times in two steps tonight, in different clothes:
+
+- 86.22: the detector covered tuple-membership and was blind to the substring
+  shape, so it missed a whole consumer;
+- 86.22: mutation cell D4 survived because every negative failed the guard's
+  *first* condition, leaving the second untested;
+- 86.6: I added the one host the Q/A named and declared the row correct.
+
+**The fix I reach for is the one that makes the reported symptom go away.** The
+question I keep failing to ask is "what is the SET this belongs to, and how
+would I enumerate it?"
+
+## Remedy, and why it is artifact-only
+
+Criterion 9 does not require the HTTP channel to be CLOSED. It requires the
+artifacts to "state which are covered and which are not". So:
+
+1. the HTTP row is restated as **PARTIAL**, naming the 5 covered host strings
+   and the 8 measured residuals;
+2. the class fix -- resolving a host to this machine's addresses rather than
+   string-matching, or keying the refusal on port 8000 alone -- is **queued as
+   phase-86.27**, research-gated, because the trade-offs are real (a DNS lookup
+   inside a guard path is a blocking call, and port-only keying changes the
+   ephemeral-stub precision the 4000.2 tests depend on). Deciding that at
+   03:30 inside a step whose criteria are about something else is exactly the
+   scope creep this project keeps paying for.
+3. the `assert _sha(X) == _sha(X)` tautology at
+   `test_phase_86_6_live_state_preventer.py:135` is replaced with a real
+   before/after comparison. It was an undisclosed carry-over from cycle 1's
+   "optional" list; the comment above it claimed a check the line did not make.
+
+## Corrected coverage count
+
+Not "3 of 6 covered". Measured honestly:
+
+| channel | status |
+|---|---|
+| filesystem (kill-switch journal + derived archive) | COVERED |
+| filesystem (rest of `handoff/`) | OPEN, deliberately -- proven open tonight by the cycle lock |
+| HTTP | **PARTIAL** -- 5 host strings refused, 8 measured spellings still reach |
+| subprocess | PARTIAL -- one seam (`smoke_cc_rail_e2e.py`) closed of 72 files that shell out |
+| BigQuery | OPEN -- no guard exists |
+| module singleton | OPEN -- 36.28 / 86.1's surviving mutant |
+
+**One channel fully covered, two partial, three open.**

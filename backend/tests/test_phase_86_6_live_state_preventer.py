@@ -128,11 +128,20 @@ def test_a_tmp_REDIRECTED_write_proceeds_normally(tmp_path, monkeypatch):
     redirected = tmp_path / "kill_switch_audit.jsonl"
     monkeypatch.setattr(ks, "_AUDIT_PATH", redirected)
 
+    # Capture BEFORE the write. The previous line here read
+    # `assert _sha(LIVE_JOURNAL) == _sha(LIVE_JOURNAL)` -- a literal
+    # `assert x == x` that compared one call's result to a second call's with
+    # nothing in between, under a comment claiming it checked the live file was
+    # untouched. It checked nothing at all.
+    live_before = _sha(LIVE_JOURNAL)
+
     with open(redirected, "a", encoding="utf-8") as fh:
         fh.write('{"redirected": true}\n')
 
     assert redirected.exists() and redirected.read_text().strip()
-    assert _sha(LIVE_JOURNAL) == _sha(LIVE_JOURNAL)   # live file untouched
+    assert _sha(LIVE_JOURNAL) == live_before, (
+        "the redirected write reached the LIVE journal"
+    )
 
 
 def test_writes_elsewhere_under_handoff_are_NOT_blocked(tmp_path):
