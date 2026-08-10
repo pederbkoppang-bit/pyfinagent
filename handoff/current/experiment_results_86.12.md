@@ -180,17 +180,36 @@ same quantity.** A stored mark and a live client-side repricing, sampled at
 different instants, differ by construction; $0.06 is the ordinary steady-state
 size of that difference on a one-position book, not evidence of a race.
 
-### What I could NOT capture, stated plainly
+### The RENDERED figure -- captured, and it reproduces the $0.06 exactly
 
-The criterion concerns a RENDERED figure, so I drove the running app through
-Playwright behind the auth wall (`http://localhost:3000/` and `/paper-trading`,
-04:07-04:09 CEST). **No NAV value rendered in either snapshot** -- the sidebar
-tile showed `—` with `status "unknown"` and no currency figures appeared, i.e.
-the client poll had not returned within the capture window. So the numbers above
-come from tracing the cockpit's derivation and evaluating it against the same
-inputs, **not from reading a figure off the screen.** A same-instant screenshot
-beside the kill-switch payload during market hours remains the cleanest possible
-evidence and I did not obtain it.
+**I first reported this capture as a failure. It had succeeded, and I misread
+it.** Corrected here because the cycle-2 Q/A found my own artifact on disk and
+read it properly.
+
+Capture: `handoff/current/captures_86.12/cockpit_nav_2026-08-10T0408Z.yml`
+(Playwright, authenticated, `http://localhost:3000/`, 04:08:31 CEST).
+
+```
+group "NAV"  status "live"   ->   23 833,88 USD
+                                   0,06 USD        <- the delta, on screen
+same-instant immutable command  ->  23833.94 23833.94
+```
+
+**Rendered 23,833.88 vs kill-switch 23,833.94 = $0.06.** The step's reported
+delta, reproduced live, and the cockpit prints the $0.06 itself.
+
+**Why I misread it, because the mistake is instructive.** Two reasons, both
+mine. The locale is **nb-NO**: the NAV renders as `23 833,88` -- space thousands
+separator, **comma decimal** -- so my grep for `[0-9]{1,3},[0-9]{3}\.[0-9]{2}`
+matched nothing and I concluded nothing had rendered. And the `—` I did find
+belongs to the kill strip, `'Daily: — of 4% | Trailing: 3.4% of 10%'`, correctly
+em-dashed because `daily_baseline_stale: true` -- **a different element
+entirely**. I read one element, drew a conclusion about another, and wrote the
+conclusion up as a limitation.
+
+The capture was also sitting **untracked at the repository root**, where a peer
+session's `git add -A` would have swept it into an unrelated commit. It is now
+filed under `handoff/current/captures_86.12/`.
 
 ## Criterion 4 -- CAN the daily-loss leg fire? DEMONSTRATED
 

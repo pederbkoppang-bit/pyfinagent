@@ -129,8 +129,12 @@ dict and never looks at the timestamp beside it.
                 print(f"{d:<14}{a:>12}{b:>15}   {'YES' if same else 'NO'}")
         total = equal + diff
         if total:
-            print(f"\n  equality held on {equal}/{total} comparable days "
-                  f"({100.0*equal/total:.0f}%)")
+            distinct = len({str(r.get("date",""))[:10] for r in snaps
+                            if str(r.get("date",""))[:10] in by_date})
+            print(f"\n  equality held on {equal}/{total} ROW-comparisons "
+                  f"({100.0*equal/total:.0f}%) spanning {distinct} DISTINCT "
+                  f"dates -- rows, not days: a date with two sod_snapshot rows "
+                  f"contributes two comparisons")
             verdict = ("ALWAYS" if diff == 0 else
                        "SOMETIMES" if equal else "NEVER")
             print(f"  -> criterion 2 answer: the equality holds {verdict}, "
@@ -165,12 +169,19 @@ dict and never looks at the timestamp beside it.
         print(f"\n  MAX SPREAD: {spread:.6f}")
         if spread == 0:
             print("""
-  The $0.06 delta the step describes does NOT reproduce: all three read the
-  SAME stored `total_nav`, so they agree exactly by construction. A delta can
-  only appear when one of them is served either side of a `mark_to_market`
-  write -- i.e. it is a RACE against the cycle, not a rounding or FX
-  difference. That also explains why it was ~$0.06 rather than a round number:
-  it is one mark's worth of price movement on a single position.""")
+  RETRACTED CLAIM -- this block used to say the delta "can only appear in a
+  RACE against a mark_to_market write". That was wrong and the phase-86.12
+  cycle-1 Q/A rejected it. These three sources are all BACKEND readers of the
+  same stored total_nav, so a 0.000000 spread among them is true by
+  construction and says nothing about the COCKPIT, which is the surface the
+  criterion is about.
+
+  The cockpit computes cash + SUM(LIVE price * qty) (useLiveNav.ts:30-44),
+  i.e. a different quantity: stored cash + LIVE-priced positions, versus the
+  kill switch's stored cash + LAST-MARKED positions. The delta is therefore an
+  ASOF difference plus a ROUNDING component (mark_to_market persists
+  round(nav,2)), and it was MEASURED live at 23,833.88 rendered vs 23,833.94
+  stored = $0.06.""")
     print(f"\n  sod_nav {ks.get('sod_nav')} == current_nav {ks_nav}: "
           f"{ks.get('sod_nav') == ks_nav}")
     print(f"  daily_baseline_stale : {(ks.get('breach') or {}).get('daily_baseline_stale')}")

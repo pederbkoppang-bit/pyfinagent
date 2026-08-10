@@ -223,37 +223,51 @@ def test_the_leg_CANNOT_fire_while_the_anchor_is_from_a_PREVIOUS_day(monkeypatch
 
 
 def test_the_production_ENFORCEMENT_path_reads_the_stored_nav(monkeypatch, tmp_path):
-    """CRITERION 4, through `check_and_enforce_kill_switch` itself rather than
-    through `evaluate_breach` in isolation.
+    """CRITERION 4, through `check_and_enforce_kill_switch` ITSELF.
 
-    Proves the enforcement decision is driven by `portfolio['total_nav']` -- so
-    its freshness IS the freshness of the last `mark_to_market` write, no more
-    and no less.
+    THE CYCLE-2 Q/A KILLED THE PREVIOUS VERSION OF THIS TEST AND WAS RIGHT.
+    It built a `PaperTrader`, monkeypatched `get_or_create_portfolio`, then used
+    NEITHER -- it re-implemented the `total_nav` resolution in the test body and
+    called `evaluate_breach` directly. Replacing
+    `PaperTrader.check_and_enforce_kill_switch` with a raiser left it PASSING,
+    while its docstring claimed it drove that very method. Vacuity shape #7.
+
+    This version CALLS the real method. `flatten_all` is stubbed (a test must
+    not place orders) and asserting it was invoked is what proves the breach
+    reached the money path rather than merely being computed.
     """
     import backend.services.kill_switch as ks
     from backend.services.paper_trader import PaperTrader
+    from backend.config.settings import get_settings
 
     sod = 20000.0
     st = _state_with(sod_nav=sod, peak_nav=sod, sod_date=_today())
     monkeypatch.setattr(ks, "_state", st)
 
     trader = PaperTrader.__new__(PaperTrader)
-    from backend.config.settings import get_settings
     trader.settings = get_settings()
 
-    # A portfolio whose STORED nav is 6% down -- i.e. what mark_to_market would
-    # have written at Step 5 if prices had fallen 6% since the open.
+    # A portfolio whose STORED nav is 6% down -- what mark_to_market would have
+    # written at Step 5 had prices fallen 6% since the anchor.
     stored = {"total_nav": sod * 0.94, "starting_capital": sod,
               "current_cash": 0.0, "portfolio_id": "default"}
     monkeypatch.setattr(trader, "get_or_create_portfolio", lambda: stored)
 
-    nav = float(stored.get("total_nav") or stored.get("starting_capital") or 0.0)
-    breach = ks.evaluate_breach(current_nav=nav, daily_loss_limit_pct=4.0,
-                                trailing_dd_limit_pct=10.0)
-    assert breach["daily_loss_breached"] is True, (
-        "a 6% stored drawdown did not breach the 4% daily limit"
+    flattened = []
+    monkeypatch.setattr(trader, "flatten_all",
+                        lambda reason=None: flattened.append(reason) or {"sold": 0})
+    monkeypatch.setattr(trader, "_sod_anchor_provisional", False, raising=False)
+
+    result = trader.check_and_enforce_kill_switch()
+
+    assert result.get("triggered") is True, (
+        f"the real enforcement path did not trigger on a 6% stored drawdown: "
+        f"{result}"
     )
-    assert breach["daily_loss_pct"] == pytest.approx(6.0, abs=1e-6)
+    assert flattened == ["kill_switch_auto_flatten"], (
+        f"the breach was computed but never reached flatten_all: {flattened}"
+    )
+    assert result["breach"]["daily_loss_pct"] == pytest.approx(6.0, abs=1e-6)
 
 
 # ── the asymmetry: baseline freshness IS checked, NAV freshness is NOT ─────
