@@ -33254,3 +33254,60 @@ rather than smoothed:**
 
 **86.29 is NOT started as a step** -- gate passed, no contract written, status
 still pending.
+
+## Cycle 1206 -- 2026-08-10 -- phase=86.34 result=FAIL
+
+**Q/A `wf_839de1e6-c3c` (189,364 tokens, 30 tool calls, 747s) returned FAIL, and
+it was right on every count.** Verdict transcribed verbatim into
+`evaluator_critique_86.34.md` in the turn it landed.
+
+**THE BLOCKER WAS A VACUOUS ORACLE THAT I PUBLISHED AS PROOF.** Criterion 1
+requires the inverted N1 direction claim to be gone from BOTH the test docstring
+AND `handoff/current/live_check_86.24.md`. I corrected only the docstring, and
+offered `grep -cF "one day behind" <that file>` = 0 as evidence the second
+location was clean. The Q/A tested that oracle across four SHAs: **0 at
+cefe7515, 0 at da9263d6, 0 at 9424939c, 0 at HEAD.** The literal has never
+existed in that file -- its wording is `calendar day one\nbehind UTC`, with no
+"day" between "one" and "behind" and a line break in the middle. The grep could
+not have returned anything but 0 whether or not the claim was present, and the
+claim WAS present, asserted at `:12-13`.
+
+That is the fourth probe on 2026-08-10 that could not produce the finding it was
+searching for (after a `fail|error` grep against failure paths that log
+`subprocess timeout`/`non-zero exit code`, a `cc_rail:%` pattern needing a colon
+the data lacks, and a mutation discriminator reading a 600-char tail of pip
+warnings). **It is the only one I published as evidence, and I wrote the memory
+about this exact class roughly twenty minutes before shipping it.**
+
+**Everything else reproduced in the evaluator's own hands** -- immutable command
+`10 passed` exit=0 re-run at 19:33Z (inside the 13-hour window in which the
+pre-86.34 suite was RED), `mutation_matrix_86_34.py` 4/4 KILLED,
+`mutation_matrix_86_24.py` 7/7 KILLED, conftest census 70/34/32/2 exact, digests
+`fb97b52ecf7fb5be` and `ac991bbed30c9c73` exact, the 24-hour zone sweep
+(Midway BEHIND 11/24, Kiritimati AHEAD 14/24, union 24/24), ruff clean on a
+git-derived scope. Criteria 2, 3, 5, 6 MET.
+
+**Two further findings, both WARN, both mine:** section F of
+`live_check_86.24.md` still carried `36f469402a7e8333` for the clock module when
+the real value was `9b5cb2e44e6ba8a4` -- **this step made it stale** and cycle 1
+refreshed only the digest sitting beside it; and
+`experiment_results_86.34.md` (19:02) was never refreshed after `1b7e4601`
+(21:26) and `73ce11ba` (21:31), so it asserted criterion 3 MET on evidence that
+did not yet exist, and omitted from its file list both matrices carrying that
+criterion's entire evidence.
+
+**Cycle-2 remediation (`4e97374f`)**: claim corrected in place with the original
+quoted and refuted rather than deleted; the vacuous grep replaced by
+`scripts/qa/verify_86_24_direction_claim.py`, which scopes to "asserted outside
+the correction block", carries three positive controls that must each fire, and
+is mutation-proven (re-assert -> exit 1 at the injected line; restore -> exit 0);
+section F regenerated in full from a fresh producer run; experiment_results now
+records cycle 1's criterion-3 "MET" as an overclaim. The new checker's own
+honest count is **2, not 0** -- the correction quotes the sentence twice, and a
+substring oracle cannot tell an assertion from a quotation. Claiming 0 would
+have been a third vacuous claim inside the paragraph complaining about the first
+two.
+
+A fresh Q/A (`wf_6c44bae0-a83`) was spawned on the changed evidence, explicitly
+instructed to attack the new checker first -- a vacuous remedy for a vacuity
+finding would be the worst possible outcome. **Step remains `pending`.**
