@@ -162,11 +162,28 @@ def is_directional(value: object) -> bool:
 # in the tests rather than assumed here.
 #
 # MEASURED 2026-08-10, and it is why this resolver exists rather than a lookup:
-# the analyst recommendation is reachable for 0 of 32 SELL rows. `analysis_id`
-# is empty on 32/32 SELLs (BUYs carry it 33/33), and `round_trip_id` is
-# ONE-SIDED -- 32/32 on SELLs, 0/33 on BUYs -- so a SELL cannot reach its BUY
-# leg either. Building an (A)-style lookup and guarding it with stubs would be
-# guarding a path that runs for no real row.
+# NO PRODUCER EMITS AN ANALYST RECOMMENDATION ONTO A TRADE AT ALL.
+# `analyst_recommendation` is not a column of
+# `financial_reports.paper_trades` (18 columns), and
+# `_production_fns.LEDGER_FETCH_SQL` selects ten named columns without it, so
+# the callers' lookup reads a dict key nothing writes. The path is dead BY
+# CONSTRUCTION. Building an (A)-style lookup and guarding it with stubs would
+# be guarding a path that runs for no real row.
+#
+# CORRECTED cycle 2 (Q/A finding W1). This paragraph previously gave the cause
+# as an unreachable ANCHOR -- "the analyst recommendation is reachable for 0 of
+# 32 SELL rows; analysis_id is empty on 32/32 SELLs (BUYs carry it 33/33), and
+# round_trip_id is ONE-SIDED". Those measurements are real and are recorded in
+# `contract_86.25.md` section 6, but they are NOT the operative cause here, and
+# stating them told the executor of the queued round_trip_id step that this
+# path would self-heal once the anchor landed. IT WILL NOT: it needs a producer
+# change. The "0 of 32 SELL rows" phrasing also implied BUY rows differ; they
+# do not -- the key is absent for every row of every action.
+#
+# A cycle-2 remediation MISSED THIS FILE while the artifact claimed all three
+# were corrected. The re-check that caught it was `git diff <prior-sha> HEAD --
+# <each file named in the prior critique>`; an empty diff for a file on that
+# list is the finding. Re-derive the prior list, never trust a summary of it.
 #
 # NEVER map an approval onto a direction. "risk approved a reduced size" is not
 # "the analyst said buy" -- that is a claim nobody made, and inventing it is the

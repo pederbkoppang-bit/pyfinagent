@@ -105,6 +105,11 @@ mutation cell S1 kills through it.
 
 ## 5. Verbatim output
 
+> **SUPERSEDED by cycle 2 -- kept as the cycle-1 record, not as current
+> evidence.** The `92 passed` below is the pre-rename figure and it did NOT
+> cover the new suite (0 of 16 collected -- Q/A finding W2). The current figure
+> is **108 passed**, in the CYCLE 2 section.
+
 ```
 $ bash -c 'source .venv/bin/activate && python -m pytest backend/tests/ -q -k "outcome_tracker or autonomous_loop or learn_loop"'
 92 passed, 3319 deselected, 1 warning in 6.26s
@@ -181,7 +186,15 @@ also showed the consequence directly — its cells M5 (hardcode the literal
 `UNKNOWN`) and M8 (read `risk_judge_decision` through the resolver) both
 **SURVIVED**, and both survive precisely because that key can never be present.
 
-Corrected in `autonomous_loop.py`, `nightly_outcome_rebuild.py` and here. The
+Corrected in `autonomous_loop.py`, `nightly_outcome_rebuild.py` and here.
+**[CORRECTED cycle 3 -- this sentence was itself wrong.]** The cycle-1
+critique's remediation list named `recommendation_vocab.py`, and cycle 2
+**never touched it** (`git diff 8baecb49 HEAD -- backend/services/recommendation_vocab.py`
+was EMPTY). This sentence substituted `nightly_outcome_rebuild.py`, a file that
+was not on the list, for the one that was -- and then claimed the job was done.
+Worse, in `autonomous_loop.py` the refuted sentence survived **verbatim seven
+lines above** the block calling it "an earlier version of this comment", so the
+file asserted both mechanisms as measured fact. Both fixed in cycle 3. The
 call is kept because it is the right boundary *shape*; the comments now say
 plainly that it does nothing today and why.
 
@@ -253,3 +266,95 @@ still unchanged, and the three original mutation cells still kill.
 86.35 (the scorer's `TypeError` on every real row) and the one-sided
 `round_trip_id` finding remain queued and unfixed here. The (A) branch remains
 dead — now for the correctly-stated reason.
+
+---
+
+# CYCLE 3 -- the remediation I claimed but did not finish, then PARK
+
+**Cycle-2 verdict: CONDITIONAL** (`wf_a59e0a03-8c2`). It confirmed **all 6
+criteria MET**, harness compliance 5/5, no unintended production change, and
+**two of the three cycle-1 fixes reproducing exactly** (W2's rename brings 16/16
+tests inside the unamended filter, 108 passed, both mutants dying inside it;
+W3's numbers now matching the brief). It also settled the M5/M8 question **in my
+favour with executed evidence rather than my reasoning**: its new cells N1 and
+N3 (S1/S2 reading the trade *action* through the resolver) both **KILLED**, so
+every argument regression that could fabricate a direction dies. The S1 guard is
+not too weak.
+
+It blocked on one thing, and it is the sharpest finding of the day against me.
+
+## The finding: I withdrew a claim in one place and left it standing in another
+
+The cycle-1 critique's remediation list named **`recommendation_vocab.py`**.
+Measured by me after the finding:
+
+```
+$ git diff 8baecb49 HEAD -- backend/services/recommendation_vocab.py | wc -l
+0
+$ git log --oneline -1 -- backend/services/recommendation_vocab.py
+8baecb49    (i.e. cycle 2 never touched it)
+```
+
+Its header still gave the **refuted anchor mechanism** as the cause. And in
+`autonomous_loop.py` the refuted sentence survived **verbatim, seven lines
+above** the block that called it "an earlier version of this comment" -- so the
+file asserted **both** the refuted and the corrected mechanism as measured fact.
+
+Meanwhile my own §2 above said "Corrected in `autonomous_loop.py`,
+`nightly_outcome_rebuild.py` and here" -- **substituting a file that was never
+on the list for the one that was**, and then declaring the job done.
+
+**This is the habit the goal named and I repeated it inside the very cycle that
+was fixing a false-claim finding.** The check that catches it is mechanical and I
+did not run it: `git diff <prior-sha> HEAD -- <each file the prior critique
+named>`. An empty diff for a file on that list *is* the finding.
+
+## And a second false statement introduced by the fix itself
+
+The cycle-2 correction block was pasted verbatim into **both** production files.
+In `nightly_outcome_rebuild.py` it opened "An earlier version of this comment
+blamed the unreachable ANCHOR" -- **false of that file**, whose cycle-1 comment
+never mentioned the anchor. A copy-pasted claim about a file's own history is a
+fresh fabrication, produced by the commit that was repairing a fabrication.
+
+## Cycle-3 fixes
+
+| # | Fix | Verified by |
+|---|---|---|
+| 1 | `recommendation_vocab.py` header now gives the absent-column cause; the refuted text is quoted only to mark it refuted | line-wrap-aware grep: all three files state "no producer emits" AND the absent column |
+| 2 | the surviving refuted sentence in `autonomous_loop.py` is **deleted**, not annotated | grep: the only remaining hits are inside correction narratives |
+| 3 | `nightly_outcome_rebuild.py`'s history claim rewritten to be true of **its own** file | diff against `git show 8baecb49:` |
+| 4 | §2's file-list claim corrected in place with the substitution named | above |
+| 5 | §5's stale `92 passed` marked **SUPERSEDED** rather than silently updated | above |
+
+```
+immutable command : 108 passed, 3303 deselected, exit=0
+ruff F821/F401/F811 over 3 git-derived files : All checks passed!  exit=0
+import smoke : all three modules import OK
+```
+
+**No behaviour changed in cycle 3.** Every edit is a comment or an artifact.
+
+## DISPOSITION -- PARKED after two Q/A cycles
+
+The operator's standing rule is park after 2 cycles with a written disposition.
+Both cycles returned CONDITIONAL; both confirmed **all six immutable criteria
+MET** and the behaviour "correct and fail-safe on both seams". Every finding in
+both cycles was a defect in my CLAIMS, never in the shipped code.
+
+**What a fresh session needs to close it:** one Q/A pass on the cycle-3 tree.
+There is no known outstanding remedy -- the cycle-2 path-to-pass is executed and
+this time I verified it with `git diff` per named file rather than by assertion.
+
+**Counter blindness, disclosed not exploited:** `handoff/harness_log.md` has
+**zero** `result=CONDITIONAL` rows for 86.25 (log-last), so a third Q/A grepping
+it would count 0. **There have been two.** Any future spawn must be told so.
+
+**Nothing is unsafe to leave as it stands.** Both seams are fixed; `APPROVE_*`
+never becomes a direction; row count is unchanged so no close is dropped; the
+three original mutation cells plus the evaluator's N1/N3 all kill; and the
+masterplan step remains `pending` with its verification block untouched.
+
+**Still open and disclosed:** 86.35 (the scorer's `TypeError` on every real row,
+which makes the S1 path unreachable independently of this fix) and the one-sided
+`round_trip_id` finding. The (A) branch remains dead by construction.

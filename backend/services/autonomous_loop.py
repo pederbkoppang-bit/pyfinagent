@@ -3424,13 +3424,12 @@ async def _learn_from_closed_trades(tickers: list[str], bq: BigQueryClient, sett
             #     "the analyst said hold" from "we had nothing".
             #
             # The vocabulary is now resolved AT THE BOUNDARY: hand over a real
-            # analyst recommendation or nothing. Nothing is what is available --
-            # MEASURED 2026-08-10: the anchor is reachable for 0 of 32 SELL rows
-            # (analysis_id empty 32/32; round_trip_id one-sided 32/32 SELL vs 0/33
-            # BUY, so the BUY leg cannot be reached). So this resolves to
-            # UNKNOWN today, and UNKNOWN is non-directional by construction --
-            # `directionally_correct` becomes False for an honest reason (no
-            # direction was known) instead of a dishonest one (a fabricated hold).
+            # analyst recommendation or nothing. Nothing is what is available, so
+            # this resolves to UNKNOWN today, and UNKNOWN is non-directional by
+            # construction -- `directionally_correct` becomes False for an honest
+            # reason (no direction was known) instead of a dishonest one (a
+            # fabricated hold). The reason NOTHING is available is stated below,
+            # and it is not the one this comment used to give.
             # WHY THE (A) BRANCH IS DEAD, CORRECTED cycle 2 (Q/A finding W1). An earlier
             # version of this comment blamed the unreachable ANCHOR -- analysis_id empty on
             # 32/32 SELLs, round_trip_id one-sided 32/32 SELL vs 0/33 BUY. Those numbers are

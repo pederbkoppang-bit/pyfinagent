@@ -32954,3 +32954,65 @@ it unprovable rather than passing it.
 `PYFINAGENT_86_24_PROW_PATH` test seam; and phase-86.27's `ebeb03da`, which
 fixed a self-defeating test AFTER 86.27 closed on a PASS and which **no Q/A has
 graded** -- it belongs to 86.27, not here.
+
+## Cycle 1201 -- 2026-08-10 -- phase=86.25 result=PARKED
+
+**P2 -- a risk-approval vocabulary passed where a BUY/SELL recommendation is
+expected.** Two Q/A cycles (`wf_dd580823-63b`, `wf_a59e0a03-8c2`), both
+CONDITIONAL, both confirming **all six immutable criteria MET** and the shipped
+behaviour "correct and fail-safe on both seams". PARKED per the operator's
+2-cycle rule; disposition at the end of `experiment_results_86.25.md`.
+
+**Shipped.** `recommendation_vocab.resolve_outcome_recommendation()` -- takes
+ONLY an analyst-recommendation candidate, returns the canonical value (incl. a
+real HOLD) or the out-of-domain sentinel `UNKNOWN`. Both seams now go through
+it and the `"HOLD"` coercion is deleted. `APPROVE_*` never becomes a direction;
+the vocabulary was not widened; row count is unchanged so no close is dropped.
+
+**THE TWO SEAMS FAIL IN OPPOSITE DIRECTIONS** -- the finding the step text did
+not have. S1 (`autonomous_loop`, flag-gated) coerced to `"HOLD"`, which is NOT
+directional, so a correct sell scored `directionally_correct=False`: a false
+negative. S2 (`nightly_outcome_rebuild`, **UNGATED cron 04:00 UTC**) fell through
+to the trade ACTION, so `"SELL"` IS directional and a losing long scored
+`directionally_correct=True` -- a **false positive crediting the system for a
+call nobody made**. S2 is the one that wrote the three live rows.
+
+**The design changed because P1 measured first.** The contract chose "look up the
+real recommendation"; it resolves for **0 of 32 rows**. Corrected again in cycle
+2: the operative cause is NOT the unreachable anchor but that
+`analyst_recommendation` **is not a column of `paper_trades` at all** (18 cols)
+and is absent from `LEDGER_FETCH_SQL` -- dead BY CONSTRUCTION. The anchor
+measurements are real but would have told the `round_trip_id` executor this path
+self-heals. It will not.
+
+**Every finding in both cycles was a defect in my CLAIMS, not the code:**
+- **W1** right conclusion, wrong mechanism (above).
+- **W2** the immutable `-k` filter collected **0 of the 16 new tests**, so
+  "92 passed" covered neither the S2 nor the resolver guard. Fixed by bringing
+  the tests INTO scope (rename), not by a caveat: **92 -> 108 passed**, and both
+  mutants now die inside the command. No criterion amended.
+- **W3** I claimed 14 sources / 44 URLs; the brief's envelope says **7 / 29**.
+  Inflated ~2x in the flattering direction, in the table directly above my
+  sentence claiming everything had been re-verified.
+- **Cycle 2's own remediation was incomplete while claiming completeness**:
+  `recommendation_vocab.py` was on the critique's list and had a **0-line diff**;
+  the refuted sentence survived **verbatim seven lines above** the block calling
+  it "an earlier version". The mechanical check I failed to run is
+  `git diff <prior-sha> HEAD -- <each file the prior critique named>`.
+- **The fix introduced a fresh false statement**: the correction block was pasted
+  into both files and claimed a history that was false of one of them.
+- A blanket `sed` for the rename rewrote a narrative's own HISTORICAL filename.
+
+**Evidence:** immutable command **108 passed exit 0**; 16 new tests; 3 mutation
+cells all KILLED, each reverting a call site independently, plus the evaluator's
+N1/N3 which also killed -- settling that the S1 guard is not too weak.
+
+**Queued, not fixed:** **86.35** (P2) -- `evaluate_recommendation` parses the
+anchor with `fromisoformat` and subtracts from a NAIVE `now()` while its comment
+claims the parsed value is naive; **32/32 SELL rows carry a tz-AWARE
+`created_at`**, so it raises `TypeError` for every candidate row, swallowed by a
+broad per-ticker `try`. **The S1 path never scores anything at all.** Also the
+one-sided `round_trip_id` (32/32 SELL, 0/33 BUY).
+
+**Counter blindness, disclosed not exploited:** zero `result=CONDITIONAL` rows
+for 86.25 in this log (log-last). **There have been two.** Tell any future spawn.

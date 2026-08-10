@@ -85,11 +85,18 @@ def _compute_outcomes(trades: list[dict]) -> list[dict]:
         # explicit UNKNOWN. Row COUNT is unchanged -- UNKNOWN is truthy, so the
         # skip below still does not fire and no close is silently dropped; only
         # the label changes, from a fabricated direction to an honest absence.
-        # WHY THE (A) BRANCH IS DEAD, CORRECTED cycle 2 (Q/A finding W1). An earlier
-        # version of this comment blamed the unreachable ANCHOR -- analysis_id empty on
-        # 32/32 SELLs, round_trip_id one-sided 32/32 SELL vs 0/33 BUY. Those numbers are
-        # real, but they are NOT the operative cause, and citing them told a future
-        # reader that fixing round_trip_id would make this path resolve. IT WOULD NOT.
+        # WHY THE (A) BRANCH IS DEAD (added cycle 2, Q/A finding W1).
+        # CORRECTED AGAIN cycle 3: the first version of this block was pasted
+        # verbatim from autonomous_loop.py and opened "An earlier version of this
+        # comment blamed the unreachable ANCHOR". That was FALSE OF THIS FILE --
+        # this file's comment never mentioned the anchor. A copy-pasted claim
+        # about a file's own history is a fresh false statement, introduced by
+        # the very commit that was fixing a false-statement finding.
+        #
+        # The substance, which does apply here: the anchor measurements
+        # (analysis_id empty 32/32, round_trip_id one-sided) are real but are NOT
+        # why this branch is dead, and citing them would tell a future reader
+        # that fixing round_trip_id makes this path resolve. IT WOULD NOT.
         #
         # MEASURED: `analyst_recommendation` is not a column of paper_trades at all (18
         # columns), and `_production_fns.LEDGER_FETCH_SQL` selects ten named columns,
