@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-10 | `5f2a7caa` | phase-86.31: harness_log cycle 1209 -- NO VERDICT (rail drop); the step proved itself |
 | 2026-08-10 | `b1427909` | phase-86.31: the mechanism proved itself on a REAL rail drop |
 | 2026-08-10 | `b96b5551` | docs: goal -- parked steps are NOT equivalent; 86.25 closeable, 86.30 never closeable |
 | 2026-08-10 | `219136e4` | phase-86.31: harness_log cycle 1208 -- FAIL by escalation; all 7 criteria MET, mechanism sound |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-10 | `551d5188` | phase-86.34: record the Q/A verdict VERBATIM -- FAIL |
 | 2026-08-10 | `5b1de158` | docs: goal now genuinely under 4000 chars (prior commit still measured 4018) |
 | 2026-08-10 | `f45d905b` | docs: trim next-session goal under the 4000-char limit |
-| 2026-08-10 | `246edafd` | docs: next-session goal -- 86.38 first, then ask #1 and the 86.34 verdict |
 
 ---
 
+### v6.93.83 — phase-86.31: harness_log cycle 1209 -- NO VERDICT (rail drop); the st... (2026-08-10)
+
+- **phase-86.31: harness_log cycle 1209 -- NO VERDICT (rail drop); the step proved itself**
 ### v6.93.82 — phase-86.31: the mechanism proved itself on a REAL rail drop (2026-08-10)
 
 - **phase-86.31: the mechanism proved itself on a REAL rail drop**
