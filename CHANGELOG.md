@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-10 | `5631a161` | phase-86.22: close -- one recommendation vocabulary across seven consumers (Q/A PASS) |
 | 2026-08-10 | `95398fae` | fix(vocab): phase-86.22 cycle 2 -- guard every migrated SITE, not just the vocabulary |
 | 2026-08-10 | `a87add72` | fix(vocab): phase-86.22 -- one recommendation vocabulary across six consumers |
 | 2026-08-10 | `f21129e5` | phase-86.22: research gate PASSED + contract; day report corrected with the measured corpus state |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-09 | `178a6a59` | phase-86.17: contract (written BEFORE any code) |
 | 2026-08-09 | `6763f10f` | phase-86.20: [P1 -- THE TRADE GATE AND THE ANALYZER SPEAK DIFFERENT RECOMMENDATION VOCABULARIES, ... |
 | 2026-08-09 | `e7fd7e51` | docs(86.20): cycle-3 Q/A returns PASS -- verdict verbatim + harness log |
-| 2026-08-09 | `9490c2f1` | docs(86.20): cycle-3 artifact -- 14-cell matrix, refreshed counts, section 12 |
 
 ---
 
+### v6.93.19 — phase-86.22: close -- one recommendation vocabulary across seven cons... (2026-08-10)
+
+- **phase-86.22: close -- one recommendation vocabulary across seven consumers (Q/A PASS)**
 ### v6.93.18 — fix(vocab): phase-86.22 cycle 2 -- guard every migrated SITE, not jus... (2026-08-10)
 
 - **fix(vocab): phase-86.22 cycle 2 -- guard every migrated SITE, not just the vocabulary**
