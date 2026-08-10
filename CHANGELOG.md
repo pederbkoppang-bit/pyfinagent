@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-10 | `b96b5551` | docs: goal -- parked steps are NOT equivalent; 86.25 closeable, 86.30 never closeable |
 | 2026-08-10 | `219136e4` | phase-86.31: harness_log cycle 1208 -- FAIL by escalation; all 7 criteria MET, mechanism sound |
 | 2026-08-10 | `9df1239f` | phase-86.31 cycle 3: correct both claim-accuracy defects the FAIL named |
 | 2026-08-10 | `fc17b0d1` | phase-86.31: record cycle-3 Q/A verdict VERBATIM -- FAIL by escalation |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-10 | `f45d905b` | docs: trim next-session goal under the 4000-char limit |
 | 2026-08-10 | `246edafd` | docs: next-session goal -- 86.38 first, then ask #1 and the 86.34 verdict |
 | 2026-08-10 | `9acce561` | phase-86: queue 86.38 (P1 deep-pipeline quota) and 86.39 (P3 cc_rail attribution) |
-| 2026-08-10 | `691e24a3` | docs: day report -- cycle a5654ab9 outcome, rail recovery, restarts done |
 
 ---
 
