@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-10 | `fceac931` | phase-86.31: PROVE the write separation by driving the real hook -- 15/15 |
 | 2026-08-10 | `74dddc43` | docs: goal to     3898 chars, verified under 4000 before committing this time |
 | 2026-08-10 | `f3e721cc` | docs: goal -- 86.34 parked after 2 Q/A cycles, remediated but ungraded |
 | 2026-08-10 | `e3ba30ea` | phase-86.34: harness_log cycle 1207 -- CONDITIONAL, step parked with disposition |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-10 | `e5d537d6` | docs: day report 2026-08-10 -- 8 steps touched, 8.1M subagent tokens, 12 self-inflicted defects |
 | 2026-08-10 | `a1691029` | phase-86.19: scope the masterplan id resolver and make it refuse to guess (PARTIAL) |
 | 2026-08-10 | `a37f9da5` | phase-86.34: the clock-dependence suite was RED for 13 hours a day |
-| 2026-08-10 | `9424939c` | phase-86.34: measure the TZ fixture's coverage -- it is silent 13 hours a day |
 
 ---
 
+### v6.93.76 — phase-86.31: PROVE the write separation by driving the real hook -- 1... (2026-08-10)
+
+- **phase-86.31: PROVE the write separation by driving the real hook -- 15/15**
 ### v6.93.75 — phase-86.34: harness_log cycle 1207 -- CONDITIONAL, step parked with... (2026-08-10)
 
 - **phase-86.34: harness_log cycle 1207 -- CONDITIONAL, step parked with disposition**
