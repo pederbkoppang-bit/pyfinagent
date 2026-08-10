@@ -1172,7 +1172,7 @@ Soft checks:
   "snippet_only_sources": 24,
   "urls_collected": 43,
   "recency_scan_performed": true,
-  "internal_files_inspected": 14,
+  "internal_files_inspected": 13,
   "coverage": {
     "audit_class": true,
     "rounds": 10,
@@ -1185,3 +1185,53 @@ Soft checks:
   "gate_passed": true
 }
 ```
+
+> `internal_files_inspected` was **corrected 14 → 13** by the recovery-run verification
+> below. Every other field was recounted from this file's own tables and stands unchanged.
+
+---
+
+## Recovery-run envelope verification (2026-08-10)
+
+**Why this section exists.** The gate run that produced everything above
+(`wf_e03b2ad2-e7e`) completed the research and wrote this brief, then **died on the return
+leg** — "subagent completed without calling StructuredOutput" after 224,317 tokens / 69
+tool uses. Write-first saved the artifact; only the envelope was lost. This recovery run
+**re-read no source and re-ran no measurement**. Its entire job was to recount this file's
+own tables and return an envelope the artifact can corroborate.
+
+### Recount — every field checked against this file's content
+
+| Envelope field | Claimed above | Recounted from this file | Verdict |
+|---|---|---|---|
+| `external_sources_read_in_full` | 19 | **19** table rows, numbered contiguously 1-19, 19 distinct URLs, **0** overlap with the snippet table; each has a numbered narrative entry (`[B]` #1-2, `[G]` #3-16, `[I]` #17-18, `[J]` #19) carrying verbatim quoted material | **CORROBORATED** |
+| `snippet_only_sources` | 24 | **24** rows, 24 distinct | **CORROBORATED** |
+| `urls_collected` | 43 | 19 + 24 = **43**, no double-count | **CORROBORATED** |
+| `recency_scan_performed` | true | section present at line 842, **non-empty**, 7 dated data rows (2024-08 … 2026-07) | **CORROBORATED** |
+| `internal_files_inspected` | 14 | **13** distinct files in the inventory table; a sweep of every backticked file-path token in the whole brief collapses to the same 13 (the extra tokens are bare-basename aliases of paths already counted) | **OVER-CLAIM BY 1 → corrected to 13** |
+| `coverage.audit_class` | true | set by the caller | **CORROBORATED** |
+| `coverage.rounds` | 10 | R1-R10 itemised in the checklist | **CORROBORATED** |
+| `coverage.dry_rounds` | 2 | R9 + R10 are the two **consecutive trailing** dry rounds (R7 was also dry but non-trailing, so 3 dry rounds total; the gate-relevant trailing run is 2) | **CORROBORATED** |
+| `coverage.dry` | true | K=2 satisfied by the R9+R10 trailing pair | **CORROBORATED** |
+| `gate_passed` | true | 19 ≥ 5 floor · recency scan present · all 5 hard blockers checked · audit-class `dry == true` | **CORROBORATED** |
+
+### Discrepancies found (both recorded, neither gate-blocking)
+
+1. **`internal_files_inspected` was 14; the artifact supports 13.** The inventory table has
+   20 rows over 13 distinct files (`conftest.py` alone occupies 6 rows,
+   `test_phase_86_6_subprocess_channel.py` 2, `backend/api/auth.py` 2). No 14th file is
+   anchored anywhere in the brief. **Corrected downward.** This field is not part of the
+   gate predicate, so the correction does not change `gate_passed`.
+2. **Recency-scan prose says "6 findings"; the table has 7 rows and the checklist says 7.**
+   The table is the evidence and it lists 7 (Oligo 0.0.0.0-Day, CVE-2026-49857,
+   CVE-2026-54272, CVE-2026-27730, HackerOne #3634400, CVE-2025-31490, CPython gh-146245).
+   **The correct count is 7**; the "6" in the lead sentence is a miscount in prose only.
+   `recency_scan_performed` is true under either number.
+
+### What was NOT re-verified (stated so it is not mistaken for coverage)
+
+This recovery run did **not** re-fetch any of the 19 URLs, did not re-run any of the
+`[A]`/`[C]`/`[D]`/`[F]`/`[K]` measurements, and did not re-grep the repo. It verifies that
+the brief's **self-report matches the brief's own content** — it does not independently
+re-confirm that each WebFetch returned what the brief says it returned, nor that the pasted
+measurements reproduce today. Those rest on the original run's write-first record.
