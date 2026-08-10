@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-10 | `da9263d6` | phase-86.24: cycle-3 -- the withdrawn claim removed from live source; step PARKED |
 | 2026-08-10 | `14b8d32b` | docs(86.24): cycle-2 artifacts -- withdraw the false support, disclose the member I introduced |
 | 2026-08-10 | `9187aa8b` | docs(86.31,86.32): file the two harness-reliability fixes from today's measurements |
 | 2026-08-10 | `d2e987f1` | fix(86.28): kill the survivor recovered from a dropped Q/A transcript |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-10 | `9bda4e6d` | phase-86.27: key the live-backend guard on the resolved ADDRESS, not a host string |
 | 2026-08-10 | `d638a3ec` | fix(86.28): cycle-2 -- harden the guard the Q/A defeated, and cite symbols not lines |
 | 2026-08-10 | `d0a98817` | fix(86.28): stop the research gate certifying a standard the caller did not request |
-| 2026-08-10 | `cad38647` | phase-86.6: P1 THE CHANNELS A CONFTEST GUARD CANNOT REACH ARE STILL OPEN: (A) an in-process test ... |
 
 ---
 
+### v6.93.46 — phase-86.24: cycle-3 -- the withdrawn claim removed from live source;... (2026-08-10)
+
+- **phase-86.24: cycle-3 -- the withdrawn claim removed from live source; step PARKED**
 ### v6.93.45 — fix(86.28): kill the survivor recovered from a dropped Q/A transcript (2026-08-10)
 
 - **fix(86.28): kill the survivor recovered from a dropped Q/A transcript**
