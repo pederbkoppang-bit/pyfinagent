@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-10 | `1ed39ccd` | fix(hygiene): phase-86.26 -- remove 7 dead imports so the Q/A lint gate is usable again |
 | 2026-08-10 | `a16fa5a2` | phase-86.26: research gate PASSED + contract (before any removal) |
 | 2026-08-10 | `a6058efd` | phase-86.12: close -- the kill switch does NOT evaluate drawdown against a stale NAV (Q/A PASS) |
 | 2026-08-10 | `c8628558` | docs: amend the day report with the night's later work |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-10 | `73398c5a` | docs: regenerate the goal from measured state (cycles resume at 200) |
 | 2026-08-10 | `802a8535` | docs: day report 2026-08-10 -- the book CAN trade, next cycle 14:00 ET today |
 | 2026-08-10 | `10772911` | docs(86.21): cycle-3 Q/A returns FAIL by escalation -- step PARKED, not reverted |
-| 2026-08-10 | `130a5e9b` | fix(86.21): cycle-3 -- my cycle-2 fix was the instance; this is the class |
 
 ---
 
+### v6.93.30 — fix(hygiene): phase-86.26 -- remove 7 dead imports so the Q/A lint ga... (2026-08-10)
+
+- **fix(hygiene): phase-86.26 -- remove 7 dead imports so the Q/A lint gate is usable again**
 ### v6.93.29 — phase-86.26: research gate PASSED + contract (before any removal) (2026-08-10)
 
 - **phase-86.26: research gate PASSED + contract (before any removal)**
