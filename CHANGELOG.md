@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-10 | `c806cad6` | phase-86.29: PLAN -- contract written, mechanism demonstrated before planning |
 | 2026-08-10 | `5f2a7caa` | phase-86.31: harness_log cycle 1209 -- NO VERDICT (rail drop); the step proved itself |
 | 2026-08-10 | `b1427909` | phase-86.31: the mechanism proved itself on a REAL rail drop |
 | 2026-08-10 | `b96b5551` | docs: goal -- parked steps are NOT equivalent; 86.25 closeable, 86.30 never closeable |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-10 | `4e97374f` | phase-86.34 cycle 2: fix the FAIL -- correct the claim that survived, kill the vacuous oracle |
 | 2026-08-10 | `551d5188` | phase-86.34: record the Q/A verdict VERBATIM -- FAIL |
 | 2026-08-10 | `5b1de158` | docs: goal now genuinely under 4000 chars (prior commit still measured 4018) |
-| 2026-08-10 | `f45d905b` | docs: trim next-session goal under the 4000-char limit |
 
 ---
 
+### v6.93.84 — phase-86.29: PLAN -- contract written, mechanism demonstrated before... (2026-08-10)
+
+- **phase-86.29: PLAN -- contract written, mechanism demonstrated before planning**
 ### v6.93.83 — phase-86.31: harness_log cycle 1209 -- NO VERDICT (rail drop); the st... (2026-08-10)
 
 - **phase-86.31: harness_log cycle 1209 -- NO VERDICT (rail drop); the step proved itself**
