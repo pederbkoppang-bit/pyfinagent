@@ -296,3 +296,96 @@ The `n()` sentinel renders an omitted count as "only -1 distinct URLs
 appear in the brief". It fails closed correctly; the message is confusing.
 Cosmetic, outside the frozen criteria, and the tree is under evaluation --
 queued rather than patched mid-grade.
+
+---
+
+# CYCLE 3 -- after the SECOND CONDITIONAL (Q/A `wf_d0934c91-70b`)
+
+Sections 2, 5 (cycle 1) and 9 (cycle 2) above are historical measurements.
+Current state below.
+
+## 14. Immutable command -- cycle 3
+
+```
+$ node scripts/qa/verify_research_gate_workflow.mjs
+ALL GREEN: 73 passed, 0 failed
+```
+
+40 (baseline) -> 61 (c1) -> 64 (c2) -> 73 (c3). Nothing removed or weakened.
+
+## 15. W3 FIXED -- the guard is now BEHAVIOURAL, not a source scan
+
+Two Q/A passes defeated a source scan (`//` token, then `/* */` block
+comment). The Q/A named the terminal fix: observe the property instead of
+pattern-matching it. Verbatim:
+
+```
+[6d] phase-86.28 cycle 3 -- BEHAVIOURAL: does the driver actually spawn? (replaces the source scan)
+  ok   RECORDER WORKS: a SUPPORTED tier really does spawn (known-positive)
+  ok   the first spawn is the stage-1 researcher (agentType researcher)
+  ok   UNSUPPORTED tier spawns ZERO agents (measured, not scanned)
+  ok   UNSUPPORTED tier returns gate_passed:false with the tier reported
+  ok   UNSUPPORTED tier does NOT claim an agent returned null
+  ok   BLIND run spawns ZERO agents (86.17 property, measured)
+  ok   B1 (block-comment decoy + relocated refusal) IS CAUGHT behaviourally
+
+```
+
+The known-positive check is first on purpose: without proving the recorder
+can see a spawn that DOES happen, a reading of zero proves nothing.
+
+### Independent reproduction of the Q/A's B1 mutant
+
+```
+$ node scripts/qa/verify_research_gate_workflow.mjs      # B1-mutated repo copy
+FAILED: 68 passed, 3 failed
+  - UNSUPPORTED tier spawns ZERO agents (measured, not scanned) -- recorded 2 agent() call(s) -- the refusal did not prevent the spawn
+  - ordering guard REJECTS the M5 comment-token + relocation defeat
+  - ordering guard REJECTS a refusal relocated AFTER the spawn
+```
+
+The Q/A measured `ALL GREEN 64 passed, 0 failed` on this same mutation.
+B1 is KILLED. The source scan additionally now strips block comments and
+is demoted to cheap-secondary; section [6d] is the authority.
+
+## 16. W4 FIXED -- three stale claims in the file my audit missed
+
+| Site in `research-gate.js` | Was | Measured | Now |
+|---|---|---|---|
+| deep-tier reference | `researcher.md:204,206-273` | deep section at `:213` | symbol (grep the heading) |
+| fork reference | `researcher.md:248-263` + "fourth requirement" | fork at `:255`; it is conditional | symbol + "fourth LISTED ELEMENT ... CONDITIONAL" |
+| implementation proof | "\`grep -c deep\` returns 0" | returns **8** | two enforced checks (below) |
+
+The grep claim defeated itself by containing the word. Replaced with a
+claim that cannot, and ENFORCED rather than asserted:
+
+```
+  ok   VALID_TIERS does not contain 'deep' (the tier is documented but NOT implemented here)
+  ok   every 'deep' occurrence in the file is a COMMENT, never code
+```
+
+Mutation-tested -- adding `'deep'` to VALID_TIERS in a repo copy:
+
+```
+FAILED: 68 passed, 5 failed
+  - UNSUPPORTED tier spawns ZERO agents ... recorded 2 agent() call(s)
+  - UNSUPPORTED tier returns gate_passed:false with the tier reported
+  - UNSUPPORTED tier does NOT claim an agent returned null
+  - VALID_TIERS does not contain 'deep' -- VALID_TIERS = ['simple', 'moderate', 'complex', 'deep']
+```
+
+### Why cycle 2's audit missed it
+
+I derived the scope from the union of MY OWN commits -- and
+`research-gate.js` is not in them, because the peer session's `git add -A`
+swept it into `cad38647`. A scope that looked derived was still wrong.
+Cycle 3 derives from the step BASE (`089726f9..HEAD`), deliberately
+over-inclusive. That rerun also exposed a zsh trap in my first attempt:
+`for f in $SCOPE` does not word-split in zsh, so the loop audited nothing
+and printed a clean result.
+
+## 17. Cycle-2 false sentence corrected
+
+"strips \`//\` comment lines before indexing, so a comment cannot stand in
+for code" was measurably false for block comments. Corrected to `//`
+comment, with a pointer to the behavioural replacement.

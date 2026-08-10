@@ -156,3 +156,143 @@ removed or weakened.
 No production behaviour. The Q/A found all 9 criteria met on their literal
 wording and every shipped probe correct; cycle 2 touched only the checker's
 ordering guard and documentation accuracy.
+
+
+---
+
+# CYCLE 2 VERDICT -- Q/A run `wf_d0934c91-70b`
+
+> Transcribed VERBATIM. Fresh Q/A on CHANGED evidence (cycle-2 flow).
+
+## Verdict: **CONDITIONAL** (`ok: False`, `harness_compliance_ok: True`)
+
+### reason
+
+All 9 immutable criteria are MET and both cycle-1 WARNs verified genuinely fixed (M5 reproduced KILLED at exactly FAILED 62 passed/2 failed; baseline 40/0 reproduced at 089726f9; 64/0 reproduced; all 9 mutants KILLED; research-gate.js md5-identical to cycle 1 so no production behaviour changed) — but two NEW WARN findings block a clean PASS: (W3) I DEFEATED the hardened ordering guard with a /* */ block-comment decoy, measuring ALL GREEN 64 passed/0 failed while the production refusal sits AFTER the spawn, which makes the handoff's claim "so a comment cannot stand in for code" measurably false; and (W4) the "the CLASS was audited" completeness claim excluded the production file this step edited — .claude/workflows/research-gate.js still carries two stale researcher.md citations of the identical shape W2 named, plus a self-defeating grep count.
+
+### violated_criteria
+
+- illusory-guard [WARN]: the hardened ordering assertion is still defeatable by a /* */ block comment (qa.md 4c shapes #2/#8) — executed, ALL GREEN 64/0 with production doing the opposite
+- claim-accuracy [WARN]: the cycle-2 class audit of stale file:line citations excluded the production source this step edited; two identical-shape stale citations and one self-defeating count survive in .claude/workflows/research-gate.js
+
+### violation_details
+
+#### W3. Circular_Reasoning
+
+**action**
+
+```
+Executed mutant B1 in a mkdtemp repo (zero repo writes): replaced the real `if (tierUnsupported) {` block with a /* */ block comment containing the same token and a col-0 close brace, appended the REAL refusal block after `const envelope = await agent(PROMPT`, ran the author's unmodified checker.
+```
+
+**state**
+
+Checker printed `ALL GREEN: 64 passed, 0 failed`. Directly evaluating the checker's own predicate: refusalPrecedesSpawn(B1) === true, and 'the refusal is placed BEFORE the researcher spawn' did NOT go red. stripLineComments (verify_research_gate_workflow.mjs:424) filters only /^\s*\/\// lines, so a /* */ comment survives and the first-match regex at :427 anchors inside it. CONTROL 64/0; B0 (plain relocation, no decoy) correctly goes red, so the guard is not globally vacuous — it is decoy-defeatable. Mis-attributed kill (4c shape #11): my A1/A2/A3 decoys printed FAILED 62/2 but the two failing names were the VACUITY tests, not the ordering guard, i.e. the guard passed on all three. experiment_results_86.28.md 'Follow-up -- cycle 2' asserts the fix 'strips `//` comment lines before indexing, so a comment cannot stand in for code' — measured false for block comments.
+
+**constraint**
+
+qa.md 4c: a guard that cannot fail when its subject is broken does not count; shapes #2 (source scan defeated by moving the scanned text) and #8 (comment-token trap). SEVERITY WARN, not BLOCK: no immutable criterion names this assertion, and genuine behavioural coverage coexists and reproduces — the `tier_unsupported check removed` mutant is KILLED (enforceGate complete mediation) and the live run recorded agentCount 0 / totalTokens 0, so a defeat costs wasted researcher tokens, never a false certification. NAMED FIX — and a third regex patch is explicitly NOT what I am asking for: (a) terminal fix, make it BEHAVIOURAL — the property is 'no agent is spawned on an unsupported tier', directly observable by driving the module with a recording stub for agent() (loadModule(sourceOverride) already exists) and already measured live as agentCount:0; this is the author's own research finding F6 (EBTE, 'structural is not semantic') applied to their own guard; (b) minimum acceptable — strip block comments AND string/template literals before scanning and add B1 as a standing vacuity test; (c) either way correct the sentence to '`//` comment'.
+
+#### W4. Overgeneralization
+
+**action**
+
+```
+Re-derived the class-audit scope from git rather than from the author's table: `git show --name-only d0a98817 d638a3ec` (union) includes .claude/workflows/research-gate.js; then grepped that file's own file:line citations and measured each against the current tree.
+```
+
+**state**
+
+live_check_86.28.md section 11 claims 'I grepped every `file:line` citation written this cycle' and 'the CLASS was audited, not just the 3 named instances', listing six in a table. The scan covered the handoff artifacts + CLAUDE.md + researcher.md but NOT the production file this step edited. Surviving in research-gate.js: (1) :155 'MEASURED: `.claude/agents/researcher.md:204,206-273` documents a FOURTH tier' — measured now, :204 is 'Caller states the tier in the prompt.', :206 is a table header, the deep section is at :213; correct at base 089726f9 (:204 was the deep table row), staled by THIS cycle's own edit to researcher.md — the exact mechanism W2 named, and the identical string `researcher.md:204,206-273` appears in the author's own FIXED column for live_check section 7; (2) :180-181 'researcher.md :248-263 makes deep's fourth requirement a MULTI-SUBAGENT PRODUCER FORK' — measured, :248 is 'domains (e.g., ML research...', the fork is at :255; also still says 'fourth requirement', the exact N2 wording accepted as overstated and corrected in the artifacts but not in source; (3) :158-159 '`grep -c deep` on this file returns 0' — MEASURED NOW: 8 (0 at base 089726f9); the comment defeats its own count.
+
+**constraint**
+
+qa.md 4b: a COMPLETENESS claim requires a known-member recall test against a set the author did not choose, and scopes must be DERIVED not typed — 'git show --name-only' is the authority on what this cycle changed, not a hand-assembled table. SEVERITY WARN: these are rationale comments, no behaviour depends on them, and the propositions they support are independently TRUE (VALID_TIERS at :187 is still ['simple','moderate','complex'], verified). The grep-count instance alone would be a NOTE (self-referential, proposition true); it is grouped here because the same derived-scope audit surfaces all three. NAMED FIX: re-run the class audit with the scope derived from git so research-gate.js is mechanically included, cite the symbol as done elsewhere, and either re-measure or drop the `grep -c deep` operationalization.
+
+### checks_run (24)
+
+- `harness_compliance_audit_5_item`
+- `immutable_verification_command_exit_0_64_passed`
+- `baseline_40_0_independently_reproduced_at_089726f9`
+- `no_baseline_check_name_deleted_comm_diff`
+- `all_9_mutants_reproduced_KILLED`
+- `prior_M5_mutant_independently_reproduced_KILLED_62_2`
+- `new_adversarial_mutants_A1_A2_A3_B0_B1_executed`
+- `guard_predicate_directly_evaluated_refusalPrecedesSpawn`
+- `production_file_md5_identity_cycle1_vs_HEAD_vs_disk`
+- `derived_changed_file_scope_from_git_not_handtyped`
+- `stale_citation_class_reaudited_over_derived_scope`
+- `present_tense_citations_reproduced_584_399_255`
+- `research_gate_corroborated_independently_brief_urls_recency`
+- `criterion_by_criterion_1_through_9`
+- `guard_vacuity_check_4c`
+- `claim_auditing_4b`
+- `python_lint_gate_NA_zero_py_in_step_commits`
+- `frontend_lint_typecheck_NA_zero_frontend`
+- `backend_runtime_smoke_NA_zero_backend`
+- `live_ui_capture_NA_no_ui_claims`
+- `node_check_both_scripts_exit_0`
+- `masterplan_status_pending_log_last`
+- `3rd_conditional_counter_grep_harness_log`
+- `code_review_heuristics`
+
+### notes
+
+HARNESS COMPLIANCE 5/5. Research gate PASSED and corroborated by me, not taken on trust: brief 41,731 bytes, recency section at :92 ('## Recency scan (2024-2026) -- PERFORMED'), envelope external_sources_read_in_full 7 (floor 5) / urls_collected 34 (floor 10) / gate_passed true, and 39 distinct http URLs on disk >= the 34 claimed (my regex is stricter than the prior Q/A's, which counted 48; both clear the claim — I report the residual rather than pretending the operationalizations agree). Log-last OK: masterplan 86.28 status=pending, retry_count 0, zero harness_log entries. NOT verdict-shopping: evidence CHANGED — d638a3ec touched the checker (+70), CLAUDE.md, researcher.md and all four artifacts. BLIND CHECK DISCLOSED: current mtimes CANNOT establish contract-before-generate (all four artifacts are 09:09-09:10 from the cycle-2 rewrite); I rely on the cycle-1 measured chain plus git ordering, and the contract carries an explicit cycle-2 annotation saying its citations are as-written-at-PLAN-time. 3rd-CONDITIONAL: 0 logged entries for 86.28 (mid-cycle, by design) and exactly ONE prior CONDITIONAL in evaluator_critique_86.28.md — this is #2, threshold 3 NOT reached, so FAIL is not mandated. I verified that myself rather than accepting the author's statement.
+
+CRITERION-BY-CRITERION, all 9 MET. (1) MET — I re-ran the checker at BASE 089726f9 in a reconstructed tmp repo and got exactly 'ALL GREEN: 40 passed, 0 failed'; current is 64/0; comm of the extracted check-name sets shows ZERO baseline names missing; all 6 pre-existing mutants still KILLED, which is the proof of no masking. (2) MET — tier_requested/tier_applied/tier_supported are in the return object (:690-692) and in the recorded live JSON; ABSENT vs UNSUPPORTED are distinguishable and [6b]'s 9 behavioural checks are green, incl. 'absent opts.tier behaves exactly as before'. (3) MET — VALID_TIERS is still ['simple','moderate','complex'] (:187), exactly 2 await agent() call sites (:580 stage-1, :602 stage-2, the pre-existing two-stage design, no fan-out), every 'deep' occurrence is a comment; divergence disclosed with two operator options. (4) MET — [6c] 6/6 green incl. over-claim rejection on both fields and 'corroboration does not double-fire' on absent verification; both corroboration mutants KILLED. (5) MET — I reproduced all 9 mutants KILLED. (6) MET — the step's diff touches coverage.dry only in ADDED COMMENT lines and opts.floors not at all; the reason is recorded in the 'Not done, deliberately' table. (7) MET including the second clause — both docs now say agentType:'researcher' and cite the SYMBOL; the code pins it at :584; the checker asserts it at :399; CLAUDE.md explicitly resolves its own contradiction ('Corrected phase-86.28: this sentence used to say general-purpose, contradicting the agentType:'researcher' rationale stated a few sentences above it'). (8) MET independently — model 'opus', 0 static imports, exactly 1 export, 0 minimum/minItems, 0 Monitor(, gate_passed not const:true, node --check exit 0 on both files. (9) MET on its literal verb; see the limits paragraph below.
+
+WHAT REPRODUCED EXACTLY (credit where due). M5: my independent reconstruction gave 'FAILED: 62 passed, 2 failed' with the same two failing names the author reported — the cycle-1 defeat is genuinely KILLED. B0 (plain relocation, no decoy) is also correctly detected, so the hardened guard is NOT globally vacuous; it is decoy-defeatable. research-gate.js is byte-identical across cycle-1 commit d0a98817, HEAD and disk (md5 364f4398c9a369088a06ce1d4f9b31d6) — the 'no production behaviour changed in cycle 2' claim is verified, not accepted. Every present-tense measured citation reproduces (:584, :399, :255) and research-gate.js:419 survives only inside the historical 'Cited' column. N1 confirmed genuinely queued-not-patched (the -1 sentinel is still at :400 and the message at :480) — correct under freeze-the-tree-during-EVALUATE. N2 correction is honest and correctly scoped to the artifacts.
+
+ON THE TWO EXCLUSIONS THE AUTHOR ASKED ME TO JUDGE: annotating rather than rewriting the contract is RIGHT (a PLAN records what was planned, and the annotation is at the top, before every citation it covers); not rewriting the research brief is RIGHT (another agent's evidence artifact); not editing my predecessor's verbatim verdict is RIGHT and required. Queueing N1 rather than patching mid-grade is RIGHT.
+
+LIMITS OF THIS VERDICT, stated plainly. I could NOT re-execute the Workflow runtime from my surface, so the two live run records (wf_23d9ed4b-22c, wf_4da39b31-695) and the run-1 defect narrative are the AUTHOR'S evidence, read not reproduced — criterion 9 rests on them. The author's own disclosed gap stands and I did not close it: the FULL stage-1+stage-2 path was not re-run after the change. No Playwright capture was taken because the step makes no UI claims. Python/frontend/backend gates are N/A on a DERIVED scope: the union of this step's own commits (d0a98817, d638a3ec) contains zero .py, zero frontend/**, zero backend/** — note the naive 089726f9..HEAD range is contaminated by a concurrent session's 86.6/86.27 commits, which is why I scoped to the step's own commits. Related and already dispositioned: the peer's cad38647 swept 86.28's in-flight production change under its own message (git add -A cross-attribution); content is intact and is what I graded, attribution is queued as 86.15 and out of scope here.
+
+BOTTOM LINE. Neither finding impugns shipped behaviour, and neither violates a frozen criterion — I am not moving the criteria. The CONDITIONAL is forced by qa.md 4c (an executed guard defeat plus a false claim about that guard in the handoff) and 4b (a completeness claim whose scan excluded a known member set derivable from git). Both are ~15-minute fixes and the terminal fix for W3 is the author's own F6 finding: stop asserting an execution-order property with a source scan when the live rail already measures agentCount 0.
+
+---
+
+# Follow-up by Main -- cycle 3
+
+> Appended. Both verbatim verdicts above are untouched.
+
+Both new WARNs were real and both are fixed. Evidence: `live_check` §14-17,
+`experiment_results` "Follow-up -- cycle 3".
+
+## W3 -- behavioural, not a third regex
+
+The Q/A said a third regex patch was not the ask, and it was right: the
+property is "was `agent()` called?", so it is now COUNTED. New `[6d]`
+section builds a drivable copy of the whole script (`loadDriver`) and runs
+it with a recording `agent()` stub. Known-positive check leads, so a
+reading of zero is meaningful. B1 independently reproduced KILLED
+(`FAILED: 68 passed, 3 failed`, the behavioural check reporting "recorded 2
+agent() call(s)") against the Q/A's measured `ALL GREEN 64/0`. The source
+scan now also strips block comments and is demoted to cheap-secondary --
+it printed `ok` under B1, and a check that says ok during a real breach is
+worse than none.
+
+## W4 -- the audit scope, re-derived
+
+All three survivors in `research-gate.js` fixed: two stale `researcher.md`
+citations replaced with symbols, "fourth requirement" corrected to "fourth
+LISTED ELEMENT ... CONDITIONAL" in the SOURCE (cycle 2 fixed it only in the
+artifacts), and the self-defeating `grep -c deep` claim replaced with two
+ENFORCED checks, mutation-tested by adding `'deep'` to VALID_TIERS in a
+copy (killed by 5 checks).
+
+**Root cause of the miss, stated plainly:** I derived cycle 2's scope from
+my OWN commits, and `research-gate.js` was not in them -- the peer's
+`git add -A` had swept it into `cad38647`. Cycle 3 derives from the step
+base, deliberately over-inclusive. The rerun also caught a zsh
+word-splitting trap that had made my first scan silently audit nothing.
+
+## Cycle-2 false claim corrected
+
+"a comment cannot stand in for code" -> "`//` comment", with a pointer to
+the behavioural replacement.
+
+## Checker
+
+40 -> 61 (c1) -> 64 (c2) -> **73 (c3)**, 0 failed. No production BEHAVIOUR
+changed in cycle 3 -- the only `research-gate.js` edits are comment text.

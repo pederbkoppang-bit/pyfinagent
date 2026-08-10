@@ -120,7 +120,12 @@ $ node scripts/qa/verify_research_gate_workflow.mjs
 ALL GREEN: 40 passed, 0 failed
 ```
 
-### Immutable command, AFTER
+### Immutable command, AFTER -- **CYCLE-1 MEASUREMENT**
+
+> Everything from here to the cycle-2 follow-up is the CYCLE-1 record and
+> is left as measured. **Current total is 73** (cycle 3); the file list and
+> mutant count below are likewise cycle-1 and were extended in cycles 2-3.
+> Read the follow-up sections for current state.
 
 ```
 $ node scripts/qa/verify_research_gate_workflow.mjs
@@ -263,8 +268,11 @@ token) -- and it is precisely the "guards stop one seam short" class.
 
 **Fix.** The predicate is extracted as `refusalPrecedesSpawn(src)` and:
 
-- strips `//` comment lines before indexing, so a comment cannot stand in
-  for code;
+- strips `//` comment lines before indexing, so a **`//` comment** cannot
+  stand in for code. **CORRECTED cycle 3**: this sentence originally said
+  "a comment cannot stand in for code", which was measurably false -- the
+  next Q/A defeated it with a `/* */` block comment. See the cycle-3
+  section for the behavioural replacement;
 - matches the refusal as a BLOCK reaching its `return {`, not as a bare
   opening token.
 
@@ -336,3 +344,117 @@ weakened.
   mandates not adding `deep`, nor the reasoning for refusing (a
   conditional fork on an N=1 artifact rail is still a fork the rail
   cannot support). Corrected here rather than silently.
+
+---
+
+# Follow-up -- cycle 3 (after the SECOND CONDITIONAL)
+
+Q/A `wf_d0934c91-70b` verified both cycle-1 fixes genuinely landed (M5
+reproduced KILLED at exactly 62/2; `research-gate.js` md5-identical to
+cycle 1) and then found **two NEW** WARNs. Both real. Both fixed.
+
+## W3 -- the hardened guard was STILL defeatable, and I stopped patching regexes
+
+The Q/A defeated the cycle-2 guard with a `/* */` block comment:
+`stripLineComments` filtered only `^\s*//`, so the block comment survived
+and the first-match regex anchored inside it. Measured `ALL GREEN: 64
+passed, 0 failed` while the production refusal sat AFTER the spawn.
+
+**It explicitly told me a third regex patch was not the ask.** The named
+terminal fix is to make the check BEHAVIOURAL, because the property is
+"was `agent()` called?" -- and that is this step's own research finding F6
+(EBTE: *structural is not semantic*) applied to my own guard. It was right.
+
+**What I built** (`[6d]` in the checker):
+
+- `loadDriver()` -- wraps the WHOLE script in an async function so the
+  driver can run outside the Workflow runtime (legalising its top-level
+  `return`/`await`, exactly as the runtime does). `loadModule()` could not
+  do this: it slices the file at `phase('Research')` and keeps only the
+  definitions.
+- `driveRecording()` -- runs it with a RECORDING stub for `agent()`.
+- The property is then **counted, not pattern-matched**.
+
+**Known-positive first.** The section leads with a check that a SUPPORTED
+tier really does spawn. Without it, "0 spawns" on the unsupported path
+would be exactly the vacuous pass this section exists to eliminate -- the
+instrument has to be shown working before its null reading means anything.
+
+```
+  ok   RECORDER WORKS: a SUPPORTED tier really does spawn (known-positive)
+  ok   the first spawn is the stage-1 researcher (agentType researcher)
+  ok   UNSUPPORTED tier spawns ZERO agents (measured, not scanned)
+  ok   UNSUPPORTED tier returns gate_passed:false with the tier reported
+  ok   UNSUPPORTED tier does NOT claim an agent returned null
+  ok   BLIND run spawns ZERO agents (86.17 property, measured)
+  ok   B1 (block-comment decoy + relocated refusal) IS CAUGHT behaviourally
+```
+
+**Independent reproduction of B1**, the Q/A's own method -- repo copy,
+unmodified checker:
+
+```
+FAILED: 68 passed, 3 failed
+  - UNSUPPORTED tier spawns ZERO agents (measured, not scanned) -- recorded 2 agent() call(s) -- the refusal did not prevent the spawn
+```
+
+The Q/A measured `ALL GREEN 64/0` on that same mutation. **B1 is KILLED.**
+
+Note what that run also showed: the *source scan* still printed `ok`
+under B1. A check that says "ok" during a real breach is worse than no
+check, so the scan now strips block comments too and is explicitly
+demoted to cheap-secondary, with `[6d]` named as the authority.
+
+## W4 -- my "class was audited" claim excluded the file I edited
+
+The Q/A re-derived the scope from git instead of from my hand-made table
+and found three survivors in `.claude/workflows/research-gate.js`:
+
+1. `researcher.md:204,206-273` -- stale (deep section is at `:213`), staled
+   by **this cycle's own edit to researcher.md**: the identical mechanism
+   W2 named, and the identical string sitting in my own "FIXED" column.
+2. `researcher.md:248-263` -- stale (fork at `:255`), **and** still said
+   "fourth requirement", the exact N2 wording I accepted as overstated and
+   then corrected only in the artifacts, not in the source.
+3. `` `grep -c deep` on this file returns 0 `` -- **measures 8 now**. The
+   comment defeated its own count by containing the word.
+
+All three fixed: symbols instead of lines, "fourth LISTED ELEMENT
+... CONDITIONAL" instead of "fourth requirement", and the self-defeating
+grep replaced with a claim that cannot defeat itself -- now **enforced**
+rather than asserted:
+
+```
+  ok   VALID_TIERS does not contain 'deep' (the tier is documented but NOT implemented here)
+  ok   every 'deep' occurrence in the file is a COMMENT, never code
+```
+
+Mutation-tested, because a guard nobody has watched fail is not a guard.
+Adding `'deep'` to `VALID_TIERS` in a repo copy:
+
+```
+FAILED: 68 passed, 5 failed
+  - UNSUPPORTED tier spawns ZERO agents ... recorded 2 agent() call(s)
+  - UNSUPPORTED tier returns gate_passed:false with the tier reported
+  - UNSUPPORTED tier does NOT claim an agent returned null
+  - VALID_TIERS does not contain 'deep' -- VALID_TIERS = ['simple', 'moderate', 'complex', 'deep']
+```
+
+**Why my cycle-2 audit missed it, stated plainly.** I derived the scope
+from the union of MY OWN commits -- and `research-gate.js` is not in them,
+because the peer session's `git add -A` swept it into `cad38647`. So a
+scope that looked derived was still wrong. Cycle 3 derives from the step
+BASE (`089726f9..HEAD`), deliberately over-inclusive, since over-coverage
+is the safe direction for a completeness claim. That scan also caught my
+own zsh trap: `for f in $SCOPE` does not word-split in zsh, so the first
+attempt silently audited nothing and printed a clean result.
+
+## Also corrected
+
+The cycle-2 sentence "so a comment cannot stand in for code" was
+measurably false. It now says `//` comment, with a pointer to the
+behavioural replacement.
+
+## Checker
+
+40 (baseline) -> 61 (c1) -> 64 (c2) -> **73 (c3)**, 0 failed.

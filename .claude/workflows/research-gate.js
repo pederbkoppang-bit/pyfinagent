@@ -152,12 +152,22 @@ const topic = a.topic || '(no topic passed -- derive it from the step entry in .
 //       the agent was told something factually false; and
 //   (b) the substitution never reached the RETURN VALUE, only the prompt.
 //
-// MEASURED: `.claude/agents/researcher.md:204,206-273` documents a FOURTH
-// tier, `deep`, whose gate conditions are materially stricter (>=20 sources
-// read in full vs 5, >=1 [ADVERSARIAL] source, an explicitly labelled
-// multi-pass structure). This rail does not implement it -- `grep -c deep`
-// on this file returns 0. So a caller passing tier:'deep' previously got a
-// gate certified at MODERATE standards with nothing in the response saying so.
+// MEASURED: `.claude/agents/researcher.md` documents a FOURTH tier, `deep`
+// (grep its "### `deep` tier" heading -- line numbers are omitted on purpose;
+// an earlier revision of this comment cited `:204,206-273`, which this very
+// cycle's edit to researcher.md staled by ~7 lines). Its gate conditions are
+// materially stricter: >=20 sources read in full vs 5, >=1 [ADVERSARIAL]
+// source, an explicitly labelled multi-pass structure.
+//
+// This rail does not implement it. The ORIGINAL wording operationalised that
+// as "`grep -c deep` on this file returns 0" -- which was true when written
+// and is now FALSE (it returns 8), because this comment block itself contains
+// the word. A self-defeating operationalization is worse than none, so the
+// durable check is: `VALID_TIERS` below does not contain 'deep', and every
+// occurrence of the word in this file is a comment.
+//
+// So a caller passing tier:'deep' previously got a gate certified at MODERATE
+// standards with nothing in the response saying so.
 //
 // WHY UNSUPPORTED FAILS CLOSED RATHER THAN WARNING. Protocol design allows
 // exactly two dispositions for a caller-named capability the implementation
@@ -177,8 +187,12 @@ const topic = a.topic || '(no topic passed -- derive it from the step entry in .
 // ABSENT keeps today's behaviour EXACTLY -- defaulting is legitimate when
 // the caller named nothing, and that path raises no violation.
 //
-// NOT IN SCOPE, deliberately: adding 'deep' to VALID_TIERS. researcher.md
-// :248-263 makes deep's fourth requirement a MULTI-SUBAGENT PRODUCER FORK
+// NOT IN SCOPE, deliberately: adding 'deep' to VALID_TIERS. researcher.md's
+// "Multi-subagent fork option" (grep that heading) makes deep's fourth LISTED
+// ELEMENT a CONDITIONAL multi-subagent producer fork -- conditional on the
+// caller requesting it OR the topic having >=3 separable sub-questions. An
+// earlier revision called it deep's "fourth requirement", which overstated it
+// (Q/A wf_10c6cbd2-cad, note N2). Conditional or not, it is still
 // ("2-3 parallel deep-tier researcher subagents", "~1 Claude Max 5-hour
 // rolling window per subagent"). Enabling the tier would ship producer
 // fan-out onto this N=1 artifact rail -- one brief path, one stage-2

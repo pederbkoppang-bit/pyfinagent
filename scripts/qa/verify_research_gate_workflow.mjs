@@ -59,6 +59,49 @@ async function loadModule(sourceOverride) {
   return mod
 }
 
+/** phase-86.28 cycle 3 -- load the WHOLE script as a DRIVABLE function.
+ *
+ *  WHY THIS EXISTS. Two successive Q/A passes defeated a source-scan assertion
+ *  of the property "no researcher is spawned on an unsupported tier" -- first
+ *  with a `//` comment token, then with a `/* *​/` block comment. Patching the
+ *  regex a third time is playing the wrong game: the property is BEHAVIOURAL
+ *  (was `agent()` called?), and this step's own research finding F6 says it
+ *  outright -- "structural is not semantic". So we drive the real driver with
+ *  a RECORDING stub for `agent()` and count the calls. No comment, string
+ *  literal, template literal or whitespace trick can survive that, because the
+ *  test no longer reads the source at all.
+ *
+ *  loadModule() slices the file at `phase('Research')` and keeps only the
+ *  definitions, so it cannot reach the driver. Here the whole file is wrapped
+ *  in an async function instead: that legalises the script's top-level
+ *  `return` and `await` (the Workflow runtime wraps it the same way), and
+ *  `export const meta` becomes a plain const inside the wrapper.
+ *
+ *  `args` becomes a PARAMETER, which preserves the `typeof args === 'undefined'`
+ *  boundary check exactly: calling __drive() with no argument leaves it
+ *  genuinely unbound-equivalent, which is the documented dry-run shape.
+ */
+async function loadDriver(sourceOverride) {
+  const src = sourceOverride ?? fs.readFileSync(WORKFLOW, 'utf8')
+  const body = src.replace('export const meta', 'const meta')
+  // Match a real export STATEMENT (line-start), not the words "export { ... }"
+  // that appear inside this file's own explanatory comments.
+  if (/^\s*export\s/m.test(body)) throw new Error('unexpected residual export statement in the driver body')
+  const tmp = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'rgdrive-')), 'drive.mjs')
+  fs.writeFileSync(tmp, 'export async function __drive(args, phase, log, agent) {\n' + body + '\n}\n')
+  const mod = await import(pathToFileURL(tmp).href)
+  if (typeof mod.__drive !== 'function') throw new Error('could not build a drivable copy')
+  return mod.__drive
+}
+
+/** Run the driver, recording every agent() spawn. Returns {result, spawns}. */
+async function driveRecording(drive, driverArgs) {
+  const spawns = []
+  const agentStub = async (prompt, opts) => { spawns.push({ prompt, opts }); return null }
+  const result = await drive(driverArgs, () => {}, () => {}, agentStub)
+  return { result, spawns }
+}
+
 // phase-86.28: the fixture brief is now COMPLIANT with what the rules actually
 // require of a brief -- a read-in-full table, a snippet-only table, and a
 // DEDICATED recency-scan section (.claude/rules/research-gate.md requires the
@@ -331,6 +374,59 @@ check('urls_collected within what the brief carries PASSES',
     && !r.violations.some(x => x.includes('urls_collected=')))
 }
 
+console.log('\n[6d] phase-86.28 cycle 3 -- BEHAVIOURAL: does the driver actually spawn? (replaces the source scan)')
+{
+  const drive = await loadDriver()
+
+  // KNOWN-POSITIVE FIRST. If the recorder cannot observe a spawn that DOES
+  // happen, then "0 spawns" below proves nothing -- it would be the vacuous
+  // pass this whole section exists to eliminate. Establish the instrument
+  // before trusting its null reading.
+  const supported = await driveRecording(drive, { step_id: 'BEHAVE-supported', tier: 'moderate' })
+  check('RECORDER WORKS: a SUPPORTED tier really does spawn (known-positive)',
+    supported.spawns.length > 0,
+    `expected >0 agent() calls, recorded ${supported.spawns.length}`)
+  check('the first spawn is the stage-1 researcher (agentType researcher)',
+    supported.spawns.length > 0 && supported.spawns[0].opts && supported.spawns[0].opts.agentType === 'researcher')
+
+  // THE PROPERTY ITSELF, observed rather than pattern-matched.
+  const unsupported = await driveRecording(drive, { step_id: 'BEHAVE-unsupported', tier: 'deep' })
+  check('UNSUPPORTED tier spawns ZERO agents (measured, not scanned)',
+    unsupported.spawns.length === 0,
+    `recorded ${unsupported.spawns.length} agent() call(s) -- the refusal did not prevent the spawn`)
+  check('UNSUPPORTED tier returns gate_passed:false with the tier reported',
+    unsupported.result && unsupported.result.gate_passed === false
+    && unsupported.result.tier_supported === false
+    && unsupported.result.tier_requested === 'deep')
+  check('UNSUPPORTED tier does NOT claim an agent returned null',
+    unsupported.result && !unsupported.result.violations.some(v => v.includes('empty_or_errored_return')))
+
+  // A blind run must also spawn nothing (86.17's property, now measured too).
+  const blind = await driveRecording(drive, undefined)
+  check('BLIND run spawns ZERO agents (86.17 property, measured)',
+    blind.spawns.length === 0 && blind.result && blind.result.gate_passed === false)
+
+  // VACUITY: the /* */ block-comment decoy that defeated the cycle-2 source
+  // scan (Q/A mutant B1). Against a behavioural test it cannot work, because
+  // moving the real refusal after the spawn MAKES THE SPAWN HAPPEN.
+  const raw = fs.readFileSync(WORKFLOW, 'utf8')
+  const blockRe = /if \(tierUnsupported\) \{[\s\S]*?\n\}\n/
+  const m = blockRe.exec(raw)
+  if (!m) {
+    check('B1 block-comment decoy could be constructed', false, 'refusal block not isolatable')
+  } else {
+    const b1 = raw.replace(m[0], '/* decoy: if (tierUnsupported) { return { } }\n*/\n') + '\n' + m[0]
+    let b1Spawns = -1
+    try {
+      const b1drive = await loadDriver(b1)
+      b1Spawns = (await driveRecording(b1drive, { step_id: 'B1', tier: 'deep' })).spawns.length
+    } catch (_e) { b1Spawns = -2 }
+    check('B1 (block-comment decoy + relocated refusal) IS CAUGHT behaviourally',
+      b1Spawns !== 0,
+      `the mutated driver spawned ${b1Spawns} agents; a behavioural test must not read 0 here`)
+  }
+}
+
 console.log('\n[7] criterion 6 MUTATION-TEST -- weakening a floor in the SOURCE must break the check enforcing it')
 {
   const src = fs.readFileSync(WORKFLOW, 'utf8')
@@ -421,7 +517,19 @@ console.log('\n[8] structural -- no stripped schema keywords, no forbidden runti
   // reaches its `return {`, not as a bare opening token. And the predicate is
   // extracted so it can be run against a deliberately-broken source below --
   // a guard nobody has watched fail is not a guard.
-  const stripLineComments = (s) => s.split('\n').filter(l => !/^\s*\/\//.test(l)).join('\n')
+  // CYCLE 3: strips BLOCK comments as well as line comments. Cycle 2 stripped
+  // only `//`, and the Q/A defeated the result with a /* */ decoy while the
+  // production refusal sat after the spawn -- the scan printed `ok` during a
+  // real breach, which is worse than having no scan at all.
+  //
+  // This scan is now the CHEAP SECONDARY. Section [6d] is the authority: it
+  // DRIVES the module with a recording `agent()` stub and counts spawns, so no
+  // comment/string/template trick can reach it. Kept rather than deleted so
+  // the source-level intent stays asserted, but it no longer stands alone.
+  const stripComments = (s) => s
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .split('\n').filter(l => !/^\s*\/\//.test(l)).join('\n')
+  const stripLineComments = stripComments
   const refusalPrecedesSpawn = (rawSrc) => {
     const code = stripLineComments(rawSrc)
     const m = /if \(tierUnsupported\) \{[\s\S]*?return \{/.exec(code)
@@ -472,6 +580,25 @@ console.log('\n[8] structural -- no stripped schema keywords, no forbidden runti
       check('ordering guard REJECTS a refusal relocated AFTER the spawn',
         refusalPrecedesSpawn(moved) === false)
     }
+  }
+
+  // phase-86.28 cycle 3: the DURABLE operationalization of "this rail does not
+  // implement the deep tier". The comment in research-gate.js used to say
+  // "`grep -c deep` on this file returns 0", which the same comment then made
+  // false by containing the word. The claim that actually matters is narrower
+  // and cannot defeat itself: 'deep' is not a VALID_TIER, and no line of CODE
+  // mentions it.
+  {
+    const tiersLine = /const VALID_TIERS = \[([^\]]*)\]/.exec(src)
+    check("VALID_TIERS does not contain 'deep' (the tier is documented but NOT implemented here)",
+      tiersLine !== null && !tiersLine[1].includes('deep'),
+      tiersLine ? `VALID_TIERS = [${tiersLine[1]}]` : 'VALID_TIERS not found')
+    const codeOnly = src.replace(/\/\*[\s\S]*?\*\//g, '')
+      .split('\n').filter(l => !/^\s*\/\//.test(l)).join('\n')
+    const deepInCode = codeOnly.split('\n').filter(l => l.includes('deep'))
+    check("every 'deep' occurrence in the file is a COMMENT, never code",
+      deepInCode.length === 0,
+      `found in code: ${JSON.stringify(deepInCode.slice(0, 3))}`)
   }
 
   check('enforceGate is pure -- no fs/process use in its body',
