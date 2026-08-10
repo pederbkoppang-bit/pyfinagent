@@ -37,18 +37,69 @@ selector returns Midway and simulates **BEHIND**. Both satisfy the operative
 property (local calendar day != UTC calendar day); the step's point is that the
 zone is now *chosen* rather than *assumed*.
 
-### The grep, and a disclosure about it
+### The grep -- WITHDRAWN. It was a vacuous oracle and it cost a FAIL.
+
+**[cycle 3] This section previously offered the two greps below as criterion-1
+proof. The second one is worthless and the cycle-1 Q/A (`wf_839de1e6-c3c`)
+returned FAIL on exactly that.**
+
+```
+$ grep -cF "one day behind" handoff/current/live_check_86.24.md
+0          # <- offered as proof the file was clean. IT WAS NOT.
+```
+
+That literal has **never** existed in that file, at any commit -- the evaluator
+checked `cefe7515`, `da9263d6`, `9424939c` and `HEAD` and got 0 at every one. The
+file's wording is `calendar day one\nbehind UTC`: no "day" between "one" and
+"behind", **and a line break in the middle**, so a line-oriented `grep` could
+never match it. The 0 was structural. The inverted claim was standing, asserted,
+at `live_check_86.24.md:12-13` the entire time.
+
+**And the number is now stale as well as vacuous**: it reads **1** at `HEAD`,
+because the cycle-2 correction block introduced the literal when it quoted the
+dead grep. Both defects were found by evaluators, neither by me.
+
+**The replacement** is `scripts/qa/verify_86_24_direction_claim.py`, which checks
+the property the criterion is actually about -- *is the claim ASSERTED anywhere
+outside the correction block* -- and is proven by execution rather than by
+reading:
+
+```
+$ python scripts/qa/verify_86_24_direction_claim.py
+total occurrences        : 2
+occurrences OUTSIDE block: 0
+  positive controls: C1 ok, C2 ok, C3 ok (each verified able to fail)
+OK -- the claim appears only inside the phase-86.34 correction block
+exit=0
+```
+
+Mutation-proven at tree `b4054ff5` (exit codes captured without a pipeline, since
+`$?` after a pipe reads `tail`, not the checker):
+
+| cell | exit | result |
+|---|---|---|
+| clean tree | 0 | OK |
+| **the cycle-2 Q/A's V3** -- re-assert the claim in the tail of section A, after the correction block | **1** | `ASSERTED at line(s) [95]` -- **this returned 0 before the sentinel; it is the gap the evaluator found** |
+| delete the `[END phase-86.34 CORRECTION]` sentinel | **1** | fails CLOSED rather than silently restoring the over-wide scope |
+| restored | 0 | OK |
+
+The cycle-1 Q/A independently replayed the **pre-fix** file
+(`git show 551d5188:handoff/current/live_check_86.24.md`) through the checker and
+got `exit 1, ASSERTED at line(s) [13]` -- the same input on which the old grep
+returned 0. That is the difference between the two oracles, measured.
+
+**The count is 2, not 0, and that is stated deliberately.** A substring oracle
+cannot distinguish an assertion from a quotation, and the correction quotes the
+retired sentence on purpose. Reporting 0 would have been a third vacuous claim.
+
+### The test-file occurrence
 
 ```
 $ grep -cF "one day behind" backend/tests/test_phase_86_24_clock_dependence.py
 1
-$ grep -cF "one day behind" handoff/current/live_check_86.24.md
-0
 ```
 
-**I am flagging this rather than presenting a clean zero.** The single remaining
-occurrence in the test file is not the old claim being asserted -- it is the old
-claim being *quoted and refuted*, at `:291-296`:
+That one is the old claim being *quoted and refuted*, at `:291-296`:
 
 ```
     This used to hardcode `TZ=Pacific/Midway` and claim it "puts the LOCAL date

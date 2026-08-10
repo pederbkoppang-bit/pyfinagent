@@ -1,8 +1,19 @@
 # live_check -- phase-86.24
 
 **Code commit:** `d5180e27`. **Measurement tree:** `70e646b7`.
-**[phase-86.34]** Those two fields were two commits behind by the time cycle 3
-landed. The tree that section F's digest is now measured against is `37e0543f`.
+**[phase-86.34, CORRECTED cycle 3]** Those two fields were two commits behind by
+the time cycle 3 landed. **The tree section F is now measured against is
+`a9707993`** -- the tree its producing command actually ran at, which is what
+section F itself names, so header and block cite ONE tree rather than two. (The
+digest is byte-identical at `b4054ff5`/HEAD, measured: the test file did not
+change between them -- so naming HEAD would not have been *false*, just a second
+name for one measurement, which is the ambiguity that produced this finding.)
+It is NOT `37e0543f`, which an earlier revision of this line named. The
+cycle-2 Q/A (`wf_6c44bae0-a83`) caught that: section F was regenerated at a newer
+tree and prints `9b5cb2e44e6ba8a4`, a digest that does **not** exist at
+`37e0543f` (measured there: `36f469402a7e8333`), so the header named a tree at
+which its own block was false. That is the N3 shape recurring inside the fix for
+N3, and it was introduced by the cycle-2 regeneration.
 Sections above this line are the cycle-1/2 record and are NOT re-measured;
 only section F was regenerated.
 **Measured:** 2026-08-10, 09:45-10:20 CEST.
@@ -56,6 +67,15 @@ Re-runnable, and it fails if the assertion returns anywhere else in the file:
 ```
 $ python scripts/qa/verify_86_24_direction_claim.py
 ```
+
+The marker below closes this block for that checker. It used to close at the next
+`## ` heading, which made the exempt region the WHOLE of section A -- the
+cycle-2 Q/A proved the gap by re-asserting the claim in the tail of section A and
+watching the checker still print OK. The sentinel makes the exempt region exactly
+what this block covers, and the checker now FAILS CLOSED if the sentinel is
+missing rather than falling back to the old over-wide scope.
+
+[END phase-86.34 CORRECTION]
 
 ```
 $ python -m pytest backend/tests/test_phase_82_0_macro_ingestion.py \

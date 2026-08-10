@@ -35,8 +35,20 @@ TARGET = REPO / "handoff/current/live_check_86.24.md"
 CLAIM = "which is exactly the 00:00-02:00 CEST window"
 
 BLOCK_OPEN = "[phase-86.34 CORRECTION"
-# The correction block ends at the next top-level heading.
-BLOCK_CLOSE = "\n## "
+# EXPLICIT END SENTINEL, phase-86.34 cycle 3.
+#
+# This used to close the block at the next top-level heading ("\n## "), which
+# made the "inside the block" region the WHOLE of section A -- lines 12-78 --
+# rather than the ~46-line correction. The cycle-2 Q/A (wf_6c44bae0-a83) proved
+# the gap by executing it: its cell V3 re-asserted the claim in that ~20-line
+# tail, after the correction but before "## B.", and the checker still printed
+# "OK". That is vacuity shape #2 (defeated by MOVING the scanned text), in the
+# one section where the claim actually lived.
+#
+# A sentinel makes the region exactly what the author marked, so widening it is
+# a visible edit to this file rather than a side effect of where the next
+# heading happens to fall.
+BLOCK_CLOSE = "[END phase-86.34 CORRECTION]"
 
 
 def occurrences_outside_block(text: str) -> list[int]:
@@ -47,7 +59,13 @@ def occurrences_outside_block(text: str) -> list[int]:
         lo = hi = -1
     else:
         end = text.find(BLOCK_CLOSE, start)
-        lo, hi = start, (end if end != -1 else len(text))
+        if end == -1:
+            # Sentinel missing: FAIL CLOSED. Falling back to "rest of file"
+            # would silently restore the exact over-wide scope this sentinel
+            # was added to remove.
+            lo = hi = -1
+        else:
+            lo, hi = start, end
 
     out = []
     pos = 0
