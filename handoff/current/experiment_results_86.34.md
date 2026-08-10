@@ -127,3 +127,44 @@ ruff F821/F401/F811: All checks passed!  exit=0
 - **Not fixed here**: the two additional live sites sharing the `.venv` scoping
   bug that the gate found, and the `time-machine` operator ask.
 - **86.24 is not re-opened.**
+
+---
+
+## 6. DISPOSITION -- PARKED after 2 Q/A cycles, remediated but UNGRADED
+
+**Status: `pending`. Not closed. No verdict is claimed.**
+
+| cycle | Q/A | verdict | outcome |
+|---|---|---|---|
+| 1 | `wf_839de1e6-c3c` | **FAIL** | vacuous criterion-1 oracle; claim still asserted in the second file |
+| 2 | `wf_6c44bae0-a83` | **CONDITIONAL** | both blockers confirmed fixed; 3 new findings, all mine |
+| 3 | -- | **not run** | all 3 findings fixed in `82e3e55d`; **nobody has graded that** |
+
+Parked under the standing rule *"park any step that will not close after 2 Q/A
+cycles, with a disposition"*, and because the day's subagent spend reached
+**8,101,029 tokens across 48 workflow runs** against a hard 50%-of-weekly-Max
+ceiling whose remaining headroom I cannot read. Two Q/A cycles on this step cost
+**374,538 tokens**. Spending a third tonight to grade a remediation the operator
+has not yet seen is the wrong trade.
+
+**What the next session inherits, precisely:**
+
+- Every criterion is MET as of `82e3e55d` *by my own measurement*: checker exit 0,
+  suite `10 passed`, `mutation_matrix_86_34.py` 4/4 KILLED,
+  `mutation_matrix_86_24.py` 7/7 KILLED, ruff clean on 4 files, 86.24's masterplan
+  block `ac991bbed30c9c73` and `status: done` unchanged.
+- **That sentence is exactly the kind of self-report this step exists to
+  distrust.** Cycle 1 also believed its criteria were met. Run ONE fresh Q/A on
+  the current tree; do not re-do the work.
+- The three cycle-2 findings and their fixes are in the commit message of
+  `82e3e55d` and in `evaluator_critique_86.34.md`, which carries both verdicts
+  verbatim.
+
+**The one thing worth carrying beyond this step:** the criterion-1 failure was
+not a missed edit, it was a *measurement instrument that could not produce the
+finding it was searching for*, published as proof. Three sibling instances landed
+the same day (a `fail|error` grep against code that logs `subprocess timeout`, a
+`cc_rail:%` pattern needing absent punctuation, a discriminator reading a
+truncated tail). `scripts/qa/verify_86_24_direction_claim.py` is the shape of the
+answer: scope the property, carry positive controls that must fire, and prove the
+guard fails on a real broken subject rather than on a synthetic one.
