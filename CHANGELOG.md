@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-10 | `d23a981e` | phase-86.31: Q/A write-first for its verdict file only (PARKED after 2 Q/A cycles) |
 | 2026-08-10 | `9ae2948d` | docs: trim next-session goal under the 4000-char limit |
 | 2026-08-10 | `b4543aa8` | docs: next-session goal -- 86.31 first, then the masterplan drain |
 | 2026-08-10 | `da9263d6` | phase-86.24: cycle-3 -- the withdrawn claim removed from live source; step PARKED |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-10 | `6efd33ea` | docs(86.28): add a compact Q/A briefing after the rail dropped at 197K tokens |
 | 2026-08-10 | `294a9a09` | fix(86.28): cycle-3 -- make the spawn guard behavioural, and re-derive the audit scope |
 | 2026-08-10 | `1b19b264` | docs(86.27): GENERATE artifacts -- reproduction table, criterion-5 cost, mutation matrix |
-| 2026-08-10 | `9bda4e6d` | phase-86.27: key the live-backend guard on the resolved ADDRESS, not a host string |
 
 ---
 
+### v6.93.47 — phase-86.31: Q/A write-first for its verdict file only (PARKED after... (2026-08-10)
+
+- **phase-86.31: Q/A write-first for its verdict file only (PARKED after 2 Q/A cycles)**
 ### v6.93.46 — phase-86.24: cycle-3 -- the withdrawn claim removed from live source;... (2026-08-10)
 
 - **phase-86.24: cycle-3 -- the withdrawn claim removed from live source; step PARKED**
