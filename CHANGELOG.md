@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-10 | `f71030b8` | phase-86.25 cycle 2: fix three accuracy defects the Q/A found in my own claims |
 | 2026-08-10 | `8baecb49` | phase-86.25: resolve the outcome vocabulary at the boundary (both seams) |
 | 2026-08-10 | `64d20023` | phase-86.25: contract + P1 measurement -- option (A) is reachable for ZERO rows |
 | 2026-08-10 | `cefe7515` | phase-86.24: clock-dependent test suite CLOSED on a PASS (third cycle, escalation armed) |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-10 | `49793961` | fix(86.28): cycle-5 -- guard the ABSENT half, and assert fixture fidelity |
 | 2026-08-10 | `ebeb03da` | fix(86.27): the novel-spelling probe was self-defeating; draw from an unbounded family |
 | 2026-08-10 | `2e0cf256` | fix(86.28): cycle-4 -- regenerate two transcripts I typed instead of captured |
-| 2026-08-10 | `fce5a6ac` | phase-86.27: [P1 -- THE LIVE-BACKEND HTTP GUARD IS A HOST-STRING ALLOWLIST, AND THE MACHINE ANSWE... |
 
 ---
 
+### v6.93.51 — phase-86.25 cycle 2: fix three accuracy defects the Q/A found in my o... (2026-08-10)
+
+- **phase-86.25 cycle 2: fix three accuracy defects the Q/A found in my own claims**
 ### v6.93.50 — phase-86.25: resolve the outcome vocabulary at the boundary (both seams) (2026-08-10)
 
 - **phase-86.25: resolve the outcome vocabulary at the boundary (both seams)**
