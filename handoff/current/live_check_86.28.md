@@ -676,3 +676,44 @@ ALL GREEN: 92 passed, 0 failed
 
 Ladder: 40 -> 61 -> 64 -> 73 -> 78 -> **92**, nothing removed. Valid suite
 sizes for the arithmetic audit are now 40 / 61 / 64 / 73 / 78 / 92.
+
+---
+
+# CYCLE 6 EVALUATE -- RAIL DROPPED (second occurrence), NO VERDICT
+
+Q/A spawn `wf_9c55b720-ef3` completed without calling StructuredOutput at
+**184,753 subagent tokens / 31 tool uses**. Last assistant text: "I'll start
+by reading my operating instructions and the key evidence files." Nothing
+recoverable. Per CLAUDE.md an errored return is **NO VERDICT, never PASS**;
+it is not a CONDITIONAL and does not count toward the F1 counters.
+
+This is the SECOND drop on this step (`wf_01c83c86-09d`, 197,091 tokens).
+The cause is mechanical and it is mine: the evidence surface a Q/A must
+read is now **2,572 lines** across five artifacts --
+
+```
+     678 live_check_86.28.md
+     587 experiment_results_86.28.md
+     609 evaluator_critique_86.28.md   (five verbatim verdicts)
+     210 contract_86.28.md
+     488 research_brief_86.28.md
+```
+
+-- plus the source, the checker, and its own mutant runs. Six cycles of
+append-only evidence built a document set that breaks the evaluator that
+has to read it. Write-first is impossible on the qa rail (the qa-write-guard
+hook blocks it), so there is no artifact to salvage.
+
+**Step cost to date: 1,418,194 subagent tokens across 8 spawns** (1 research
+gate, 7 Q/A attempts of which 2 dropped).
+
+**State at this point, measured:** checker `ALL GREEN: 92 passed, 0 failed`;
+`research-gate.js` unchanged since cycle 3 and confirmed comment-only before
+that; the last three completed Q/As each found the product code correct
+under every probe, and the most recent read the trajectory as CONVERGING,
+with the executable driver frozen since 08:51. Every finding since cycle 3
+has concerned the CHECKER or the EVIDENCE, not the shipped behaviour.
+
+**Not flipped.** 86.28 remains `status: pending`, `retry_count: 1`. Awaiting
+an operator decision on whether to compact the evidence and re-run, or to
+park with residuals queued.
