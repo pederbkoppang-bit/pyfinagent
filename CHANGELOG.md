@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-10 | `14b8d32b` | docs(86.24): cycle-2 artifacts -- withdraw the false support, disclose the member I introduced |
 | 2026-08-10 | `9187aa8b` | docs(86.31,86.32): file the two harness-reliability fixes from today's measurements |
 | 2026-08-10 | `d2e987f1` | fix(86.28): kill the survivor recovered from a dropped Q/A transcript |
 | 2026-08-10 | `7eb85983` | fix(86.24): cycle-2 -- both Q/A findings, and the second was mine in the repaired file |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-10 | `d638a3ec` | fix(86.28): cycle-2 -- harden the guard the Q/A defeated, and cite symbols not lines |
 | 2026-08-10 | `d0a98817` | fix(86.28): stop the research gate certifying a standard the caller did not request |
 | 2026-08-10 | `cad38647` | phase-86.6: P1 THE CHANNELS A CONFTEST GUARD CANNOT REACH ARE STILL OPEN: (A) an in-process test ... |
-| 2026-08-10 | `85acb789` | docs(86.28): file the research-gate defects surfaced by the fan-out audit |
 
 ---
 
