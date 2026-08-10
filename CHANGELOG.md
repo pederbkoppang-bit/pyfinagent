@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-10 | `9acce561` | phase-86: queue 86.38 (P1 deep-pipeline quota) and 86.39 (P3 cc_rail attribution) |
 | 2026-08-10 | `691e24a3` | docs: day report -- cycle a5654ab9 outcome, rail recovery, restarts done |
 | 2026-08-10 | `73ce11ba` | phase-86.34: close criterion 3's missing half -- poisoned-conftest cell + test seam |
 | 2026-08-10 | `1b7e4601` | phase-86.34: executable mutation matrix + live_check; repair two clock-dependent cells |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-10 | `63074429` | phase-86.30: the degraded live-origin branch must refuse, not allow |
 | 2026-08-10 | `2e82220a` | phase-86.25 cycle 3: finish the remediation I claimed but did not do (PARKED) |
 | 2026-08-10 | `f71030b8` | phase-86.25 cycle 2: fix three accuracy defects the Q/A found in my own claims |
-| 2026-08-10 | `8baecb49` | phase-86.25: resolve the outcome vocabulary at the boundary (both seams) |
 
 ---
 
+### v6.93.68 — phase-86: queue 86.38 (P1 deep-pipeline quota) and 86.39 (P3 cc_rail... (2026-08-10)
+
+- **phase-86: queue 86.38 (P1 deep-pipeline quota) and 86.39 (P3 cc_rail attribution)**
 ### v6.93.67 — phase-86.34: close criterion 3's missing half -- poisoned-conftest ce... (2026-08-10)
 
 - **phase-86.34: close criterion 3's missing half -- poisoned-conftest cell + test seam**
