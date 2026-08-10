@@ -1,0 +1,65 @@
+=== BASELINE 2026-08-10 morning (read-only GETs) ===
+captured_utc 2026-08-10T06:44:59Z
+captured_local 2026-08-10 08:44:59 CEST
+
+--- backend process ---
+43839 søn.  9 aug. 22.11.52 2026     10:33:07 /opt/homebrew/Cellar/python@3.14/3.14.4/Frameworks/Python.framework/Versions/3.14/Resources/Python.app/Contents/MacOS/Python /Users/ford/.openclaw/workspace/pyfinagent/.venv/bin/uvicorn backend.main:app --host 0.0.0.0 --port 8000
+43843 søn.  9 aug. 22.11.52 2026     10:33:07 /usr/bin/caffeinate -i -s /Users/ford/.openclaw/workspace/pyfinagent/.venv/bin/uvicorn backend.main:app --host 0.0.0.0 --port 8000
+
+--- /api/health ---
+http=200
+
+--- kill switch ---
+{
+    "paused": false,
+    "pause_reason": null,
+    "sod_nav": 23833.94,
+    "sod_date": "2026-08-09",
+    "peak_nav": 24666.57,
+    "baseline_provenance": null,
+    "current_nav": 23833.94,
+    "breach": {
+        "daily_loss_breached": false,
+        "daily_loss_pct": 0.0,
+        "daily_loss_limit_pct": 4.0,
+        "trailing_dd_breached": false,
+        "trailing_dd_pct": 3.3755,
+        "trailing_dd_limit_pct": 10.0,
+        "any_breached": false,
+        "daily_baseline_missing": false,
+        "daily_baseline_stale": true,
+        "trailing_baseline_missing": false,
+        "baselines_present": true,
+        "armed": false
+    },
+    "thresholds": {
+        "daily_loss_limit_pct": 4.0,
+        "trailing_dd_limit_pct": 10.0
+    }
+}
+
+--- jobs/status (scheduler) ---
+{"jobs": [{"name": "daily_price_refresh", "last_run_at": "2026-08-10T01:01:21.037686+00:00", "last_duration_s": null, "status": "ok", "last_error": null, "next_run_time": "2026-08-11T01:00:00+00:00"}, {"name": "weekly_fred_refresh", "last_run_at": null, "last_duration_s": null, "status": "never_run", "last_error": null, "next_run_time": null}, {"name": "nightly_mda_retrain", "last_run_at": "2026-08-10T03:00:00.004948+00:00", "last_duration_s": null, "status": "ok", "last_error": null, "next_run_time": "2026-08-11T03:00:00+00:00"}, {"name": "hourly_signal_warmup", "last_run_at": "2026-08-10T06:05:00.003931+00:00", "last_duration_s": null, "status": "ok", "last_error": null, "next_run_time": "2026-08-10T07:05:00+00:00"}, {"name": "nightly_outcome_rebuild", "last_run_at": "2026-08-10T04:00:03.321218+00:00", "last_duration_s": null, "status": "ok", "last_error": null, "next_run_time": "2026-08-11T04:00:00+00:00"}, {"name": "weekly_data_integrity", "last_run_at": "2026-08-10T05:00:02.523753+00:00", "last_duration_s": null, "status": "ok", "last_error": null, "next_run_time": "2026-08-17T05:00:00+00:00"}, {"name": "cost_budget_watcher", "last_run_at": "2026-08-10T06:00:03.190594+00:00", "last_duration_s": null, "status": "ok", "last_error": null, "next_run_time": "2026-08-11T06:00:00+00:00"}, {"name": "morning_digest", "last_run_at": null, "last_duration_s": null, "status": "never_run", "last_error": null, "next_run_time": null}, {"name": "evening_digest", "last_run_at": "2026-08-0
+
+--- /api/paper-trading/status ---
+{
+    "status": "active",
+    "portfolio": {
+        "nav": 23833.94,
+        "cash": 22820.64,
+        "starting_capital": 20000.0,
+        "pnl_pct": 19.17,
+        "benchmark_return_pct": 8.4,
+        "inception_date": "2026-03-20T14:01:20.621512+00:00",
+        "updated_at": "2026-08-09T15:04:21.156672+00:00"
+    },
+    "position_count": 1,
+    "scheduler_active": true,
+    "next_run": "2026-08-10T14:00:00-04:00",
+    "loop": {
+        "running": false,
+        "last_run": null,
+        "last_result": null
+    },
+    "last_run_ts": null
+}

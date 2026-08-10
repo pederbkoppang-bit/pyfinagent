@@ -284,3 +284,70 @@ NOTE-LEVEL, NOT BLOCKING. (i) The HTTP row says "refused for 5 enumerated host S
 WHAT I DID NOT DO: no worktree isolation (in-place, the default); qa.md 1c is N/A and the frontend eslint/tsc gate correctly skipped -- this step makes no UI claim and touches no frontend/**; I did not run the full 3291-test suite, so the author's "14 failed" baseline and the "+7 tests red" / "21 RED" figures remain author-supplied and unreproduced by me across all three cycles (they are internally consistent: 14+7=21). My 12-spelling HTTP census is a known-member recall test over the shapes named so far, not a proof of completeness -- I make no claim that 8 is the total residual, which is exactly why 86.27 is the right disposition.
 
 PATH TO PASS -- artifact-only, no code change, and criterion 9 still does not require the HTTP channel to be closed: (1) delete experiment_results_86.6.md:209 or rewrite it to the cycle-3 count, so the criterion-9 section and the appendix agree; (2) qualify the filesystem row (both at :202 and in the corrected table at :404) with the non-open-event residual and the PYFINAGENT_LIVE_STATE_GUARD bypass, which is cycle-2 path-to-pass item (ii) coming due; optionally (3) soften "5 enumerated host STRINGS" to "4 enumerated strings plus case variants". retry_count is 0 against max_retries 3, so this FAIL is a normal retry, not a certified fallback -- and the escalation counter resets on it, so a clean next cycle can close the step.
+
+
+---
+
+# phase-86.6 -- EVALUATE (cycle 4)
+
+Launched on the Workflow structured-output rail (`.claude/workflows/qa-verdict.js`,
+run `wf_b96a2236-6eb`) in a FRESH session, which is what the cycle-3 FAIL's
+escalation clause requires. **Transcribed VERBATIM from the captured return value.**
+Main records the verdict; Main never authors it.
+
+## ok
+
+`true`
+
+## verdict
+
+`"PASS"`
+
+## certified_fallback
+
+`false`
+
+## harness_compliance_ok
+
+`true`
+
+## reason
+
+All 9 immutable criteria MET and independently reproduced BY EXECUTION, not by reading. C1: scripts/qa/derive_live_state_writers_86_6.py FLAGS the known false negative -- its output line 13 is `test_book_safety_69.py  test_peak_reset_dark_by_default  yes  reset_peak`, and :89 names it as the probe. C2: I attempted an in-process append to the LIVE journal with the preventer armed -- LiveStateWriteRefused raised, message names the offending test, handoff/kill_switch_audit.jsonl sha256 ea78508bee73887c82df2346da408c7281e7e9229334a6131d7fa06c09977065 IDENTICAL before and after (64 lines both). C3: tmp-redirected writes unaffected -- test_phase_36_7_kill_switch_rotation_rearm.py green inside the immutable command's 79 passed, and the 8 preventer tests pass. C4: test_phase_23_2_4 passes and `git diff --stat 34dfbb39 HEAD -- test_phase_23_2_4_pause_resume_no_deadlock_live.py backend/services/kill_switch.py` is EMPTY, so the trigger allowlist (:300-325, reading AUDIT_LOG at :41) is byte-unchanged across the whole step. C5: MEASURED in production source -- kill_switch.py:498 `except Exception as e: logger.warning(...)` swallows, and LiveStateWriteRefused.__mro__ is [LiveStateWriteRefused, BaseException, object] (issubclass of Exception -> False), so a refusal cannot be absorbed in tests and cannot reach production, which is measured in an -I child with conftest absent from sys.modules. C6: I ran scripts/qa/mutation_matrix_86_6.py myself -- CONTROL/M1-M5 all as predicted, live journal ea78508b... byte-identical before AND after the whole matrix. C7: I mutated the seam in memory with a side-effect-free sentinel -- CONTROL rc=4 with '--backend-url is REQUIRED' in stderr; MUTANT-A (default restored to http://localhost:8000) killed by the message assertion at :64; MUTANT-B (default restored to a stub URL -- the genuine 'future 13th call site') passes BOTH usage gates and is killed by BOTH assertions at :61 and :64. The offending call site is genuinely added in the test (`run_smoke("--dry")` at :58). C8: census re-derived by my own grep over the whole tree plus ~/Library/LaunchAgents and crontab -- the only code references are the two test modules, live_backend_origin.py's docstring and the script itself; zero ops/launchd/cron callers, so the no-default option was legitimately available. C9: all five required channels plus a sixth (rest of handoff/) are enumerated with per-row status, and coverage is now stated CONSISTENTLY -- the two live count statements (:241 and :583) AGREE at 'zero fully covered, three partial, three open', no stale figure is presented as current, and the cycle-3 FAIL's contradiction (the retired 'Three of six' in the load-bearing location) is gone, surviving only inside quoted history at :255/:484. I re-ran the embedded count command verbatim: Counter({'PARTIAL': 3, 'OPEN': 3}), exit 0, and PROVED its two assertions can fire by mutating the table in memory (delete a row -> RED 'found 5'; corrupt a status cell -> RED 'unrecognised status'; un-bold a row out of the selector -> RED; add a 7th row -> RED). The two numbers I was asked to falsify reproduce EXACTLY: len(_LOOPBACK_HOSTS) is 4 with LOCALHOST not a member (it matches only via urlsplit case-folding), and 11 -- not 8 -- spellings answered GET /api/health with 200 and were un-refused on a mutating PUT, including all three cycle-4 additions (0x7f.0x0.0x0.0x1, 017700000001, [::ffff:7f00:1]); the 4 controls were refused. Harness compliance 5/5 clean and zero unintended production change: `git diff --name-only HEAD -- '*.py'` is EMPTY and there are no untracked .py, ruff F821/F401/F811 exits 0 over 86.6's own git-derived 7-file scope, and no guard was loosened.
+
+## violated_criteria
+
+_(none)_
+
+## violation_details
+
+_(none)_
+
+## checks_run
+
+- harness_compliance_audit_5_items
+- verification_command
+- syntax
+- python_lint_gate_ruff_F821_F401_F811_derived_scope
+- backend_runtime_smoke
+- scoped_test_run
+- mutation_test_count_command_assertions
+- mutation_test_criterion_7_seam
+- mutation_matrix_86_6_rerun
+- criterion_1_recall_test
+- criterion_2_live_journal_preventer_probe
+- criterion_4_byte_unchanged_diff
+- criterion_5_production_swallow_path
+- criterion_8_caller_census_rederived
+- http_residual_reproduction_sentinel_readonly
+- claim_audit_numeric_and_set_membership
+- duplication_and_stale_figure_sweep
+- git_diff_unintended_change
+- evaluator_critique_history
+- harness_log_conditional_counter
+- code_review_heuristics
+- book_integrity_sha256_before_after
+
+## notes
+
+HARNESS COMPLIANCE (5/5 CLEAN): (1) research gate before contract -- research_brief_86.6.md envelope gate_passed:true, external_sources_read_in_full:18, urls_collected:44, recency_scan_performed:true, coverage.dry:true, tier complex; the contract cites it at :7, :130 and :166. (2) mtime order holds: research 2026-08-09T23:18:40 < contract 23:21:47 < code (conftest.py) 2026-08-10T03:10:09 < results 08:38:04. (3) experiment_results_86.6.md present (616 lines) plus live_check_86.6.md and contract_86.6.md. (4) log-last: masterplan status=pending, retry_count=0, max_retries=3 -- not yet flipped, so certified_fallback=false. (5) NOT verdict-shopping: `git diff --stat HEAD -- handoff/current/experiment_results_86.6.md` shows 140 insertions / 22 deletions since the cycle-3 FAIL, and the FAIL's own path-to-pass is fully executed (item 1 verified done; item 2 found HALF-APPLIED and fixed structurally; optional item 3 done). COUNTER STATE: `grep -cE "^## Cycle.*phase=86\.6 result=CONDITIONAL" handoff/harness_log.md` returns 0 -- the only logged 86.6 cycles are result=PARKED (Cycle 198) and result=FAIL (Cycle 1193) -- so the 3rd-CONDITIONAL auto-FAIL rule does not bite and the FAIL reset applies regardless. WORST-OF-N-LENSES (P1 money path): correctness PASS, does-it-reproduce PASS, scope-honesty PASS-with-notes; min = PASS. THREE NOTE-LEVEL FINDINGS, none blocking, all recorded so they are not lost: (a) THE UNIQUENESS META-CLAIM IS FALSIFIED BY THE FILE ITSELF. experiment_results_86.6.md:209-210 asserts "THE COUNT IS DERIVED FROM THE TABLE ABOVE AND STATED IN EXACTLY ONE PLACE -- here. It is not restated anywhere else in this file", and :467-468 repeats the instruction; but :583 restates the live count ("The honest count is now zero fully covered, three partial, three open"). I tested this mechanically -- the only two present-tense count statements in the file are :241 and :583, and they AGREE, so there is no contradiction and criterion 9's substance is untouched. It is nonetheless an absolute self-description that is false, and it re-creates in miniature the very two-copies mechanism this step failed on three times, inside the edit that claims to have removed it. FIX (one line, either direction): soften :209-210 to "stated once as a live claim; the dated cycle sections record it as history", or delete the restatement at :583. (b) THE COUNT COMMAND GUARDS THE TABLE'S SHAPE, NOT THE FILE'S UNIQUENESS. Two of my seven mutants SURVIVE green: M6, swapping one channel row out for a differently-named one (cardinality preserved, len(rows) still 6), and M7, re-adding a contradicting summary table OUTSIDE section 4 (the selector is scoped to section 4, so a future re-duplication is invisible to it). The structural remedy for the duplication class therefore rests on prose discipline plus the deletion, not on the command's assertions -- worth stating plainly because the artifact presents the command as the structural fix. M5 (flip a cell PARTIAL -> COVERED) correctly moves the count without asserting; that is right behaviour, not vacuity. (c) OUT-OF-SCOPE PRE-EXISTING LINT DEFECT, worth queuing: when I lint the wider c4ff90fa..HEAD .py scope, ruff exits 1 on `scripts/qa/verify_unused_imports_86_26.py:31:8  F401 'sys' imported but unused` -- phase-86.26's file, not 86.6's, and ironic given that script's purpose. 86.6's own derived 7-file scope (conftest.py, live_backend_origin.py, smoke_cc_rail_e2e.py, mutation_matrix_86_6.py, derive_live_state_writers_86_6.py and the two test modules) is clean: "All checks passed!", exit 0. ONE SMALL SCOPE-HONESTY IMPRECISION, not a finding: the cycle-4 text says the working tree shows "one artifact file plus hook-maintained audit/heartbeat streams"; `git diff --name-only HEAD` on my run also lists .claude/.archive-baseline.json (hook-maintained) and .claude/agent-memory/researcher/MEMORY.md (+1 line, a concurrent researcher's 86.28 index entry -- unrelated to 86.6). Neither is production code, so the substantive claim holds exactly, but the enumeration is one file short of what the command prints. WHAT I DID NOT DO: no worktree isolation (in-place, the default); section 1c live-UI capture is N/A -- this step makes no UI claims and touches no frontend/**, so the frontend eslint/tsc gate was correctly skipped; I did not run the full 3291-test suite, so the author's "14 failed / 3291 passed" baseline and the "+7 tests red if the whole handoff tree is blocked" figure remain author-supplied and unreproduced by me. BOOK PROTECTION: handoff/kill_switch_audit.jsonl was ea78508bee73887c82df2346da408c7281e7e9229334a6131d7fa06c09977065 / 64 lines before my first command and identical after every probe, mutation, matrix run and test run; GET /api/health returned 200 at the end; I sent ZERO mutating HTTP requests -- every PUT in the residual probe was intercepted by a sentinel that replaced _REAL_URLOPEN and raised before any packet left the process, and reachability used read-only GET /api/health only; the criterion-7 mutants ran in-process against an instrumented source string with a SystemExit sentinel placed immediately after the usage gates, so nothing downstream executed; I wrote no file, restarted nothing, and `git status --short -- '*.py'` is empty. CREDIT WHERE DUE, because it is the substance of this cycle: the corrected coverage is strictly WORSE than the previous cycle claimed (zero covered, down from a claimed one or three), the residual is explicitly reframed from "a list of 8" to "an open-ended population that no enumeration closes", and the three new spellings were invented and measured rather than inherited. That is the opposite of the narrowing-to-the-named-instance pattern the prior three cycles were failed for.

@@ -201,18 +201,72 @@ definition. So:
 |---|---|---|
 | **filesystem** | **PARTIAL for the kill-switch journal -- `open` WRITES only** | `sys.addaudithook` preventer; mutation matrix M1/M2/M5. **MEASURED residual, raised by the cycle-2 Q/A as path-to-pass item (ii) and dropped by me without disclosure:** the hook returns early on `if event != "open"`, so `os.rename`, `os.remove`, `os.truncate` and `os.replace` on the live journal are all NOT refused; and `PYFINAGENT_LIVE_STATE_GUARD=off` or `=report` disables the refusal wholesale. Measured with bare `sys.audit` events (zero bytes written, no stray files created, journal byte-identical). None of the seven production kill-switch writers uses those calls, so no live path is currently exposed -- but the row said COVERED and that was too generous. |
 | **filesystem (rest of `handoff/`)** | **NOT COVERED, deliberately** | blocking the whole tree turns **+7** tests red against a 14-failure baseline -- they write `.autonomous_loop.lock`, `.cycle_heartbeat.json` and a probe under `handoff/logs/`. None is a kill-switch write. A behaviour change to 7 real tests belongs to its own step. **MEASURED AGAIN TONIGHT:** a full-suite run wrote a real acquire/release into the live `handoff/.autonomous_loop.lock` (`released_at 2026-08-09T23:47:31Z`, pid 19697 already dead) -- so this channel is demonstrably still open, not theoretically open. |
-| **HTTP** | **PARTIAL -- refused for 5 enumerated host STRINGS only** | `localhost`, `LOCALHOST`, `127.0.0.1`, `::1`, `0.0.0.0`. A host-string allowlist cannot cover every spelling that resolves to this machine while uvicorn binds `*:8000`. **8 spellings MEASURED reachable and un-refused** -- see the cycle-3 table. Class fix queued as phase-86.27. |
-| **subprocess** | **COVERED for `smoke_cc_rail_e2e.py`** | the seam above. **NOT covered generally**: research measured 72 files that shell out, and each would need its own seam. This step closed the one that MUTATES the live backend. |
+| **HTTP** | **PARTIAL -- refused for 4 enumerated host STRINGS only** | `_LOOPBACK_HOSTS` holds exactly **4** entries (`len` = 4: `localhost`, `127.0.0.1`, `::1`, `0.0.0.0`). Earlier revisions of this row said "5" and listed `LOCALHOST` as a fifth; it is not in the set -- it matches only because `urlsplit().hostname` case-folds (measured: `urlsplit('http://LOCALHOST:8000').hostname` -> `'localhost'`). A host-string allowlist cannot cover every spelling that resolves to this machine while uvicorn binds `*:8000`. **8 spellings MEASURED reachable and un-refused** at cycle 3 -- see that table. **RE-MEASURED 2026-08-10 08:33 CEST during phase-86.27's reproduction: 11, not 8.** The three additional ones (`0x7f.0x0.0x0.0x1` hex-dotted, `017700000001` 32-bit octal, `[::ffff:7f00:1]` hex IPv4-mapped) were invented on the spot and were reachable (HTTP 200) and un-refused on the first try. That the count moved 8 -> 11 the moment someone looked again is the row's real content: **the residual is not a list of 8, it is an open-ended population, and no enumeration closes it.** Class fix queued as phase-86.27. |
+| **subprocess** | **PARTIAL -- one seam of many** | `smoke_cc_rail_e2e.py`'s seam (above) is closed. **NOT covered generally**: research measured 72 files that shell out, and each would need its own seam. This step closed the one that MUTATES the live backend. Earlier revisions of this row read "COVERED for `smoke_cc_rail_e2e.py`"; a cell that says COVERED-for-one and NOT-covered-generally is a PARTIAL, and labelling it COVERED is how this row came to disagree with the summary table that used to sit at the end of this file. |
 | **BigQuery** | **NOT COVERED** | no guard exists. Tests that construct a real `bigquery.Client` reach live datasets. Out of scope here; named so it cannot be mistaken for covered. |
 | **module singleton** | **NOT COVERED** | a test mutating `ks._state` in-process is invisible to a filesystem guard. This is 36.28's territory (tests READING live state) and 86.1's surviving mutant M2. |
 
-**CORRECTED after the cycle-3 FAIL -- the sentence that stood here was wrong
-and was stamped "that is the honest count".** It read "Three of six are
-covered." Counted against the very table above it, that is false: exactly ONE
-row is fully covered. The corrected count is **one covered, two partial, three
-open**, and it is restated at the end of this file. Two contradictory counts in
-one gate artifact, with the retired one in the criterion's own section, is not
-a statement of coverage -- it is the reader's problem instead of mine.
+**THE COUNT IS DERIVED FROM THE TABLE ABOVE AND STATED IN EXACTLY ONE PLACE --
+here. It is not restated anywhere else in this file.**
+
+Re-runnable verbatim from the repo root:
+
+```
+$ python3 - <<'PY'
+import collections
+lines = open('handoff/current/experiment_results_86.6.md').read().splitlines()
+start = next(i for i,l in enumerate(lines) if l.startswith('## 4. Criterion 9'))
+end   = next(i for i,l in enumerate(lines[start+1:], start+1) if l.startswith('## '))
+rows  = [l for l in lines[start:end] if l.startswith('| **') and l.count('|') >= 4]
+def tier(cell):
+    c = cell.replace('*','').strip().upper()
+    return ('PARTIAL' if c.startswith('PARTIAL') else
+            'OPEN'    if c.startswith('NOT COVERED') else
+            'COVERED' if c.startswith('COVERED') else '?')
+tiers = [tier(r.split('|')[2]) for r in rows]
+for r,t in zip(rows,tiers): print(f"  {r.split('|')[1].strip():<42} {t}")
+assert len(rows) == 6, f"expected 6 channel rows, found {len(rows)}"
+assert '?' not in tiers, f"unrecognised status: {[r for r,t in zip(rows,tiers) if t=='?']}"
+print(collections.Counter(tiers))
+PY
+  **filesystem**                             PARTIAL
+  **filesystem (rest of `handoff/`)**        OPEN
+  **HTTP**                                   PARTIAL
+  **subprocess**                             PARTIAL
+  **BigQuery**                               OPEN
+  **module singleton**                       OPEN
+Counter({'PARTIAL': 3, 'OPEN': 3})
+```
+
+**Zero channels fully covered, three partial, three open.**
+
+Two assertions carry their weight here and are not decoration. `len(rows) == 6`
+fails if a channel row is ever deleted or renamed out of the selector's reach --
+a silently-shrinking table would otherwise report a cheerful count of whatever
+survived. `'?' not in tiers` fails if a status cell is written in a spelling the
+classifier does not recognise, rather than dropping it. **The first draft of
+this very command had neither, was not scoped to section 4, and silently
+swallowed two rows from an unrelated table two sections away** -- it printed
+`Counter({'PARTIAL': 3, 'OPEN': 3, '?': 2})` and I nearly pasted a hand-typed
+`Counter({'PARTIAL': 3, 'OPEN': 3})` above it. The output above is the real one.
+
+**Why this paragraph is shaped like this, and the history it replaces.** Two
+earlier counts stood in this file at the same time and both were wrong. Cycle 1-3
+said *"Three of six are covered ... That is the honest count"* here, in the
+criterion's own section, while a second table 190 lines later said *"One channel
+fully covered, two partial, three open"*. The cycle-3 FAIL named the
+contradiction. Cycle 4 (2026-08-10, a fresh session) found that fixing the
+sentence had not fixed the **class**: the two tables still disagreed on *which*
+rows were which -- the section-4 table called filesystem PARTIAL and subprocess
+COVERED, the summary table called filesystem COVERED and subprocess PARTIAL.
+Both totalled "1 covered / 2 partial / 3 open", so the arithmetic agreed while
+the content did not, and an arithmetic check would never have caught it.
+
+**The class is "a fact stated twice can disagree with itself"** -- phase-86.22's
+lesson about two normalisers, in prose form. The structural remedy is therefore
+not a third correction but the removal of the duplicate: the summary table at
+the end of this file is **deleted**, this is the only count, and it is computed
+from the table rather than typed.
 
 ## 5. Files changed
 
@@ -386,8 +440,11 @@ would I enumerate it?"
 Criterion 9 does not require the HTTP channel to be CLOSED. It requires the
 artifacts to "state which are covered and which are not". So:
 
-1. the HTTP row is restated as **PARTIAL**, naming the 5 covered host strings
-   and the 8 measured residuals;
+1. the HTTP row is restated as **PARTIAL**, naming the covered host strings and
+   the measured residuals. **The numbers are stated in the row itself and not
+   duplicated here** -- they moved once already (4 not 5 enumerated strings; 11
+   not 8 residual spellings), and a figure repeated in a second place is a
+   figure that will go stale in one of them;
 2. the class fix -- resolving a host to this machine's addresses rather than
    string-matching, or keying the refusal on port 8000 alone -- is **queued as
    phase-86.27**, research-gated, because the trade-offs are real (a DNS lookup
@@ -402,18 +459,13 @@ artifacts to "state which are covered and which are not". So:
 
 ## Corrected coverage count
 
-Not "3 of 6 covered". Measured honestly:
+**DELETED, deliberately, and the deletion is the fix.** A summary table stood
+here restating section 4's six rows. It disagreed with section 4 about which
+rows were covered and which were partial while agreeing on the totals, so the
+contradiction was invisible to any check that compared counts. It is gone.
 
-| channel | status |
-|---|---|
-| filesystem (kill-switch journal + derived archive) | COVERED |
-| filesystem (rest of `handoff/`) | OPEN, deliberately -- proven open tonight by the cycle lock |
-| HTTP | **PARTIAL** -- 5 host strings refused, 8 measured spellings still reach |
-| subprocess | PARTIAL -- one seam (`smoke_cc_rail_e2e.py`) closed of 72 files that shell out |
-| BigQuery | OPEN -- no guard exists |
-| module singleton | OPEN -- 36.28 / 86.1's surviving mutant |
-
-**One channel fully covered, two partial, three open.**
+**The coverage count lives in exactly one place: section 4, immediately under
+the table it is derived from.** Do not restate it here or anywhere else.
 
 ---
 
@@ -496,3 +548,69 @@ tightening; nothing was loosened. Concretely:
    belongs in 86.27's scope. I did not decide this at 03:45 inside a step whose
    criteria are about something else -- that judgement is exactly what has gone
    wrong three times tonight.
+
+---
+
+# CYCLE 4 -- 2026-08-10, a FRESH session. ARTIFACT-ONLY; zero code changed.
+
+The cycle-3 FAIL's path-to-pass was three items, all artifact-only. This cycle
+executed them, and **found that item (2) had been half-applied in a way that
+recreated the very defect the FAIL was about.**
+
+## What the cycle-3 verdict asked for, item by item
+
+| # | asked | state on arrival | done this cycle |
+|---|---|---|---|
+| 1 | delete/rewrite `:209` so the criterion-9 section and the appendix agree | **already done** by the parking session | verified by reading; the retired "Three of six" sentence is gone from the load-bearing location and survives only inside quoted narrative |
+| 2 | qualify the filesystem row **at `:202` AND in the corrected table at `:404`** | **HALF DONE.** `:202` was qualified to PARTIAL; the summary table still said `COVERED` | **fixed, and fixed structurally** -- see below |
+| 3 | (optional) soften "5 enumerated host STRINGS" to the true count | not done | done -- `len(_LOOPBACK_HOSTS)` is **4**; `LOCALHOST` matches by `urlsplit` case-folding, not by membership |
+
+## The finding: the two tables disagreed, and the totals hid it
+
+Section 4's table said **filesystem = PARTIAL, subprocess = COVERED**. The
+summary table 190 lines later said **filesystem = COVERED, subprocess =
+PARTIAL**. Both totalled *"1 covered / 2 partial / 3 open"*. **An arithmetic
+check compares equal; the content is contradictory.** That is the third
+appearance of one class in this step -- *a fact stated twice can disagree with
+itself* -- and the reason it survived a correction is that the correction fixed
+the sentence rather than the duplication.
+
+**Structural remedy, not a third correction:** the summary table is **deleted**.
+Section 4's table is the only statement of coverage, and the count beneath it is
+**computed from that table by a re-runnable command** rather than typed. Two
+assertions in that command (`len(rows) == 6`, `'?' not in tiers`) make a
+shrinking table or an unrecognised status a loud failure instead of a quieter
+number. The honest count is now **zero fully covered, three partial, three
+open** -- both prior counts were wrong, and the second was wrong more subtly
+than the first.
+
+## Also corrected, and it moves the HTTP row's meaning
+
+The HTTP row said "8 spellings MEASURED reachable and un-refused". Re-measured
+at 08:33 CEST with a non-networking sentinel and read-only `GET /api/health`:
+**11**, not 8. The three extra (`0x7f.0x0.0x0.0x1`, `017700000001`,
+`[::ffff:7f00:1]`) were invented on the spot and every one was reachable
+(HTTP 200) and un-refused on the first attempt. The number moved the moment
+someone looked again, which is the row's actual content: **the residual is an
+open-ended population, not a list.** Recorded in the row itself, and it is the
+premise phase-86.27 is built on.
+
+## Scope honesty
+
+- **No production code changed this cycle.** `git diff --stat` over the working
+  tree shows one artifact file (`experiment_results_86.6.md`) plus
+  hook-maintained audit/heartbeat streams. `conftest.py`,
+  `scripts/qa/live_backend_origin.py`, `backend/services/kill_switch.py` and
+  every test module are byte-unchanged.
+- **Immutable verification command re-run on this tree:** `79 passed, 1 warning
+  in 11.56s`.
+- **`handoff/kill_switch_audit.jsonl` byte-identical across that run:**
+  `ea78508bee73887c...`, 64 lines BEFORE and AFTER.
+- **Not claimed:** nothing in this cycle closes any channel. The coverage is
+  strictly worse on paper than cycle 3 reported, because cycle 3's paper was
+  wrong -- the guards themselves are unchanged and none was loosened.
+- **Deliberately NOT decided here** (parking item 3): whether the non-`open`
+  filesystem residual (`os.rename`/`os.remove`/`os.truncate`/`os.replace`, and
+  the `PYFINAGENT_LIVE_STATE_GUARD` env bypass) gets its own step or folds into
+  86.27. Deciding it inside this step is the scope creep the step keeps paying
+  for; it is carried to the day report as a numbered ask.

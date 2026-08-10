@@ -1,0 +1,44 @@
+=== phase-86.27 criterion-5 evidence: how often the guard path fires, and what it costs ===
+Measured 2026-08-10 ~08:47 CEST. Read-only instrumentation chained ON TOP of conftest's
+guard (never bypassing it): a pytest plugin counting urlopen calls by port and
+socket.connect audit events, with per-event hook timing.
+
+Command:
+  PYTHONPATH=<scratch> python -m pytest \
+    backend/tests/test_phase_86_3_live_egress_guard.py \
+    backend/tests/test_phase_76_9_2_max_bridge.py \
+    backend/tests/test_phase_23_2_4_pause_resume_no_deadlock_live.py \
+    backend/tests/test_phase_23_2_7_red_line_nav_match.py \
+    backend/tests/test_phase_82_58_spend_alert_delivery.py -q -p count_plugin
+
+  43 passed, 1 skipped, 9 warnings in 99.29s (0:01:39)
+
+  urlopen calls by port: {8000: 16, 60484: 1, None: 1, 60486: 4, 60492: 3,
+                          60499: 3, 60506: 3, 60513: 2, 60519: 1}
+    -> targeting 8000  : 16
+    -> total urlopen   : 34
+  socket.connect events: 50 (top ports [(8000, 32), (60486, 4), (60492, 3),
+                          (60499, 3), (60506, 3), (60513, 3), (60484, 1), (60519, 1)])
+    -> to port 8000    : 32
+    -> mean hook cost  : 1.927 us/event
+    -> total hook cost : 0.10 ms over the whole run
+
+handoff/kill_switch_audit.jsonl sha256 ea78508bee73887c... UNCHANGED across the run.
+
+WHAT THIS SETTLES
+-----------------
+* A socket-layer audit hook costs ~1.9 us per connect and 0.10 ms across a 99-second
+  run. The "blocking call inside a guard path" objection does not apply to it: the hook
+  reads an already-resolved tuple and performs no name resolution of its own.
+* Every non-8000 port observed (60484-60519) sits inside this machine's ephemeral range
+  49152-65535 (sysctl net.inet.ip.portrange.first/last). No stub binds 8000.
+* 16 of 34 urlopen calls target :8000, and each produces ~2 connect events because the
+  `localhost` address list is walked (::1 then 127.0.0.1). A string-layer predicate that
+  resolves would therefore fire 16 times -- but only on DISTINCT host strings once
+  memoised, and only after the port gate has already excluded every other call.
+* An EARLIER instrumented run over the step's own verification command
+  (test_phase_86_6_subprocess_channel.py + test_phase_4000_2_cc_rail_smoke.py, 40 passed)
+  recorded ZERO urlopen calls and ZERO connect events in the pytest process: all of that
+  module's HTTP happens in CHILD processes, which is precisely why the subprocess channel
+  needed its own guard and why a parent-process-only measurement would understate the
+  surface.

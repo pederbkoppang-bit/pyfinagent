@@ -23932,7 +23932,7 @@
         },
         {
           "id": "86.6",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P1",
           "name": "P1 THE CHANNELS A CONFTEST GUARD CANNOT REACH ARE STILL OPEN: (A) an in-process test write to handoff/kill_switch_audit.jsonl is DETECTED but not PREVENTED, and (B) a test that SHELLS OUT runs with no guard at all.",

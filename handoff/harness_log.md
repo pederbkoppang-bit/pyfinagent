@@ -32586,3 +32586,79 @@ findings) rather than letting the zero stand.
 
 Commits: a16fa5a2 (gate+contract), 1ed39ccd (removals), 55c40973 (sets
 enumerated).
+
+---
+
+## Cycle 1196 -- 2026-08-10 -- phase=86.6 result=PASS
+
+**Cycle 4, in a fresh session -- which is what the cycle-3 FAIL's escalation clause
+asked for rather than a fourth attempt inside the session that failed it.
+ARTIFACT-ONLY: zero production code changed.**
+
+`git diff --name-only HEAD -- '*.py'` was EMPTY for the whole cycle, and the Q/A
+confirmed it independently.
+
+**The cycle-3 FAIL named three path-to-pass items. Item 2 was HALF-APPLIED, and the
+half that was missing had recreated the defect the FAIL was about.** Section 4's
+channel table read `filesystem = PARTIAL, subprocess = COVERED`; the summary table
+190 lines later read `filesystem = COVERED, subprocess = PARTIAL`. **Both totalled
+"1 covered / 2 partial / 3 open", so every arithmetic check compared equal while the
+content contradicted itself.** The disposition left by the parking session said the
+artifact defects were fixed; they were not, and reading rather than trusting it is
+what found this.
+
+**The remedy is structural, not a third correction.** The duplicate summary table is
+DELETED. Section 4's table is the only statement of coverage, and the count beneath
+it is COMPUTED from that table by a re-runnable command carrying two assertions
+(`len(rows) == 6`; no unrecognised status cell). The honest count is **zero fully
+covered, three partial, three open** -- both earlier counts were wrong, and the
+second was wrong more subtly than the first.
+
+Also corrected, both by measurement rather than by eye:
+- `len(_LOOPBACK_HOSTS)` is **4**, not 5. `LOCALHOST` was listed as a fifth member;
+  it is not in the set and matches only because `urlsplit().hostname` case-folds.
+- The HTTP residual is **11 spellings, not 8**. Three more (`0x7f.0x0.0x0.0x1`
+  hex-dotted, `017700000001` 32-bit octal, `[::ffff:7f00:1]` hex IPv4-mapped) were
+  invented on the spot during 86.27's reproduction and every one answered
+  `GET /api/health` with 200 and was un-refused on a mutating PUT, measured with a
+  non-networking sentinel so nothing was sent. **The count moved the moment someone
+  looked again**, which is the row's real content: the residual is an open-ended
+  population, not a list.
+
+**Q/A verdict: PASS**, `ok:true`, zero violated criteria, 22 checks run, harness
+compliance 5/5. Launched on the Workflow structured-output rail
+(`.claude/workflows/qa-verdict.js`, run `wf_b96a2236-6eb`); transcribed verbatim
+into `evaluator_critique_86.6.md` as cycle 4. The Q/A re-ran the mutation matrix,
+the criterion-7 seam mutation, the criterion-2 live-journal probe and the count
+command itself, and **proved the count command's assertions can actually fire** by
+mutating the table four ways.
+
+**Three NOTE-level findings, none blocking, and they are NOT being fixed
+post-verdict -- the tree that was graded stays frozen (86.1's precedent):**
+
+- (a) **My uniqueness claim is falsified by the file itself.** The artifact says the
+  count is "STATED IN EXACTLY ONE PLACE ... not restated anywhere else in this
+  file", and then the cycle-4 section restates it. The Q/A checked mechanically:
+  the only two present-tense count statements AGREE, so there is no contradiction
+  and criterion 9's substance is untouched -- but an absolute self-description that
+  is false, inside the very edit that claims to remove duplication, is the same
+  class in miniature.
+- (b) **The count command guards the table's SHAPE, not the file's uniqueness.** Two
+  of the Q/A's seven mutants survive green: swapping a channel row for a
+  differently-named one (cardinality preserved), and re-adding a contradicting
+  summary table OUTSIDE section 4 (the selector is scoped to section 4). So the
+  structural remedy for the duplication class rests on the deletion plus prose
+  discipline, not on the command's assertions. Worth saying plainly, because the
+  artifact presents the command as the structural fix.
+- (c) **A pre-existing lint defect outside this step:**
+  `scripts/qa/verify_unused_imports_86_26.py:31 F401 'sys' imported but unused` --
+  phase-86.26's own file, and ironic given what that script is for.
+
+Live journal `handoff/kill_switch_audit.jsonl` sha256
+`ea78508bee73887c82df2346da408c7281e7e9229334a6131d7fa06c09977065`, 64 lines,
+byte-identical before and after every run this cycle including the Q/A's own
+mutation matrix.
+
+**What this step does NOT claim:** it closes no channel that was open at the start of
+cycle 4. Coverage on paper is strictly worse than cycle 3 reported, because cycle 3's
+paper was wrong. The HTTP class fix is phase-86.27, in flight.

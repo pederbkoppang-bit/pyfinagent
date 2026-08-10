@@ -269,8 +269,15 @@ Floors live in `.claude/rules/research-gate.md`; **do not weaken one to
 simplify the schema.** Re-runnable checker (the immutable `node --check`
 command reaches criterion 1 only):
 `node scripts/qa/verify_research_gate_workflow.mjs`. It runs the role as
-`agent(prompt, {schema, agentType:'general-purpose', model:'opus',
-effort:'max'})` and **the verdict is the captured return value** —
+`agent(prompt, {schema, agentType:'researcher', model:'opus',
+effort:'max'})` — `agentType:'researcher'`, NOT `general-purpose`, and the
+distinction is load-bearing: the researcher needs `Write` for write-first.
+The shipped code pins it at `.claude/workflows/research-gate.js:419` and
+`scripts/qa/verify_research_gate_workflow.mjs` asserts that pin, so this
+paragraph is the doc, not the source of truth. (Corrected phase-86.28:
+this sentence used to say `general-purpose`, contradicting the
+`agentType:'researcher'` rationale stated a few sentences above it.) The
+**verdict is the captured return value** —
 structured-outputs GA (constrained decoding) guarantees the shape, so it
 does NOT depend on a subagent file-write flush. This is the stall-immune
 path (the Agent-tool subagent end-flush stalled 6× on 2026-07-11,

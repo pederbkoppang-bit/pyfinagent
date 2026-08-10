@@ -1,5 +1,6 @@
 # Researcher Agent Memory Index
 
+- [Silent tier downgrade 86.28](project_silent_tier_downgrade_86_28.md) — ABSENT vs UNSUPPORTED is the whole question; `enum` is NOT stripped so it can make an honest report unrepresentable; coverage.dry unverifiable in principle
 - [Dead imports 86.26](project_dead_imports_86_26.md) — `X as X` is type-checker-only (mypy implicit_reexport defaults TRUE); compute_benchmark_return NOT a re-export; repo has NO ruff config
 - [CONDITIONAL counter 86.21](project_conditional_counter_86_21.md) — source written at step CLOSE so it reads 0 mid-flight; THREE rule copies, TWO predicates
 - [Test state channels 86.6](project_test_state_channels_86_6.md) — a RuntimeError guard is SWALLOWED by kill_switch's `except Exception`; addaudithook is the only 4-channel seam

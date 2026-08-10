@@ -59,16 +59,42 @@ async function loadModule(sourceOverride) {
   return mod
 }
 
-function makeBrief(urls) {
+// phase-86.28: the fixture brief is now COMPLIANT with what the rules actually
+// require of a brief -- a read-in-full table, a snippet-only table, and a
+// DEDICATED recency-scan section (.claude/rules/research-gate.md requires the
+// section "even when empty"). Before this, the fixture omitted both the
+// snippet table and the recency section, so it could not exercise the two
+// corroboration checks at all. `withRecency:false` builds the non-compliant
+// variant the recency probe needs.
+function makeBrief(readUrls, snippetUrls = [], withRecency = true) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rgbrief-'))
   const p = path.join(dir, 'research_brief_TEST.md')
-  fs.writeFileSync(p, '# brief\n\n' + urls.map(u => `| ${u} | read in full |`).join('\n') + '\n')
+  const parts = [
+    '# brief',
+    '',
+    '## Sources read in full',
+    ...readUrls.map(u => `| ${u} | read in full |`),
+    '',
+    '## Snippet-only sources',
+    ...snippetUrls.map(u => `| ${u} | snippet only |`),
+    '',
+  ]
+  if (withRecency) parts.push('## Recency scan (last 2 years)', '', 'No relevant new findings in the window.', '')
+  fs.writeFileSync(p, parts.join('\n'))
   return p
 }
 
+// Stage 2 is told to look for a dedicated recency-scan section HEADING. This
+// mirrors that instruction; it deliberately does NOT try to judge whether the
+// scan was substantive -- see the naming-discipline note in research-gate.js.
+const RECENCY_HEADING_RE = /^#{1,6}\s.*recency\s+scan/im
+const URL_RE = /https?:\/\/[^\s|)\]<>"']+/g
+
 /** Stage 2's job, performed here with real fs. The CHECKER may touch disk; only
  *  the Workflow runtime may not. This produces exactly what the verifier agent
- *  returns at runtime, so enforceGate is driven through its real interface. */
+ *  returns at runtime, so enforceGate is driven through its real interface.
+ *  phase-86.28: must now also produce the two fields the schema newly requires,
+ *  or the checker would be driving a stage-2 shape that can no longer occur. */
 function verifyBrief(briefPath, urls) {
   let text = null
   try { text = fs.readFileSync(briefPath, 'utf8') } catch (_e) { text = null }
@@ -80,11 +106,18 @@ function verifyBrief(briefPath, urls) {
     urls_checked: urls.length,
     urls_present: urls.length - missing.length,
     urls_missing: missing,
+    recency_section_present: text !== null && RECENCY_HEADING_RE.test(text),
+    distinct_urls_in_brief: text === null ? 0 : new Set(text.match(URL_RE) || []).size,
   }
 }
 
 const URLS = Array.from({ length: 8 }, (_, i) => `https://example.com/source-${i + 1}`)
-const briefPath = makeBrief(URLS)
+// 8 read-in-full + 17 snippet-only = 25 distinct, matching goodEnvelope()'s
+// urls_collected: 25 and snippet_only_sources: 17. The fixture is now
+// internally consistent, which is what makes the urls corroboration testable.
+const SNIPPET_URLS = Array.from({ length: 17 }, (_, i) => `https://example.com/snippet-${i + 1}`)
+const briefPath = makeBrief(URLS, SNIPPET_URLS)
+const briefPathNoRecency = makeBrief(URLS, SNIPPET_URLS, false)
 
 function goodEnvelope(over = {}) {
   return {
@@ -111,14 +144,26 @@ const NOT_SUPPLIED = Symbol('not-supplied')
 
 /** Drive enforceGate the way the workflow does: envelope + independent verification. */
 function makeGate(mod) {
-  return (env, verificationOverride = NOT_SUPPLIED) => {
+  // phase-86.28: `opts` passthrough. enforceGate takes (env, verification, opts)
+  // and the tier classification arrives via opts, so a probe that cannot pass
+  // opts cannot exercise the tier check at all. Omitting it keeps the exact
+  // previous behaviour (enforceGate treats an absent opts.tier as "no tier
+  // information", which is how every pre-86.28 call site drives it).
+  return (env, verificationOverride = NOT_SUPPLIED, opts = undefined) => {
     const urls = Array.isArray(env && env.sources_read_in_full) ? env.sources_read_in_full : []
     const v = verificationOverride === NOT_SUPPLIED
       ? verifyBrief((env && env.brief_path) || '', urls)
       : verificationOverride
-    return mod.enforceGate(env, v)
+    return mod.enforceGate(env, v, opts)
   }
 }
+
+// phase-86.28 tier fixtures -- the shape the driver builds at its enforceGate call.
+const TIER_VALID = ['simple', 'moderate', 'complex']
+const tierOpts = (over) => ({ tier: { requested: null, applied: 'moderate', supported: true, absent: false, unsupported: false, valid: TIER_VALID, ...over } })
+const TIER_UNSUPPORTED = tierOpts({ requested: 'deep', supported: false, unsupported: true })
+const TIER_ABSENT = tierOpts({ requested: null, absent: true })
+const TIER_OK = tierOpts({ requested: 'complex', applied: 'complex' })
 
 /** A mutant is KILLED if the weakened build lets a previously-rejected envelope
  *  through, OR if it throws. A throw is a kill: it means the removed guard was
@@ -212,6 +257,80 @@ console.log('\n[6] the agent does not get to grade itself')
     r.gate_passed === true && r.self_report_disagreed === true)
 }
 
+console.log('\n[6b] phase-86.28 -- an UNSUPPORTED tier fails closed; an ABSENT tier does not')
+{
+  const r = G(goodEnvelope(), NOT_SUPPLIED, TIER_UNSUPPORTED)
+  check('UNSUPPORTED tier => gate_passed false (refuses to certify a standard never applied)',
+    r.gate_passed === false && r.violations.some(x => x.includes('tier_unsupported')))
+  check('the violation names the requested tier and what actually ran',
+    r.violations.some(x => x.includes('deep') && x.includes('moderate')))
+}
+{
+  // REGRESSION, caught by the LIVE spawn wf_4da39b31-695 and not by any check
+  // that existed at the time: the refuse-to-spawn path calls enforceGate with
+  // env === null on purpose, and the first version computed the tier AFTER the
+  // empty-envelope guard, so the refusal reported "the agent returned null" --
+  // describing a failure of an agent that was never asked to run, while hiding
+  // the actionable cause. The message a caller reads must describe what
+  // actually happened.
+  const r = mod.enforceGate(null, null, TIER_UNSUPPORTED)
+  check('refusal path (env=null, unsupported tier) reports the TIER as the cause',
+    r.violations.some(x => x.includes('tier_unsupported')))
+  check('refusal path does NOT claim an agent returned null (no agent was asked to run)',
+    !r.violations.some(x => x.includes('empty_or_errored_return'))
+    && !r.checks.some(x => x.includes('the agent returned')))
+  check('refusal path still fails closed', r.gate_passed === false)
+}
+{
+  // The converse must not regress: a genuinely empty return on a SUPPORTED
+  // tier must still report empty_or_errored_return.
+  const r = mod.enforceGate(null, null, TIER_OK)
+  check('empty return on a supported tier still reports empty_or_errored_return',
+    r.gate_passed === false && r.violations.some(x => x.includes('empty_or_errored_return')))
+}
+check('ABSENT tier still PASSES (defaulting is legitimate when the caller named nothing)',
+  G(goodEnvelope(), NOT_SUPPLIED, TIER_ABSENT).gate_passed === true)
+check('a SUPPORTED tier passes', G(goodEnvelope(), NOT_SUPPLIED, TIER_OK).gate_passed === true)
+check('absent opts.tier behaves exactly as before (pre-86.28 call sites unaffected)',
+  G(goodEnvelope()).gate_passed === true)
+
+console.log('\n[6c] phase-86.28 -- the two formerly-uncorroborated self-reports are checked against the brief')
+{
+  // recency_scan_performed: claimed true, but the brief carries no section.
+  const r = G(goodEnvelope({ brief_path: briefPathNoRecency }))
+  check('recency_scan_performed=true with NO recency section in the brief => gate_passed false',
+    r.gate_passed === false && r.violations.some(x => x.includes('recency_scan_performed=true')))
+}
+check('recency corroboration PASSES when the brief carries the section',
+  G(goodEnvelope()).gate_passed === true)
+{
+  // An honest recency_scan_performed:false is rejected by the ORIGINAL check,
+  // not the new one -- confirm the new check did not change that path.
+  const r = G(goodEnvelope({ recency_scan_performed: false, brief_path: briefPathNoRecency }))
+  check('recency_scan_performed=false still fails via the original check, not the corroboration',
+    r.gate_passed === false && r.violations.some(x => x.includes('recency_scan_performed is not true')))
+}
+{
+  // urls_collected over-claim: 99 clears the >=10 floor, so the ONLY thing
+  // that can reject it is the corroboration against the brief.
+  const r = G(goodEnvelope({ urls_collected: 99 }))
+  check('urls_collected over-claim (99 claimed, 25 in the brief) => gate_passed false',
+    r.gate_passed === false && r.violations.some(x => x.includes('urls_collected=99')))
+}
+check('urls_collected within what the brief carries PASSES',
+  G(goodEnvelope({ urls_collected: 25 })).gate_passed === true)
+{
+  // The corroboration must NOT fire when stage 2 did not run -- that path is
+  // already fail-closed, and a second violation there would mask which guard
+  // actually rejected the run.
+  const r = mod.enforceGate(goodEnvelope(), null)
+  check('absent verification still fails via fail-closed ONLY (corroboration does not double-fire)',
+    r.gate_passed === false
+    && r.violations.some(x => x.includes('verification did not run'))
+    && !r.violations.some(x => x.includes('recency_scan_performed=true'))
+    && !r.violations.some(x => x.includes('urls_collected=')))
+}
+
 console.log('\n[7] criterion 6 MUTATION-TEST -- weakening a floor in the SOURCE must break the check enforcing it')
 {
   const src = fs.readFileSync(WORKFLOW, 'utf8')
@@ -228,6 +347,15 @@ console.log('\n[7] criterion 6 MUTATION-TEST -- weakening a floor in the SOURCE 
       (g) => g(goodEnvelope({ external_sources_read_in_full: 8, sources_read_in_full: URLS.slice(0, 3) })).gate_passed],
     ['fail-closed on absent verification removed', "if (!verification || typeof verification !== 'object' || Array.isArray(verification))", 'if (false)',
       (g) => g(goodEnvelope(), null).gate_passed],
+    // phase-86.28: one mutant per NEW check. A check whose mutant survives was
+    // never load-bearing, so these are the only evidence the new guards work.
+    ['tier_unsupported check removed', 'const tierUnsupportedHere = !!(tierInfo && tierInfo.unsupported === true)',
+      'const tierUnsupportedHere = false',
+      (g) => g(goodEnvelope(), NOT_SUPPLIED, TIER_UNSUPPORTED).gate_passed],
+    ['recency corroboration removed', 'if (env.recency_scan_performed === true && verification.recency_section_present !== true)', 'if (false)',
+      (g) => g(goodEnvelope({ brief_path: briefPathNoRecency })).gate_passed],
+    ['urls corroboration removed', 'if (urls > briefUrls)', 'if (false)',
+      (g) => g(goodEnvelope({ urls_collected: 99 })).gate_passed],
   ]
   for (const [name, from, to, probe] of mutants) {
     if (!src.includes(from)) { check(`mutant "${name}" anchor present`, false, `anchor not found: ${from}`); continue }
@@ -273,6 +401,19 @@ console.log('\n[8] structural -- no stripped schema keywords, no forbidden runti
   check('no Monitor/watchdog (rider-trap R11)', !/Monitor\(/.test(src))
   check('exactly ONE export (`export const meta`) -- a trailing export list is unlaunchable',
     (src.match(/^\s*export\b/gm) || []).length === 1 && /^export const meta/m.test(src))
+  // phase-86.28: the refusal must come BEFORE the spawn or it saves nothing.
+  // Structural + ordering, because the module-level driver cannot be executed
+  // outside the Workflow runtime; the LIVE spawn recorded in the step's
+  // live_check is the behavioural half of this pair.
+  {
+    const refusalAt = src.indexOf('if (tierUnsupported) {')
+    const spawnAt = src.indexOf('const envelope = await agent(PROMPT')
+    check('driver REFUSES TO SPAWN on an unsupported tier', refusalAt !== -1)
+    check('the refusal is placed BEFORE the researcher spawn (else it saves no tokens)',
+      refusalAt !== -1 && spawnAt !== -1 && refusalAt < spawnAt)
+    check('the refusal path returns gate_passed:false', /if \(tierUnsupported\) \{[\s\S]*?gate_passed: false/.test(src))
+  }
+
   check('enforceGate is pure -- no fs/process use in its body',
     !/fs\.|process\.cwd\(/.test(src.slice(src.indexOf('function enforceGate'), src.indexOf("phase('Research')"))))
 }

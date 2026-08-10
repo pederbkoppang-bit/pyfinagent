@@ -144,10 +144,52 @@ const a = inputHealth.args
 
 const stepId = a.step_id || a.stepId || 'UNSPECIFIED'
 const topic = a.topic || '(no topic passed -- derive it from the step entry in .claude/masterplan.json)'
+// ── phase-86.28: ABSENT tier vs UNSUPPORTED tier ───────────────────────────
+// These are different in KIND and the old single `tierDefaulted` flag
+// collapsed them, which had two consequences:
+//   (a) the prompt string at TIER: below asserted "NOT passed by the caller"
+//       even when the caller HAD passed one (just an unimplemented one), so
+//       the agent was told something factually false; and
+//   (b) the substitution never reached the RETURN VALUE, only the prompt.
+//
+// MEASURED: `.claude/agents/researcher.md:204,206-273` documents a FOURTH
+// tier, `deep`, whose gate conditions are materially stricter (>=20 sources
+// read in full vs 5, >=1 [ADVERSARIAL] source, an explicitly labelled
+// multi-pass structure). This rail does not implement it -- `grep -c deep`
+// on this file returns 0. So a caller passing tier:'deep' previously got a
+// gate certified at MODERATE standards with nothing in the response saying so.
+//
+// WHY UNSUPPORTED FAILS CLOSED RATHER THAN WARNING. Protocol design allows
+// exactly two dispositions for a caller-named capability the implementation
+// lacks: fail closed (TLS inappropriate_fallback RFC 7507 s3; HTTP Expect
+// /417; LDAP control criticality), or proceed WITH a machine-readable signal
+// in the RESPONSE (RFC 7240 s3 -- `Prefer` is ignorable ONLY because
+// `Preference-Applied` exists). The deciding variable is whether the caller
+// can DETECT the substitution from the response, not the size of the gap.
+// Silent substitution is endorsed by no source; RFC 9413 s6 -- hiding
+// consequences conceals bugs. Here `tier` is not an ignorable hint: it
+// DEFINES what "passed" means. Certifying gate_passed:true at a standard
+// that was never applied would be an over-claim BY THE GATE, the exact
+// failure class the header above says this rail exists to prevent. So we do
+// BOTH -- fail closed AND report the fields.
+//
+// Fail-closed breaks no existing caller: zero callers pass `deep` today.
+// ABSENT keeps today's behaviour EXACTLY -- defaulting is legitimate when
+// the caller named nothing, and that path raises no violation.
+//
+// NOT IN SCOPE, deliberately: adding 'deep' to VALID_TIERS. researcher.md
+// :248-263 makes deep's fourth requirement a MULTI-SUBAGENT PRODUCER FORK
+// ("2-3 parallel deep-tier researcher subagents", "~1 Claude Max 5-hour
+// rolling window per subagent"). Enabling the tier would ship producer
+// fan-out onto this N=1 artifact rail -- one brief path, one stage-2
+// verifier, no cross-branch de-dup -- and pre-empt an open operator
+// decision. Report the gap; do not close it unilaterally.
 const VALID_TIERS = ['simple', 'moderate', 'complex']
-const tierRaw = a.tier || 'moderate'
-const tier = VALID_TIERS.includes(tierRaw) ? tierRaw : 'moderate'
-const tierDefaulted = !a.tier || !VALID_TIERS.includes(tierRaw)
+const tierRequested = a.tier || null
+const tierAbsent = !tierRequested
+const tierSupported = !tierAbsent && VALID_TIERS.includes(tierRequested)
+const tierUnsupported = !tierAbsent && !tierSupported
+const tier = tierSupported ? tierRequested : 'moderate'
 const internalScope = a.internal_scope || a.internalScope || '(none passed -- derive the relevant modules from the step entry)'
 const auditClass = a.audit_class === true || a.auditClass === true
 // The script tells the agent the EXACT path it will later verify, so write-first
@@ -170,7 +212,14 @@ const PROMPT = [
   'This runtime read makes any researcher.md edit live immediately on the Workflow path.',
   '',
   'OBJECTIVE: ' + topic,
-  'TIER: ' + tier + (tierDefaulted ? '  (NOT passed by the caller -- defaulted to moderate; state this assumption in the brief)' : ''),
+  // phase-86.28: only the ABSENT case can reach a spawn -- an UNSUPPORTED tier
+  // early-returns below without spawning, so a branch for it here would be DEAD
+  // CODE (the same trap the blind-run duplicate hit in 86.17 cycle 1). The old
+  // single string claimed "NOT passed by the caller" even when the caller HAD
+  // passed one, which is why this is now conditioned on tierAbsent alone.
+  'TIER: ' + tier + (tierAbsent
+    ? '  (NOT passed by the caller -- defaulted to moderate; state this assumption in the brief)'
+    : ''),
   'INTERNAL SCOPE: ' + internalScope,
   'AUDIT-CLASS: ' + (auditClass
     ? 'YES. The >=' + FLOOR_SOURCES + ' floor is a FLOOR, not a ceiling. Run the loop-until-dry completeness critic: keep '
@@ -239,10 +288,26 @@ const ENVELOPE_SCHEMA = {
 
 // Stage-2 verifier schema: a cheap, independent read of the brief on disk.
 // The researcher does NOT get to attest to its own artifact.
+// phase-86.28: two fields added so the gate stops trusting two self-reports
+// it never corroborated. Both are read off the SAME brief stage 2 already
+// opens -- no new agent, no new spawn, no extra round trip.
+//
+// NAMING DISCIPLINE (EBTE / Proof-or-Stop: "structural is not semantic").
+// `recency_section_present` says a SECTION EXISTS. It does NOT say a recency
+// scan was substantively performed, and no field here should ever be read as
+// saying that. The check exists to catch the cheap lie (claimed a scan, wrote
+// no section), not to certify research quality. `coverage.dry` is deliberately
+// NOT given a similar proxy: dryness is K consecutive EXECUTED search rounds
+// surfacing nothing new, which is a property of executed discovery and not of
+// a file, so any file-derived proxy for it would be false assurance -- exactly
+// the anti-pattern EBTE names. Leave it uncorroborated and honest.
 const BRIEF_VERIFICATION_SCHEMA = {
   type: 'object',
   additionalProperties: false,
-  required: ['brief_exists', 'brief_non_empty', 'char_count', 'urls_checked', 'urls_present', 'urls_missing'],
+  required: [
+    'brief_exists', 'brief_non_empty', 'char_count', 'urls_checked', 'urls_present', 'urls_missing',
+    'recency_section_present', 'distinct_urls_in_brief',
+  ],
   properties: {
     brief_exists: { type: 'boolean' },
     brief_non_empty: { type: 'boolean' },
@@ -250,6 +315,8 @@ const BRIEF_VERIFICATION_SCHEMA = {
     urls_checked: { type: 'integer' },
     urls_present: { type: 'integer' },
     urls_missing: { type: 'array', items: { type: 'string' } },
+    recency_section_present: { type: 'boolean', description: 'Does the brief carry a dedicated recency-scan section heading? Structural only -- not a judgement that the scan was substantive.' },
+    distinct_urls_in_brief: { type: 'integer', description: 'Count of DISTINCT http(s) URLs appearing anywhere in the brief.' },
   },
 }
 
@@ -270,12 +337,45 @@ function enforceGate(env, verification, opts) {
   const violations = []
   const checks = []
 
+  // phase-86.28: the tier classification is computed BEFORE the empty-envelope
+  // guard, and the ordering is load-bearing rather than cosmetic. The driver's
+  // refuse-to-spawn path calls this with env === null ON PURPOSE (no agent was
+  // ever asked to run). Computing tier after the guard made that path report
+  // `empty_or_errored_return: the agent returned null` -- describing an agent
+  // failure that never happened and hiding the real, actionable cause.
+  // MEASURED by the live spawn wf_4da39b31-695 before this reordering.
+  //
+  // ABSENT tier is NOT a violation -- defaulting is legitimate when the caller
+  // named nothing. UNSUPPORTED is, because `tier` defines what "passed" MEANS
+  // (deep = >=20 sources, not 5), so certifying at the substituted standard
+  // would be an over-claim by the gate itself. See the block above VALID_TIERS
+  // for the protocol-design basis (RFC 7507 / 7240 / 9413).
+  const tierInfo = (opts && opts.tier) || null
+  const tierUnsupportedHere = !!(tierInfo && tierInfo.unsupported === true)
+  if (tierUnsupportedHere) {
+    violations.push('tier_unsupported: the caller requested tier "' + tierInfo.requested
+      + '" which this rail does not implement (supported: ' + (tierInfo.valid || []).join(', ')
+      + '). Ran at "' + tierInfo.applied + '". Refusing to certify a standard that was never applied'
+      + ' -- pass a supported tier, or implement the requested one.')
+  } else if (tierInfo && tierInfo.absent === true) {
+    checks.push('tier_absent_defaulted_ok: no tier passed, ran at "' + tierInfo.applied + '"')
+  } else if (tierInfo) {
+    checks.push('tier_supported_ok: "' + tierInfo.applied + '"')
+  }
+
   // (0) Empty / errored / non-object return => FAILED gate. Never gate_passed.
   if (!env || typeof env !== 'object' || Array.isArray(env)) {
+    // When the tier was the reason we never spawned, an absent envelope is a
+    // CONSEQUENCE, not an independent finding -- reporting both would tell the
+    // caller an agent failed when none was asked to run.
+    if (!tierUnsupportedHere) {
+      violations.push('empty_or_errored_return')
+      checks.push('empty_or_errored_return: the agent returned ' + JSON.stringify(env === undefined ? null : env))
+    }
     return {
       gate_passed: false,
-      violations: ['empty_or_errored_return'],
-      checks: ['empty_or_errored_return: the agent returned ' + JSON.stringify(env === undefined ? null : env)],
+      violations,
+      checks,
       agent_self_reported_gate_passed: null,
       self_report_disagreed: false,
     }
@@ -350,6 +450,37 @@ function enforceGate(env, verification, opts) {
     } else if (listed.length) {
       checks.push('all_' + listed.length + '_claimed_sources_present_in_brief')
     }
+
+    // phase-86.28: corroborate the two self-reports that previously answered
+    // only to themselves. Both live INSIDE this branch on purpose -- they need
+    // an independently-read brief, and when stage 2 did not run the gate has
+    // already failed closed above. Adding them here therefore cannot soften
+    // the fail-closed path.
+    //
+    // (a) recency_scan_performed. .claude/rules/research-gate.md makes a
+    //     DEDICATED "Recency scan (last 2 years)" section mandatory and
+    //     requires it "even when empty". Claiming the scan while the artifact
+    //     carries no such section is an over-claim of the same shape the
+    //     source cross-check already catches. STRUCTURAL ONLY -- this does not
+    //     assert the scan was substantive, and the check name says so.
+    if (env.recency_scan_performed === true && verification.recency_section_present !== true) {
+      violations.push('over-claim: recency_scan_performed=true but the brief carries NO dedicated recency-scan section '
+        + '(structural check -- .claude/rules/research-gate.md requires the section even when it reports no findings)')
+    } else if (env.recency_scan_performed === true) {
+      checks.push('recency_section_present_in_brief (structural: a section exists; NOT a judgement that the scan was substantive)')
+    }
+
+    // (b) urls_collected. The rules require the snippet-only set to be
+    //     recorded in its own table, so every collected URL should be
+    //     observable in the brief. Claiming more than the artifact carries is
+    //     an over-claim; claiming fewer is fine (a brief may cite extra).
+    const briefUrls = n(verification.distinct_urls_in_brief)
+    if (urls > briefUrls) {
+      violations.push('over-claim: urls_collected=' + urls + ' but only ' + briefUrls
+        + ' distinct URLs appear in the brief (the snippet-only set must be recorded there too)')
+    } else if (urls >= 0 && briefUrls >= 0) {
+      checks.push('urls_collected_corroborated: ' + urls + ' <= ' + briefUrls + ' distinct URLs in the brief')
+    }
   }
 
   const gate_passed = violations.length === 0
@@ -412,6 +543,40 @@ if (inputHealth.blind) {
   }
 }
 
+// phase-86.28: REFUSE TO SPAWN on an unsupported tier, for the same reason the
+// args boundary throws rather than defaulting (see :102-106): the outcome is
+// already determined, so spawning costs a full max-effort researcher session
+// and produces a brief filed under a standard nobody asked for. Rejecting here
+// costs zero tokens and tells the caller exactly what to fix.
+//
+// The enforceGate check is KEPT as well and is not redundant -- it is the same
+// complete-mediation pattern 86.17 applied to the blind run: any future path
+// that reaches enforceGate with an unsupported tier still fails closed.
+if (tierUnsupported) {
+  log('research-gate ' + stepId + ': REFUSING TO SPAWN -- caller requested tier "' + tierRequested
+      + '" which this rail does not implement (supported: ' + VALID_TIERS.join(', ') + '). '
+      + 'Zero agents spawned. Pass a supported tier, or implement the requested one.')
+  const refusal = enforceGate(null, null, { inputHealth, tier: {
+    requested: tierRequested, applied: tier, supported: false, absent: false, unsupported: true, valid: VALID_TIERS,
+  } })
+  return {
+    step_id: stepId,
+    gate_passed: false,
+    agent_self_reported_gate_passed: null,
+    self_report_disagreed: false,
+    violations: refusal.violations,
+    checks: refusal.checks,
+    input_health: { status: inputHealth.status, blind: inputHealth.blind },
+    tier_requested: tierRequested,
+    tier_applied: tier,
+    tier_supported: false,
+    brief_path: null,
+    brief_verification: null,
+    envelope: null,
+    reason: 'UNSUPPORTED TIER: the caller named a tier this rail does not implement. No researcher was spawned.',
+  }
+}
+
 const envelope = await agent(PROMPT, {
   label: 'research-gate:' + stepId,
   phase: 'Research',
@@ -446,6 +611,15 @@ try {
     '  urls_checked     -- how many URLs you were given below',
     '  urls_present     -- how many of them appear as a literal substring of the file',
     '  urls_missing     -- the exact URLs that do NOT appear',
+    '  recency_section_present -- does the brief carry a DEDICATED recency-scan section heading',
+    '                            (a heading such as "Recency scan (last 2 years)" or equivalent)?',
+    '                            Report ONLY whether such a section EXISTS. Do NOT judge whether the',
+    '                            scan was thorough, correct or substantive -- that is not what is asked,',
+    '                            and answering the harder question would make this field mean something',
+    '                            the caller does not treat it as meaning. A section that exists and says',
+    '                            "no relevant new findings" counts as PRESENT.',
+    '  distinct_urls_in_brief  -- the count of DISTINCT http(s) URLs appearing anywhere in the file',
+    '                            (de-duplicate exact repeats; count every table, footnote and citation).',
     '',
     'You are an INDEPENDENT check on another agent\'s self-report. It claimed to have read these',
     'URLs in full and to have written them into that brief. Do not give it the benefit of the',
@@ -466,7 +640,16 @@ try {
   verification = null // fail closed in enforceGate
 }
 
-const enforcement = enforceGate(envelope, verification, { inputHealth })
+const tierInfo = {
+  requested: tierRequested,
+  applied: tier,
+  supported: tierSupported,
+  absent: tierAbsent,
+  unsupported: tierUnsupported,
+  valid: VALID_TIERS,
+}
+
+const enforcement = enforceGate(envelope, verification, { inputHealth, tier: tierInfo })
 
 if (enforcement.violations.length) {
   log('research-gate ' + stepId + ': GATE FAILED -- ' + enforcement.violations.join(' | '))
@@ -498,6 +681,15 @@ return {
   // into gate_passed. A caller must be able to tell "failed the floors" apart
   // from "never had a subject".
   input_health: { status: inputHealth.status, blind: inputHealth.blind },
+  // phase-86.28: the substitution is now detectable FROM THE RESPONSE. This is
+  // the RFC 7240 `Preference-Applied` pattern -- a preference may be ignored
+  // only because the response says so. Previously this reached the agent
+  // PROMPT and nothing else, which is payload, not response: no caller could
+  // tell that a requested tier had been swapped for a weaker one.
+  // `tier_requested` is null when the caller passed none (the ABSENT case).
+  tier_requested: tierRequested,
+  tier_applied: tier,
+  tier_supported: tierSupported,
   brief_path: claimedBriefPath,
   brief_verification: verification === undefined ? null : verification,
   envelope: envelope === undefined ? null : envelope,
