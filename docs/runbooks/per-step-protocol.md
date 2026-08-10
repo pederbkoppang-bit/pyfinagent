@@ -138,6 +138,15 @@ and STOPS; it never loops fix→re-grade internally. Single-Q/A-per-step
 and the exactly-3-agents doctrine are unchanged — the Workflow path is a
 launch mechanism, not a fourth agent.
 
+**CONTRACT-BEFORE-GENERATE CAN BE UNPROVABLE, AND MUST BE REPORTED AS SUCH
+(phase-86.34).** The harness-compliance audit checks that the contract predates
+the generated artifacts. When a step's contract, brief and code all land in ONE
+commit, there is no timestamp chain to order them: mtimes reflect the checkout,
+not the authoring. The 86.24 evaluator hit exactly this and reported the check
+**UNPROVABLE** rather than green -- which is the required behaviour. A Q/A that
+ticks this item green on a single-commit step is asserting something it cannot
+know. Say "unprovable, and here is why" instead.
+
 **POST-VERDICT CLEANLINESS (phase-75.20.1, MANDATORY).** Immediately
 after EVERY Q/A return — before transcribing the verdict is fine, but
 before ACTING on it is not — Main runs `git status --short` and diffs

@@ -38,6 +38,7 @@ from __future__ import annotations
 import datetime as _dt
 import json
 import pathlib
+from zoneinfo import ZoneInfo
 
 import pytest
 
@@ -200,10 +201,42 @@ def test_no_global_time_freezing_fixture_is_introduced():
     """
     suspects = ("freeze_time", "freezegun", "time_machine", "time-machine",
                 "libfaketime", "FrozenDateTimeFactory", "travel(")
+    # phase-86.34: SCOPE THE POPULATION, and report it.
+    # The rule was `".venv" in cf.parts` -- an EXACT path-element match, which
+    # does not exclude sibling virtualenvs like `.venv.py313.bak` (gitignored at
+    # .gitignore:16 as `.venv*/`). MEASURED before the fix: 70 conftest.py in the
+    # tree, 34 kept, of which **32 were vendored third-party files** and only 2
+    # were the project's own. The guard was green by the luck of what the present
+    # vendored corpus happens to contain -- a future `pip install` of a package
+    # whose conftest mentions freezegun would have turned it red for a reason
+    # unrelated to any change here.
+    def _first_party(path) -> bool:
+        return not any(part.startswith(".venv") or part == "node_modules"
+                       for part in path.parts)
+
     offenders = []
-    for cf in list(REPO.glob("conftest.py")) + list(REPO.glob("**/conftest.py")):
-        if ".venv" in cf.parts or "node_modules" in cf.parts:
-            continue
+    swept = [cf for cf in set(list(REPO.glob("conftest.py")) + list(REPO.glob("**/conftest.py")))
+             if _first_party(cf)]
+    # A sweep that resolves to nothing reports "no offenders" identically to a
+    # sweep that resolves to everything and finds none. Assert the population.
+    assert swept, "the conftest sweep matched ZERO files -- the scan is vacuous, not clean"
+    # ...and assert the population is FIRST-PARTY, not merely non-empty.
+    # phase-86.34 mutation N2-REVERT-EXCLUSION: reverting to the exact-element
+    # `".venv" in parts` rule left the suite GREEN, because the 32 vendored
+    # conftests it re-admits happen to contain no suspect token today. Asserting
+    # only "non-empty" cannot see that. This asserts the PROPERTY the exclusion
+    # rule exists to establish, so weakening the rule fires a named assertion
+    # instead of waiting for a future `pip install` to make it red by accident.
+    vendored = [p for p in swept if any(x.startswith(".venv") or x == "node_modules"
+                                        for x in p.parts)]
+    assert not vendored, (
+        f"the conftest sweep admitted {len(vendored)} VENDORED file(s) -- the scan "
+        f"population must be first-party only, else it is green by the luck of what "
+        f"the vendored corpus happens to contain: {[str(x) for x in vendored[:4]]}"
+    )
+    print(f"[86.34] conftest sweep population: {len(swept)} first-party file(s): "
+          f"{sorted(str(p.relative_to(REPO)) for p in swept)}")
+    for cf in swept:
         text = cf.read_text(errors="replace")
         for s in suspects:
             if s in text:
@@ -213,6 +246,27 @@ def test_no_global_time_freezing_fixture_is_introduced():
         f"GLOBAL freeze because it disarms the staleness rule: {offenders}"
     )
 
+
+
+def _date_shifting_tz() -> str:
+    """A timezone whose LOCAL date differs from the UTC date RIGHT NOW.
+
+    phase-86.34. A fixed offset shifts the date on only `|offset|` of the 24 UTC
+    hours, so a hardcoded zone makes this suite pass or fail by the clock rather
+    than by the code. Midway (UTC-11, hours 00:00-10:59) and Kiritimati (UTC+14,
+    hours 10:00-23:59) cover the whole day between them.
+
+    Returns the FIRST candidate that actually shifts the date now. If none does
+    -- which should be impossible given the coverage above -- it returns the
+    first candidate anyway and lets the positive control in the caller fail
+    loudly. Silently returning something that does not shift the date is exactly
+    the failure this function exists to remove, so it is never done here.
+    """
+    now = _dt.datetime.now(_dt.timezone.utc)
+    for name in ("Pacific/Midway", "Pacific/Kiritimati"):
+        if now.astimezone(ZoneInfo(name)).date() != now.date():
+            return name
+    return "Pacific/Midway"
 
 def test_the_two_repaired_modules_PASS_AT_A_SHIFTED_CLOCK():
     """The real property, asserted directly instead of by proxy.
@@ -232,11 +286,36 @@ def test_the_two_repaired_modules_PASS_AT_A_SHIFTED_CLOCK():
     again with the clock shifted into a different calendar day and require the
     same result.
 
-    `TZ=Pacific/Midway` puts the LOCAL date one day behind UTC, which is exactly
-    the 00:00-02:00 CEST window in which the two macro tests used to fail. It
-    does not move UTC, which is a stated limit rather than a hidden one: the
-    "pinned fixture ages past UTC today" axis needs a real clock offset, and the
-    step's artifacts carry that as an open operator ask.
+    THE ZONE IS CHOSEN AT RUNTIME, and phase-86.34 is why.
+
+    This used to hardcode `TZ=Pacific/Midway` and claim it "puts the LOCAL date
+    one day behind UTC, which is exactly the 00:00-02:00 CEST window in which the
+    two macro tests used to fail". Both halves were wrong:
+
+      * DIRECTION -- at 00:30/01:30 CEST the local date is one day AHEAD of UTC.
+        Midway (UTC-11) is BEHIND. The fixture was the MIRROR of the window it
+        named. Harmless on its own: the operative property is `local date !=
+        UTC date`, and both directions satisfy it.
+      * COVERAGE -- and this is the real defect. A FIXED offset does not
+        guarantee a date shift at all; for an offset of `o` hours it holds on
+        exactly `|o|` of the 24 UTC hours. MEASURED: Midway shifts the date only
+        for UTC hours 00:00-10:59 (11/24). For the other 13 hours the fixture
+        established NOTHING, and the positive control below correctly turned the
+        whole suite RED -- for a reason unrelated to any code change.
+
+    So the suite was green only if you ran it in the right third of the day.
+    phase-86.24 closed on a PASS at roughly 10:5x UTC, about five minutes inside
+    Midway's window; the same command that evening was red.
+
+    The fix is not a luckier timezone. `_date_shifting_tz()` picks a zone that
+    PROVABLY shifts the date at this moment -- Midway (UTC-11) and Kiritimati
+    (UTC+14) cover 24/24 hours between them -- and the positive control is KEPT
+    so the choice is verified rather than trusted. Reproduce the coverage with
+    `python scripts/qa/measure_tz_fixture_coverage_86_34.py`.
+
+    It still does not move UTC, which is a stated limit rather than a hidden
+    one: the "pinned fixture ages past UTC today" axis needs a real clock offset,
+    and the step's artifacts carry that as an open operator ask.
     """
     import os
     import subprocess
@@ -244,7 +323,7 @@ def test_the_two_repaired_modules_PASS_AT_A_SHIFTED_CLOCK():
 
     targets = ["backend/tests/test_phase_86_2_replay_poison_row.py",
                "backend/tests/test_phase_82_0_macro_ingestion.py"]
-    env = {**os.environ, "TZ": "Pacific/Midway"}
+    env = {**os.environ, "TZ": _date_shifting_tz()}
     proc = subprocess.run([sys.executable, "-m", "pytest", *targets, "-q",
                            "-p", "no:randomly"],
                           cwd=str(REPO), env=env, capture_output=True,

@@ -1,6 +1,10 @@
 # live_check -- phase-86.24
 
 **Code commit:** `d5180e27`. **Measurement tree:** `70e646b7`.
+**[phase-86.34]** Those two fields were two commits behind by the time cycle 3
+landed. The tree that section F's digest is now measured against is `37e0543f`.
+Sections above this line are the cycle-1/2 record and are NOT re-measured;
+only section F was regenerated.
 **Measured:** 2026-08-10, 09:45-10:20 CEST.
 
 ## A. Criterion 4 -- both named modules, post-midnight boundary AND mid-day
@@ -153,7 +157,13 @@ M5 KILLED  control rc=0 mutant rc=1   point the how-stale sweep at a FRESH ancho
 
 tracked sources UNCHANGED: True
   test_phase_82_0_macro_ingestion.py     566a607e91365c67
-  test_phase_86_2_replay_poison_row.py   5c1ce1116769d118
+  test_phase_86_2_replay_poison_row.py   fb97b52ecf7fb5be
+  # REGENERATED phase-86.34, not edited in place. Producing command:
+  #   python3 -c "import hashlib;print(hashlib.sha256(open('backend/tests/"
+  #     "test_phase_86_2_replay_poison_row.py','rb').read()).hexdigest()[:16])"
+  # The previous value 5c1ce1116769d118 was stale via the LEGITIMATE commit
+  # da9263d6 (86.24 cycle-3 comment rewrite) -- the file changed for a good
+  # reason and the recorded evidence was not refreshed with it.
   test_phase_86_24_clock_dependence.py   36f469402a7e8333
 stray mutant files left behind: none
 All 7 mutants killed.
