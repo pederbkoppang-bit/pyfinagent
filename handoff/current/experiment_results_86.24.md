@@ -16,11 +16,17 @@ than patched**, because "the daily safety anchor goes stale at midnight" would
 be a genuine defect in a long-running backend.
 
 **Verdict: production is CORRECT BY DESIGN. There is no production staleness
-defect. The TEST hard-coded an ageing date.** Four measured supports:
+defect. The TEST hard-coded an ageing date.**
+
+**The verdict is unchanged from cycle 1; the REASONING is not.** Cycle 1 led with
+a support that the Q/A measured to be false in a band, and it is struck through
+below rather than quietly removed -- a withdrawn claim is more useful to the next
+reader than a tidy table. Four supports stand, and the first is the decisive one:
 
 | | evidence |
 |---|---|
-| the rule is **per-LEG** | `evaluate_breach` returns `any_breached: True` with `armed: False`. The daily leg disarms; the date-independent **trailing** leg keeps firing. Now asserted every day by `test_a_YESTERDAY_anchor_DISARMS_the_daily_leg_but_the_trailing_leg_still_fires`. |
+| **the enforcement path never sees a stale anchor** -- THE decisive support | `paper_trader.check_and_enforce_kill_switch` re-anchors at `:1413` (`if sod_anchor_needs_reroll(snap, today)`) **before** `evaluate_breach` at `:1460`, and the flatten branch at `:1468` keys on `breach["any_breached"]`, never on `armed`. So the code that decides whether to flatten is never handed a stale anchor at all. |
+| ~~the rule is per-LEG, so the trailing leg keeps firing~~ | **WITHDRAWN IN CYCLE 2 -- THIS WAS FALSE IN A BAND, and it was the headline support.** Measured: a STALE anchor with `sod=100, peak=100` at limits 4%/10% gives `any_breached=False` at nav 95 (5% loss) and 92 (8%), while the same navs against a FRESH anchor breach. Between the two limits a stale anchor leaves **nothing** firing. The cycle-1 guard exercised only `nav=80.0` -- a 20% drop, above the trailing limit -- so it could not detect the gap it claimed to close. Found by the cycle-1 Q/A, reproduced by me, and now pinned as `test_a_stale_anchor_leaves_the_band_between_the_two_limits_UNCOVERED` with a fresh-anchor control. |
 | it was installed against a **measured live incident** | `kill_switch.py:857-861`: on 2026-07-26 the badge served `sod_date=2026-07-24` with `armed: true`, and a **two-day** move was being reported as a same-day loss -- losing same-day coverage AND biasing toward a spurious flatten at once. |
 | the order gate does not read `armed` | it reads `baselines_present` (`kill_switch.py:868-881`), so a disarmed daily leg does not gate trading. |
 | the fire path was separately proven | phase-86.12: `mark_to_market` (Step 5) precedes enforcement (Step 5.5) in the same cycle, so the leg fires on a drawdown present at cycle time. |
@@ -106,34 +112,45 @@ measurement, not by reading the margins.
 
 | criterion | result |
 |---|---|
-| 3 kill-switch adjudicated, assertion not weakened | §1; `daily_loss_breached is True` unchanged, and the STALE path GAINED coverage |
+| 3 kill-switch adjudicated, assertion not weakened | §1 -- **the conclusion is unchanged (no live defect) but the RATIONALE was corrected in cycle 2**: it rests on the roll-before-evaluate ordering, not on the trailing leg. `daily_loss_breached is True` byte-unchanged, and the STALE path GAINED coverage including the uncovered band |
 | 4 both modules pass post-midnight AND mid-day | `24 passed` under the system clock and under `TZ=Pacific/Midway` (the local!=UTC window); asserted in-suite by `test_the_two_repaired_modules_PASS_AT_A_SHIFTED_CLOCK`, which carries a positive control proving the shift took effect |
 | 5 no global time-freezing fixture | none introduced; `test_no_global_time_freezing_fixture_is_introduced` sweeps EVERY conftest in the repo for `freeze_time`/`freezegun`/`time_machine`/`libfaketime`/`travel(` |
-| 6 mutation, each fix reverted individually | **5/5 killed**, tracked sources digested unchanged, zero stray files |
+| 6 mutation, each fix reverted individually | **7/7 killed**, tracked sources digested unchanged, zero stray files |
 
 ```
 M1 KILLED  revert the macro tests to the LOCAL clock domain
 M2 KILLED  re-pin the poison-row fixture to the day it was written
+M6 KILLED  SNAPSHOT the fixture date at import instead of recomputing per call
+M7 KILLED  point the band test OUTSIDE the band -- does it discriminate?
 M3 KILLED  give the STALE-anchor test a FRESH anchor -- does it discriminate?
 M4 KILLED  remove the clock shift from the differential test
 M5 KILLED  point the how-stale sweep at a FRESH anchor
 tracked sources UNCHANGED: True    stray mutant files: none
 ```
 
+M6 and M7 are cycle-2 additions, one per Q/A finding. **M6 needed a structural
+change to the harness**: it mutates the poison-row module but must RUN the module
+that carries the killing assertion, so a cell can now name a different `run`
+target and pass the mutant's path through an env seam. Its control runs that same
+target unmutated, so a cell can never score a kill against an already-red file.
+
 **The immutable verification command went from `1 failed, 23 passed` to
 `24 passed`.**
 
-**The population is now empty, measured on a frozen tree (`70e646b7`):**
+**The population is empty along the covered axis, re-measured on the CYCLE-2
+frozen tree (`7eb85983`):**
 
 ```
-BASE    (local == UTC)  15 failed, 3360 passed, 12 skipped, 5 xfailed, 1 xpassed  375.86s
-SHIFTED (local != UTC)  15 failed, 3360 passed, 12 skipped, 5 xfailed, 1 xpassed  368.58s
+BASE    (local == UTC)  15 failed, 3362 passed, 12 skipped, 5 xfailed, 1 xpassed  376.94s
+SHIFTED (local != UTC)  15 failed, 3362 passed, 12 skipped, 5 xfailed, 1 xpassed  373.19s
 DELTA   EMPTY -- no test changes verdict with the clock
 ```
 
-The base count moved 16 -> 15 and passes 3351 -> 3360; that reconciles exactly:
-the poison-row test flipped red->green (-1 failure, +1 pass) and this step added
-8 tests.
+Cycle 1 measured the same shape at `70e646b7` (15 / 3360 both ways). The counts
+reconcile end to end: pre-fix base was 16 failed / 3351 passed; the poison-row
+test flipped red->green (-1 failed, +1 passed), cycle 1 added 8 tests (3360) and
+cycle 2 added 2 more (3362) -- the uncovered-band test and the recompute
+property test.
 
 ## 6. My own phase-86.27 test, surfaced by THIS step's method
 
@@ -156,6 +173,18 @@ clean green.
 
 ## 7. Not claimed
 
+- **A member of the blind class was introduced BY THIS STEP and is now fixed.**
+  The cycle-1 repair set `_UTC_TODAY` **once at module import** while
+  `kill_switch.py:986` recomputes at call time -- the masterplan's own case (a)
+  verbatim ("once-computes a date while the assertion recomputes it"). If UTC
+  midnight fell between collection and execution the test would go red. The
+  evidence was already in my own mutation matrix and I misread it: cell M2 pins
+  that date and is scored KILLED, which is a proof of the failure mode, not of
+  the guard. Found by the cycle-1 Q/A. Fixed in cycle 2 (recomputed per call),
+  and the property is now asserted directly by
+  `test_the_poison_row_fixture_date_is_RECOMPUTED_not_snapshotted` -- necessary
+  because an ordinary run **cannot** kill a re-snapshot mutant, which only
+  misfires across midnight.
 - **The population is proven empty only along the axis the method covers.** A TZ
   shift moves `date.today()`/`datetime.now()` (local) and does **NOT** move
   `datetime.now(timezone.utc).date()`. The "pinned fixture date ages past UTC
@@ -172,3 +201,98 @@ clean green.
 - **`handoff/kill_switch_audit.jsonl` byte-identical throughout**
   (`ea78508bee73887c...`, 64 lines); the new module redirects `_AUDIT_PATH` to
   `tmp_path` and never touches the operator's journal.
+
+---
+
+# CYCLE 2 -- 2026-08-10. Both Q/A findings fixed; the second was mine, in the file this step repaired.
+
+The cycle-1 verdict was **CONDITIONAL**, `ok:false`, with all six criteria MET on
+substance and every deterministic check reproduced independently. Both violations
+were rationale/disclosure defects, and both were real.
+
+## Finding 1 -- my headline support was FALSE IN A BAND
+
+Cycle 1 justified "a stale daily anchor is harmless" with *"the trailing leg
+still fires, so the overnight window is not naked"*. **Reproduced by me, and it
+does not hold between the two limits:**
+
+```
+anchor    nav   armed  stale  daily  trailing  ANY
+TODAY     95.0  True   False  True   False     True
+STALE     99.0  False  True   False  False     False
+STALE     95.0  False  True   False  False     False    <-- 5% loss, nothing fires
+STALE     92.0  False  True   False  False     False    <-- 8% loss, nothing fires
+STALE     89.0  False  True   False  True      True
+STALE     80.0  False  True   False  True      True
+```
+(measured with `_AUDIT_PATH` redirected to tmp; live journal byte-identical.)
+
+**My guard exercised only `nav=80.0`** -- a 20% drop, above the trailing limit --
+so it was structurally incapable of seeing the gap it claimed to close. That is
+asserting a general property from a single point, on a money-path safety module,
+with the wrong reason then written into a test docstring where a future
+maintainer would rely on it.
+
+**The conclusion survives; the reason changes.** Verified independently by
+reading the enforcement path: `paper_trader.check_and_enforce_kill_switch`
+re-anchors at `:1413` (`if sod_anchor_needs_reroll(snap, today)`) **before**
+`evaluate_breach` at `:1460`, and the flatten branch at `:1468` keys on
+`breach["any_breached"]`, never on `armed`. **The band is reachable only by a
+read-only caller (the badge endpoint), never by the code that decides whether to
+flatten.**
+
+Fixed: the test is renamed to what it actually proves, the false claim is struck
+through in §1 rather than deleted, and the uncomfortable measurement is pinned as
+`test_a_stale_anchor_leaves_the_band_between_the_two_limits_UNCOVERED` -- with a
+fresh-anchor control, so the result is attributable to staleness and not to an
+inert threshold, and with a comment naming the ordering it depends on.
+
+## Finding 2 -- I introduced a member of the class this step exists to remove
+
+The cycle-1 repair set `_UTC_TODAY = datetime.now(timezone.utc).date()` **once at
+module import**, while `kill_switch.py:986` recomputes at call time. That is the
+masterplan's own case (a), verbatim: *"a fixture that hard-codes or ONCE-COMPUTES
+a date while the assertion recomputes it"* -- introduced by the repairing commit,
+inside the repaired file.
+
+**The evidence was already in my own mutation matrix and I misread it.** Cell M2
+pins that date to a past day and is scored **KILLED** -- which is a proof that the
+module goes red whenever the import-time snapshot is a day behind evaluation
+time. I read it as the guard working. The sibling module written in the same
+commit does not have the shape; it recomputes inside `_day()`.
+
+The window was minutes (collection -> execution, ~377s on a full run) rather than
+24 hours, but **a narrower instance of a defect is still an instance of it**, and
+it was in no artifact.
+
+Fixed: `_day()`/`_ts()` recompute per call. And because an ordinary run **cannot**
+kill a re-snapshot mutant -- it only misfires across midnight, so it is an
+equivalent mutant under normal conditions -- the property is asserted directly by
+`test_the_poison_row_fixture_date_is_RECOMPUTED_not_snapshotted`, which injects a
+clock that advances a day between two calls. Cell **M6** now drives that
+assertion and is KILLED.
+
+## Verification on the cycle-2 tree (`7eb85983`)
+
+| check | result |
+|---|---|
+| immutable command | **24 passed** |
+| new module | **10 passed** (8 + the two cycle-2 additions) |
+| both modules + new module under `TZ=Pacific/Midway` | **34 passed** |
+| ruff F821/F401/F811 over the changed scope | exit 0 |
+| mutation matrix | **7/7 killed**, tracked digests unchanged, no strays |
+| full-suite differential | 15 failed / 3362 passed **both ways**, DELTA EMPTY |
+| `handoff/kill_switch_audit.jsonl` | `ea78508bee73887c...`, 64 lines, byte-identical |
+
+## What cycle 2 did NOT change
+
+- `kill_switch.py` is still byte-unchanged. The adjudication's **conclusion** is
+  unchanged -- there is no live defect -- and no assertion was weakened;
+  `daily_loss_breached is True` in the poison-row test remains byte-identical.
+- The blind-spot disclosure stands: a TZ shift does not move UTC, so the
+  "pinned fixture ages past UTC today" axis is still uncovered and still needs
+  `time-machine`, which I have not installed.
+- **A new, small test seam is disclosed**: the recompute test honours
+  `PYFINAGENT_86_24_PROW_PATH` so the mutation matrix can point it at a mutant
+  copy. Unset in every normal run; it exists because the test reads its subject
+  by path and a copy elsewhere would otherwise never be exercised.

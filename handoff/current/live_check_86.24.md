@@ -45,25 +45,60 @@ production.
 
 ```
 PRE-FIX    base    16 failed / 3351 passed        shifted 19 failed / 3348 passed   delta 3
-POST-FIX   base    15 failed / 3360 passed (375.86s)
-           shifted 15 failed / 3360 passed (368.58s)
+CYCLE 1    base    15 failed / 3360 passed (375.86s)   shifted 15 / 3360 (368.58s)
+CYCLE 2    base    15 failed / 3362 passed (376.94s)
+           shifted 15 failed / 3362 passed (373.19s)
            DELTA   EMPTY -- no test changes verdict with the clock
 ```
 
-16 -> 15 failures and 3351 -> 3360 passes reconciles exactly: the poison-row test
-flipped red->green (-1 failed, +1 passed) and this step added 8 tests.
+The counts reconcile end to end: the poison-row test flipped red->green
+(-1 failed, +1 passed), cycle 1 added 8 tests (3351 -> 3360) and cycle 2 added 2
+more (3362) -- the uncovered-band test and the recompute property test.
 
 ## D. Criterion 3 -- the adjudication, measured not argued
 
+**CORRECTED IN CYCLE 2. The cycle-1 text here claimed the trailing leg covers the
+overnight window. That is FALSE IN A BAND, and the claim is replaced rather than
+softened.** Full sweep, `_AUDIT_PATH` redirected to tmp:
+
 ```
-armed=False  daily_baseline_stale=True  daily_loss_breached=False
-trailing_dd_breached=True  any_breached=True
+anchor    nav   armed  stale  daily  trailing  ANY
+TODAY     99.0  True   False  False  False     False
+TODAY     95.0  True   False  True   False     True
+TODAY     92.0  True   False  True   False     True
+TODAY     89.0  True   False  True   True      True
+TODAY     80.0  True   False  True   True      True
+STALE     99.0  False  True   False  False     False
+STALE     95.0  False  True   False  False     False   <-- 5% loss: NOTHING fires
+STALE     92.0  False  True   False  False     False   <-- 8% loss: NOTHING fires
+STALE     89.0  False  True   False  True      True
+STALE     80.0  False  True   False  True      True
 ```
-A stale daily anchor disarms the DAILY leg only. The trailing drawdown limit is a
-high-water mark, not date-scoped, and still fires -- so the overnight window is
-not naked. Asserted every day now, including for anchors 1, 2, 7 and 365 days
-stale, and with a same-day control proving a kill switch that never armed could
-not pass the staleness test by default.
+
+Between the daily limit (4%) and the trailing limit (10%), a stale anchor leaves
+nothing firing. The cycle-1 guard exercised only `nav=80.0` and so could not see
+the gap it claimed to close.
+
+**The adjudication is unchanged -- there is no live defect -- because the
+ENFORCEMENT PATH NEVER EVALUATES AGAINST A STALE ANCHOR:**
+
+```
+paper_trader.check_and_enforce_kill_switch
+  :1413   if sod_anchor_needs_reroll(snap, today):   <-- re-anchor FIRST
+  :1460   breach = evaluate_breach(...)              <-- then evaluate
+  :1468   if breach["any_breached"] and not state.is_paused():   <-- keys on
+                                                        any_breached, NEVER armed
+  :1372   pre_armed = pre.get("baselines_present", ...)  <-- order gate, not armed
+```
+
+The band above is reachable only by a READ-ONLY caller (the badge endpoint). It
+is now pinned by `test_a_stale_anchor_leaves_the_band_between_the_two_limits_UNCOVERED`,
+which asserts the uncomfortable fact together with a fresh-anchor control showing
+the same navs DO breach when the anchor is current -- so the result is
+attributable to staleness rather than to an inert threshold.
+
+Staleness is also asserted for anchors 1, 2, 7 and 365 days old, with a same-day
+control proving a kill switch that never armed could not pass by default.
 
 **No assertion was weakened.** `daily_loss_breached is True` in the poison-row
 test is byte-unchanged; only the fixture's day became relative.
@@ -85,16 +120,18 @@ PATH.
 ```
 M1 KILLED  control rc=0 mutant rc=1   revert the macro tests to the LOCAL clock domain
 M2 KILLED  control rc=0 mutant rc=1   re-pin the poison-row fixture to the day it was written
+M6 KILLED  control rc=0 mutant rc=1   SNAPSHOT the fixture date at import (cycle-2 finding 2)
+M7 KILLED  control rc=0 mutant rc=1   point the band test OUTSIDE the band (cycle-2 finding 1)
 M3 KILLED  control rc=0 mutant rc=1   give the STALE-anchor test a FRESH anchor
 M4 KILLED  control rc=0 mutant rc=1   remove the clock shift from the differential test
 M5 KILLED  control rc=0 mutant rc=1   point the how-stale sweep at a FRESH anchor
 
 tracked sources UNCHANGED: True
   test_phase_82_0_macro_ingestion.py     566a607e91365c67
-  test_phase_86_2_replay_poison_row.py   5cf5073d39707e6d
-  test_phase_86_24_clock_dependence.py   03ad07ced183b80d
+  test_phase_86_2_replay_poison_row.py   5c1ce1116769d118
+  test_phase_86_24_clock_dependence.py   36f469402a7e8333
 stray mutant files left behind: none
-All 5 mutants killed.
+All 7 mutants killed.
 ```
 
 Every mutant is a COPY written under `backend/tests/` with a temporary name and
