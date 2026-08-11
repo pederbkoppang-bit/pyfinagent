@@ -33914,3 +33914,62 @@ reach tonight's 20:00 CEST cycle unless the operator restarts.
 
 **Owed at close:** step **86.47** (drought owner, promised in criterion 6), and a
 follow-up fixing two source comments that still cite `:89` unqualified.
+
+## Cycle 1218 -- 2026-08-11 -- phase=86.32 result=PASS
+
+**A cumulative attempt budget that no verdict resets.** FIVE spawns: c1 FAIL, c2
+DROPPED, c3 CONDITIONAL, c4 DROPPED, c5 PASS. **The step closed on attempt 5 of the
+5-attempt ceiling it defines** -- had c5 not returned, `attempt_budget.py` would have
+escalated rather than permitted a sixth, and that rule was held to rather than
+waived for its own step.
+
+**THE DEFECT, worse than the step text said.** F1's `consecutive_fails` is reset by
+**CONDITIONAL** (`run_harness.py:1177`, comment "does not count as a FAIL") as well
+as PASS (`:1162`), and CONDITIONAL is the most common non-terminal verdict. So
+`FAIL, CONDITIONAL, ...` tops out at 1 and `MAX_CONSECUTIVE_FAIL` is unreachable.
+The counter is process-local. Separately the masterplan's `max_retries` is
+**decorative** -- every file touching the masterplan WRITES it, none reads it;
+step 75.5 carries `retry_count 3 / max_retries 3 / status done`, which is impossible
+if anything enforced it.
+
+**THE FIX increments on ATTEMPT, not OUTCOME**, because a dropped spawn costs full
+tokens and returns no verdict, so a verdict-keyed counter cannot see it. Replayed on
+the 86.28 series `[C,C,NV,F,C,C,NV,NV]`, the new rule terminates at attempt 5;
+F1's counter ends at **0** because the CONDITIONAL at attempt 5 wipes the FAIL at
+attempt 4. Three of those eight attempts were invisible to F1 entirely.
+
+**THE CYCLE-1 FAIL WAS EARNED AND IS THE MOST USEFUL THING HERE.** My fixture was
+NOT the 86.28 series: I parsed a history file in DOCUMENT ORDER, conflating Q/A
+attempts with the author's own research-gate evidence runs -- 3 non-attempts
+included (one of which SUCCEEDED and I recorded as a drop), 2 outcomes inverted, 2
+real attempts omitted. An authoritative `## Verdict ledger` sat one file away
+unread. My justification ("three no-verdict attempts corroborate three rail
+failures") was **cardinality agreement over a different member set**. And my guard
+asserted only properties of its own constant -- the Q/A ran its exact body against
+both the wrong and the right sequence and got **PASS/PASS**.
+
+**Rebuilt with per-row provenance; the guard now READS the ledger** and compares by
+symmetric difference, proven to discriminate by corrupting the fixture and watching
+it fail. Cells M7/M8 pin both halves. 8/8 killed, control green first, md5 restore.
+
+**FOUR MORE typed-not-measured figures were caught across the cycles**, each by an
+evaluator and none by my own instruments: "363 sequences" (really 1,092), a
+"verbatim" block documenting a superseded tree, `90.9%` where `154/164 = 93.9%` sat
+beside it, and a provenance line falsified by the very commit that wrote it. The
+last fix then overclaimed a "generator" that does not exist (R1), and the fix for
+THAT left the retracted sentence standing beside its retraction (N1). Both corrected.
+
+**MEASURED: the lean prompt is the answer to the rail drops.** Cycles 2-4 died at
+175K-201K tokens on long "verify everything" prompts; cycle 5 ran minimal and
+returned in **129,124 tokens / 23 tool uses / 238s**. The instruction to be
+exhaustive was itself the failure mode.
+
+**phase-86.31 saved FOUR dropped evaluations today**, ~750K tokens on this step
+alone. It was unowned yesterday.
+
+**QUEUED, not swept:** R2 (`research_brief:596` mislabels 154/164 as a cap of 4; a
+cap of 4 covers 141/164 = 86.0%), R3 (the `assert checked > 300` floor runs at 1,092
+so a range shrink to 363 leaves it silent; enum-identity `dropped`/`verdicts_seen`;
+`disposition()` treats `[PASS, FAIL]` as `CLOSED_PASS`), R4 (**the budget is NOT
+wired into `run_harness.py`** -- a mechanism, not an active guard; no production loop
+is bounded today, and `:1177` is documented, not edited).

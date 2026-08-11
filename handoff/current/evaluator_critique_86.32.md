@@ -248,3 +248,87 @@ globs its own comment records as matching zero files. Positive control: 86.24/86
 86.31 are all `done` and each still has 6 `_<sid>` files in `handoff/current`. **It
 withdrew its own plausible finding on measurement.** That is the behaviour this
 project's whole discipline is trying to produce.
+
+---
+
+# CYCLE 5 -- FINAL VERDICT: PASS
+
+**`ok: True` | violated_criteria: NONE |
+harness_compliance_ok: True** | run `wf_20a27baa-df8`
+(129,124 tokens, 23 tool uses, 238s). Q/A write-first record:
+`verdict_wip_86.32__20260811T110452Z.md`.
+
+**ATTEMPT 5 OF 5 -- the step closed exactly at the ceiling it defines.** Graded
+history: c1 FAIL, c2 DROPPED, c3 CONDITIONAL, c4 DROPPED, c5 PASS. Had this attempt
+not returned, `attempt_budget.py` would have escalated rather than permitted a
+sixth, and I held to that.
+
+**Transcribed VERBATIM by Main.**
+
+## Verdict (verbatim)
+
+```json
+{
+  "ok": true,
+  "verdict": "PASS",
+  "reason": "All 6 immutable criteria MET, re-verified by execution in my own environment (cycle 5). Immutable command `bash -c 'grep -c \"^## Cycle\" handoff/harness_log.md'` -> 1218, exit=0. R1 (the cycle-4 blocker) is FIXED at 2615667b: I re-derived the md5 provenance chain myself and all six figures reproduce exactly (638fec28 at 4358683c+069908c7, e4ffc105 at 96870e44, 157d7b58 at bce22a74+87b62f8b+2615667b+worktree), with no moving `HEAD` ref left at experiment_results_86.32.md:181 -- I hit and corrected the documented zsh `$c:path` \"bad substitution\" trap (md5 of EMPTY, a wrong answer not an error), independently corroborating the author's disclosure. 15/15 tests pass with 15 progress dots and 15 `def test_` (no splice). I EXECUTED the full mutation matrix: all 8 cells KILLED (M1-M8), control green first, restore byte-identical (157d7b58), post-restore suite green, target files clean afterwards -- including the two safety cells M3 (exhaustion-auto-passes) and M4 (residuals-door-opens-for-a-FAIL). Ruff F821/F401/F811 over a git-DERIVED scope (empty-set guard asserted, count=3) -> All checks passed, exit=0. Criterion 6 proved by an EMPTY `git diff cf50bde2..HEAD -- .claude/agents/qa.md` and identical sha256[:16] 06976b7d4a6072fd. Criterion 1: CLAUDE.md F1b sits immediately after F1 (:378) opening \"READ THIS TOGETHER WITH F1 ABOVE\", and its citations :1162/:1177 verified by grep. Criterion 3: ESCALATE documented \"NEVER auto-pass\" (attempt_budget.py:78), `close_kind` reachable only from CLOSED_PASS (:164), summary opens \"THIS IS NOT A PASS AND NOT A FAIL\" (:192). Harness compliance 5/5 clean (gate_passed brief before contract; contract before generate by commit time; experiment_results regenerated; ZERO \"phase=86.32\" entries in harness_log and masterplan status=pending, so log-last holds; evidence CHANGED at 2615667b so no verdict-shopping). No unintended production change: derived file set touches no masterplan.json, no .claude/agents/*, no runbook, no workflow. NOTE-level residual N1 (mine, new this cycle, non-blocking): 2615667b inserted the R1 retraction at experiment_results:183 (\"There is no generator in the tree\") but left the sentence it retracts standing at :184 (\"now fixed by generation\") -- the correction sits beside the claim instead of superseding it. It affects no criterion, every fact on :181 reproduces, and the retraction physically precedes the stale sentence; queue it with R2 (research_brief:596 says a cap of 4 covers 154/164 when 4 covers 141/164 = 86.0%; 154/164 is a cap of 5 -- unpropagated, code and CLAUDE.md both say 5), R3 (the `assert checked > 300` vacuity floor runs at 1,092 so a range shrink leaves it silent; enum-identity dropped/verdicts_seen; disposition() treats [PASS, FAIL] as CLOSED_PASS) and R4 (DISCLOSED: the budget is not wired into run_harness.py -- this step ships a mechanism, not an active guard).",
+  "violated_criteria": [],
+  "violation_details": [],
+  "certified_fallback": false,
+  "checks_run": [
+    "harness_compliance_audit_5_items",
+    "verification_command_exit_code",
+    "git_status_unintended_change_scan",
+    "derived_file_set_scope",
+    "md5_provenance_chain_rederived",
+    "pytest_15_tests",
+    "test_count_vs_progress_dots_consistency",
+    "ruff_F821_F401_F811_git_derived_scope",
+    "mutation_matrix_8_cells_executed",
+    "mutation_restore_byte_identical",
+    "qa_md_bytewise_unchanged_sha256",
+    "claude_md_F1b_placement_and_line_citations",
+    "attempt_budget_escalation_semantics",
+    "live_check_present",
+    "claim_auditing_prose_sweep",
+    "guard_vacuity_check",
+    "adversarial_worst_of_N_lenses",
+    "code_review_heuristics",
+    "evaluator_critique",
+    "prior_cycle_wip_records_as_evidence"
+  ],
+  "harness_compliance_ok": true,
+  "notes": "Cycle 5 of 5 (c1 FAIL, c2 dropped, c3 CONDITIONAL, c4 dropped). 3rd-CONDITIONAL rule does not bind: harness_log has ZERO \"phase=86.32\" entries (log-last by design) and the graded history is FAIL then CONDITIONAL. Not a rubber-stamp of the c4 WIP: I re-ran every deterministic check myself, including the full 8-cell mutation matrix and the md5 chain, and I found one defect the prior cycles did not (N1, created by the very commit that fixed R1). I graded N1 NOTE rather than WARN on materiality -- it is a meta-claim about how a line was produced, it affects no immutable criterion, and every fact in the artifact reproduces. Blocking a sixth time on a prose residual with the product code independently verified correct by three consecutive Q/As would be the exact pathology this step documents. Mutation matrix was executed live against the working tree; its restore is in a `finally:` block and I confirmed `git status --short` on all three target files is EMPTY afterwards. No UI claims in this step, so the live-capture gate does not apply. No backend/** or frontend/** files in the diff, so the runtime-smoke and ESLint/tsc gates do not apply. WIP record written first and completed at .claude/agent-memory/qa/verdicts/verdict_wip_86.32__20260811T110452Z.md."
+}
+```
+
+---
+
+## Main's response
+
+**N1 IS CORRECT AND IT IS A LESSON I ALREADY HOLD IN WRITING.** `2615667b` inserted
+the R1 retraction ("There is no generator in the tree") at `:183` but left the
+sentence it retracts standing at `:184` ("now fixed by generation"). **A correction
+must SUPERSEDE, not sit beside** -- that is a memory entry
+(`feedback_diff_every_file_the_critique_named`), and I reproduced the exact defect
+while fixing a different one. Fixed below.
+
+**THE LEAN PROMPT IS THE ANSWER TO THE DROPS, and this is now measured.** Cycles
+2-4 died at 175K-201K tokens on long prompts. Cycle 5 ran on a deliberately minimal
+prompt and returned in **129,124 tokens / 23 tool uses / 238s** -- roughly 35%
+fewer tokens and less than half the wall-clock of the runs that dropped. Four
+spawns, ~750K tokens, to learn that the instruction to "verify everything" was
+itself the failure mode.
+
+**The Q/A independently hit my own zsh trap** -- `git show $c:path` returning the
+md5 of EMPTY rather than erroring -- and corrected it, corroborating that
+disclosure by reproduction rather than by trust.
+
+**Residuals QUEUED, not swept:** N1 (fixed here), R2 (`research_brief:596` says a
+cap of 4 covers 154/164; a cap of 4 covers 141/164 = 86.0%, and 154/164 is a cap of
+5 -- unpropagated, both code and CLAUDE.md say 5), R3 (the `assert checked > 300`
+vacuity floor runs at 1,092 so a range shrink to 363 leaves it silent;
+`dropped`/`verdicts_seen` use enum identity; `disposition()` treats `[PASS, FAIL]`
+as `CLOSED_PASS`), R4 (**the budget is NOT wired into `run_harness.py`** -- this
+step ships a mechanism, not an active guard, and no production loop is bounded
+today).
