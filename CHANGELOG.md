@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-11 | `8aa2f622` | phase-86.33: measure that agent_type is CALLER-CHOSEN, not platform-assigned |
 | 2026-08-11 | `e614948f` | phase-86.5: PARKED after 3 cycles -- ASK #5, the step's own command is frozen RED |
 | 2026-08-11 | `b4cb7938` | phase-86.5: cycle-2 FAIL remediated -- criterion 4 was INVERTED, and I had it right first |
 | 2026-08-11 | `339e0203` | phase-86.5: cycle-1 CONDITIONAL remediated -- and criterion 4 was right by luck |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-11 | `cf50bde2` | phase-86.32: PLAN -- the counter resets on CONDITIONAL, and max_retries is decorative |
 | 2026-08-11 | `a15833eb` | phase-86.33: unblock P1 -- the runtime DOES populate agent_id, measured on real traffic |
 | 2026-08-11 | `282fb87e` | phase-86.47: file the drought step 86.41's criterion 6 promised |
-| 2026-08-11 | `1092700d` | phase-86.41 follow-up: cite the FUNCTION get_cik, never a line number |
 
 ---
 
+### v6.93.185 — phase-86.33: measure that agent_type is CALLER-CHOSEN, not platform-a... (2026-08-11)
+
+- **phase-86.33: measure that agent_type is CALLER-CHOSEN, not platform-assigned**
 ### v6.93.184 — phase-86.5: PARKED after 3 cycles -- ASK #5, the step's own command i... (2026-08-11)
 
 - **phase-86.5: PARKED after 3 cycles -- ASK #5, the step's own command is frozen RED**
