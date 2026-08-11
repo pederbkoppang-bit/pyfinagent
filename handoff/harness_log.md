@@ -34235,3 +34235,62 @@ independent observation, not as a reason to reopen this step.
 
 **To close 86.9 later**: re-spawn a single Q/A against the corrected artifacts. The
 3rd-CONDITIONAL counter resets on a FAIL, so the next verdict is unconstrained.
+
+## Cycle 1224 -- 2026-08-11 -- phase=86.44 result=FAIL (step PARKED -- disposition below)
+
+**Four attempts: `CONDITIONAL, CONDITIONAL, NO VERDICT (rail drop), FAIL`.** The
+attempt-4 Q/A's evidence-warranted verdict was CONDITIONAL; the **3rd-CONDITIONAL
+rule converted it to FAIL**, correctly. Attempt 3 dropped at 174,009 tokens and is
+**not** a grading.
+
+**THE PRODUCT IS SOUND AND SHIPPED.** All six criteria substantively MET, every
+headline number reproduced independently by the Q/A at two trees, ruff green on a
+derived 6-file scope, AST 6/6, harness compliance 5/5, and `git diff --stat HEAD`
+outside handoff+agent-memory **empty**.
+
+### What this step actually fixed, and it was not what it was filed for
+
+- **D1 -- the harness's own audit-trail writer was destroying concurrent entries.**
+  `read_text()` + `write_text(existing + entry)`. Two sessions work this repo, so
+  this was live data loss. Replaced with `O_APPEND`.
+- **D2 -- the Harness tab was misattributing 13.1% of cycles**, not omitting them:
+  a non-numeric header was not a split point, so its body was glued onto the
+  preceding cycle. 160 of 1,224. **Committed but NOT in force** -- pid 66306
+  predates the fix by ~20h and the live endpoint still returns 1064
+  (`pending_restart_2026-08-11.md`).
+- **D3 -- the copy-paste trap**, fixed in five live files; the guard now **derives**
+  its population by `git grep` minus a named allowlist.
+- **D4 -- found, demonstrated (10 collisions of 16), deliberately not fixed**, filed
+  as **86.55**.
+
+### The three failures that earned the FAIL, all mine
+
+1. **I DECLARED D1 FIXED WHILE THE SAME DEFECT SURVIVED 65 LINES AWAY.**
+   `run_harness.py:1051`, the certified-fallback **HARNESS HALT** path, kept the
+   identical read-modify-write. **I fixed the instance I found instead of
+   enumerating the class** -- a lesson already written down in this project.
+   **Now fixed** (the census is in the code comment: exactly two production writers
+   in that file). **Its mutation cell is NOT written**, and that is disclosed.
+2. **I claimed `HarnessDashboard.tsx` was "absent entirely". It exists** -- 22,164
+   bytes, and **my own contract cites it correctly**. I grepped the wrong directory
+   and reported absence. **A stated absence needs the same verification as a stated
+   result**, and I made the identical error this morning on 86.9 (probing
+   `/api/settings` without its trailing slash). Twice in one day.
+3. **The D3 class was wrong twice before it was derived** -- one file, then a pinned
+   two, then a derived five.
+
+### DISPOSITION: PARKED. Status stays `pending`. No flip -- there is no PASS.
+
+I committed before attempt 4 that anything other than PASS would park this, and I am
+holding to that. **The code fixes stay shipped** -- parking a step does not unship a
+data-loss fix, and leaving `:1051` broken because the step is parked would be
+absurd.
+
+**TO CLOSE 86.44 LATER**: (a) write a mutation cell that drives the `:1051`
+escalation path, since that seam is fixed but unguarded; (b) re-spawn one Q/A. The
+CONDITIONAL counter resets on a FAIL, so the next verdict is unconstrained.
+
+**Six population errors across two steps today.** Every one was a number or a set
+membership I asserted where I had not run the derivation. That is the pattern of the
+day, and it is recorded in memory as `a-range-can-hide-its-counterexample` and
+`guard-from-instance-not-class`.

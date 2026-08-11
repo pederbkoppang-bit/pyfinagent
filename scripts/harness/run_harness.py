@@ -1047,8 +1047,20 @@ def _escalate_certified_fallback(consecutive_fails: int, cycle: int) -> None:
             f"`MAX_CONSECUTIVE_FAIL={MAX_CONSECUTIVE_FAIL}`. Reverted to certified fallback. "
             "Operator review required before resuming.\n"
         )
-        existing = HARNESS_LOG.read_text(encoding="utf-8") if HARNESS_LOG.exists() else ""
-        HARNESS_LOG.write_text(existing + warning, encoding="utf-8")
+        # phase-86.44 (D1, SECOND SEAM): true append here too.
+        #
+        # The 86.44 fix originally covered append_harness_log() only, and this
+        # escalation path kept the identical read-modify-write -- same file, same
+        # module, ~65 lines away. Fixing the instance you found is not fixing the
+        # class. The census behind this comment is `grep -rn HARNESS_LOG` filtered
+        # to write sites: exactly two production writers exist in this file (:986
+        # and here), and backend/autonomous_harness.py:245 already opens "a".
+        #
+        # This path matters more than its size suggests: it fires when the harness
+        # HALTS, so losing a concurrent writer's block here destroys log entries at
+        # precisely the moment an operator is being asked to review the log.
+        with open(HARNESS_LOG, "a", encoding="utf-8") as fh:
+            fh.write(warning)
     except Exception as e:
         logger.warning("harness_log write failed during escalation: %s", e)
 

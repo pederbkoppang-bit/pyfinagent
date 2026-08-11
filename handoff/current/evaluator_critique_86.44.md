@@ -189,3 +189,76 @@ Run `wf_db40da8a-9db`. Main records the verdict; Main never authors it.
 ## notes
 
 Write-first record: /Users/ford/.openclaw/workspace/pyfinagent/.claude/agent-memory/qa/verdicts/verdict_wip_86.44__20260811T153418Z.md (STATUS: COMPLETE -- evidence for a next spawn, never a verdict). 3rd-CONDITIONAL CHECK: header-anchored `grep -cE '^## Cycle .* phase=86\.44' handoff/harness_log.md` = 0 and naive `grep -c 'phase=86\.44'` = 0, which is correct-by-design mid-flight (LOG is last); counted from evaluator_critique_86.44.md instead -- exactly ONE prior CONDITIONAL (cycle 1), so this is the 2nd and the auto-FAIL rule does not apply. A third would. WHAT IS GENUINELY STRONG, said plainly: the D3 remediation is the right shape, not a patch -- M3 and M4 each NAME the file they broke, so one fix cannot satisfy both, and I confirmed by execution that each turns the check red alone; the pending-restart artifact is the best-formed not-in-force disclosure I have graded, down to naming the orphaned-server/EADDRINUSE trap; the self-caught M1-magnitude retraction ("a race's damage is not a fixed number") is the correct generalisation and I would not have caught it, because my own two runs also differed; and refusing to stage a criterion-5 uniqueness proof for a numbering that was never changed remains the right call. RESIDUAL MINOR (not in violated_criteria): run_harness.py:953 is still cited in section 1 and contract section 6 as the site that "passes the loop index" -- :953 is the `def append_harness_log(...)` line; at a clean tree the loop is :1123 and the call sites :1149/:1196. I first measured :1117/:1143/:1190 and it was WRONG -- I read the file while my own M1 mutant was applied, which shifts everything after the mutation point by -6 lines; naming it because a Q/A that mutates a live tree and then greps it is a self-contamination trap. HAZARD I INTRODUCED AND CLEARED: the matrix transiently rewrites CLAUDE.md, docs/runbooks/per-step-protocol.md, scripts/harness/run_harness.py and backend/api/backtest.py; restores were byte-identical on all 4 cells across both of my runs and `git status --short` plus `git diff --stat HEAD` on those four paths are clean, but a peer session's `git add -A` landing inside the ~2-minute mutant window would commit a mutated CLAUDE.md -- worth a guard before this script is run again on a shared tree. qa.md 1c: the step makes a claim about the Harness tab and I took NO Playwright capture; I substituted a live measurement of the exact endpoint HarnessDashboard.tsx consumes, which is stronger evidence about the running system than a screenshot and which SHOWS the tab is still wrong. I am not treating that as a capped criterion here because the UI claim is a disclosure of a known-bad state rather than a claim that the UI is correct -- but the substitution is disclosed, and a capture would be required before any claim that the tab is FIXED. live_check_86.44.md still does not exist; it is owed before the status flip, and per the masterplan it must carry the re-derived counts with their commands at a named tree, the consumer-grep answer, the 160-header characterisation, the renumbering decision, and (since the producer's WRITE changed) the concurrency demonstration. Holding the flip for tonight's 20:00 CEST book cycle is independent of this verdict and is the right call.
+
+
+---
+
+# ATTEMPT 4 VERDICT -- transcribed VERBATIM from the Workflow return (2026-08-11T18:14:59)
+
+Run `wf_db56e782-2e8`. Main records the verdict; Main never authors it.
+(Attempt 3 dropped on the rail and produced NO VERDICT -- see experiment_results §9b.)
+
+**verdict**: `FAIL` | **ok**: `False` | **harness_compliance_ok**: `True`
+
+## reason
+
+> All 6 immutable criteria are substantively MET and every headline number reproduces EXACTLY under my own independent implementation -- census at tree 915d2cb0 AND the worktree both give 1224/1064/160, token '1' = 481, 141 duplicated integers, 969 headers in duplicate groups; the 418/63/62 split reproduces block-by-block (481 blocks with token '1', 418 carrying '**Planner hypothesis:**', 63 without, 62 of those with phase= in the HEADER line) and its underlying inference is sound at source (run_harness.py:958 header template is `## Cycle {cycle} -- {ts}` with no phase=, :960 emits the hypothesis line unconditionally in the same f-string); §5's 969/481/488/140 is internally consistent and 'finalize.py has written this file 3 times' reproduces (grep 'aggregate smoketest finalize' = 3). Criterion 2's answer is CORRECT and verified at source (finalize.py:70-72 int()+max()+1, :113 split key). Deterministic: immutable command exit=0 returning 1224; ruff F821,F401,F811 exit=0 on a DERIVED non-empty 6-file scope (piped through xargs, no word-split trap) and zero `sys` references remain in tests/_phase_24_helpers.py so the F401 removal is safe; AST 6/6; runtime exec_module import OK; D2 control via the REAL endpoint function returns 1224 of 1224 while the pre-fix regex returns exactly 1064 on the same file (= M2's claimed kill value); the not-in-force disclosure is TRUE -- I measured GET :8000/api/backtest/harness/log = 1064 myself and pid 66306 started 2026-08-10 21:33:01, before the 17:13 fix; the D3 derivation replays to 2 git-grep hits / 2 allowlisted / 0 offenders; `git diff --stat HEAD` outside handoff+agent-memory is EMPTY. Harness compliance 5/5. GRADE-HARDEST (A): CLEAN -- nothing in §1 or §5 is still asserted; all rules stated with their numbers and all reproduce. GRADE-HARDEST (B): the docs/audits/phase-24-2026-05-12/ allowlist is DEFENSIBLE, not an excuse -- the literal sits at :92 inside a table reproducing the protocol AS OF 2026-05-12 in a dated findings record, editing it falsifies history on the same reasoning criterion 4 used, it is named in code with that reason, and the guard fails closed if an allowlisted path goes missing. CONDITIONAL on two artifact-CLAIM defects I found, neither of which unseats a criterion's answer: (1) `scripts/harness/run_harness.py:1050-1051` still does `existing = HARNESS_LOG.read_text(...)` then `HARNESS_LOG.write_text(existing + warning)` -- byte-for-byte the D1 shape, on the same file, in the same producer -- while §4 declares D1 'FIXED' and §9's table records the change as 'O_APPEND instead of read-modify-write' with no qualification and §10 does not disclaim it; the fix covered `append_harness_log` only, and a repo-wide census shows this is the one remaining read-modify-write writer of that file (backend/autonomous_harness.py:245 already uses open('a')). (2) §0 line 33 states 'A third (`HarnessDashboard.tsx`) is absent entirely' -- FALSE. The file exists at frontend/src/components/HarnessDashboard.tsx (22,164 bytes) and every line the research brief cited resolves exactly (:446 `cycles.map((cycle, i) =>`, :448 `key={i}`, :453 `{cycle.cycle}`); this step's OWN contract at :37 cites it correctly. The other two absence claims ARE true (ls confirms). Criterion 2's answer is unaffected -- the frontend is display-only and index-keyed, so there is no duplicate-React-key consequence, which I verified rather than assumed -- but §2's 6-row consumer table omits that consumer on the basis of a false absence, in the section whose whole claim is that the census was 'DETERMINED by grep across the repo'. That is CONDITIONAL shape. However, 86.44 already carries TWO prior graded CONDITIONALs (evaluator_critique_86.44.md :7 cycle-1 and :113 cycle-2; attempt 3 was NO VERDICT and is not a grading, correctly), so under qa.md's 3rd-CONDITIONAL rule this is returned as FAIL, not a third CONDITIONAL.
+
+## violated_criteria
+
+- 3rd-CONDITIONAL auto-FAIL (2 prior CONDITIONALs for 86.44)
+- scope-honesty: D1 declared FIXED while the same read-modify-write survives at run_harness.py:1051
+- criterion 2 census completeness: false absence claim for HarnessDashboard.tsx
+
+## violation_details
+
+### 1. Unjustified_Inference
+
+**action**: grep -n 'verdict' handoff/current/evaluator_critique_86.44.md ; grep -cF '86.44' handoff/harness_log.md
+
+**state**: evaluator_critique_86.44.md:7 = cycle-1 verdict CONDITIONAL; :113 = cycle-2 verdict CONDITIONAL; attempt 3 returned NO VERDICT (rail drop, not a grading). harness_log grep = 0, correct-by-design mid-flight since LOG is last. This spawn's evidence-warranted verdict is CONDITIONAL, which would be the third consecutive.
+
+**constraint**: qa.md Constraints / runbook §4 EVALUATE: 2+ prior CONDITIONALs for a step-id means the next pass MUST return FAIL -- stacking a third means the harness is logging, not correcting
+
+### 2. Overgeneralization
+
+**action**: grep -rn 'HARNESS_LOG' --include='*.py' scripts backend .claude | grep -E 'write_text|open\(|O_APPEND'
+
+**state**: scripts/harness/run_harness.py:1050-1051 (certified-fallback HARNESS HALT path) still executes `existing = HARNESS_LOG.read_text(...) if HARNESS_LOG.exists() else ""` then `HARNESS_LOG.write_text(existing + warning, encoding='utf-8')` -- the identical D1 read-modify-write, on the identical file, in the identical module. experiment_results §4 heading reads 'D1 -- the producer destroyed concurrent writers' entries. FIXED.'; §9's files-changed table reads 'D1: O_APPEND instead of read-modify-write' with no scope qualifier; §10 'What is NOT claimed' does not mention it. The fix covered append_harness_log() only (verified at :986).
+
+**constraint**: qa.md §4b scope honesty + the project's standing class-not-instance rule: a fix declared over a producer must state the seam it covers, or enumerate the class and disclose the residual
+
+### 3. Contradiction
+
+**action**: ls -la frontend/src/components/HarnessDashboard.tsx ; sed -n '444,456p' frontend/src/components/HarnessDashboard.tsx ; grep -n HarnessDashboard handoff/current/contract_86.44.md handoff/current/research_brief_86.44.md
+
+**state**: experiment_results §0 line 33 asserts 'A third (`HarnessDashboard.tsx`) is absent entirely'. The file exists (22,164 bytes) and the brief's citation resolves exactly: :446 `cycles.map((cycle, i) =>`, :448 `key={i}`, :453 `{cycle.cycle}`. contract_86.44.md:37 -- the step's own contract -- lists it correctly as a consumer. §2's consumer table therefore omits the frontend consumer on the basis of a false non-existence. (The other two absence claims are TRUE: backend/services/harness_state_reader.py and scripts/harness/scheduler.py do not exist.)
+
+**constraint**: Immutable criterion 2 -- 'Whether anything READS the cycle number is DETERMINED by grep across the repo'; qa.md §4b -- a stated absence requires the same verification as a stated result (the answer itself is unaffected: the frontend is display-only and index-keyed, verified)
+
+
+## checks_run
+
+- harness_compliance_audit_5_item
+- immutable_verification_command
+- criterion_1_census_rederived_two_trees
+- criterion_2_consumer_grep_reverified_at_source
+- criterion_3_nonnumeric_token_census
+- criterion_4_renumbering_decision_supersession_check
+- criterion_5_producer_change_scope
+- criterion_6_mutation_matrix_review_and_d3_derivation_replay
+- python_lint_gate_derived_scope
+- ast_syntax_6_files
+- backend_runtime_smoke_import
+- live_endpoint_exercise
+- d2_pre_post_regex_differential
+- claim_auditing_numeric_reproduction
+- guard_vacuity_check
+- class_census_harness_log_writers
+- code_review_heuristics
+- evaluator_critique_prior_verdicts
+- unintended_change_check
+
+## notes
+
+Write-first record: /Users/ford/.openclaw/workspace/pyfinagent/.claude/agent-memory/qa/verdicts/verdict_wip_86.44__20260811T160506Z.md (STATUS: COMPLETE -- evidence for a next spawn, never a verdict). SAID PLAINLY, BECAUSE IT IS TRUE: this is the cleanest number-derivation I have graded on this step. I re-implemented §1 and §5 from scratch and every figure matched to the unit at both the named census tree and the worktree; the 418/62 attribution is not just reproducible, its causal claim holds at source. Refusing to stage a criterion-5 uniqueness proof for a numbering that was never changed remains correct, and demonstrating the EXISTING numbering is non-unique instead is the honest substitute. The §9b handling of the attempt-3 drop is exactly right -- taking the F401 (and re-deriving its provenance rather than trusting the note) while explicitly refusing to promote a partial record into a verdict. I DID NOT RUN THE MUTATION MATRIX. It transiently rewrites CLAUDE.md, the runbook, run_harness.py and backend/api/backtest.py, a peer session is active on this tree, and a `git add -A` landing inside that window would commit a mutated CLAUDE.md -- so I verified criterion 6 by no-write replay instead: the D3 derivation reproduces (2 hits, both allowlisted, 0 offenders) and the D2 kill value reproduces exactly (pre-fix regex 1064, post-fix 1224, real endpoint fn 1224). That is a weaker instrument than execution for M1/M3/M4 and I am naming the gap rather than implying I executed them. qa.md §1c: the step makes UI claims about the Harness tab and I took NO Playwright capture. I substituted a direct live measurement of the exact endpoint HarnessDashboard.tsx:209 consumes (1064 -- the tab IS still mis-attributing) and read the component's render path at source. I am not capping on §1c because the UI claim is a disclosure of a known-bad state, not a claim the UI is correct -- but a capture WOULD be required before any claim the tab is fixed, and this substitution is disclosed. BOUNDED CAVEAT ON THE D3 GUARD (NOTE, not in violated_criteria): its population is derived over ONE exact literal, so the class 'bare placeholder in a `## Cycle` header' is wider than the guard -- scripts/audit/phase_24_audit_prompt.md:166 (`## Cycle M --`, an agent-facing instruction) and .claude/masterplan.json (`## Cycle N -- DATE`, inside an excluded pathspec) sit outside its reach. Severity is bounded: no `M` token appears anywhere among the log's 157 distinct non-numeric tokens, so that template has not propagated. RESIDUAL, unfixed from cycle 2: contract_86.44.md:88 still reads 'The 481 have a single mechanical cause: run_harness.py:953 passes the loop index' with no annotation, while experiment_results §1 supersedes it -- contracts are pre-GENERATE artifacts and amending one post-hoc has its own hazard, so I am not blocking on it, but a reader of the archived contract meets the retracted claim unmarked. live_check_86.44.md still does not exist and is owed before the flip. Holding the flip for the 20:00 CEST book cycle is correct and independent of this verdict. DISPOSITION IF PARKED: the two findings are prose-fixable (F2 by deleting the false absence and adding the frontend row to §2's table; F1 by either converting :1051 to an append or disclosing the residual in §4/§10) -- neither requires re-doing any measurement, and none of the six criteria's answers change.

@@ -24887,7 +24887,8 @@
               "Mutation-test any new guard: revert it and show the check goes red, with the control observed GREEN first."
             ],
             "live_check": "live_check_86.44.md with: the re-derived counts and their commands at a named tree; the grep result for readers of the cycle number; the characterisation of the non-numeric headers; the renumbering decision; and the concurrent-writer uniqueness demonstration if the producer changed."
-          }
+          },
+          "notes": " PARKED 2026-08-11 after FOUR attempts (CONDITIONAL, CONDITIONAL, NO_VERDICT rail drop, FAIL -- the 3rd-CONDITIONAL rule converted an evidence-warranted CONDITIONAL). STATUS LEFT pending: no PASS, none manufactured. THE CODE FIXES ARE SHIPPED AND STAY SHIPPED: D1 (O_APPEND at run_harness.py:986 AND :1051 -- the second seam was found by the attempt-4 Q/A after I declared D1 fixed having patched only the first), D2 (parser accepts any cycle token; COMMITTED BUT NOT IN FORCE, see pending_restart_2026-08-11.md), D3 (five live files; guard now DERIVES its population). D4 filed as 86.55. TO CLOSE: write a mutation cell driving the :1051 escalation path (fixed but unguarded), then re-spawn one Q/A -- the CONDITIONAL counter resets on a FAIL."
         },
         {
           "id": "86.45",

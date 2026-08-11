@@ -30,9 +30,23 @@ grep is exactly what refuted the claim I had been handed.
 **Two of the gate's six cited consumer paths do not exist**
 (`backend/services/harness_state_reader.py`, `scripts/harness/scheduler.py`); the
 real modules are `backend/agents/harness_state_reader.py` and
-`backend/slack_bot/scheduler.py`. A third (`HarnessDashboard.tsx`) is absent
-entirely. The gate was right about the *modules* and wrong about the *paths*, and
-wrong about the central claim.
+`backend/slack_bot/scheduler.py`.
+
+> **CORRECTED: I claimed a third file was "absent entirely". IT EXISTS.**
+> `frontend/src/components/HarnessDashboard.tsx` is 22,164 bytes and every line the
+> gate cited resolves (`:446 cycles.map((cycle, i) =>`, `:448 key={i}`,
+> `:453 {cycle.cycle}`). **My own contract at §7 cites it correctly** -- I grepped
+> `frontend/src/components/backtest/` , got nothing, and reported absence.
+> **A stated absence needs the same verification as a stated result**, and I made
+> that exact error on criterion 1 of step 86.9 this morning (probing
+> `/api/settings` without its trailing slash and concluding the endpoint did not
+> exist). Twice in one day, same shape.
+>
+> It does not change criterion 2's answer -- the component is display-only and keyed
+> by array index (`key={i}`), not by cycle number, so a duplicate number has no
+> React-key consequence -- but **§2's consumer table omitted a real consumer on the
+> strength of a false absence**, in the section whose whole claim is that the census
+> was derived by grep.
 
 ## 1. Criterion 1 -- census RE-DERIVED at a named tree, with the extraction rule
 
@@ -103,6 +117,7 @@ restart per-step numbering at 1, a different mechanism entirely.
 | `backend/slack_bot/scheduler.py:464` | `line.startswith("## Cycle")` + date | no |
 | `scripts/qa/verdict_history_86_21.py:196` | `^## Cycle .*phase=<id> result=` | no |
 | `.claude/hooks/lib/harness_log_gate.py:94` | keys on `phase=` | no |
+| `frontend/src/components/HarnessDashboard.tsx:446-453` | renders `{cycle.cycle}`, keyed by array index | no |
 
 > **AND THE Q/A FOUND A SECOND ONE I MISSED**, which is the right outcome of asking
 > it to re-run my grep after I had just caught the gate missing one:
@@ -139,6 +154,28 @@ None is truncation or byte damage. The 58 placeholders trace to D3.
 
 **Two Claude Code sessions work this repo concurrently. This was live data loss in
 the harness's own audit trail.**
+
+> ### D1 WAS DECLARED FIXED WHILE THE SAME DEFECT SURVIVED 65 LINES AWAY
+>
+> The attempt-4 Q/A found `run_harness.py:1051` still doing
+> `read_text()` then `write_text(existing + warning)` -- **byte-for-byte the D1
+> shape, same file, same module**, in the certified-fallback **HARNESS HALT** path.
+> My fix had covered `append_harness_log()` only, and §4/§9 declared D1 "FIXED"
+> with no scope qualifier.
+>
+> **I fixed the instance I found instead of enumerating the class**, which is a
+> failure mode already written down in this project's own lessons. **Now fixed**,
+> with the census in the code comment: `grep -rn HARNESS_LOG` filtered to write
+> sites gives exactly **two** production writers in this file (`:986`, `:1051`);
+> `backend/autonomous_harness.py:245` already opens `"a"`.
+>
+> **This seam matters more than its size suggests**: it fires when the harness
+> HALTS, so losing a concurrent writer's block here destroys log entries at exactly
+> the moment an operator is being asked to review the log.
+>
+> **DISCLOSED LIMIT**: the mutation matrix's M1 cell drives `append_harness_log`
+> only. **The escalation path at `:1051` is fixed but NOT mutation-covered**, and
+> closing 86.44 requires a cell that drives it.
 
 ### D2 -- the reader silently dropped 13.1% and MISATTRIBUTED their bodies. FIXED.
 
