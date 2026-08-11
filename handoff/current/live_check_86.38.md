@@ -461,3 +461,29 @@ date           full   lite   lite%  causes
 ----------------------------------------------------------------------------------------
 TOTAL            67      9   11.8%
 ```
+
+---
+
+## J. NOW IN FORCE -- the claim above was true when written and is now SUPERSEDED
+
+**Corrected 2026-08-11 22:3x after the session-end restart.** Section G says this
+change is committed but NOT in force, pinned to backend pid 66306. That was true
+when written and is now false; leaving it would be exactly the stale-claim class
+this step's own artifacts kept tripping on.
+
+```
+$ pgrep -f "uvicorn backend.main:app"   -> 99231          (was 66306)
+$ ps -o lstart= -p 99231                -> 11 Aug 22:26:48
+$ git log -1 --format=%ad fd419038      -> 2026-08-11 09:04:35
+```
+
+The running process now POSTDATES the GENERATE commit, so `_degradation_record`,
+the record-always seam and the `degradation` cycle-record key are all live.
+
+**And a falsifiable prediction, which is the honest way to leave this.** Tonight's
+cycle `86667da7` completed 19:21:29Z -- **before** the 22:26:48 restart -- so it
+ran under the old module and its `cycle_history` row carries **no `degradation`
+key**, verified. **The next cycle (2026-08-12 20:00 CEST) will be the first to
+write one.** If it does not, this step's central change did not work and the
+disposition's "verified by execution" claim covers only the tests, not
+production.
