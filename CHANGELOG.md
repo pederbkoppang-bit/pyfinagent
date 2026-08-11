@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-11 | `a15833eb` | phase-86.33: unblock P1 -- the runtime DOES populate agent_id, measured on real traffic |
 | 2026-08-11 | `282fb87e` | phase-86.47: file the drought step 86.41's criterion 6 promised |
 | 2026-08-11 | `1092700d` | phase-86.41 follow-up: cite the FUNCTION get_cik, never a line number |
 | 2026-08-11 | `21269f42` | phase-86.41: [P2 -- THE QuantAgent NoneType CRASH IS A BIGGER SOURCE OF DEGRADED ANALYSES THAN TH... |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-11 | `678d979f` | phase-86.41: behavioural proof of the quant guard -- and it caught two defects in it |
 | 2026-08-11 | `4c321e5c` | docs: correct the day report -- 86.39 is no longer 'not started' |
 | 2026-08-11 | `8879d662` | phase-86.39: establish the root cause from source (pre-contract measurement) |
-| 2026-08-11 | `73dcf2c8` | phase-86.41: isolate the quant sub-agent at the DEPENDENCY, not the ticker |
 
 ---
 
+### v6.93.169 — phase-86.33: unblock P1 -- the runtime DOES populate agent_id, measur... (2026-08-11)
+
+- **phase-86.33: unblock P1 -- the runtime DOES populate agent_id, measured on real traffic**
 ### v6.93.168 — phase-86.47: file the drought step 86.41's criterion 6 promised (2026-08-11)
 
 - **phase-86.47: file the drought step 86.41's criterion 6 promised**
