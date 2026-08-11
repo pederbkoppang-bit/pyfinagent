@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-11 | `7614a568` | phase-86.43: queue the cross-session artifact collision I caused today |
 | 2026-08-11 | `da4fdb01` | phase-86.38: record the cycle-1 rail drop and rescue its write-first record |
 | 2026-08-11 | `542d4ee1` | phase-86.29 cycle 4: adjudicate ALL 16 opaque dirs, not just the 2 the Q/A named |
 | 2026-08-11 | `30c1ceba` | phase-86.42: queue the 86.36 Q/A's F2 -- I claimed 'queued' in a commit and had not done it |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-11 | `5e97ca27` | phase-86.38: extract a seam the guard can EXECUTE -- mutation cell M1 survived |
 | 2026-08-11 | `fd419038` | phase-86.38: GENERATE -- record degradation always, page only above threshold |
 | 2026-08-11 | `cef76c3b` | phase-86.38: PLAN -- contract written, and the gate REFUTED two of the step's premises |
-| 2026-08-11 | `5595055c` | phase-86.36: GENERATE -- run-stamped WIP records so a retry stops erasing the last one |
 
 ---
 
+### v6.93.118 — phase-86.43: queue the cross-session artifact collision I caused today (2026-08-11)
+
+- **phase-86.43: queue the cross-session artifact collision I caused today**
 ### v6.93.117 — phase-86.38: record the cycle-1 rail drop and rescue its write-first... (2026-08-11)
 
 - **phase-86.38: record the cycle-1 rail drop and rescue its write-first record**
