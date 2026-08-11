@@ -226,11 +226,41 @@ def test_the_degradation_record_is_actually_passed_to_record_cycle_end():
     cycle 1.
     """
     src = inspect.getsource(al)
-    assert "degradation=_degradation," in src, (
-        "record_cycle_end no longer receives the degradation record -- every "
+    import ast
+
+    # AST, NOT A SUBSTRING SEARCH -- and that is the whole point of this test.
+    # The first version asserted `"degradation=_degradation," in src`. Mutation
+    # cell MX deleted the real argument and the test STILL PASSED, because the
+    # docstring of `_degradation_record` QUOTES that literal while explaining
+    # this very defect. **My own explanatory prose satisfied my own guard.**
+    # A grep cannot tell a call site from a sentence about a call site; an AST
+    # can, because comments and docstrings are not Call nodes.
+    tree = ast.parse(inspect.getsource(al))
+    calls = [
+        n for n in ast.walk(tree)
+        if isinstance(n, ast.Call)
+        and isinstance(n.func, ast.Attribute)
+        and n.func.attr == "record_cycle_end"
+    ]
+    assert calls, "the record_cycle_end call vanished entirely"
+    kwargs_with_degradation = [
+        c for c in calls
+        if any(k.arg == "degradation" for k in c.keywords)
+    ]
+    assert kwargs_with_degradation, (
+        "record_cycle_end no longer receives a `degradation=` argument -- every "
         "cycle would persist `degradation: {}` and the sub-threshold degraded "
-        "cycle would again leave no durable trace"
+        "cycle would again leave no durable trace. (Checked via AST so that "
+        "prose mentioning the argument cannot satisfy this assertion.)"
     )
+    # and the value passed must be the seam's output, not some other name
+    fed_by_seam = False
+    for c in kwargs_with_degradation:
+        for k in c.keywords:
+            if k.arg == "degradation" and isinstance(k.value, ast.Name):
+                fed_by_seam = k.value.id == "_degradation"
+    assert fed_by_seam, "the degradation kwarg is no longer fed by `_degradation`"
+
     assert "_degradation = _degradation_record(summary)" in src, (
         "the degradation record is no longer built from the summary by the seam"
     )

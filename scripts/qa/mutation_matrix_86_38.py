@@ -73,6 +73,18 @@ MUTANTS = [
      '"degradation": funnel or {},',
      "test_degradation_defaults_empty_and_breaks_no_existing_caller",
      "fold degradation into the 66.2 funnel instead of keeping it separate"),
+    # phase-86.38 cycle 2 -- THE SEAM THE CYCLE-1 Q/A FOUND UNGUARDED.
+    # Both SURVIVED the entire suite before the second seam was extracted.
+    ("MX", LOOP,
+     "                degradation=_degradation,\n",
+     "",
+     "test_the_degradation_record_is_actually_passed_to_record_cycle_end",
+     "delete the degradation kwarg -- every cycle would persist an empty record"),
+    ("MY", LOOP,
+     '    "fallback_rate", "fallback_alarm_fired", "fallback_reasons",\n',
+     "",
+     "test_the_degradation_record_carries_every_key_that_makes_a_cycle_legible",
+     "drop the fallback keys from the persisted record"),
     ("M6", LOOP,
      "fire = n_total > 0 and (n_fallback / n_total) > threshold",
      "fire = n_total > 0 and (n_fallback / n_total) >= threshold",
