@@ -203,6 +203,16 @@ hypotheses are recorded as untested.
 Stated limit: this Playwright surface has no `browser_evaluate`, so I could not
 read `window.scrollY` -- it is all visual inference, and the step now says so.
 
+**86.7 -- addressed by the PEER, and my earlier summary wrongly omitted it.**
+Verified on disk rather than taken from their message: `contract_86.7.md`,
+`research_brief_86.7.md` (55,714 bytes) and `experiment_results_86.7.md` all
+exist, with a DISPOSITION section -- so it had a full RESEARCH -> PLAN ->
+GENERATE and was parked without a Q/A, deliberately (its criteria 1 and 6 need
+`bootstrap`/`bootout` or root, so a spawn returns a guaranteed CONDITIONAL).
+**One protocol gap, flagged to them: `handoff/harness_log.md` carries NO row for
+`phase=86.7`.** The five-file protocol requires the append, and without it the
+step is invisible to exactly the counter phase-86.21 was filed about.
+
 **Still not started: 86.11 and 86.14.** 86.11 is audit-class (its deliverable is
 a ranked defect list, so it wants a gate with `audit_class: true` and the
 loop-until-dry rule); 86.14 is a feature build. Neither fits the remaining
