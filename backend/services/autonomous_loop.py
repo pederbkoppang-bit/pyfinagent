@@ -1961,14 +1961,7 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
             # questions, and conflating them is how the fallback rate ended up
             # with no home. Populated on every cycle, not only when the alarm
             # pages, so a sub-threshold degradation is still durable.
-            _degradation = {
-                k: summary.get(k)
-                for k in (
-                    "fallback_rate", "fallback_alarm_fired", "fallback_reasons",
-                    "degraded", "degraded_analyses", "meta_scorer_degraded",
-                )
-                if summary.get(k) is not None
-            }
+            _degradation = _degradation_record(summary)
             _cycle_log().record_cycle_end(
                 cycle_id=_cycle_id,
                 started_at=_cycle_started_at,
@@ -2700,6 +2693,33 @@ def _degradation_summary_fields(
     if reasons:
         out["fallback_reasons"] = dict(reasons)
     return out
+
+
+#: phase-86.38 -- the keys that make a cycle's DEGRADATION legible after the fact.
+#: Kept as a module constant so a test can assert the SET, not just the plumbing.
+DEGRADATION_RECORD_KEYS = (
+    "fallback_rate", "fallback_alarm_fired", "fallback_reasons",
+    "degraded", "degraded_analyses", "meta_scorer_degraded",
+)
+
+
+def _degradation_record(summary: dict) -> dict:
+    """phase-86.38 cycle 2: the degradation facts persisted on the cycle record.
+
+    EXTRACTED BECAUSE THE WIRING HAD NO GUARD. The cycle-1 Q/A (which dropped
+    before returning, but got this far) mutated the call site by deleting
+    `degradation=_degradation,` from `record_cycle_end(...)` and the whole suite
+    stayed GREEN -- 7 passed. Under that mutant every future cycle persists
+    `degradation: {}`, i.e. the exact defect this step exists to remove returns
+    silently. Dropping keys from the tuple survived too.
+
+    That is the guards-stop-one-seam-short class: I had guarded
+    summary -> `_degradation_summary_fields` and left
+    `_degradation` -> `record_cycle_end` uncovered, which is the half that
+    actually reaches durable storage.
+    """
+    return {k: summary.get(k) for k in DEGRADATION_RECORD_KEYS
+            if summary.get(k) is not None}
 
 
 def _all_conviction_fallback(candidates: list[dict]) -> bool:

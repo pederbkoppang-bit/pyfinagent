@@ -181,3 +181,56 @@ def test_degradation_defaults_empty_and_breaks_no_existing_caller(health):
         "the 66.2 funnel must be untouched -- degradation is a SEPARATE key, "
         "not a widening of the funnel"
     )
+
+
+# ---------------------------------------------------------------------------
+# 4. THE SECOND SEAM -- summary -> record_cycle_end. Added in cycle 2 because
+#    the cycle-1 Q/A deleted `degradation=_degradation,` from the call and the
+#    whole suite stayed GREEN. Guarding one end of a two-ended wire is not
+#    guarding the wire.
+# ---------------------------------------------------------------------------
+
+def test_the_degradation_record_carries_every_key_that_makes_a_cycle_legible():
+    """BEHAVIOURAL: driven, not asserted from source."""
+    from backend.services.autonomous_loop import (
+        DEGRADATION_RECORD_KEYS,
+        _degradation_record,
+    )
+    summary = {
+        "fallback_rate": "3/6", "fallback_alarm_fired": False,
+        "fallback_reasons": {"HPE": "429"}, "degraded": True,
+        "degraded_analyses": "3/6", "meta_scorer_degraded": False,
+        "unrelated_key": "must not be carried",
+    }
+    got = _degradation_record(summary)
+    assert set(got) == set(DEGRADATION_RECORD_KEYS), (
+        "the persisted degradation record dropped or gained a key -- a key "
+        "silently missing here is invisible to every downstream reader"
+    )
+    assert "unrelated_key" not in got
+    assert got["fallback_rate"] == "3/6"
+    assert got["fallback_alarm_fired"] is False
+
+    # absent facts are omitted, not persisted as None
+    assert _degradation_record({}) == {}
+    assert _degradation_record({"fallback_rate": "0/6"}) == {"fallback_rate": "0/6"}
+
+
+def test_the_degradation_record_is_actually_passed_to_record_cycle_end():
+    """SOURCE-LEVEL, and labelled as such.
+
+    `run_daily_cycle` needs BigQuery, a broker and ~80 minutes, so the call
+    itself cannot be executed here. What CAN be pinned is that the keyword is
+    present and fed by the seam -- which is precisely the mutation
+    (`degradation=_degradation,` deleted) that survived the entire suite in
+    cycle 1.
+    """
+    src = inspect.getsource(al)
+    assert "degradation=_degradation," in src, (
+        "record_cycle_end no longer receives the degradation record -- every "
+        "cycle would persist `degradation: {}` and the sub-threshold degraded "
+        "cycle would again leave no durable trace"
+    )
+    assert "_degradation = _degradation_record(summary)" in src, (
+        "the degradation record is no longer built from the summary by the seam"
+    )
