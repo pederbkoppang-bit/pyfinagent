@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-11 | `417b120a` | docs: 06-2 and 51-4 are ONE ask about ONE credential, not two |
 | 2026-08-11 | `12568e85` | docs: index this session's operator asks, and name the "ASK #2" collision |
 | 2026-08-11 | `f0cb4ea4` | docs: disambiguate the colliding ask numbers across two sessions |
 | 2026-08-11 | `61d16d25` | phase-86.9: the pid's start time exposed a hole in my own criterion-2 evidence |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-11 | `10a703db` | phase-86.33: PLAN -- the payload cannot distinguish TYPE from NAME, and I proved it on myself |
 | 2026-08-11 | `575e0509` | phase-86.33: the 70% was mine too -- correct BOTH files, not just the one I noticed |
 | 2026-08-11 | `9a7bf5e5` | phase-86.33: resolve my own open question -- the filter was wrong, not the field |
-| 2026-08-11 | `8aa2f622` | phase-86.33: measure that agent_type is CALLER-CHOSEN, not platform-assigned |
 
 ---
 
