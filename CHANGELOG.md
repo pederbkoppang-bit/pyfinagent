@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-11 | `73dcf2c8` | phase-86.41: isolate the quant sub-agent at the DEPENDENCY, not the ticker |
 | 2026-08-11 | `031d059c` | docs: day report 2026-08-11 + regenerated goal for the next session |
 | 2026-08-11 | `b4b7008b` | phase-86.5: record measured triage input -- the title says 26, I measure 17 |
 | 2026-08-11 | `48741e44` | phase-86.41: REFUTE my own step's premise before anyone executes it |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-11 | `8cc78200` | phase-86.7: PLAN -- contract written; the gate REFUTED the step's own premise |
 | 2026-08-11 | `5546cfc0` | docs(goal): ASK #2 -- a credential is in git history; rewrite the drifted goal |
 | 2026-08-11 | `b77ec23c` | phase-86.38: criterion 6 -- close the 429 with a numbered operator ask; file all three asks |
-| 2026-08-11 | `4600f98f` | phase-86.38 cycle 2: derive PER-CYCLE, which is what criterion 2 asked for |
 
 ---
 
+### v6.93.154 — phase-86.41: isolate the quant sub-agent at the DEPENDENCY, not the t... (2026-08-11)
+
+- **phase-86.41: isolate the quant sub-agent at the DEPENDENCY, not the ticker**
 ### v6.93.153 — phase-86.5: record measured triage input -- the title says 26, I meas... (2026-08-11)
 
 - **phase-86.5: record measured triage input -- the title says 26, I measure 17**
