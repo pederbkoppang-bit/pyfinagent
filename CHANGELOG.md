@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-11 | `cef76c3b` | phase-86.38: PLAN -- contract written, and the gate REFUTED two of the step's premises |
 | 2026-08-11 | `5595055c` | phase-86.36: GENERATE -- run-stamped WIP records so a retry stops erasing the last one |
 | 2026-08-11 | `4b526b61` | phase-86.29 cycle 2: supersede the cycle-1 figures in sections 1/3/5/6 |
 | 2026-08-11 | `eceb3a3b` | phase-86.29 cycle 2: fix five findings a DROPPED Q/A surfaced, all re-measured first |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-10 | `a271ad1e` | phase-86.21: record the measured counter-blindness in the step text |
 | 2026-08-10 | `54f9eb0f` | docs: day report -- late-session append (86.31 proof, 86.29 started, rail drop) |
 | 2026-08-10 | `c806cad6` | phase-86.29: PLAN -- contract written, mechanism demonstrated before planning |
-| 2026-08-10 | `5f2a7caa` | phase-86.31: harness_log cycle 1209 -- NO VERDICT (rail drop); the step proved itself |
 
 ---
 
+### v6.93.100 — phase-86.38: PLAN -- contract written, and the gate REFUTED two of th... (2026-08-11)
+
+- **phase-86.38: PLAN -- contract written, and the gate REFUTED two of the step's premises**
 ### v6.93.99 — phase-86.36: GENERATE -- run-stamped WIP records so a retry stops era... (2026-08-11)
 
 - **phase-86.36: GENERATE -- run-stamped WIP records so a retry stops erasing the last one**
