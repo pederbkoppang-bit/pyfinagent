@@ -252,10 +252,26 @@ every cell and at exit.
 
 ## G. What is NOT in force, and what I could not verify
 
-- **COMMITTED BUT NOT IN FORCE.** The backend has not been restarted; the running
-  process still holds the pre-change `autonomous_loop` module. Nothing in this
-  step is live until the session-end restart, and no claim here says otherwise.
-  The next book cycle is 20:00 CEST.
+- **COMMITTED BUT NOT IN FORCE -- MEASURED AGAINST THE RUNNING PROCESS, not
+  asserted from the file.** The rule in this project is that a committed change
+  is not a live change, and the way that rule gets broken is by reading the file
+  instead of the process. So:
+
+```
+$ pgrep -f "uvicorn backend.main:app"          -> 66306
+$ ps -o lstart= -p 66306                    -> man. 10 aug. 21.33.01 2026  
+$ git log -1 --format=%ad --date=iso fd419038  -> 2026-08-11 09:04:35 +0200
+```
+
+  **The running process started BEFORE the GENERATE commit**, so it holds the
+  pre-change `autonomous_loop` module in `sys.modules`. Nothing in this step is
+  live until the session-end restart.
+
+  Corroborated independently from the data side: the most recent row in
+  `handoff/cycle_history.jsonl` (cycle `a5654ab9`, completed
+  2026-08-10T19:15:34Z, 75.6 min, 0 trades) has **no `degradation` key at all** --
+  which is exactly what the pre-change code writes, and what the post-change code
+  cannot write. The next book cycle is 20:00 CEST.
 - **The exact alarm denominator is unmeasured** (section D).
 - **I did not read the GCP quota metric.** Classifying the 429 as rate vs DSQ vs
   billing requires `serviceruntime.googleapis.com/quota/rate/net_usage`, which
