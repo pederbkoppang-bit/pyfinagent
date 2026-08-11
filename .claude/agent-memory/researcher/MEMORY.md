@@ -1,5 +1,7 @@
 # Researcher Agent Memory Index
 
+- [Dead telemetry + 429 86.38](project_dead_telemetry_429_86_38.md) — Vertex has NO per-day quota (DSQ removes the number entirely); `>` vs `>=` is a provable NO-OP at n=5; the alarm PAYLOAD fields are the real dead ones, dropped at 3 whitelists
+
 - [WIP clobber 86.36](project_wip_clobber_86_36.md) — born-inert makes the clobber EARLIER (the retry's first stub lands on the prior attempt); MEASURED live 4,921→796 bytes mid-session; write-guard misses Bash `mv`; HEAD already held the post-destruction state
 
 - [Id-collision resolver 86.19](project_id_collision_resolver_86_19.md) — JSON key order decides the winner so the ARCHIVE wins 5.1; `phase-6.5` is cross-type (phase vs step) and no archive exclusion closes it; defect is LATENT (no colliding id has a live_check)

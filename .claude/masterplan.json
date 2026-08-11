@@ -24595,7 +24595,7 @@
         },
         {
           "id": "86.36",
-          "status": "pending",
+          "status": "done",
           "priority": "P2",
           "harness_required": true,
           "retry_count": 0,
