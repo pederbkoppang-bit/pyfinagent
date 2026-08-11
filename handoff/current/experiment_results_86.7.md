@@ -132,6 +132,51 @@ This is the structural finding of the step and it should shape whoever picks it 
 partly operator-gated by construction, and that should be said plainly rather
 than worked around.
 
+## 7. Criterion 4 -- the setup-token capture, SHAPE-VERIFIED
+
+Verified independently, by shape, printing no values:
+
+| len | prefixes | newline | other whitespace | sha256[:16] |
+|---|---|---|---|---|
+| 79 | 1 | no | no | `15dc0209381647e7` |
+| 79 | 1 | no | no | `35558d206b8c5d22` |
+| 123 | **2** | **yes** | yes | `9f8c63a185d885d7` |
+
+**The criterion's claim reproduces exactly**: two tokens, len 79, one prefix
+each, no newline — so both are *well-formed* and the 401 is not a formatting
+fault. The third value is the separately-known malformed one (two prefixes, an
+embedded newline), confirmed here independently rather than inherited.
+
+**ONE DISCREPANCY, which the Anthropic report must carry:** the criterion pins
+**CLI 2.1.226**; the installed CLI is now **2.1.227**. So the captured
+reproduction is from a version that is no longer installed, and whether it still
+reproduces on .227 is **untested** — I did not re-attempt a 401, because
+exercising a credential is an action, not an observation, while ASK #2 is open.
+
+## 8. Criterion 3 -- fallback: ACCEPT THE RISK, with the blast radius stated
+
+The criterion allows a chosen fallback **or** a justified absence. The three
+options it names, against what was measured:
+
+| option | verdict |
+|---|---|
+| a working long-lived token, if Anthropic repairs `setup-token` | **unavailable** — both well-formed len-79 tokens 401 (§7), and the repair is not ours to make |
+| a keychain-unlock step in the away runbook | **narrower than assumed** — the login keychain measures `no-timeout`, so screen lock does NOT lock it. The only realistic trigger is a **reboot**, which partly refutes the step's own audit basis |
+| explicit accept-the-risk with the blast radius stated | **this one** |
+
+**Blast radius, stated:** the exposure window is *after a reboot and before an
+interactive login*, not "any unattended period". Inside that window the rail
+fails; detection is the breaker at 20 consecutive failures with a P1 page (§3),
+and the pipeline runs its degraded fallbacks. The recommended runbook line is
+therefore narrow and specific: **after any reboot, confirm an interactive login
+has occurred before the 20:00 cycle** — not a general keychain-unlock ritual.
+
+**This is a RECOMMENDATION, not a shipped change.** It touches the away-ops
+runbook, and the honest sequencing is that it should follow the criterion-1
+measurement (§5), which is operator-gated. Writing a runbook line justified by an
+unmeasured launchd path would be the assert-instead-of-measure failure this step
+exists to correct.
+
 ## 6. What I cannot verify
 
 - **No Q/A has run. No verdict is claimed.**
