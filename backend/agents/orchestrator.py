@@ -1804,7 +1804,10 @@ class AnalysisOrchestrator:
                 # phase-86.41: the quant sub-agent runs in a REMOTE Cloud
                 # Function. When SEC.gov 429s its CIK-map fetch, that fetch
                 # returns None instead of raising, and the next frame
-                # (/workspace/main.py:89 in get_cik) raises NoneType THERE.
+                # (get_cik in /workspace/main.py) raises NoneType THERE. Cite the
+                # FUNCTION, never a line: the retained logs carry SIX distinct
+                # addresses for it (102 and 86 at 48x, 105 and 81 at 40x, 79 at
+                # 20x, 89 at 14x) across deployments.
                 # Before this guard, that single remote dependency's rate
                 # limit propagated out of run_quant_agent, aborted the whole
                 # ticker, and demoted the entire analysis to the lite path

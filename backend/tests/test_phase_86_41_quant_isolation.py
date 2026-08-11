@@ -4,7 +4,9 @@
 call inside `run_full_analysis` (the quant step). Its three siblings -- RAG,
 ingestion and the phase-32.3 call -- already fail open. When SEC.gov 429s the CIK
 map, the REMOTE quant Cloud Function's fetch returns None and raises NoneType at
-`/workspace/main.py:89 in get_cik`; that exception propagated out of
+`get_cik` in `/workspace/main.py` (cite the FUNCTION, not a line -- the
+retained logs carry SIX distinct addresses for it across deployments, of
+which :89 is the LEAST common at 14x); that exception propagated out of
 `run_quant_agent`, aborted the whole ticker, and demoted the entire analysis to
 the lite path at `autonomous_loop.py:2201`.
 
