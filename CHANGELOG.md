@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-11 | `be5431cc` | phase-86.29: PARK after two completed Q/A cycles, with a disposition |
 | 2026-08-11 | `5b7966e8` | phase-86.21 cycle 5: my own self-check was vacuous -- the Q/A proved it |
 | 2026-08-11 | `7614a568` | phase-86.43: queue the cross-session artifact collision I caused today |
 | 2026-08-11 | `da4fdb01` | phase-86.38: record the cycle-1 rail drop and rescue its write-first record |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-11 | `6b20b8fe` | phase-86.36: record cycle-1 Q/A verdict VERBATIM -- CONDITIONAL |
 | 2026-08-11 | `6adbb722` | phase-86.36: record cycle-1 Q/A verdict VERBATIM -- CONDITIONAL |
 | 2026-08-11 | `5e97ca27` | phase-86.38: extract a seam the guard can EXECUTE -- mutation cell M1 survived |
-| 2026-08-11 | `fd419038` | phase-86.38: GENERATE -- record degradation always, page only above threshold |
 
 ---
 
+### v6.93.120 — phase-86.29: PARK after two completed Q/A cycles, with a disposition (2026-08-11)
+
+- **phase-86.29: PARK after two completed Q/A cycles, with a disposition**
 ### v6.93.119 — phase-86.21 cycle 5: my own self-check was vacuous -- the Q/A proved it (2026-08-11)
 
 - **phase-86.21 cycle 5: my own self-check was vacuous -- the Q/A proved it**
