@@ -32,6 +32,26 @@ until the process is restarted.
 
 ## Why it is not being restarted now
 
+> **THE SCHEDULER LIVES INSIDE THE PROCESS BEING RESTARTED.** I had assumed the book
+> cycle was a crontab entry. It is not -- `crontab -l` has exactly **one** line (the
+> Slack mention checker). The cycle is an **APScheduler cron job registered inside
+> the backend process**:
+>
+> ```
+> backend/api/paper_trading.py:1436  _scheduler.add_job(
+>     _scheduled_run, "cron",
+>     hour=settings.paper_trading_hour,   # live value: 14
+>     minute=0, day_of_week="mon-fri",
+>     timezone=ZoneInfo("America/New_York"),
+>     replace_existing=True)
+> ```
+>
+> **14:00 ET = 20:00 CEST**, and today is a Tuesday, so it fires. **Restarting the
+> backend tears down and re-registers that job.** That makes "no restart near the
+> cycle" a hard requirement rather than a courtesy: a restart at the wrong minute
+> does not merely interrupt the process, it can drop the firing. APScheduler's
+> misfire grace was widened in phase-44.2.X for exactly this class of problem.
+
 1. The book cron fires **20:00 CEST**; from 19:30 no restarts.
 2. The standing rule batches restarts to session end regardless.
 3. The defect is a **display misattribution on a read-only tab**. Nothing trades on

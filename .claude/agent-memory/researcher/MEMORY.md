@@ -1,5 +1,7 @@
 # Researcher Agent Memory Index
 
+- [Cycle number 86.44](project_cycle_number_86_44.md) — 482/1224 headers say "Cycle 1"; NOTHING reads the number; the runbook template `## Cycle N` IS the bug source
+
 - [Timeout-raise 86.9](project_timeout_raise_86_9.md) — a deadline-terminated run is RIGHT-CENSORED (max = budget, not work); per-ITEM raise endorsed, per-BATCH rejected; grep the API before believing "no endpoint exposes it"
 
 - [Failing-test triage 86.5](project_failing_test_triage_86_5.md) — 17 not 26 (denominator moved +400); NONE flaky; 3 groups where the TEST is wrong and the code is right
