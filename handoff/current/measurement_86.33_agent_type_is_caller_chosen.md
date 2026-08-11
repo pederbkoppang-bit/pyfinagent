@@ -68,15 +68,38 @@ conclusion the 86.31 cycle-1 Q/A reached about the named identities, generalised
 Derived by script from `handoff/logs/qa_write_guard.log`, not transcribed from the
 step text -- criterion 1 requires exactly that.
 
-## AN OPEN QUESTION I AM NOT GUESSING AT
+## THE OPEN QUESTION IS RESOLVED -- AND MY FILTER WAS WRONG, NOT THE FIELD
 
-**24 of the 68 post-P0 `qa` rows carry no `agent_id`.** The field is not uniformly
-populated even within a single agent type. I do not know why, and the difference
-matters: if `agent_id` is to be load-bearing for any future rule, an
-intermittently-absent field fails differently from a consistently-absent one.
+An earlier revision of this file recorded: *"24 of the 68 post-P0 `qa` rows carry no
+`agent_id` ... do not build a predicate on `agent_id` until this is explained."*
 
-Recorded as an open question for the gate/contract rather than resolved by
-inference. **Do not build a predicate on `agent_id` until this is explained.**
+**Explained: those 24 are not subagent writes at all.** They are MY OWN synthetic
+prover (`scripts/qa/prove_qa_write_separation_86_31.py`) driving the hook directly
+with fabricated cases. Their `file_path` values give it away:
+
+```
+WITHOUT agent_id:  /tmp/evil.md (6)
+                   .claude/agent-memory/qa/../../../etc/x (6)
+                   backend/main.py (6)
+                   .claude/agent-memory/qa/MEMORY.md (6)
+
+WITH agent_id:     .../qa/verdicts/verdict_wip_*.md   (all 44, real Q/A writes)
+```
+
+The research gate measured **63/63 real subagent writes carry `agent_id`, and 0/77
+of Main's** -- and it is right. **I filtered on `agent_type == 'qa'` without asking
+whether the row came from a real spawn or from my own harness**, so I counted test
+payloads as evidence about the runtime.
+
+**This reinforces rather than weakens the central finding:** my prover SETS
+`agent_type` to `qa` itself. A field a test script can fabricate at will is exactly a
+field that cannot carry authorization -- the prover is a live demonstration of the
+bypass.
+
+**`agent_id` is therefore uniformly populated for real subagent writes.** But per the
+gate it remains an instance IDENTIFIER, not a role ATTRIBUTE -- 17 chars, `a`+16hex,
+18 distinct values, none shared across roles, joining to nothing authoritative -- so
+it still **cannot key authorization on its own**.
 
 ## Carried forward from this morning
 
