@@ -331,10 +331,11 @@ step-id (which is a structurally distinct problem and starts fresh).
 Append to `handoff/harness_log.md` using the Cycle format.
 
 **Substitute `<N>` with the next integer** -- read it from the last `## Cycle`
-header in the file. This block is copied verbatim often enough that **59 headers in
-`harness_log.md` literally read `Cycle N`, `Cycle N+1` … `Cycle N+58`** (measured
-phase-86.44 at tree `915d2cb0`), which is why the placeholder now uses the same
-`<...>` form as `<id>` below rather than a bare `N`.
+header in the file. This block is copied verbatim often enough that **58 headers in
+`harness_log.md` literally read `Cycle N` or `Cycle N+k`** (counted at tree
+`915d2cb0`; k runs 1..58 but is **not contiguous** -- k=23 is absent -- which is why
+the endpoints imply 59 and the true count is 58). That is why the placeholder now
+uses the same `<...>` form as `<id>` below rather than a bare `N`.
 
 **Append, never rewrite.** Use `cat >>` or an `O_APPEND` open. A read-modify-write
 destroys whatever a concurrent session appended in between -- two Claude Code

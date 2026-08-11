@@ -220,7 +220,7 @@ Every step produces, in order, exactly these artifacts:
 | PLAN | `contract.md` | Step id, research-gate summary, hypothesis, immutable success criteria copied verbatim from `.claude/masterplan.json`, plan steps, references |
 | GENERATE | `experiment_results.md` | What was built/changed + file list + verbatim verification command output + artifact shape |
 | EVALUATE | `evaluator_critique.md` | **Q/A verdict** (single agent, merged qa-evaluator + harness-verifier). Must include deterministic checks_run + LLM judgment + violated_criteria + verdict (PASS / CONDITIONAL / FAIL). |
-| LOG | appended block in `handoff/harness_log.md` | `## Cycle N -- YYYY-MM-DD -- phase=X.Y result=PASS/CONDITIONAL/FAIL` header + summary |
+| LOG | appended block in `handoff/harness_log.md` | `## Cycle <N> -- YYYY-MM-DD -- phase=X.Y result=PASS/CONDITIONAL/FAIL` header + summary |
 
 These files must exist and be up-to-date BEFORE marking the step
 `status: done` in `.claude/masterplan.json`. The

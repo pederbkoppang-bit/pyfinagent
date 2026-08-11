@@ -16,7 +16,6 @@ import multiprocessing as mp
 import pathlib
 import re
 import shutil
-import subprocess
 import sys
 import tempfile
 
@@ -100,10 +99,24 @@ def check_d2_parser_lossless() -> tuple[bool, str]:
     return len(parsed) == on_disk, f"parser returned {len(parsed)} of {on_disk} headers"
 
 
+# Pinned FILE LIST, not a directory glob: the cycle-1 Q/A found D3 fixed in the
+# runbook only, while CLAUDE.md -- auto-loaded into EVERY session, so the more
+# likely copy-paste source -- still carried the literal. A guard whose population
+# is one file cannot fail on the second member of the class.
+D3_SOURCES = [RUNBOOK, ROOT / "CLAUDE.md"]
+
+
 def check_d3_runbook_placeholder() -> tuple[bool, str]:
-    t = RUNBOOK.read_text()
-    bare = re.findall(r"^## Cycle N --", t, re.M)
-    return len(bare) == 0, f"{len(bare)} bare `## Cycle N --` template lines remain"
+    hits = {}
+    for f in D3_SOURCES:
+        if not f.exists():
+            return False, f"D3 source missing: {f} -- population unverifiable"
+        n = len(re.findall(r"## Cycle N -- YYYY-MM-DD", f.read_text()))
+        if n:
+            hits[f.name] = n
+    total = sum(hits.values())
+    return total == 0, (f"{total} bare `## Cycle N` template literals across "
+                        f"{len(D3_SOURCES)} pinned sources" + (f" {hits}" if hits else ""))
 
 
 CHECKS = {
@@ -133,10 +146,18 @@ MUTANTS = {
         r'parts = re.split(r"^## (Cycle \d+)\s*--\s*(.+)$", content, flags=re.MULTILINE)',
         "d2_parser_lossless",
     ),
-    "M3_restore_the_copypaste_trap": (
+    "M3_restore_the_trap_in_the_RUNBOOK": (
         RUNBOOK,
         "## Cycle <N> -- YYYY-MM-DD -- phase=X.Y result=PASS/CONDITIONAL/FAIL",
         "## Cycle N -- YYYY-MM-DD -- phase=X.Y result=PASS/CONDITIONAL/FAIL",
+        "d3_runbook_placeholder",
+    ),
+    # One cell per member of the class. Without this, deleting the CLAUDE.md fix
+    # leaves the matrix green -- which is exactly the state the cycle-1 Q/A found.
+    "M4_restore_the_trap_in_CLAUDE_md": (
+        ROOT / "CLAUDE.md",
+        "`## Cycle <N> -- YYYY-MM-DD -- phase=X.Y result=PASS/CONDITIONAL/FAIL`",
+        "`## Cycle N -- YYYY-MM-DD -- phase=X.Y result=PASS/CONDITIONAL/FAIL`",
         "d3_runbook_placeholder",
     ),
 }

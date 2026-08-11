@@ -85,6 +85,13 @@ The 481 have one mechanical cause: `run_harness.py:953` passes the **loop index*
 | `scripts/qa/verdict_history_86_21.py:196` | `^## Cycle .*phase=<id> result=` | no |
 | `.claude/hooks/lib/harness_log_gate.py:94` | keys on `phase=` | no |
 
+> **AND THE Q/A FOUND A SECOND ONE I MISSED**, which is the right outcome of asking
+> it to re-run my grep after I had just caught the gate missing one:
+> **`finalize.py:113`** reads the number *again* as a split key --
+> `split(f"## Cycle {cycle}")[-1]`. **That is where a D4 collision acquires a
+> consequence**: with a duplicated number, the split lands on the wrong occurrence.
+> It strengthens the case for 86.55 rather than weakening it.
+
 **So renumbering history is not a no-op after all** -- it would move
 `max()`, and therefore the next number `finalize.py` assigns. That strengthens the
 case for *not* renumbering, on different grounds than my contract gave.
@@ -120,7 +127,29 @@ the harness's own audit trail.**
 **not a split point**, so its body was glued onto the **preceding** cycle. The
 Harness tab did not show a gap -- it showed those cycles' text **under the wrong
 cycle**, which is worse, because it looks complete. Widened to `Cycle [^\n]+?`;
-the parser now returns **1,224 of 1,224**.
+**the fixed code returns 1,224 of 1,224.**
+
+> ### THE FIX IS COMMITTED BUT **NOT IN FORCE**, AND I FAILED TO SAY SO
+>
+> The cycle-1 Q/A caught this and it is the finding I am least comfortable with,
+> because this project has a standing rule about exactly it and I still wrote
+> "the parser now returns 1,224" as though it were live.
+>
+> | fact | value |
+> |---|---|
+> | backend pid | **66306** |
+> | pid started | **2026-08-10 21:33:01** |
+> | fix commit `fe9a6dad` | **2026-08-11T17:13:05+02:00** (~20h LATER) |
+> | `GET /api/backtest/harness/log` **right now** | **1064 cycles** -- the PRE-FIX number |
+> | the fixed code, in memory | 1224 |
+>
+> **So the Harness tab is still mis-attributing 160 headers as I write this.** The
+> running process imported the old module at 21:33 yesterday and has never re-read
+> it. Per the standing rule, restarts batch to session end and never near the 20:00
+> cycle -- so the remedy is **a pending-restart entry, not a restart**:
+> `handoff/current/pending_restart_2026-08-11.md`.
+>
+> Measure the running process, never the file. I had that written down.
 
 ### D3 -- the runbook was a copy-paste trap. FIXED.
 
@@ -150,8 +179,27 @@ seed max                 : 100
 ```
 
 **10 collisions of 16.** Data all survived (that producer already appends
-correctly); the **number** is what races. This is the mechanism behind the 141
-duplicate integers.
+correctly); the **number** is what races.
+
+> **CORRECTED: I called this "the mechanism behind the 141 duplicate integers".
+> It is ONE mechanism, and not the dominant one.** Derived after the Q/A challenged
+> it:
+>
+> | | |
+> |---|---|
+> | headers sitting in a duplicate group | **969** |
+> | of which the token is literally `1` | **481 (49.6%)** |
+> | remaining | **488 across 140 integers** |
+> | times `finalize.py` has written this file | **3** |
+>
+> **Half the duplicates come from `run_harness.py`'s loop index** -- every
+> `--cycles 1` invocation writes `Cycle 1` -- which my own §1 already attributed
+> correctly. A producer that has run **3 times** cannot account for 969 headers.
+> At least three mechanisms are in play: the loop index, this TOCTOU, and two
+> sessions hand-numbering.
+>
+> **This is the same error as §7's range in step 86.9 earlier today**: a real
+> finding stated over a population I had not derived.
 
 > **The first run of this probe reported 0 collisions**, because process-startup
 > jitter serialised the workers and the TOCTOU window never overlapped. **I did not
@@ -191,7 +239,7 @@ production-sized 1,064-cycle seed. Under the reverted mutant the same test lost
 -- and I will not stage a vacuous proof of one. Instead §5 **demonstrates the
 existing numbering is NOT unique** (10/16 collisions) and files it.
 
-## 8. Criterion 6 -- mutation matrix, 3 cells, ALL KILLED
+## 8. Criterion 6 -- mutation matrix, **4** cells, ALL KILLED
 
 ```
 ==========================================================================
@@ -199,16 +247,19 @@ CONTROL -- every check must be GREEN before any cell is scored
 ==========================================================================
   GREEN  d1_concurrent_append       72/72 new entries survived 12 concurrent writers against a 1064-cycle seed
   GREEN  d2_parser_lossless         parser returned 1224 of 1224 headers
-  GREEN  d3_runbook_placeholder     0 bare `## Cycle N --` template lines remain
+  GREEN  d3_runbook_placeholder     0 bare `## Cycle N` template literals across 2 pinned sources
 
   KILLED       M1_revert_d1_to_read_modify_write
-               -> d1_concurrent_append: -1033/72 new entries survived 12 concurrent writers against a 1064-cycle seed
+               -> d1_concurrent_append: 45/72 new entries survived 12 concurrent writers against a 1064-cycle seed
                restore byte-identical: True
   KILLED       M2_revert_d2_to_digits_only
                -> d2_parser_lossless: parser returned 1064 of 1224 headers
                restore byte-identical: True
-  KILLED       M3_restore_the_copypaste_trap
-               -> d3_runbook_placeholder: 1 bare `## Cycle N --` template lines remain
+  KILLED       M3_restore_the_trap_in_the_RUNBOOK
+               -> d3_runbook_placeholder: 1 bare `## Cycle N` template literals across 2 pinned sources {'per-step-protocol.md': 1}
+               restore byte-identical: True
+  KILLED       M4_restore_the_trap_in_CLAUDE_md
+               -> d3_runbook_placeholder: 1 bare `## Cycle N` template literals across 2 pinned sources {'CLAUDE.md': 1}
                restore byte-identical: True
 
 POST-RESTORE control: {'d1_concurrent_append': True, 'd2_parser_lossless': True, 'd3_runbook_placeholder': True}
@@ -219,15 +270,21 @@ ALL CELLS KILLED: True
 Control observed **GREEN before any cell was scored**; every restore
 **byte-identical**; post-restore control green.
 
-> **The matrix's own instrument was wrong twice before it was right, and both are
-> recorded because both would have flattered the result.** (a) The D1 check first
-> drove the real producer including `_reconciliation_log_line()`, which opens a
-> **BigQuery client per call** -- 72 live calls, >120s, and a test touching live
-> services. Stubbed that one unrelated dependency; the file write under test is not
-> stubbed. (b) The check seeded a **14-byte** file, and a read-modify-write race is
-> only lost when the read+write is slow enough to interleave -- i.e. a function of
-> file size. A tiny seed would have let M1 **SURVIVE** and reported the old code as
-> safe. It now seeds the real log's bulk.
+> **M4 EXISTS BECAUSE THE CYCLE-1 Q/A FOUND MY GUARD COULD NOT FAIL.** D3 was fixed
+> in the runbook only, while **`CLAUDE.md` -- auto-loaded into every session, so the
+> *more* likely copy-paste source -- still carried the literal**, and
+> `check_d3_runbook_placeholder()` scanned one file. A guard whose population is one
+> member of a two-member class is vacuous on the other. The check now scans a
+> **pinned file list** (not a directory glob), and **M3 and M4 each name the file
+> they broke**, so the two cells cannot be satisfied by the same fix.
+
+> **THE M1 MAGNITUDE IS TIMING-DEPENDENT AND I QUOTED IT AS IF IT WERE STABLE.** My
+> commit message said the mutant "loses 1,033 of the 1,064 seeded cycles". That was
+> **one observation**. A second run of the same cell lost a different amount
+> (**45/72 new entries survived**, seed intact). Both are losses and the cell is
+> KILLED either way, but **the honest claim is "the read-modify-write loses entries,
+> in an amount that varies with interleaving", not a specific figure.** A race's
+> damage is not a constant.
 
 ## 9. Files changed
 
@@ -244,5 +301,13 @@ Control observed **GREEN before any cell was scored**; every restore
 - **Not** that cycle numbers are now unique. They are not; D4 is unfixed and filed.
 - **Not** that history was corrected. It was deliberately left as written.
 - **Not** that 481 vs 482 is settled -- two rules disagree and mine is stated.
+- **Not** that criterion 3's "111" is stale. **I called it stale and that was a
+  mis-attribution.** It is a **rule difference**, not a drift: counting the token up
+  to `--` gives **160**; counting the first whitespace-delimited field gives **123**
+  by my rule and **112** by the Q/A's. The 48-ish delta is the classes that *begin*
+  with a digit -- 36 parenthetical (`30 (continued)`), 10 step-ids (`4.15.3`), 2
+  other. Three rules, three numbers, all defensible; the criterion's figure sits in
+  that family. **The criterion was never amended and none of these numbers is wrong
+  -- they answer different questions.**
 - **Not** that the D4 probe proves the race fires in production timing; it proves
   the window exists and is losable when startup jitter is removed.
