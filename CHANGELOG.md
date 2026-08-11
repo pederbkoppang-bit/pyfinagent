@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-11 | `4600f98f` | phase-86.38 cycle 2: derive PER-CYCLE, which is what criterion 2 asked for |
 | 2026-08-11 | `31e6c0db` | phase-86.38: CORRECT a protocol breach -- my contract's criteria were not the criteria |
 | 2026-08-11 | `b9b76eab` | phase-86.38 cycle 2: fix a SELF-REFERENTIAL assertion and a false claim I propagated |
 | 2026-08-11 | `52c3c209` | docs(goal): the 8.1M/8.7M token figures are NOT re-derivable -- mark the provenance |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-11 | `7e299924` | phase-86.38 cycle 2: guard the OTHER end of the wire -- MX/MY survived everything |
 | 2026-08-11 | `be5431cc` | phase-86.29: PARK after two completed Q/A cycles, with a disposition |
 | 2026-08-11 | `5b7966e8` | phase-86.21 cycle 5: my own self-check was vacuous -- the Q/A proved it |
-| 2026-08-11 | `7614a568` | phase-86.43: queue the cross-session artifact collision I caused today |
 
 ---
 
+### v6.93.137 — phase-86.38 cycle 2: derive PER-CYCLE, which is what criterion 2 aske... (2026-08-11)
+
+- **phase-86.38 cycle 2: derive PER-CYCLE, which is what criterion 2 asked for**
 ### v6.93.136 — phase-86.38: CORRECT a protocol breach -- my contract's criteria were... (2026-08-11)
 
 - **phase-86.38: CORRECT a protocol breach -- my contract's criteria were not the criteria**
