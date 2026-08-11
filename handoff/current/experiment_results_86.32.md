@@ -59,9 +59,17 @@ states attempts/tokens/verdicts-seen, and offers the three real choices (raise,
 park, split).
 
 `test_exhaustion_cannot_auto_pass` is **exhaustive, not illustrative**: every
-sequence of non-PASS outcomes up to budget length + 1 (>300 sequences, asserted by
-a vacuity guard) must not yield `CLOSED_PASS`. Mutation cell **M3** flips
-`ESCALATE` to `CLOSED_PASS` and that test goes red.
+sequence of non-PASS outcomes of length 1..6 must not yield `CLOSED_PASS`. That is
+**1,092 sequences** (`sum(3^k) for k in 1..6`), **0 of which produce a pass** --
+captured in `live_check_86.32.md` §3. Mutation cell **M3** flips `ESCALATE` to
+`CLOSED_PASS` and the test goes red.
+
+> **CORRECTION.** The commit message on `4358683c` says "363 sequences". **That is
+> wrong; the measured count is 1,092.** I computed `sum(3^k)` over lengths 1..5
+> when the loop runs 1..`DEFAULT_MAX_ATTEMPTS + 1` = 1..6, and I wrote the number
+> into the message without running it. The artifact and the test's own vacuity
+> guard were never affected -- only the prose. Recorded here rather than
+> force-pushed over, since commit history is evidence.
 
 ### Criterion 4 -- PRODUCT vs EVIDENCE, with nothing lowered
 
