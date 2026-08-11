@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-11 | `5e97ca27` | phase-86.38: extract a seam the guard can EXECUTE -- mutation cell M1 survived |
 | 2026-08-11 | `fd419038` | phase-86.38: GENERATE -- record degradation always, page only above threshold |
 | 2026-08-11 | `cef76c3b` | phase-86.38: PLAN -- contract written, and the gate REFUTED two of the step's premises |
 | 2026-08-11 | `5595055c` | phase-86.36: GENERATE -- run-stamped WIP records so a retry stops erasing the last one |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-11 | `1a9e75af` | docs(goal): fix a wrong escalation claim -- 86.34 is NOT at 3rd-CONDITIONAL risk |
 | 2026-08-11 | `3ed23ae7` | docs: today's goal (2026-08-11) -- three steps are one Q/A from closing |
 | 2026-08-10 | `a271ad1e` | phase-86.21: record the measured counter-blindness in the step text |
-| 2026-08-10 | `54f9eb0f` | docs: day report -- late-session append (86.31 proof, 86.29 started, rail drop) |
 
 ---
 
+### v6.93.102 — phase-86.38: extract a seam the guard can EXECUTE -- mutation cell M1... (2026-08-11)
+
+- **phase-86.38: extract a seam the guard can EXECUTE -- mutation cell M1 survived**
 ### v6.93.101 — phase-86.38: GENERATE -- record degradation always, page only above t... (2026-08-11)
 
 - **phase-86.38: GENERATE -- record degradation always, page only above threshold**
