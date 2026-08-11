@@ -34,8 +34,8 @@ degradation was invisible to the operator.**
 |---|---|
 | `backend/services/autonomous_loop.py` | new seam `_degradation_summary_fields`; record-always at the call site; `_intended_path` REMOVED; `_degradation` passed to the cycle record |
 | `backend/services/cycle_health.py` | `record_cycle_end(degradation=...)` + a `degradation` key on the persisted row |
-| `backend/tests/test_phase_86_38_degradation_visibility.py` | **new** -- 7 tests |
-| `scripts/qa/mutation_matrix_86_38.py` | **new** -- 7 cells, all killed |
+| `backend/tests/test_phase_86_38_degradation_visibility.py` | **new** -- 9 tests (7 at cycle 1, +2 at cycle 2 for the second seam) |
+| `scripts/qa/mutation_matrix_86_38.py` | **new** -- 9 cells, all killed (7 at cycle 1, +MX/MY at cycle 2) |
 | `scripts/qa/derive_lite_fallback_census_86_38.py` | **new** (pre-contract) -- the 10-day census, with a coverage assertion |
 | `handoff/current/{contract,live_check,experiment_results}_86.38.md` | artifacts |
 
@@ -53,9 +53,9 @@ produced unconditionally by `_degradation_summary_fields` and persisted under a
 new `degradation` key on the cycle record.
 
 **DECISION 1 -- the alarm is NOT re-tuned.** `_fallback_rate_check` is untouched
-and paging behaviour is byte-identical. Its strict `>` means the measured
-incident (`3/6 = 0.500`) did not page, and changing that to `>=` would have
-paged. **I did not make that change**: it is an alarm-sensitivity decision, it is
+and paging behaviour is byte-identical. Its strict `>` means the 2026-08-10 cycle
+did not page; the TICKER ratio was 3/6, though the alarm's own denominator was
+not measured (section 7 F2), so it is not claimed that `>=` would have paged. **I did not make that change**: it is an alarm-sensitivity decision, it is
 already pinned by `test_phase_60_1_deep_pipeline.py`, and the research found no
 external best practice favouring either (Google's SRE Workbook uses both).
 **Mutation cell M6 proves the pin is real** by loosening it and watching the
@@ -103,7 +103,8 @@ text.
 attacks it from both ends: **M1** mutates the seam's behaviour, **M1b** unwires
 it from the call site. Killing only one would have left the other untested.
 
-Final: **7 cells, 7 killed**, both target files' sha256 verified unchanged after
+Cycle-1 final was 7 cells / 7 killed; **cycle 2 is 9 cells, 9 killed** after the
+second seam was guarded (section 7). Both target files' sha256 verified unchanged after
 every cell and at exit. The matrix refuses to run at all if the target files are
 dirty, because then "restored" could not be distinguished from "clobbered someone
 else's edit".
