@@ -34127,3 +34127,55 @@ from INFERRED.
 
 **Nothing was changed by this step.** Every finding is a measurement; #24/#25 are
 asks. Cycle 2 spawns on the corrected artifacts.
+
+## Cycle 1222 -- 2026-08-11 -- phase=86.9 result=CONDITIONAL (cycle 2; remediated, cycle 3 pending)
+
+**Second CONDITIONAL for this step-id. The 3rd-CONDITIONAL rule is armed for cycle 3**
+per `docs/runbooks/per-step-protocol.md` §4: a third consecutive CONDITIONAL without an
+intervening PASS or FAIL forces the following pass to FAIL. Cumulative attempt budget
+(86.32): this is **attempt 3 of 5**.
+
+**All six criteria MET again, and 1/3/4/6 independently reproduced by the Q/A.** The
+blocker was a harness-compliance breach cycle 1 missed.
+
+**THE BLOCKER: my contract deleted the clause that found this step's best finding.**
+`contract_86.9.md` §4 was headed *"VERBATIM"* while **5 of 6 criteria differed from
+`.claude/masterplan.json`**, two materially. Criterion 1's masterplan text requires
+*"record the pid and its start time, since the setting is read at cycle start"*; my
+copy substituted *", not from .env or a new import"*. **Working from my own copy I
+would never have measured the start time**, never found that a predecessor ran the
+qualifying cycle, and never traced it to pid 43839. Criterion 4 substituted a
+**latency** question for the masterplan's **detection** question, and §4 answered only
+the substituted one. Cycle 1's check verified the masterplan **source** was unamended
+-- a different proposition from verifying my **copy** matches it. §4 is now
+**generated** from the masterplan, not typed.
+
+**THE FINDING I ASKED TO BE GRADED HARDEST CAME BACK INVERTED -- I UNDER-CLAIMED.**
+I wrote that the in-force budget was *"unrecoverable post-hoc"* and that
+`_cycle_timeout` is *"never logged"*. **Both false, and I re-derived both as false.**
+The archive's last startup is `Started server process [43839]` at 2026-08-09 22:11:55
+with **no startup between it and the cycle**, and it began **6h21m after** the `.env`
+write -- so it constructed `Settings` from the new value. **Criterion 2 is MEASURED,
+not inferred.** The budget *is* logged, on the timeout path (`:1896`), which emitted
+three `TIMED OUT after 7200s` records -- evidence that independently corroborates both
+pre-raise overruns ran under 7200s, and which I had in the archive and never used.
+
+**§8's census was a curated table wearing a derivation's label -- the same defect one
+level up, dressed as its own fix.** Run literally, my published command returns **zero**
+rows (no `-E`, so `|` is a literal). Against the real output it dropped 8 rows and
+contained 2 the command cannot produce. Now the captured stdout, proven equal to a live
+run **with a positive control**, and **pinned to `/usr/bin/grep -I`** because this
+shell's `grep` is a function wrapping `ugrep` and the two disagree (18 vs 26 rows). **A
+command published without naming its binary is not a reproducible derivation.**
+
+**Criterion 4's detection half, now answered**: the raise widens an unnoticed hang by
+3,600s against a **26h** heartbeat clock (**3.8%**) and does not move the **96h**
+completed-age clock at all -- and that second clock exists precisely because a cycle
+that times out daily keeps resetting the first (`cycle_health.py` says so in source).
+
+Also corrected: *"the sole inner cap is 150s"* (five caps exist, none per-ticker),
+86.54's rationale, and the operator-facing ask file, which had inherited both the
+"never logged" claim and a typed *"four different values"* where the census shows
+**three defaults plus a validation range**.
+
+**Nothing was changed in production by this step.** Every finding is a measurement.
