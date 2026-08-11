@@ -393,7 +393,48 @@ so no flip is pending regardless. **Outcome recorded below whatever it is**, inc
 a timeout or zero trades -- the 90-day BUY rate is 21.1%, so zero trades is variance,
 not a defect.
 
-> **CYCLE RESULT: _to be appended after completion._**
+> ### CYCLE RESULT -- IT RAN, IT COMPLETED, AND IT PLACED ZERO TRADES
+>
+> ```
+> start   2026-08-11 20:00:02      end 2026-08-11 21:21:29
+> wall    4,887s                   budget in force 10,800s -> 5,913s HEADROOM (55% unused)
+> NAV     $23,881.12               P&L +19.41%      trades=0     cost $0.51
+> pid     66306  (the SAME process whose 10800.0 I read directly from /api/settings/)
+> ```
+>
+> **This closes the inference gap I disclosed in 86.9.** Yesterday's qualifying cycle
+> ran under pid 43839, which had exited, so its budget had to be inferred. **Tonight's
+> ran under a live pid whose value I read directly** -- so criterion 2 now has a
+> MEASURED sample, not an inferred one. It also finished **2,313s inside the OLD
+> 7,200s budget**, so the raise remains unexercised on a second consecutive cycle.
+>
+> **THE STANDING QUESTION -- "does a healthy cycle place trades?" -- ANSWERED: not
+> tonight, and the reason is visible.** I first read this as the funnel starving at
+> screening; **that was wrong and I corrected it against the log**. The funnel was
+> healthy:
+>
+> ```
+> 583 tickers (US/EU/KR)  ->  577 passed basic filters  ->  10 meta-scored
+>   ->  6 analyzed (5 new + 1 re-eval)  ->  1 signal logged  ->  0 buys, 0 sells
+> ```
+>
+> **Candidates died at the RISK GATE, not for want of candidates:**
+> `Risk debate complete: decision=REJECT, risk_level=HIGH, position=0%` (x2), and
+> `Lite risk judge for NTAP: decision=REJECT position_pct=1.0 risk_level=EXTREME`.
+> With a 90-day BUY rate of 21.1%, zero trades on one cycle is variance -- but this is
+> **two consecutive completed cycles at zero**, and tonight's zero is a risk-gate
+> decision rather than an empty funnel.
+>
+> **AND THE 86.20 GUARD FIRED IN PRODUCTION TONIGHT:**
+> `phase-86.20: UNRECOGNISED recommendation 'new_buy_signal' (held position row
+> ticker=NTAP) -- treated as neither buy nor sell`. That step was closed today to stop
+> the trade gate **silently** dropping vocabulary it did not recognise. It is now
+> **loud**, and the first thing it caught is a token nobody had enumerated. Filed as
+> **86.58**. The fix working as designed is the good news; the token existing is the
+> new finding.
+>
+> Also logged at cycle start: `Promoted strategy BQ unavailable, falling back to
+> optimizer_best: 404` -- a degradation I am recording but did not investigate.
 
 ## The goal file's sequenced backlog -- DERIVED disposition, not a reflex
 
