@@ -29,9 +29,10 @@ mixture: 82.54's contract, 82.6's results and critique, 80.2's brief.
 | file | change |
 |---|---|
 | `.claude/hooks/archive-handoff.sh` | the fix: derived names, guarded rolling fallback, loud empty-archive failure, `PROVENANCE.md` |
-| `scripts/qa/derive_archive_misattribution_86_29.py` | **modified** -- added synthetic controls and a precision measurement with its own controls |
-| `scripts/qa/prove_archive_provenance_86_29.py` | **new** -- scratch-tree before/after driver + 4-cell mutation matrix |
-| `handoff/current/live_check_86.29.md` | **new** -- verbatim evidence |
+| `scripts/qa/derive_archive_misattribution_86_29.py` | **modified** -- synthetic controls, a precision measurement with its own controls, and (cycle 2) en/em-dash separators plus the corrected mention-vs-declare reporting |
+| `scripts/qa/prove_archive_provenance_86_29.py` | **new** -- scratch-tree before/after driver; **5 behavioural checks and a 6-cell mutation matrix** as of cycle 2 |
+| `handoff/current/live_check_86.29.md` | **new**; **REGENERATED IN FULL at cycle 2** rather than edited in place |
+| `handoff/current/evaluator_critique_86.29.md` | **new** at cycle 2 -- records the cycle-1 rail drop and the rescued write-first record |
 | `handoff/current/experiment_results_86.29.md` | this file |
 
 Nothing else. The scope was derived from `git status --porcelain` over those
@@ -98,14 +99,18 @@ fail-open `trap 'exit 0' EXIT` discipline is preserved unchanged.
 
 ## 3. Criterion by criterion
 
+**Numbers below are CYCLE-2 values at tree `eceb3a3b`.** The cycle-1 values they
+supersede are kept only in section 7's movement table, so this table cannot be
+read against a stale figure. Section references are to the REGENERATED live_check.
+
 | # | criterion | evidence | status |
 |---|---|---|---|
-| 1 | population re-derived, recall validated against the two known positives before use; the 610 unparsed re-classified or explicitly still-unclassified | live_check D. Recall 2/2, controls 4/4, precision 1.0000 with its own SUSPECT/CONFIRMED controls. **153 mismatch / 386 agree / 255 unclassified / 24 no-contract over 818 dirs** at tree `f2eff942`. Of the former 610: 206 are harness per-cycle contracts (declare no step by design), **49 remain genuinely opaque and are reported as unclassified, not clean** | MET |
-| 2 | mechanism demonstrated, not asserted: globs match ZERO files, rolling branch is the only one that fires | live_check B. Zero for five independent sids, **with a positive control returning 1** so the zeros are not a broken counter | MET |
-| 3 | after the fix, archiving a step yields a dir whose contract.md declares THAT step -- driven against a synthetic step in a scratch tree, never against handoff/archive, before and after | live_check C. BEFORE = pre-fix hook recovered by `git show` and executed -> declares `82.54`. AFTER -> declares `99.1`. Isolation asserted: real hook digest and 818-dir archive list unchanged | MET |
-| 4 | the fix does not rely on hook/convention agreement: hook DERIVES the names, **or** fails loudly on nothing-to-archive. A silent copy-nothing or copy-another-step's-files must be a visible failure | **Both branches implemented, not one.** Derivation (section 2) and the loud-failure path, covered by check `loud_on_empty` and mutation cell M4 | MET |
-| 5 | state explicitly whether the 89 wrong dirs are backfilled; if backfilled, show the mapping came from git history not guesswork | live_check E. **NOT backfilled, stated plainly**, with reasons. Note the number is 153 at this tree, not 89 -- it is a moving target and the tree is named | MET |
-| 6 | mutation-test: revert the fix and show the archiving test goes red | live_check C section D. 4 cells, **4 KILLED**. Each asserts its anchor exists before applying and refuses to score a no-op replace | MET |
+| 1 | population re-derived, recall validated against the two known positives before use; the 610 unparsed re-classified or explicitly still-unclassified | live_check 4. Recall 2/2, controls 4/4, precision **0.9936 with one live suspect** (`phase-69`) plus its own SUSPECT/CONFIRMED oracle controls. **156 mismatch / 419 agree / 222 unclassified / 24 no-contract over 821 dirs**. Of the former 610: 206 are harness per-cycle contracts (declare no step by design), **16 remain genuinely opaque and are reported as unclassified, not clean**. The figure is a **FLOOR**, and the en/em-dash gap that made cycle-1's 153 a floor is documented in 4a | MET |
+| 2 | mechanism demonstrated, not asserted: globs match ZERO files, rolling branch is the only one that fires | live_check 2. Zero for eight independent sids, **with a positive control returning 1** so the zeros are not a broken counter; run under `bash` (the hook's own shell) because `zsh` aborts the loop on `nomatch` | MET |
+| 3 | after the fix, archiving a step yields a dir whose contract.md declares THAT step -- driven against a synthetic step in a scratch tree, never against handoff/archive, before and after | live_check 3. BEFORE = pre-fix hook recovered by `git show` and EXECUTED -> declares `82.54`. AFTER -> declares `99.1`. Isolation asserted by the script itself: real hook digest and 821-dir archive list unchanged | MET |
+| 4 | the fix does not rely on hook/convention agreement: hook DERIVES the names, **or** fails loudly on nothing-to-archive. A silent copy-nothing or copy-another-step's-files must be a visible failure | **Both branches implemented, not one.** Derivation (section 2); the loud-failure path via check `loud_on_empty` + cell M4; **and the "copies another step's files" half via `no_alien_files` + cell M5**, which the cycle-1 fixture could not express at all (section 7 F1) | MET |
+| 5 | state explicitly whether the 89 wrong dirs are backfilled; if backfilled, show the mapping came from git history not guesswork | live_check 5. **NOT backfilled, stated plainly**, with reasons. The number is **156 at this tree**, not 89 and not cycle-1's 153 -- it moves with every closure and with the grammar, so it is always quoted with both | MET |
+| 6 | mutation-test: revert the fix and show the archiving test goes red | live_check 3. **6 cells, 6 KILLED** (M5/M6 added at cycle 2). Each asserts its anchor exists before applying and refuses to score a no-op replace | MET |
 
 ---
 
@@ -184,7 +189,7 @@ directories during this step. The census in live_check D is pinned to tree
 ```
 bash -c 'test -f .claude/hooks/archive-handoff.sh && bash -n .claude/hooks/archive-handoff.sh'   # EXIT=0
 python scripts/qa/prove_archive_provenance_86_29.py                                              # RESULT: PASS (0 problems)
-python scripts/qa/derive_archive_misattribution_86_29.py                                         # recall 2/2, controls 4/4, precision 1.0000
+python scripts/qa/derive_archive_misattribution_86_29.py                                         # recall 2/2, controls 4/4, precision 0.9936 (1 suspect)
 ```
 
 The immutable command is a **syntax check only**. It proves criterion 2 and
@@ -199,21 +204,32 @@ Criterion 1's number is not a constant. It grows by one every time a step closes
 under the old hook and stays flat when one closes under the new hook. Both
 measurements are recorded rather than the flattering one:
 
-| when | dirs | mismatch | agree | unclassified | no_contract |
-|---|---|---|---|---|---|
-| before the peer's 86.31 flip (tree `f2eff942`) | 818 | 153 | 386 | 255 | 24 |
-| after it (same tree, archive grew) | 819 | **153** | **387** | 255 | 24 |
+| when | grammar | dirs | mismatch | agree | unclassified | no_contract |
+|---|---|---|---|---|---|---|
+| before the peer's 86.31 flip (tree `f2eff942`) | ASCII `--` only | 818 | 153 | 386 | 255 | 24 |
+| after it (same tree, archive grew) | ASCII `--` only | 819 | **153** | **387** | 255 | 24 |
+| cycle 2, after 86.25 + 86.34 closed and the grammar was fixed (tree `eceb3a3b`) | `--` or en/em-dash | 821 | **156** | **419** | 222 | 24 |
 
-The delta is exactly one directory, and it landed in `agree`:
+**Two different things moved and they must not be conflated.** Rows 1->2 are the
+archive GROWING by a real closure. Rows 2->3 mix a further two closures with a
+GRAMMAR FIX that reclassified 33 dirs -- so the jump from 153 to 156 is not three
+new bad dirs, it is the census finally seeing members it had been blind to
+(section 7 F3). Reading that delta as "three more got broken" would be wrong.
+
+The per-closure delta is exactly one directory, and under the new hook it lands
+in `agree` every time:
 
 ```
 phase-86.31 -> ('agree', '86.31')
+phase-86.25 -> ('agree', '86.25')
+phase-86.34 -> ('agree', '86.34')
 ```
 
 **That is the whole step in one line.** Under the old hook, closing a step added
-one to `mismatch`. Under the new hook, closing a step adds one to `agree`. The
-153 historical mismatches are unchanged because they are not backfilled
-(criterion 5), and the population has stopped growing in the wrong direction.
+one to `mismatch`. Under the new hook, closing a step adds one to `agree` --
+three consecutive times now, on the live system. The historical mismatches are
+unchanged because they are not backfilled (criterion 5), and the population has
+stopped growing in the wrong direction.
 
 Any future reader re-running the census will get a different total. That is
 correct and expected; the tree must be named next to the number, which is why
