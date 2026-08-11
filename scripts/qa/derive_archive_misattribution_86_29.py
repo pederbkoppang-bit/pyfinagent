@@ -97,6 +97,103 @@ def classify(d: pathlib.Path):
     return ("agree" if got == dir_sid else "mismatch"), got
 
 
+#: phase-86.29 -- SYNTHETIC CONTROLS. Recall alone is not enough: a classifier
+#: that answered "mismatch" for everything would score 2/2 on the known
+#: positives and be worthless. These fixtures force the method to produce BOTH
+#: answers, and the third exercises the exact shape that made the 86.19 census
+#: report 211 when it was not: an ALPHANUMERIC segment (`25.A`) that an earlier
+#: `[0-9]+` pattern truncated to `25`, turning 46 correct dirs into mismatches.
+_CONTROLS = [
+    ("positive", "99.7", "# Contract -- phase-82.54\n", "mismatch"),
+    ("negative", "99.8", "# Contract -- step `99.8`\n", "agree"),
+    ("alnum_sid", "25.A", "# Contract -- phase-25.A\n", "agree"),
+    ("alnum_sid_wrong", "25.A", "# Contract -- phase-25\n", "mismatch"),
+]
+
+
+def run_controls() -> bool:
+    """Prove the classifier can return BOTH answers, on fixtures in a temp dir."""
+    import shutil
+    import tempfile
+
+    ok = True
+    tmp = pathlib.Path(tempfile.mkdtemp(prefix="census86_29_controls_"))
+    try:
+        for label, dir_sid, body, expected in _CONTROLS:
+            d = tmp / f"phase-{dir_sid}"
+            d.mkdir(parents=True, exist_ok=True)
+            (d / "contract.md").write_text(body)
+            got, declared = classify(d)
+            good = got == expected
+            ok &= good
+            print(f"  {label:16s} dir=phase-{dir_sid:8s} -> {got:12s} "
+                  f"(declares {declared!r}, expected {expected})"
+                  f"   {'ok' if good else 'CONTROL FAILED'}")
+            shutil.rmtree(d, ignore_errors=True)
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+    return ok
+
+
+def confirm_mismatch(d: pathlib.Path, dir_sid: str) -> bool:
+    """INDEPENDENT second opinion on a mismatch, to measure precision.
+
+    The census picks the FIRST declaration pattern that hits. If a contract
+    happens to declare its own step somewhere the ordered patterns did not look
+    first, the census would call it a mismatch wrongly -- which is exactly the
+    86.19 failure (recall validated, precision not). So: scan the whole head for
+    EVERY declaration the grammar can find, and confirm the mismatch only when
+    the directory's own sid appears among NONE of them.
+    """
+    contract = d / "contract.md"
+    if not contract.exists():
+        alt = sorted(d.glob("contract_*.md"))
+        if not alt:
+            return False
+        contract = alt[0]
+    try:
+        head = contract.read_text(encoding="utf-8", errors="replace")[:4000]
+    except Exception:                                              # noqa: BLE001
+        return False
+    found = set()
+    for rx in _DECLARE:
+        found.update(rx.findall(head))
+    return dir_sid not in found
+
+
+def run_precision_controls() -> bool:
+    """Prove `confirm_mismatch` can return BOTH answers before its 1.0 is believed.
+
+    A precision oracle that always confirms would report precision 1.0000 on any
+    census whatsoever, which is indistinguishable from a real perfect score. So
+    it is driven against a fixture engineered to be SUSPECT (declares another
+    step first, its own step later in the head) and one engineered to be
+    CONFIRMED. If the suspect fixture confirms, the oracle is vacuous and the
+    precision figure is withheld.
+    """
+    import shutil
+    import tempfile
+
+    tmp = pathlib.Path(tempfile.mkdtemp(prefix="census86_29_precision_"))
+    try:
+        d = tmp / "phase-77.7"
+        d.mkdir()
+        (d / "contract.md").write_text(
+            "# Contract -- phase-82.54\n\nprose\n\n**Step**: `77.7`\n")
+        suspect_ok = confirm_mismatch(d, "77.7") is False
+
+        d2 = tmp / "phase-77.8"
+        d2.mkdir()
+        (d2 / "contract.md").write_text("# Contract -- phase-82.54\n\nno self-reference\n")
+        confirmed_ok = confirm_mismatch(d2, "77.8") is True
+
+        print(f"  can report SUSPECT   (self-declaring dir) : {suspect_ok}")
+        print(f"  can report CONFIRMED (clean mismatch)     : {confirmed_ok}")
+        return suspect_ok and confirmed_ok
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--list-wrong", action="store_true")
@@ -127,6 +224,18 @@ def main() -> int:
         print("and no census is reported from it.")
         return 1
     print("  recall 2/2 -- proceeding\n")
+
+    # ---- 1b. SYNTHETIC CONTROLS (phase-86.29) ----------------------------
+    # Recall 2/2 is satisfied by a classifier that says "mismatch" always.
+    # These force both answers out of it before the census is believed.
+    print("=" * 74)
+    print("CONTROLS -- the method must be able to answer BOTH ways")
+    print("=" * 74)
+    if not run_controls():
+        print("\nA CONTROL FAILED. The census is not reported from a classifier")
+        print("that cannot produce the right answer on a fixture with a known truth.")
+        return 1
+    print("  controls 4/4 -- proceeding\n")
 
     # ---- 2. census -------------------------------------------------------
     buckets = collections.Counter()
@@ -167,6 +276,34 @@ def main() -> int:
             print(f"      {v:4d}  {k}")
         print("  Only the 'genuinely opaque' row is an open question; the harness")
         print("  per-cycle contracts are not per-step artifacts at all.")
+    print()
+
+    # ---- 2b. PRECISION (phase-86.29) -------------------------------------
+    # The research gate's critique of this script was "precision is unmeasured
+    # and its 2 known positives are one instance". Answered here rather than
+    # smoothed over: every mismatch gets an independent second opinion.
+    confirmed, suspect = [], []
+    for name, got in wrong:
+        dir_sid = name[len("phase-"):]
+        (confirmed if confirm_mismatch(ARCHIVE / name, dir_sid) else suspect).append((name, got))
+    print("=" * 74)
+    print("PRECISION -- every mismatch re-checked by an independent second pass")
+    print("=" * 74)
+    if not run_precision_controls():
+        print("\n  PRECISION ORACLE IS VACUOUS -- it cannot produce both answers.")
+        print("  The precision figure is WITHHELD rather than reported as 1.0.")
+        return 1
+    total_wrong = len(wrong)
+    print(f"  mismatches reported          {total_wrong:4d}")
+    print(f"  CONFIRMED (dir sid appears in no declaration in the head)  {len(confirmed):4d}")
+    print(f"  SUSPECT   (dir sid DOES appear -- possible parser error)   {len(suspect):4d}")
+    if total_wrong:
+        print(f"  precision                    {len(confirmed) / total_wrong:.4f}")
+    for name, got in suspect[:10]:
+        print(f"      SUSPECT {name:22s} census said it declares {got!r}")
+    if not suspect:
+        print("  no suspects: no mismatched dir mentions its own step id anywhere")
+        print("  in its contract head, so none of them is the 86.19 truncation shape.")
     print()
 
     by_declared = collections.Counter(g for _n, g in wrong)
