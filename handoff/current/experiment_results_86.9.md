@@ -29,10 +29,10 @@ Separately, `get_settings()` is `lru_cache`d but `autonomous_loop.py:2136-2138`
 clears it **per ticker**, so `.env` is live for this key **without a restart** --
 unusual in this codebase and not to be generalised.
 
-## 2. Criterion 2 -- a cycle COMPLETED. It does NOT prove the new budget was in force.
+## 2. Criterion 2 -- MET, and the evidence is STRONGER than I claimed
 
-The raise landed **2026-08-09T13:50Z**. The cycle below started **2026-08-10
-20:00:02**, more than a day later, and **completed**:
+The raise landed **2026-08-09T13:50Z (15:50 CEST)**. The cycle below started
+**2026-08-10 20:00:02** and **completed**:
 
 ```
 CYCLE  started=2026-08-10 20:00:02.593000  terminal=completed  wall=4532.113s
@@ -41,47 +41,49 @@ CYCLE  started=2026-08-10 20:00:02.593000  terminal=completed  wall=4532.113s
   tickers        : planned=6 dispatched=6 finished=6 unfinished=[]
 ```
 
-**Wall-clock 4,532.113s. It did not time out.**
-
-> **I FOUND A HOLE IN MY OWN EVIDENCE WHILE MEASURING WHAT CRITERION 1 ASKED FOR,
-> AND IT IS THE MORE IMPORTANT FINDING OF THE TWO.** Criterion 1 demands the pid's
-> **start time** *"since the setting is read at cycle start"*. Measured: **pid 66306
-> started 2026-08-10 21:33:01** -- **1,046s AFTER this cycle ended at 21:15:34**. So
-> **the process I read 10800.0 from is NOT the process that ran the cycle.** A
-> predecessor ran it and is gone. (Not the watchdog: it never reaches 3/3.)
+> **I WROTE AN UNDER-CLAIM AND THE Q/A REFUTED IT. Both of these were FALSE:**
+> *"the value in force is unrecoverable post-hoc"* and *"`_cycle_timeout` is **never**
+> logged"*. I asked for that finding to be graded hardest and it came back inverted --
+> not "you over-claimed" but **"you stopped one seam short of the query that settles
+> it."** Re-derived by me:
 >
-> **And a 4,532s cycle would have completed under the OLD 7,200s budget too.** So
-> this cycle is consistent with either value and **discriminates between them not at
-> all.** My earlier framing -- "MET by an already-completed post-raise cycle" -- read
-> as though completion demonstrated the new ceiling was operative. It does not. That
-> is the same error this project keeps making: **asserting a property when only a
-> proxy was measured.**
+> - `grep -c "Application startup complete" backend.log` -> **exactly 1**
+>   (2026-08-10 21:33:04, pid 66306) -- so nothing in the live log covers the cycle.
+> - The archive's **last** startup is `Started server process [43839]` at
+>   **2026-08-09 22:11:55**, with **no startup between it and the cycle**.
+>
+> **So pid 43839 ran the 20:00 cycle -- and it started 6h21m AFTER the `.env` write**
+> (corroborated independently by the backup stamp `.bak.20260809T155016` = 15:50
+> CEST). A freshly-started process constructs `Settings` from `backend/.env` on its
+> first `get_settings()`; `_scheduled_run` (`paper_trading.py:1485-1487`) calls it at
+> fire time and passes that object into `run_daily_cycle`, whose `:406` uses it and
+> `:507` reads `paper_cycle_max_seconds` from it.
+>
+> **The predecessor held 10800.0. That is now MEASURED, not inferred.**
 
-**What I can actually establish, and how strongly:**
+**The claim-strength table, corrected:**
 
 | claim | strength |
 |---|---|
 | a cycle completed end-to-end, wall 4,532.113s | **MEASURED** |
 | it did not time out | **MEASURED** |
 | the running process serves 10800.0 (pid 66306, up 21:33:01) | **MEASURED** |
-| the *predecessor* also held 10800.0 during the cycle | **INFERRED, not measured** |
+| **the process that RAN the cycle (pid 43839) held 10800.0** | **MEASURED** -- was INFERRED |
 
-The inference: `get_settings()` is `lru_cache`d but `autonomous_loop.py:2136-2138`
-clears it **per ticker**, and the cycle began >30h after the `.env` write, so the
-predecessor almost certainly re-read 10800.0. **`_cycle_timeout` is never logged**
-(grep over `backend.log` and the archive holding the cycle finds no cycle-start
-budget record), so this cannot be raised from inference to measurement after the
-fact.
+**What remains true, and it is the narrower point 86.54 rests on:** the budget is
+logged **only on the timeout path** (`autonomous_loop.py:1896`, which produced three
+`Paper trading cycle TIMED OUT after 7200s` records on 2026-08-04/06/07). There is
+**no cycle-START budget record**. A failure-only log is not observability -- but it is
+not *nothing*, and my bolded "never logged" was wrong.
 
-**Criterion 2 as worded is satisfied** -- a cycle completed and its wall-clock is
-recorded, and it did not time out, so the "reports it was INSUFFICIENT" branch does
-not apply. **But it is satisfied weakly**, and the weakness is now stated rather
-than buried. **Tonight's 20:00 cycle runs under pid 66306, whose value I have read
-directly** -- that is the sample that would close the gap, and it is recorded in the
-day report whatever it shows.
+**Those three 7200s timeout records also independently corroborate that both pre-raise
+overruns ran under the 7,200s budget** -- direct evidence for §7 that I had in the
+archive and never used.
 
-**Filed as 86.54: log the effective cycle budget at cycle start.** One line at
-`autonomous_loop.py:507` would have made this measurable instead of inferable.
+**A 4,532s cycle would still have completed under the old 7,200s budget**, so it does
+not demonstrate that the *headroom* was needed. But criterion 2 does not ask that; it
+asks that a cycle complete under the new budget with its wall-clock recorded, and
+that is now established by measurement at both ends.
 
 ## 3. Criterion 3 -- RE-DERIVED by me with the named script
 
@@ -128,11 +130,52 @@ it wraps the **entire cycle**:
 514:  async with asyncio.timeout(_cycle_timeout):
 ```
 
-The sole inner cap is a per-call 150s at `claude_code_client.py:593`.
+**The inner caps, corrected -- there is more than one and my "sole" was wrong:**
+
+| site | value | scope |
+|---|---|---|
+| `claude_code_client.py:302` | `timeout_s: int = 120` | this client's own subprocess default |
+| `claude_code_client.py:591` | `recommended_step_timeout = 150` | per-step budget, deliberately ABOVE the 120s so the CLI fails first and is retried |
+| `claude_code_client.py:593` | `def __init__(..., timeout_s: int = 150)` | the instance default I originally cited |
+| `orchestrator.py:398` | `timeout = 180` | per-step |
+| `orchestrator.py:1118 / :1135` | `httpx` 900 / 300 | HTTP client, not a step cap |
+
+**None of them is a per-TICKER timeout**, which is why criterion 4's answer is
+unchanged -- but "the sole inner cap is 150s" was a citation I did not derive.
 
 **So a longer budget delays a hung ticker's failure by 3,600s; it does not remove
 it.** With effective parallelism 1.85 and a mean of 1,315s/ticker, one wedged
 ticker still burns the whole deadline exactly as before.
+
+### The half of criterion 4 I had not answered: does a hang go UNNOTICED for longer?
+
+> The masterplan asks whether a longer outer budget *"increases the window in which a
+> hang goes **UNNOTICED**"* -- a **detection** question. My contract had substituted a
+> **latency** question, and §4 answered only that. Restored and answered:
+
+**MEASURED ANSWER: yes, but by 3.8%, and the dominant clock is unaffected.**
+
+`backend/services/cycle_health.py` runs two staleness clocks:
+
+| clock | value | measured from |
+|---|---|---|
+| `_CYCLE_HEARTBEAT_STALE_SEC` | **93,600s (26h)** | cycle **START** |
+| `_CYCLE_COMPLETED_STALE_SEC` | **345,600s (96h / 4 days)** | last **COMPLETED** cycle |
+
+The raise moves a hung cycle's failure from 7,200s to 10,800s -- **+3,600s (1h)**,
+which is **3.8%** of the 26h heartbeat clock and **1.0%** of the 96h completed clock.
+
+**And the second clock is the one that matters here, for a reason phase-85.4 wrote
+down in the source**: the heartbeat is measured from cycle START, so *"a cycle that
+times out every single day resets the heartbeat age to ~0 daily and
+`cycle_heartbeat_alarm` never goes stale"* -- which the comment says *"is exactly what
+happened"*. The completed-age clock exists precisely to catch that, and **a longer
+budget does not move it at all**, because it is keyed to completions, not to how long
+each attempt is allowed to run.
+
+**So the honest answer to the restored criterion 4 is: the unnoticed window grows by
+one hour against detection thresholds measured in days.** That is a real but minor
+cost, and it is bounded by a mechanism that was built for this exact failure.
 
 ## 5. Criterion 5 -- #24 RECOMMENDED, #25 DEFERRED. Both as ASKS.
 
@@ -206,36 +249,89 @@ unreached ceiling is harmless and this one is operator-authorised.
 measured set. One completion under a raised ceiling, on the quietest night, is weak
 evidence that the ceiling is right-sized. Tonight's cycle is a second sample.
 
-## 8. NEW DEFECT FOUND -- config drift, population DERIVED
+## 8. NEW DEFECT FOUND -- config drift. Census REGENERATED, not curated.
 
-> **CORRECTED.** An earlier revision said "across FOUR sites" above a table with
-> **five** rows, and I propagated that undercount into 86.53's `audit_basis`. The
-> count was typed, not derived. Below is the output of
-> `grep -rn "paper_cycle_max_seconds|_CYCLE_BUDGET_FALLBACK_SEC" backend/ scripts/`.
+> **CORRECTED TWICE, AND THE SECOND CORRECTION IS THE INSTRUCTIVE ONE.** Cycle 1
+> caught that "FOUR sites" was **typed** above a five-row table. My fix replaced it
+> with a table captioned as the output of a `grep`. **That caption was false in two
+> independent ways**, and cycle 2 caught both:
+>
+> 1. **Run literally as I published it, the command returns ZERO rows.** I wrote it
+>    without `-E`, and basic `grep` treats `|` as a literal character -- so it
+>    searched for a string containing a pipe. The command I published could not have
+>    produced any table at all.
+> 2. **The table was still curated.** Against the real output the difference is
+>    non-empty in BOTH directions: it dropped eight rows and contained two the grep
+>    cannot produce.
+>
+> **So I replaced a typed count with a curated table wearing a derivation's label --
+> the same defect one level up, dressed as its own fix.** Below is the command's
+> actual stdout, captured to a file and pasted unedited.
+>
+> **A THIRD THING SURFACED WHILE PROVING THE PASTE MATCHES, AND IT AFFECTS EVERY
+> "CAPTURED OUTPUT" IN THIS PROJECT.** My first equality check failed with a
+> symmetric difference of 8 -- because `grep` in this shell is a **function wrapping
+> `ugrep`**, while `subprocess.run(["grep", ...])` resolves `/usr/bin/grep` (BSD grep
+> 2.6.0-FreeBSD). Same pattern, same paths, **different programs**: 18 rows vs 26,
+> the extra 8 being `Binary file ... .pyc matches` notices. Neither was wrong; they
+> are different tools.
+>
+> **So a command published without naming its binary is not a reproducible
+> derivation** -- a reader running it gets a different answer than the one printed
+> above it, and would reasonably conclude the artifact was curated. The command is
+> therefore pinned to `/usr/bin/grep` with `-I`, which yields **18 on both
+> implementations**.
 
-| site | value / role |
-|---|---|
-| `backend/config/settings.py:33` | `Field(7200.0, ...)` |
-| `backend/api/settings_api.py:123` | `= 7200.0` |
-| `backend/api/settings_api.py:171` | validation bounds `ge=300.0, le=21600.0` |
-| `backend/api/settings_api.py:308` | env-name mapping (phase 38.12) |
-| `backend/api/settings_api.py:383` | `getattr(s, ..., 7200.0)` |
-| **`backend/services/autonomous_loop.py:507`** | **`getattr(settings, ..., 1800.0)`** |
-| **`backend/services/cycle_lock.py:63`** | **`_CYCLE_BUDGET_FALLBACK_SEC = 7200.0`** |
-| `backend/services/cycle_lock.py:82,84,86` | three separate returns of that fallback |
-| `scripts/diagnostics/measure_analysis_phase.py:263` | `--budget-sec default=7200.0` |
-| `backend/.env:70` | **10800.0 (live)** |
+```console
+$ /usr/bin/grep -rnIE "paper_cycle_max_seconds|_CYCLE_BUDGET_FALLBACK_SEC" backend/ scripts/
+backend/config/settings.py:33:    paper_cycle_max_seconds: float = Field(7200.0, description="phase-34.2 corrective + cycle-7 (38.12) bump: hard wall-clock budget for one autonomous paper-trading cycle. Read by backend/services/autonomous_loop.py:219 via asyncio.timeout. Default raised from 1800 -> 7200 (2h) because cycle 6 (2026-05-26) found the Claude Code CLI rail (paper_use_claude_code_route=True; ~30s per claude_code_invoke) + serial enrichment-debate-risk-synthesis dependencies push a 13-ticker full-orchestrator cycle past 3600s. Cycle 6 timed out with 7 of 13 tickers analyzed; 7200s gives headroom for the full 13 + Step 6-9 (trade decide / execute / snapshot / outcome). When `paper_use_claude_code_route=False` AND Anthropic-direct rail is available, the lower 1800s remains adequate -- operator can lower via Settings UI.")
+backend/tests/test_phase_85_4_cycle_loudness.py:244:    s = _settings().model_copy(update={"paper_cycle_max_seconds": 10.0})
+backend/tests/test_phase_85_5_cycle_lock_split_brain.py:356:        self.paper_cycle_max_seconds = budget
+backend/tests/test_phase_85_5_cycle_lock_split_brain.py:363:    settings.paper_cycle_max_seconds moved to 7200s, so the TTL became 0.75x
+backend/tests/test_phase_85_6_anchor_deadlock.py:374:        autonomous_loop.run_daily_cycle(settings=_settings(paper_cycle_max_seconds=10.0))
+backend/tests/test_phase_38_6_restart_survivable.py:161:# constant froze at 5400s while settings.paper_cycle_max_seconds moved to
+backend/api/settings_api.py:123:    paper_cycle_max_seconds: float = 7200.0
+backend/api/settings_api.py:171:    paper_cycle_max_seconds: Optional[float] = Field(None, ge=300.0, le=21600.0)
+backend/api/settings_api.py:308:    "paper_cycle_max_seconds": "PAPER_CYCLE_MAX_SECONDS",  # phase-cycle-7 (38.12)
+backend/api/settings_api.py:383:        paper_cycle_max_seconds=float(getattr(s, "paper_cycle_max_seconds", 7200.0)),
+backend/services/autonomous_loop.py:507:    _cycle_timeout = float(getattr(settings, "paper_cycle_max_seconds", 1800.0))
+backend/services/cycle_lock.py:28:- The TTL is derived at call time from settings.paper_cycle_max_seconds
+backend/services/cycle_lock.py:57:# paper_cycle_max_seconds (1800s)" while the budget in force had moved to
+backend/services/cycle_lock.py:63:_CYCLE_BUDGET_FALLBACK_SEC = 7200.0
+backend/services/cycle_lock.py:82:        value = float(getattr(get_settings(), "paper_cycle_max_seconds",
+backend/services/cycle_lock.py:83:                              _CYCLE_BUDGET_FALLBACK_SEC))
+backend/services/cycle_lock.py:84:        return value if value > 0 else _CYCLE_BUDGET_FALLBACK_SEC
+backend/services/cycle_lock.py:86:        return _CYCLE_BUDGET_FALLBACK_SEC
+$ # 18 rows
+```
 
-**`cycle_lock.py` was missing from my table entirely** -- and its own comment at
-`:57` already documents the drift: *"paper_cycle_max_seconds (1800s) ... while the
-budget in force had moved to"*. Someone had already noticed and left a note.
+**Eight rows the curated table had dropped**: `cycle_lock.py:28,:57,:83` plus five
+test sites (`test_phase_38_6_restart_survivable.py:161`,
+`test_phase_85_4_cycle_loudness.py:244`,
+`test_phase_85_5_cycle_lock_split_brain.py:356,:363`,
+`test_phase_85_6_anchor_deadlock.py:374`). **The tests matter**: they PIN the drift,
+so changing it is a test-visible change rather than a silent one.
 
-**The consumer fallback remains the hazard**: a missing attribute silently yields a
-**30-minute** cycle budget, a sixth of the authorised value, with no error or alert.
+**Two rows I had listed that this command cannot produce, removed rather than quietly
+kept:**
 
-Filed as **86.53**, whose criterion 1 requires a grep-derived enumeration precisely
-so the executor does not inherit a typed count.
+- `scripts/diagnostics/measure_analysis_phase.py:263` -- **that file contains the
+  token zero times**. Its `:263` is `ap.add_argument("--budget-sec", type=float,
+  default=7200.0)`: a related 7200.0 default under a *different name*. Worth knowing,
+  not a hit for this census.
+- `backend/.env:70` -- the live value, outside the searched paths.
 
+**The defect is unchanged and the regenerated census confirms it**: one concept,
+several values -- `settings.py:33` and `settings_api.py:123` at **7200.0**,
+`autonomous_loop.py:507` falling back to **1800.0**, `cycle_lock.py:63` at **7200.0**,
+the live value **10800.0**.
+
+**The consumer fallback is the hazard**: a missing attribute silently yields a
+**30-minute** budget -- a sixth of the authorised value -- with no error or alert.
+`cycle_lock.py:57`'s own comment already documents the drift.
+
+Filed as **86.53**, whose criterion 1 demands a grep-derived enumeration. **That
+criterion is now doing visible work**: it is exactly what would have caught this.
 ## 9. What is NOT claimed
 
 - **Not** that the budget is now correct -- only that it is live, and that it was

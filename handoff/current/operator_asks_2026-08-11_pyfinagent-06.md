@@ -122,11 +122,20 @@ attributable. **Revisit after 06-#24 lands.** No decision needed today.
 
 ## Not asks -- just so they are not lost
 
-- **`86.54` filed today**: `_cycle_timeout` is read at
-  `backend/services/autonomous_loop.py:507` and **never logged**. That is why 86.9
-  could not establish which budget the 2026-08-10 cycle actually ran under -- the
-  process that ran it had exited, and the value was never written down. One log line
-  is the whole distance between "inferred" and "measured".
-- **`86.53` filed**: one cycle-budget concept, four different values across the
-  sites that define it, including a **1800.0** consumer fallback that would silently
-  give a 30-minute budget with no error.
+- **`86.54` filed today**: the effective cycle budget is logged **only on the timeout
+  path** (`autonomous_loop.py:1896`), never at cycle start.
+  **CORRECTED before you read this**: an earlier version of this bullet said the value
+  was "never logged" and that 86.9 "could not establish" which budget the 2026-08-10
+  cycle ran under. **Both were wrong**, and the 86.9 cycle-2 Q/A refuted them -- the
+  process is identifiable (`Started server process [43839]`, 2026-08-09 22:11:55) and
+  started 6h21m after the `.env` write, so it read the new value on construction. The
+  real defect is narrower: establishing the in-force budget takes a multi-step
+  inference across startup lines and backup timestamps, and that only works because no
+  restart happened to intervene.
+- **`86.53` filed**: one cycle-budget concept with **three different defaults**,
+  derived rather than counted -- **7200.0** (`settings.py:33`, `settings_api.py:123`
+  and `:383`, `cycle_lock.py:63`), **1800.0** (`autonomous_loop.py:507`), and the live
+  **10800.0**; plus a validation range of `300.0`-`21600.0` at `settings_api.py:171`,
+  which is a bound and not a fourth default. The hazard is the **1800.0** consumer
+  fallback: a missing attribute silently yields a 30-minute budget -- a sixth of the
+  authorised value -- with no error or alert.

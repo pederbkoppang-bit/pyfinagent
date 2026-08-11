@@ -72,15 +72,40 @@ deadline propagation). **Ask #23 shipped the rejected one. Ask #24 -- the endors
 one -- is still open**, and the numbers make its case: **p90 = 134s and the longest
 SUCCESS = 145s against a 150s cap**, which is a censored distribution by definition.
 
-## 4. Immutable success criteria -- VERBATIM
+## 4. Immutable success criteria -- VERBATIM from `.claude/masterplan.json`
 
-> 1. the effective running value is 10800.0 in the BACKEND PROCESS, not merely in a fresh interpreter -- read it from the running process (or an endpoint it serves), not from .env or a new import
-> 2. at least one cycle completes end-to-end under the new budget and its wall-clock is recorded; if it still times out, the step reports that the raise did NOT fix it
-> 3. the measured per-ticker mean and projected total are RE-DERIVED with scripts/diagnostics/measure_analysis_phase.py against cycles run AFTER the raise
-> 4. the hung-cycle caveat is addressed explicitly: state whether _run_single_analysis still lacks an inner per-ticker timeout, and if so whether a longer budget merely delays the same failure
-> 5. asks #24 (rail timeout 150 -> 210) and #25 (merged dispatch) are each re-evaluated against post-fix data and explicitly recommended or withdrawn
+> **CORRECTED after the cycle-2 Q/A, and this was the blocker.** The previous
+> revision of this section was headed *"VERBATIM"* while **5 of the 6 criteria
+> differed from the masterplan**, two of them materially. **The block below is now
+> generated programmatically from `.claude/masterplan.json` rather than typed**, so
+> it cannot drift again.
+>
+> **The most damaging drift was in criterion 1.** The masterplan requires *"...and
+> record the pid and its start time, since the setting is read at cycle start"*. My
+> copy replaced that with *", not from .env or a new import"* -- **dropping the exact
+> clause whose measurement produced this step's most important finding.** Had I
+> worked from my own copy, I would never have measured the start time, never found
+> that a predecessor ran the qualifying cycle, and never traced it to pid 43839. The
+> criterion was carrying information I deleted before reading it.
+>
+> Criterion 3 said *"AFTER the raise"* where the masterplan says *"AFTER the rail was
+> repaired 2026-08-09"* -- **a different qualifying event**. Criterion 4 substituted a
+> *latency* question ("merely delays the same failure") for the masterplan's
+> *detection* question ("increases the window in which a hang goes UNNOTICED"), and
+> §4 of the results answered only the substituted one. Criteria 2 and 5 each lost a
+> qualifying clause.
+>
+> **Cycle 1 did not catch this**: its check verified the masterplan SOURCE was
+> unamended, which is a different proposition from verifying that my COPY matches it.
+> An unamended source and a faithful copy are independent facts and need independent
+> checks.
+
+> 1. the effective running value is 10800.0 in the BACKEND PROCESS, not merely in a fresh interpreter -- read it from the running process (or an endpoint it serves) and record the pid and its start time, since the setting is read at cycle start
+> 2. at least one cycle completes end-to-end under the new budget and its wall-clock is recorded; if it still times out, the step reports that the raise was INSUFFICIENT rather than closing on the config change alone
+> 3. the measured per-ticker mean and projected total are RE-DERIVED with scripts/diagnostics/measure_analysis_phase.py against cycles run AFTER the rail was repaired 2026-08-09 -- the 2310-2320s figure predates that fix and may no longer hold
+> 4. the hung-cycle caveat is addressed explicitly: state whether _run_single_analysis still lacks an inner per-ticker timeout, and if so whether a longer outer budget increases the window in which a hang goes unnoticed
+> 5. asks #24 (rail timeout 150 -> 210) and #25 (merged dispatch) are each re-evaluated against post-fix data and explicitly recommended or withdrawn -- a budget raise that leaves 26% of rail time being discarded is treating the symptom
 > 6. no other setting changed; paper_analyze_top_n is NOT lowered; the .env backup is retained and referenced
-
 ## 5. What is already measured
 
 - **Criterion 1 -- MET** (§2): 10800.0 read live from pid 66306 via `/api/settings/`.
