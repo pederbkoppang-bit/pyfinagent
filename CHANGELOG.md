@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-11 | `e4d7f968` | phase-86.33: P0 shipped; P1 BLOCKED, and the reason is a contamination trap |
 | 2026-08-11 | `5483c23e` | phase-86.21: PARK at the escalation boundary; the counter caught ITSELF under-counting |
 | 2026-08-11 | `8a9a4293` | phase-86.33 P0: log agent_id -- measure before redesigning, decide nothing on it yet |
 | 2026-08-11 | `925e1681` | phase-86.38 cycle 2: my own docstring satisfied my own guard -- AST, not grep |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-11 | `8074e371` | phase-86.21 cycle 4: fix the three FAIL blockers |
 | 2026-08-11 | `cf94ef76` | docs(goal): RETRACT my drought framing -- 86.38's gate refuted it, and I confirmed it |
 | 2026-08-11 | `6e8f3169` | phase-86.36 cycle 2: fix both CONDITIONAL blockers -- the OTHER copy of the directive |
-| 2026-08-11 | `07fd7c07` | phase-86.38: experiment_results + repair live_check section F; queue 86.41 |
 
 ---
 
+### v6.93.126 — phase-86.33: P0 shipped; P1 BLOCKED, and the reason is a contaminatio... (2026-08-11)
+
+- **phase-86.33: P0 shipped; P1 BLOCKED, and the reason is a contamination trap**
 ### v6.93.125 — phase-86.21: PARK at the escalation boundary; the counter caught ITSE... (2026-08-11)
 
 - **phase-86.21: PARK at the escalation boundary; the counter caught ITSELF under-counting**
