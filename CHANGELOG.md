@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-11 | `b4b7008b` | phase-86.5: record measured triage input -- the title says 26, I measure 17 |
 | 2026-08-11 | `48741e44` | phase-86.41: REFUTE my own step's premise before anyone executes it |
 | 2026-08-11 | `8e95fb88` | phase-86.38: my classifier read the WRAPPER -- all 9 fallbacks are rate limits |
 | 2026-08-11 | `b8d2ea96` | phase-86.41: PLAN -- the gate REFUTED the step's premise; the crash is not ours |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-11 | `b77ec23c` | phase-86.38: criterion 6 -- close the 429 with a numbered operator ask; file all three asks |
 | 2026-08-11 | `4600f98f` | phase-86.38 cycle 2: derive PER-CYCLE, which is what criterion 2 asked for |
 | 2026-08-11 | `31e6c0db` | phase-86.38: CORRECT a protocol breach -- my contract's criteria were not the criteria |
-| 2026-08-11 | `b9b76eab` | phase-86.38 cycle 2: fix a SELF-REFERENTIAL assertion and a false claim I propagated |
 
 ---
 
+### v6.93.153 — phase-86.5: record measured triage input -- the title says 26, I meas... (2026-08-11)
+
+- **phase-86.5: record measured triage input -- the title says 26, I measure 17**
 ### v6.93.152 — phase-86.41: REFUTE my own step's premise before anyone executes it (2026-08-11)
 
 - **phase-86.41: REFUTE my own step's premise before anyone executes it**
