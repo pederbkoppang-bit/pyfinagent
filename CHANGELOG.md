@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-11 | `02309248` | phase-86.45: queue the fail-open a recorded rail drop opens in the escalation rule |
 | 2026-08-11 | `c52f0e51` | phase-86.44: queue the harness_log cycle-numbering defect |
 | 2026-08-11 | `2e848c15` | harness: backfill 7 missing verdict-ledger rows for 86.31 and 86.36 |
 | 2026-08-11 | `6e8504d5` | phase-86.38: supersede sections 1/3/4 -- they contradicted section 7 on counts |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-11 | `30c1ceba` | phase-86.42: queue the 86.36 Q/A's F2 -- I claimed 'queued' in a commit and had not done it |
 | 2026-08-11 | `5f5a2697` | phase-86.36: [P2 -- THE Q/A WRITE-FIRST RECORD IS DESTROYED BY THE NEXT CYCLE'S SPAWN, SO ONLY TH... |
 | 2026-08-11 | `0be43e06` | phase-86.36: harness_log cycle 1211 -- PASS |
-| 2026-08-11 | `961137c1` | phase-86.36: record cycle-2 Q/A verdict VERBATIM -- PASS |
 
 ---
 
+### v6.93.132 — phase-86.45: queue the fail-open a recorded rail drop opens in the es... (2026-08-11)
+
+- **phase-86.45: queue the fail-open a recorded rail drop opens in the escalation rule**
 ### v6.93.131 — phase-86.44: queue the harness_log cycle-numbering defect (2026-08-11)
 
 - **phase-86.44: queue the harness_log cycle-numbering defect**
