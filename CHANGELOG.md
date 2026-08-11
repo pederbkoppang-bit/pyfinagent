@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-11 | `99522571` | docs: record the 86.10 live-verification refutation in the report and goal |
 | 2026-08-11 | `a9fee776` | phase-86.10: live Playwright verification -- the defect as stated did NOT reproduce |
 | 2026-08-11 | `c9314945` | phase-86.41: GENERATE artifacts -- experiment_results + live_check |
 | 2026-08-11 | `678d979f` | phase-86.41: behavioural proof of the quant guard -- and it caught two defects in it |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-11 | `cb630238` | phase-86.7: PARK with a disposition -- 4 of 6 answered, 2 need operator-reserved verbs |
 | 2026-08-11 | `d3b4823d` | phase-86.38 cycle 2: fix four more survivors a THIRD dropped run found |
 | 2026-08-11 | `dad42dda` | phase-86.7: criteria 4 and 3 -- shape-verified capture, and a justified accept-the-risk |
-| 2026-08-11 | `2dbb1606` | phase-86.7: sweep the retracted claim out of the header and section 5 |
 
 ---
 
