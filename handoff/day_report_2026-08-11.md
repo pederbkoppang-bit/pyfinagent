@@ -164,6 +164,37 @@ inside an escalation rule is exactly what that rule exists to prevent.
 
 ---
 
+## Late addition -- 86.39's root cause established (no spawn)
+
+After the report above was first written, I advanced **86.39** with deterministic
+source reading. It is no longer "not started": **the root cause is established.**
+
+The bare `cc_rail` tag is not a ternary bug. `claude_code_client.py:682` binds
+`_agent` from `config["_role"]`, and only **two sites repo-wide set it, both on
+the LITE path** (`autonomous_loop.py:3275` / `:3315`). `orchestrator.py:826-845`
+plucks only `_ticker`. **The 28-agent Layer-1 pipeline therefore cannot ever emit
+the colon form** -- the ternary is correctly reporting that no role was supplied.
+
+Two things fall out that make the step better than it was:
+
+- **A far larger measurement already exists**: `spend.py` documents **2,549 bare
+  vs 7 colon over 30 days**, against this step's 145-vs-0 over one cycle.
+- **A blast-radius warning**: `_role` also feeds `resolve_effort(role)` at
+  `llm_client.py:1616`, so populating it could change **effort selection**, not
+  just a log label.
+
+And a free finding: `spend.py`'s own citation of those two setters
+(`autonomous_loop.py:2722/:2762`) is **stale** -- they are at `:3275`/`:3315`, and
+`:2722` now sits inside an unrelated phase-86.38 comment added the same day. The
+line-number-drift class, again, in live source.
+
+**The research gate still must run before any contract.** This is pre-contract
+measurement only, the same pattern used for 86.38.
+
+**Still not started: the UI cluster** (86.10 / 86.11 / 86.14).
+
+---
+
 ## Rail health
 
 **13 Workflow runs, 5 dropped (38.5%), ~887k tokens returning nothing.** Every
