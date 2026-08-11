@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-11 | `301d9df1` | phase-86.38: supersede the NOT-IN-FORCE claim -- the restart happened |
 | 2026-08-11 | `d6873398` | docs(goal): addendum for 2026-08-12 -- 86.58 (P1) to the top, parks, restart state, measured cycle r |
 | 2026-08-11 | `268d376b` | chore: session-end backend restart done -- D2 verified in force (endpoint 1226 == on-disk 1226) |
 | 2026-08-11 | `373a1c17` | phase-observe: the 20:00 cycle completed in 4887s, zero trades at the risk gate; ask 06-8 raised |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-11 | `fe9a6dad` | phase-86.44: the harness log's own writer was destroying concurrent entries |
 | 2026-08-11 | `ea5b1cd5` | phase-86.44: contract + research brief -- the cycle number is write-only state; the real defects are |
 | 2026-08-11 | `ae739417` | chore(researcher): persist the 86.9 timeout-raise research memory |
-| 2026-08-11 | `4b67c0c3` | phase-86.9: FAIL on the third cycle -- defects fixed, step PARKED, no flip |
 
 ---
 
+### v6.93.217 — phase-86.38: supersede the NOT-IN-FORCE claim -- the restart happened (2026-08-11)
+
+- **phase-86.38: supersede the NOT-IN-FORCE claim -- the restart happened**
 ### v6.93.216 — phase-observe: the 20:00 cycle completed in 4887s, zero trades at the... (2026-08-11)
 
 - **phase-observe: the 20:00 cycle completed in 4887s, zero trades at the risk gate; ask 06-8 raised**
