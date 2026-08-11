@@ -25014,6 +25014,27 @@
             "live_check": "live_check_86.55.md carrying the verbatim barrier-present and barrier-absent probe outputs at a named tree, before and after the fix"
           },
           "notes": "Filed by 86.44, 2026-08-11. Distinct from 86.44's D1 (data loss, FIXED) and from 86.46 (verdict_ledger.jsonl's cycle field, separate step). Read experiment_results_86.44.md section 5 first."
+        },
+        {
+          "id": "86.56",
+          "name": "the cycle-heartbeat dead-man's-switch is being refreshed by something that is NOT a cycle",
+          "status": "pending",
+          "priority": "P2",
+          "harness_required": true,
+          "audit_basis": "MEASURED 2026-08-11 ~18:30 CEST, writer NOT identified -- that is the step. handoff/.cycle_heartbeat.json is the PRODUCTION path read by the staleness alarm (backend/services/cycle_health.py:37 `_HEARTBEAT_PATH = _HANDOFF / '.cycle_heartbeat.json'`; the alarm at :167 measures the age of its updated_at against _CYCLE_HEARTBEAT_STALE_SEC = 93_600.0 / 26h). TODAY that file was rewritten at least TWICE -- 12:00:37.907815Z then 15:44:01.192523Z -- both carrying `cycle_id: \"c2\"`, `event: \"end\"`. MEANWHILE ZERO real cycles ran: `grep '2026-08-11' backend.log | grep -c autonomous_loop` returns 0 against 42,220 log lines dated today. So a non-cycle is refreshing the input to the dead-man's-switch that exists to fire when the autonomous cycle STOPS RUNNING. A watchdog whose age is reset by something other than the thing it watches cannot go stale, which is the same shape phase-85.4 already documented for the heartbeat clock (its own comment: 'a cycle that times out every single day resets the heartbeat age to ~0 daily and cycle_heartbeat_alarm never goes stale ... That is exactly what happened'). WHAT I RULED OUT, so the executor does not repeat it: the obvious suspect backend/tests/test_phase_86_38_degradation_visibility.py:180 calls health.record_cycle_start('c2') with a matching literal, but its fixture at :155-158 monkeypatches BOTH _HISTORY_PATH and _HEARTBEAT_PATH to tmp_path, so it is correctly isolated. I did NOT identify the actual writer and am not guessing. Related and already closed: 86.3 (test suite pausing the live book) and 86.6 (filesystem + subprocess isolation channels) -- this is the same class, filesystem channel, and its survival suggests those steps closed on an incomplete census.",
+          "verification": {
+            "success_criteria": [
+              "the WRITER is identified by derivation, not inference -- enumerate every caller of record_cycle_start/record_cycle_end and every direct writer of _HEARTBEAT_PATH across tests, scripts and services, state the enumeration command next to the list, and name which one produced the 12:00:37Z and 15:44:01Z writes",
+              "whether a non-cycle write can DELAY OR SUPPRESS cycle_heartbeat_alarm is answered by driving the alarm, not by reading it: construct a state where the real cycle has not run for longer than the threshold, apply the non-cycle write, and record whether should_alarm flips",
+              "the fix isolates the writer from the production path WITHOUT weakening the alarm -- an alarm that fires more readily is acceptable, an alarm that fires less readily is not, and the direction is stated with evidence",
+              "the same enumeration is run for _HISTORY_PATH and for any other live-state file cycle_health.py reads, since a census that finds only the instance that was noticed is the defect this step is about",
+              "mutation-test the guard: revert it and show the check goes red, with the control observed GREEN first and a byte-identical restore",
+              "no historical heartbeat content is fabricated or back-dated to make the alarm look correct"
+            ],
+            "command": "bash -c 'source .venv/bin/activate && python -c \"import ast; ast.parse(open(\\\"backend/services/cycle_health.py\\\").read()); print(\\\"parses\\\")\"'",
+            "live_check": "live_check_86.56.md with the verbatim before/after content of handoff/.cycle_heartbeat.json, the identified writer, and a driven cycle_heartbeat_alarm result showing the alarm is not weakened"
+          },
+          "notes": "Filed by pyfinagent-06 during the 86.44 freeze window, 2026-08-11, under the standing queue-discovered-defects rule. NOT investigated further at filing time because the 20:00 CEST book cycle was imminent and the freeze forbids tests that can touch live state -- and any probe of this defect writes or reads exactly that live state. Start by reading the audit_basis: the ruled-out suspect is documented so it is not re-checked."
         }
       ]
     }
