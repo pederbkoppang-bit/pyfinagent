@@ -402,7 +402,11 @@ def _resolve_step_timeout(model, timeout: int, is_grounded: bool) -> int:
     return timeout
 
 
-def _quant_from_yfinance(ticker: str, yf_data: dict | None) -> dict:
+def _quant_from_yfinance(
+    ticker: str,
+    yf_data: dict | None,
+    reason: str = "non-US listing, phase-60.1 KR-aware skip",
+) -> dict:
     """phase-60.1 (AW-4): yfinance-only quant report for non-SEC markets.
 
     The quant Cloud Function hard-aborts at its SEC-CIK stage for
@@ -422,7 +426,7 @@ def _quant_from_yfinance(ticker: str, yf_data: dict | None) -> dict:
         "sector": yf.get("sector", ""),
         "industry": yf.get("industry", ""),
         "part_1_financials": {
-            "source": "yfinance only -- SEC EDGAR skipped (non-US listing, phase-60.1 KR-aware skip)",
+            "source": f"yfinance only -- SEC EDGAR skipped ({reason})",
             "latest_revenue": None,
             "latest_net_income": None,
         },
@@ -1789,8 +1793,47 @@ class AnalysisOrchestrator:
         # Step 2: Quant agent
         step("quant", "started", "Fetching financial data...")
         if _sec_covered:
-            report["quant"] = await self.run_quant_agent(ticker)
-            step("quant", "completed", "Financial data collected")
+            try:
+                report["quant"] = await self.run_quant_agent(ticker)
+                step("quant", "completed", "Financial data collected")
+            except Exception as _quant_exc:
+                # phase-86.41: the quant sub-agent runs in a REMOTE Cloud
+                # Function. When SEC.gov 429s its CIK-map fetch, that fetch
+                # returns None instead of raising, and the next frame
+                # (/workspace/main.py:89 in get_cik) raises NoneType THERE.
+                # Before this guard, that single remote dependency's rate
+                # limit propagated out of run_quant_agent, aborted the whole
+                # ticker, and demoted the entire analysis to the lite path
+                # (autonomous_loop.py:2201) -- while three sibling sub-agent
+                # calls (RAG :1160, ingestion :1775, phase-32.3 :1828)
+                # already failed open. Isolate at the DEPENDENCY, not the
+                # ticker (Azure Bulkhead); tolerate SHAPE, refuse ABSENCE.
+                logger.warning(
+                    "Quant best-effort failure for %s (continuing with yfinance-only fundamentals): %s",
+                    ticker, _quant_exc,
+                )
+                _yf_degraded = await asyncio.to_thread(
+                    yfinance_tool.get_comprehensive_financials, ticker
+                )
+                # DELIBERATELY a different reason than the non-US branch
+                # below. This step exists because one wrapper string
+                # collapsed two distinct causes into a single bucket; reusing
+                # phase-60.1's "non-US listing" text here would relabel a SEC
+                # rate-limit as a listing-coverage fact. Do not merge them.
+                report["quant"] = _quant_from_yfinance(
+                    ticker,
+                    _yf_degraded,
+                    reason=f"quant agent failed: {type(_quant_exc).__name__}",
+                )
+                report["skipped_stages"].append({
+                    "stage": "quant_cf_sec",
+                    "reason": f"quant agent failed ({type(_quant_exc).__name__}); fundamentals from yfinance only",
+                })
+                step(
+                    "quant",
+                    "completed",
+                    f"Quant degraded -- yfinance fundamentals only ({type(_quant_exc).__name__})",
+                )
         else:
             _yf_only = await asyncio.to_thread(
                 yfinance_tool.get_comprehensive_financials, ticker
