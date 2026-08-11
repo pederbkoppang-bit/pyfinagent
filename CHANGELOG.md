@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-11 | `aa043609` | phase-86.5: the failure census, MEASURED -- 17 not 26, and two failures that invert |
 | 2026-08-11 | `d11fda37` | phase-86.32: P2 THE EVALUATE LOOP HAS NO CEILING: F1 counts CONSECUTIVE failures, so an interveni... |
 | 2026-08-11 | `cff92516` | phase-86.32: cycle-5 PASS -- verdict verbatim, N1 fixed, harness_log appended |
 | 2026-08-11 | `2615667b` | phase-86.32: R1 -- correct my own overclaim; pin provenance to SHAs, not HEAD |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-11 | `fb21682b` | phase-86.41: cycle-2 CONDITIONAL remediated -- lint blocker + all four notes |
 | 2026-08-11 | `13c6d5ce` | phase-86.41: cycle-1 Q/A findings C1+D1 -- both CONFIRMED and corrected |
 | 2026-08-11 | `e1332362` | docs: record 86.14 scoping -- every item on the goal's list now has measured work |
-| 2026-08-11 | `7a72af4a` | phase-86.14: pre-contract scoping -- this is NOT a frontend-only build |
 
 ---
 
+### v6.93.179 — phase-86.5: the failure census, MEASURED -- 17 not 26, and two failur... (2026-08-11)
+
+- **phase-86.5: the failure census, MEASURED -- 17 not 26, and two failures that invert**
 ### v6.93.178 — phase-86.32: P2 THE EVALUATE LOOP HAS NO CEILING: F1 counts CONSECUTI... (2026-08-11)
 
 - **phase-86.32: P2 THE EVALUATE LOOP HAS NO CEILING: F1 counts CONSECUTIVE failures, so an interveni...**
