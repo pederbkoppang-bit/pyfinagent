@@ -147,3 +147,104 @@ survives a broken derivation is still a broken derivation.
    **CLAUDE.md F1b**.
 4. Address the harness-compliance finding: the contract carries no verbatim
    immutable-criteria block.
+
+---
+
+# CYCLE 3 -- verdict: CONDITIONAL
+
+**`ok: False` | harness_compliance_ok: True** |
+run `wf_fe85471f-1d8` (165,662 tokens, 38 tool uses, 501s).
+Q/A write-first record: `verdict_wip_86.32__20260811T104256Z.md` (STATUS COMPLETE).
+
+**Cycle 2 (`wf_91a8db42-3d7`) DROPPED at 201,447 tokens -- NO VERDICT, not a graded
+cycle.** Its write-first WIP survived and its three findings were verified by me and
+remediated at `bce22a74`. So 86.32's graded history is: cycle 1 FAIL, cycle 3
+CONDITIONAL. **Zero logged CONDITIONALs before this one, so the 3rd-CONDITIONAL rule
+does not bind.**
+
+**Transcribed VERBATIM by Main.**
+
+## Verdict (verbatim)
+
+```json
+{
+  "ok": false,
+  "verdict": "CONDITIONAL",
+  "reason": "All 6 immutable criteria MET under execution, harness compliance 5/5 clean, no unintended production change — but ONE new non-reproducing figure, introduced by the remediation commit itself, holds this at CONDITIONAL. WHAT I RE-VERIFIED. Immutable cmd `grep -c \"^## Cycle\" handoff/harness_log.md` = 1218 exit=0. pytest step file = 15 passed / 15 `def test_`. ruff F821,F401,F811 over the GIT-DERIVED scope (`git diff --name-only 4358683c^ HEAD -- '*.py'` = 3 files, non-empty asserted, xargs -0) = \"All checks passed!\" exit=0. My own run of scripts/qa/mutation_matrix_86_32.py: control green, ALL 8 CELLS KILLED, restore byte-identical md5 157d7b58, `git status` on the target empty afterwards. Scoped regression `pytest backend/tests/ -k \"harness or budget or phase_86\"` = 410 passed / 1 skipped / 1 xfailed — the remediation broke nothing. W1 CLEARED: test file :275-277 now reads \"the FAIL at attempt 4 raises it to 1, and the CONDITIONAL at attempt 5 wipes it\", correct against FIXTURE_86_28 = [C,C,NV,F,C,C,NV,NV]; a repo-wide (NOT hand-picked) grep for the wrong ordering finds only correction notes, the historical cycle-1 verdict, prior WIP files, and one unrelated false positive in evaluator_critique_76.9.2.md. W3 CLEARED at BOTH sites (attempt_budget.py:50 and CLAUDE.md:399 = 93.9%; 27+48+38+28+13=154, 154/164=0.93902); no third production site (the only other hits are an unrelated SWE-bench 93.9% in phase-29.0 archives and the researcher's brief, whose :596 mislabels 154/164 as \"a cap of 4\" — a brief defect, not shipped). W2's BLOCK CLEARED: §4 reproduces exactly against my runs (1218/exit=0, 15 passed, ruff clean, md5 157d7b58, 8 cells). MY OWN INDEPENDENT SAFETY SWEEP, deeper than the author's: exhaustive over all 9,840 non-PASS sequences of length 1..8 × 4 budget settings × 4 (product,evidence) flag combos = 39,360 states → 0 green closes, 0 CLOSED_PASS, VIOLATIONS NONE; degenerate max_attempts 0 and -1 fail SAFE to ESCALATE; three drops of 197,091+184,753+174,664 = 556,508 tokens with verdicts_seen 0 (the criterion's \"~556K\" reproduces); close_kind returns ESCALATE for all four flag combos on the real 86.28 history and CONTINUE on a bare FAIL — the only green door is an actual PASS. THE OPEN FINDING: experiment_results_86.32.md:182 states \"`git show <c>:scripts/harness/attempt_budget.py | md5` gives `638fec28...` at 4358683c and 069908c7, and `e4ffc105...` at 96870e44 and HEAD\". Measured chain: 4358683c/069908c7=638fec28, 96870e44=e4ffc105, bce22a74=157d7b58, HEAD=157d7b58, worktree=157d7b58. HEAD is NOT e4ffc105, and the fenced block 19 lines below at :201 prints 157d7b58 for the same file — the section contradicts itself. `git diff 96870e44 bce22a74` shows :182 was ADDED by bce22a74, the same commit whose 90.9→93.9 edit changed the file and made the sentence false at the instant it was written. This is a footnote, not a criterion's evidence, and its load-bearing half (638fec28 predates the remediation) is true — but qa.md §4b binds numbers inside a section labelled \"Verbatim command output\", and this is the third typed-not-measured figure this step has shipped, in the very artifact whose regeneration was the fix. Fix is one line: \"`e4ffc105...` at 96870e44, `157d7b58...` at bce22a74 and HEAD\", or an explicit as-of qualifier if the sentence is meant to narrate the cycle-2 measurement. NOTE (non-blocking): I raised and then RETIRED a plausible-but-wrong finding — that the ledger guard would break when 86.28 archives. archive-handoff.sh BRANCH 1 (:228) uses `cp`, not `mv`; the `mv` at :279/:281 is BRANCH 3, whose globs the hook's own comment records as matching zero files. Positive control: 86.24/86.25/86.31 are all status=done and each still has 6 `_<sid>` files in handoff/current. Residual risk only if a housekeeping pass ever acts on verify_handoff_layout.py:121 — and then it fails LOUDLY, never silently green.",
+  "violated_criteria": [
+    "Contradiction: experiment_results_86.32.md:182 provenance figure does not reproduce at HEAD and contradicts :201 of the same section"
+  ],
+  "violation_details": [
+    {
+      "violation_type": "Contradiction",
+      "action": "git show HEAD:scripts/harness/attempt_budget.py | md5 -q  (and git show <c>:... for c in 4358683c 069908c7 96870e44 bce22a74)",
+      "state": "measured chain: 4358683c=638fec28a2bd8c37fb187eb56f0fd3b3, 069908c7=638fec28..., 96870e44=e4ffc1055f964257b237ca2aff6e0677, bce22a74=157d7b580b4aaafdc9283cb0e82625ab, HEAD=157d7b58..., worktree=157d7b58... . experiment_results_86.32.md:182 asserts 'e4ffc105... at 96870e44 and HEAD'; the fenced block at :201 in the SAME section prints md5=157d7b58 for the same file. git diff 96870e44 bce22a74 shows :182 was added by bce22a74, the commit that also changed attempt_budget.py (90.9->93.9) and thereby falsified its own sentence.",
+      "constraint": "qa.md 4b -- every numeric claim in experiment_results must reproduce when the stated command is re-run; a 'verbatim' section must be regenerated, not carry a figure contradicting the block it introduces. Not a criterion miss: no immutable criterion depends on this footnote."
+    }
+  ],
+  "certified_fallback": false,
+  "checks_run": [
+    "harness_compliance_audit_5_items",
+    "immutable_verification_command",
+    "git_status_unintended_change_scan",
+    "syntax_and_runtime_import_smoke",
+    "python_lint_gate_ruff_F821_F401_F811_git_derived_scope",
+    "step_test_file_pytest_15_passed",
+    "scoped_regression_pytest_410_passed",
+    "mutation_matrix_reproduced_8_of_8_killed",
+    "md5_provenance_chain_measured",
+    "independent_exhaustive_safety_sweep_39360_states",
+    "criterion_by_criterion_mapping",
+    "claim_auditing_numeric_reproduction",
+    "guard_vacuity_check",
+    "repo_wide_derived_sweep_W1_and_W3",
+    "archive_hook_durability_probe_retired",
+    "verdict_shopping_check_evidence_changed",
+    "3rd_conditional_counter_check",
+    "code_review_heuristics"
+  ],
+  "harness_compliance_ok": true,
+  "notes": "HARNESS COMPLIANCE 5/5 CLEAN. (1) Research gate: research_brief_86.32.md brief_status COMPLETE, gate_passed true, 8 sources read in full (>=5), 17 URLs (>=10), recency_scan_performed true. (2) Contract-before-generate by git commit time, not mtime (mtimes are perturbed by my own matrix run): cf50bde2 12:01:22 PLAN < 4358683c 12:10:21 GENERATE < 069908c7 12:10:58 < 96870e44 12:28:07 < bce22a74 12:41:56. (3) experiment_results present and regenerated. (4) LOG-LAST honoured: `grep -cE '^## Cycle.*phase=86\\.32' handoff/harness_log.md` = 0; masterplan 86.32 status=pending, retry_count 0 / max_retries 3. (5) NOT verdict-shopping: evidence materially changed between spawns (96870e44 then bce22a74); cycle 2 returned NO verdict, so this is not a re-grade of a graded cycle. 3rd-CONDITIONAL rule does NOT bind: 0 logged CONDITIONALs for 86.32 (cycle 1 = FAIL, cycle 2 = dropped). NO UI CLAIMS in this step, so section 1c does not apply; no Playwright capture taken or needed. EVIDENCE PROVENANCE: every command in this verdict was executed BY ME this cycle — the immutable command, the md5 chain, pytest (both scoped and step-level), ruff over a git-derived scope, the full 8-cell mutation matrix, and the 39,360-state safety sweep. I read the cycle-2 WIP as EVIDENCE only and re-derived every number I rely on; where it and I disagree the disagreement is stated (its md5 e4ffc105 was correct for the then-HEAD 96870e44 and is now stale, which is precisely how the open finding arose). MUTATION SAFETY: the matrix mutates and restores scripts/harness/attempt_budget.py in place; post-run md5 is 157d7b58 (byte-identical) and `git status --short` on both step .py files is empty. My own safety sweep ran entirely in-memory against the imported module — no repo file was written by me except the permitted WIP record at .claude/agent-memory/qa/verdicts/verdict_wip_86.32__20260811T104256Z.md (STATUS flipped to COMPLETE as my final act). No write was blocked. ONE CORRECTION TO THE SPAWN PROMPT: Main asked me to verify \"md5 e4ffc105...\" — that expectation is itself stale; the correct HEAD value is 157d7b58 and the artifact's regenerated block already says so. DISCLOSED AND UNCHANGED, correctly and unprompted, at experiment_results:221: the budget is NOT wired into run_harness.py, so no production loop is currently bounded; the :1177 defect is documented, not edited. That disclosure is honest and is not a criterion miss — but it means this step ships a mechanism, not an active guard, and the wiring belongs in its own step with its own evidence. IF THE OPERATOR reads :182 as narrating the cycle-2 measurement rather than as a present-tense re-runnable claim, the fix is a five-word as-of qualifier and the step is otherwise PASS-ready on my evidence; I graded it CONDITIONAL because the sentence carries no as-of marker, \"HEAD\" is a moving reference, and qa.md instructs preferring the stricter reading under uncertainty."
+}
+```
+
+---
+
+## Main's response
+
+**ACCEPTED. The blocker is a number I typed instead of measured -- the THIRD in this
+step, inside the very artifact whose regeneration was the cycle-2 fix.**
+
+`experiment_results_86.32.md:182` states the md5 chain as *"`e4ffc105...` at
+96870e44 and HEAD"*. **HEAD is `157d7b58`.** The `90.9 -> 93.9` correction in
+`bce22a74` changed `attempt_budget.py`, so that commit **falsified its own sentence
+at the instant it wrote it** -- and the fenced block 19 lines below, which WAS
+generated by execution, prints `157d7b58` for the same file. The section contradicts
+itself, and the half that was generated is the half that is right.
+
+**The Q/A also corrected my spawn prompt.** I told it to verify "md5 e4ffc105",
+which was already stale when I wrote it. I handed an evaluator a stale expectation
+and it caught that too.
+
+**The lesson is now unambiguous and I am fixing it structurally, not textually:** a
+provenance chain that names commits must be COMPUTED at write time. I am
+regenerating that line from `git show ... | md5` rather than retyping it with the
+new value, because retyping is exactly what produced three defects.
+
+### What the Q/A verified beyond the criteria
+
+- **39,360-state exhaustive safety sweep** (9,840 non-PASS sequences x 4 budget
+  settings x 4 flag combos): **0 green closes, 0 CLOSED_PASS**. Degenerate budgets
+  (`max_attempts` 0 and -1) fail SAFE to ESCALATE.
+- The criterion's "~556K" reproduces exactly: 197,091 + 184,753 + 174,664 =
+  **556,508** with `verdicts_seen = 0`.
+- 8/8 mutation cells killed on its own run; 410 passed in scoped regression.
+
+### A finding it RAISED AND THEN RETIRED, which is worth recording
+
+It suspected the ledger guard would break when 86.28 archives -- then measured that
+`archive-handoff.sh` branch 1 uses `cp`, not `mv`, and that the `mv` in branch 3 has
+globs its own comment records as matching zero files. Positive control: 86.24/86.25/
+86.31 are all `done` and each still has 6 `_<sid>` files in `handoff/current`. **It
+withdrew its own plausible finding on measurement.** That is the behaviour this
+project's whole discipline is trying to produce.
