@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-11 | `5483c23e` | phase-86.21: PARK at the escalation boundary; the counter caught ITSELF under-counting |
 | 2026-08-11 | `8a9a4293` | phase-86.33 P0: log agent_id -- measure before redesigning, decide nothing on it yet |
 | 2026-08-11 | `925e1681` | phase-86.38 cycle 2: my own docstring satisfied my own guard -- AST, not grep |
 | 2026-08-11 | `8935be78` | phase-86.33: PLAN -- contract written; the gate PASSED the floors but ran ZERO searches |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-11 | `cf94ef76` | docs(goal): RETRACT my drought framing -- 86.38's gate refuted it, and I confirmed it |
 | 2026-08-11 | `6e8f3169` | phase-86.36 cycle 2: fix both CONDITIONAL blockers -- the OTHER copy of the directive |
 | 2026-08-11 | `07fd7c07` | phase-86.38: experiment_results + repair live_check section F; queue 86.41 |
-| 2026-08-11 | `b3d7fe92` | phase-86.29 cycle 3: qualify every surviving figure with its grammar |
 
 ---
 
+### v6.93.125 — phase-86.21: PARK at the escalation boundary; the counter caught ITSE... (2026-08-11)
+
+- **phase-86.21: PARK at the escalation boundary; the counter caught ITSELF under-counting**
 ### v6.93.124 — phase-86.33 P0: log agent_id -- measure before redesigning, decide no... (2026-08-11)
 
 - **phase-86.33 P0: log agent_id -- measure before redesigning, decide nothing on it yet**
