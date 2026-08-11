@@ -108,7 +108,16 @@ test_64_4_multi_market_e2e:144         trader = pt.PaperTrader(s, bq)           
 test_phase_70_3_atomic_swap:207        trader = pt.PaperTrader(s, bq)              injected=0
 test_price_tolerance_gate:63           return PaperTrader(settings=..., bq_client=bq)  injected=0
 test_phase_70_4_gate_observability:68  trader = pt.PaperTrader(get_settings(), bq)  injected=0
+test_dod4_tier1_coverage_investment:40 trader = PaperTrader(settings=s, bq_client=bq) injected=0
 ```
+
+**SIX sites, not five** -- corrected after the cycle-3 Q/A found this artifact
+UNDERSTATING its own case. Cycle 1 had called `dod4` "tmp-isolated" because the file
+monkeypatches `kill_switch._AUDIT_PATH`; verified here, **those monkeypatches belong
+to different tests** (`test_kill_switch_pause_*` / `_resume_*`, each constructing its
+own `KillSwitchState()`), while `dod4`'s PaperTrader helper `_make_trader` at `:40`
+is uninjected and unpatched. So `dod4` couples through the same `:202` fallback as
+the other five.
 
 ### The failure was mine twice, and the second time was worse
 

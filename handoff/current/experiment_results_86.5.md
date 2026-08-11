@@ -43,47 +43,39 @@ That is **not "9 were fixed"**:
 **`26 - 14 + 2 + 3 = 17`.** The suite also gained ~400 tests (3017 -> 3417), so
 **26 is STALE, not WRONG** -- the population moved under it.
 
-### The 14 that disappeared -- TWO HYPOTHESES RAISED AND BOTH REFUTED
+### The 14 that disappeared -- WHAT I FIRST CONCLUDED WAS WRONG, BOTH TIMES
 
-**H1: the 36.28 kill-switch-coupled cluster.** The `audit_basis` names six files as
-"coupled to the operator's LIVE kill-switch pause state", and those are *exactly*
-the ones that vanished. A satisfying story.
+> **REWRITTEN after the cycle-2 FAIL and the cycle-3 finding.** An earlier revision
+> of this section said "TWO HYPOTHESES RAISED AND BOTH REFUTED" and concluded "Only
+> `test_phase_23_2_4` is genuinely coupled". **Both hypotheses were in fact CORRECT
+> and my refutations were wrong.** The cycle-3 Q/A caught that my previous
+> correction reversed H1 by name while leaving H2's "ALSO REFUTED" standing, so the
+> old conclusions survived in different words after a literal-string sweep found
+> nothing. Corrected here IN PLACE.
 
-**REFUTED.** Measured `kill_switch|paused|pause` references per file:
+**H1 -- the 36.28 kill-switch-coupled cluster. CORRECT.** I raised it, then
+"refuted" it with `grep -c 'kill_switch|paused|pause'` (five files returned 0). That
+proxy is structurally incapable of seeing the coupling: `paper_trader.py:202` does
+`state = self._injected_ks_state or get_state()`, so a test constructing
+`PaperTrader` uninjected couples through the module singleton **with zero textual
+references**. A flag-flip matrix turns all six RED under `paused`, 11 failures
+matching the 2026-08-08 baseline exactly.
 
-```
-test_64_3_currency_path                     0
-test_price_tolerance_gate                   0
-test_phase_70_4_gate_observability          0
-test_phase_23_2_4_pause_resume_..._live    43
-```
+**H2 -- environment artifacts. ALSO CORRECT.** I "refuted" it by noting those files
+carry 0-1 live references and no skip markers -- the same text-shaped reasoning. The
+11 are precisely environment artifacts: green only because the operator's book is
+unpaused today, red the moment it pauses. **36.28 owns them and is still
+`status: pending`**, so nothing fixed them.
 
-Three of four carry **zero**, and all 17 of their tests pass now. Only
-`test_phase_23_2_4` is genuinely coupled.
+**What I attributed the greening to was also wrong.** I wrote that
+`autonomous_loop.py`'s 12 commits and `orchestrator.py`'s 3 explained it, marking
+the attribution "unestablished". The flag-flip matrix refutes it **with the tree
+unchanged** -- no commit was needed; only the pause state differs.
 
-**H2: environment artifacts.** 7 of the 9 disappeared files have **zero commits**
-since the baseline -- red to green with no edit, which normally means
-state-dependence.
-
-**ALSO REFUTED.** Those files carry **0-1** live references and **no skip markers**.
-
-> **SUPERSEDED BY THE CYCLE-2 FAIL -- READ THIS FIRST.** The paragraph below
-> attributes the greening to `autonomous_loop.py`'s 12 commits. **A flag-flip
-> mutation matrix refutes it with the tree unchanged:** forcing the kill_switch
-> singleton `paused` turns all six 36.28-named files RED, 11 failures matching the
-> 2026-08-08 baseline exactly. So 11 of the 14 are **environment artifacts** --
-> green only because the operator's book is unpaused today -- not "already fixed".
-> H1, which I raised and then refuted with a grep, was CORRECT. See
-> `live_check_86.5.md` §C and `evaluator_critique_86.5.md` cycle 2.
-
-**WHAT THE EVIDENCE SUPPORTS:** `autonomous_loop.py` has **12 commits** since
-2026-08-08 and `orchestrator.py` **3**. The tests were untouched; the production
-they exercise changed substantially; they now pass. That is criterion 1's
-**"already fixed"** disposition.
-
-> **STATED AS CONSISTENT-WITH, NOT PROVEN.** Per-test attribution across 15 commits
-> is a larger job than this step needs. I am recording the correlation and marking
-> the attribution **unestablished** rather than asserting a cause I did not trace.
+**The methodological failure, stated once:** all three wrong conclusions came from
+asking *what does the source text say* instead of *what changes if the hypothesis is
+true*. A grep cannot answer a runtime-reachability question. Flipping the state
+answers it in one move.
 
 ## 3. Criterion 4 -- ALL SIX ARE COUPLED (11 of the 26). My answer was INVERTED.
 
@@ -148,3 +140,56 @@ code-wrong.** That dryness is a finding: the per-case adjudication in the five f
 steps **cannot be automated**, and any future step promising to automate it should
 be treated sceptically. It is also why every filed step carries its trap inline --
 the next executor will have less context than this triage did.
+
+---
+
+## 8. DISPOSITION -- PARKED, and it cannot close without the operator
+
+**Three graded cycles: CONDITIONAL, FAIL, CONDITIONAL.** The standing goal parks a
+step that will not close after two, and there is now a harder reason.
+
+### THE STEP IS STRUCTURALLY UNCLOSEABLE -- OPERATOR ASK #5
+
+`86.5`'s **own immutable verification command exits 1**. Extracted from
+`.claude/masterplan.json` and run verbatim via `subprocess(shell=True)`:
+
+```
+repr:  '...;ids=[];\nwalk=lambda o:[walk(v) for v in ...'   <- LITERAL backslash-n
+returncode = 1
+stderr: SyntaxError: unexpected character after line continuation character
+```
+
+bash does not expand `\n` inside double quotes, so python receives `;\nwalk`.
+
+**I reported "exit=0" for this command earlier today and that does not reproduce.**
+I ran a simplified variant; my spawn prompts carried an elided form; both prior
+cycles were handed my transcription rather than the stored string. Only running the
+stored bytes catches it.
+
+**The defect predates this triage** -- frozen at `a7911f2e` when the step was
+queued. **Criteria are immutable and I will not edit one**, so the step cannot
+reach a clean PASS on its own terms.
+
+**ASK #5: authorise an immutability exception to repair 86.5's verification
+command** (remove the literal `\n`), or direct that the step close on the
+success_criteria alone with the broken command disclosed.
+
+The irony is exact and worth keeping: **86.5's own criterion 2 requires running a
+proposed command BEFORE freezing it, because "a criterion that is already red for
+unrelated reasons is structurally uncloseable".** The step that teaches the rule was
+born breaking it.
+
+### WHAT IS COMPLETE AND STANDS
+
+- **The deliverable**: `86.48`-`86.52` filed, each with `audit_basis`,
+  `harness_required: true`, and a verification command **verified exit 0** -- none
+  carries the `\n` defect.
+- **Criterion 1**: 18-row file-level accounting, all 26 dispositioned, arithmetic
+  re-derived member-by-member by the Q/A (`26-14+2+3=17`).
+- **Criterion 4**: ALL SIX coupled (11 of 26), owned by `36.28` (still `pending`).
+- **Criteria 3, 5, 6**: MET and independently reproduced across cycles.
+
+### WHAT IS OUTSTANDING BESIDES THE ASK
+
+Nothing. Blocker 2 (the superseded narrative) is fixed in §2 above, and the
+`dod4` understatement is corrected in `live_check` §C.

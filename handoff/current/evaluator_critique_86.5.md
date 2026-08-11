@@ -257,3 +257,131 @@ which is the standard I keep failing to meet.
 3. Correct `experiment_results` §2, which attributes the greening to
    `autonomous_loop.py`'s 12 commits -- the flag-flip matrix refutes that with the
    tree unchanged.
+
+---
+
+# CYCLE 3 -- verdict: CONDITIONAL
+
+**`ok: False`** | run `wf_3615d405-479` (147,216 tokens, 27 tool uses, 481s).
+Graded history: c1 CONDITIONAL, c2 FAIL, c3 CONDITIONAL.
+
+**Transcribed VERBATIM by Main.**
+
+## Verdict (verbatim)
+
+```json
+{
+  "ok": false,
+  "verdict": "CONDITIONAL",
+  "reason": "All six immutable criteria are substantively MET on evidence I reproduced independently, and the cycle-2 remediation landed correctly -- but two findings block a clean close, one of which neither prior cycle caught. CRITERION 4 IS NOW CORRECT AND I STRENGTHENED IT: live_check_86.5.md section C and experiment_results_86.5.md section 3 both state ALL SIX / 11 of 26, owned by 36.28 (verified status=pending), no duplicate steps, 23_2_4 correctly excluded and attributed to 86.3. I re-derived the mechanism from source THIS cycle rather than taking it from Main: backend/services/paper_trader.py:202 AND :1273 both read `state = self._injected_ks_state or get_state()`, with the `kill_switch_state` kwarg defaulting None at :98 and assigned at :117, so an uninjected PaperTrader falls back to the module singleton -- and all five cited construction sites reproduce VERBATIM at their cited lines with no kill_switch_state (64_3:59, 64_4:144, 70_3:207, price_tolerance:63, 70_4:68). I ran an adversarial probe expecting to find that the dod4 mutant cell died for the wrong reason (cycle 1 claimed dod4 is tmp-isolated via monkeypatching kill_switch._AUDIT_PATH at :70-86); READING THE FILE REFUTES MY OWN PROBE -- those monkeypatches belong to the kill_switch state-transition tests, each constructing its own KillSwitchState(), while dod4's PaperTrader test at :32-40 is `PaperTrader(settings=s, bq_client=bq)`, uninjected and unpatched. So dod4 couples through the same :202 fallback; cycle-1's \"tmp-isolated\" reading was wrong about WHICH test in the file is coupled, and the corrected answer is stronger than stated. CRITERION 1 ARITHMETIC RE-DERIVED MEMBER BY MEMBER, NOT BY CARDINALITY: table A's baseline column (3,1,1,1,1,1,1,1,3,1,1,2,2,1,1,1,1,3,0,0) sums to 26 exact; the now column (0,0,0,0,0,0,1,1,3,1,0,0,3,1,2,1,1,0,1,2) sums to 17 exact; rows 1/2/4/11/12/18 labelled ENVIRONMENT ARTIFACT with owner 36.28 sum to 3+1+1+1+2+3 = 11, matching live_check C's mutant counts exactly, leaving 15 -- nothing unclassified. C5 reproduced LIVE right now: handoff/kill_switch_audit.jsonl is 66 lines / 6618 bytes / sha256 ab7324ebf501e3d3886e62a5d8fd2ed4f01f675849702b6553a4df691aab455f, byte-identical to the recorded before AND after. C6: `git status --porcelain backend/tests/` is 0 lines and both `git diff --name-only HEAD -- '*.py'` and `git ls-files --others --exclude-standard -- '*.py'` are EMPTY. BLOCKER 1 (new, neither prior cycle caught it): step 86.5's OWN immutable verification command as stored in .claude/masterplan.json EXITS 1 with `SyntaxError: unexpected character after line continuation character`. I extracted it from the JSON and executed it via subprocess(shell=True) with zero hand transcription; repr shows the stored string carries a LITERAL backslash-n (`ids=[];\\nwalk=lambda`), which bash does not expand inside double quotes, so python receives `;\\nwalk` and dies. Both prior cycles reported \"exit=0\" on this command -- that claim DOES NOT REPRODUCE; they ran an elided variant, as did my own spawn prompt (whose simplified form does exit 0). The defect predates this triage (frozen at a7911f2e when the step was queued) and the substance is unaffected (the masterplan genuinely parses), but a frozen red command makes the step structurally uncloseable on its own terms -- the exact doctrine this step's own criterion 2 encodes -- and criteria are immutable, so Main cannot repair it unilaterally; it needs the operator. Critically, the five FILED steps' commands are all clean: 86.48/86.49/86.50/86.51/86.52 each exit=0 printing 'parsed', none contains a literal backslash-n, so criterion 2's green-able requirement HOLDS for the deliverable and the defect is isolated to 86.5 itself. BLOCKER 2 (answering the direct ask \"anything the rewrite broke\"): the literal-string sweep is CLEAN -- \"Measured: ONE\" and \"ZERO of the six\" survive only inside explicit correction text (experiment_results:90, live_check:72) and inside the historical cycle-1/cycle-2 verdicts -- but the SAME WRONG ANSWER survives in different words, which a literal sweep cannot catch. experiment_results_86.5.md section 2 still carries the superseded narrative with its conclusions in bold and uncorrected in place: :46 \"TWO HYPOTHESES RAISED AND BOTH REFUTED\", :52 \"REFUTED.\" (H1 = the 36.28 cluster), :62 \"Only test_phase_23_2_4 is genuinely coupled\" -- a direct contradiction of section 3's ALL SIX -- and :68 \"ALSO REFUTED.\" for H2 (environment artifacts), which the file's own blockquote contradicts six lines later at :74 with \"So 11 of the 14 are environment artifacts\". The blockquote at :70-77 explicitly reverses H1 (\"H1 ... was CORRECT\") but NEVER names H2, and scopes its supersession to \"the paragraph BELOW\", so an auditor reading top-to-bottom meets both wrong conclusions before any correction. The authoritative accounting (table A) and criterion-4 section are correct, so this is an evidence-trail hygiene defect, not a criterion miss -- but a correction must supersede, not sit beside. TRAP CLAIMS AUDITED AND ALL GROUNDED: .claude/hooks/lib/qa_write_guard.py is genuinely ABSENT (only .claude/hooks/qa-write-guard.sh exists), backend/services/paper_trading.py is ABSENT while portfolio_manager.py EXISTS and test_portfolio_swap.py:18 imports decide_trades from it, 86.25 is status=done, and -- the money-path one that matters most -- get_settings() in the venv returns paper_data_integrity_enabled=True AND paper_risk_judge_reject_binding=True, both armed, so 86.48's warning that greening those four tests via .env or the Field defaults would silently disarm two live flags is factually grounded. PROVENANCE, STATED PLAINLY BECAUSE MAIN ASKED: the 11-count flag-flip matrix was executed in cycle 2, not this cycle, and I did not re-run it (86.3 warns against casual suite runs and the spawn prompt scoped me out). What I re-derived this cycle is the mechanism half from source plus the sixth construction site; that is enough to sustain criterion 4, and I am not claiming more. One understatement worth noting: live_check C lists \"all five\" uninjected sites and omits dod4:40, so the artifact understates its own case rather than over-claiming. Harness compliance CLEAN on all five items: research_brief_86.5.md carries brief_status COMPLETE / 37 sources read in full / 58 URLs / recency_scan true / gate_passed true; mtime order brief 13:38 < contract 13:41 < original results holds; live_check present; harness_log has ZERO entries matching phase=86.5 and masterplan 86.5 is still status=pending, so log-last is honoured; and evidence CHANGED between cycles (commit b4cb7938 rewrote all three artifacts), so this is the documented fresh-respawn, not verdict-shopping. git status --short shows only hook-managed heartbeat/audit/health jsonl plus my own WIP file -- NO unintended production change. Gates 1a/1b/1c/1d are all NOT APPLICABLE (empty derived .py scope, no frontend/**, no UI claims, no backend module changed) and are reported as such rather than as passes. 3rd-CONDITIONAL rule does NOT bind: cycle 1 was CONDITIONAL but cycle 2 was FAIL, which resets the counter, so this is the first CONDITIONAL since reset. retry_count 0 of max_retries 3, so certified_fallback is false. Path to PASS is cheap and neither item requires re-triage: rewrite experiment_results section 2 so the superseded hypotheses are corrected IN PLACE (H2 named, not only H1), and route the broken immutable command to the operator as an immutability exception -- the five filed steps, the accounting table, and the corrected criterion-4 answer all stand.",
+  "violated_criteria": [
+    "immutable_verification_command_exits_1",
+    "superseded_narrative_contradicts_corrected_answer"
+  ],
+  "violation_details": [
+    {
+      "violation_type": "Invalid_Precondition",
+      "action": "Extracted .claude/masterplan.json step 86.5 verification.command and executed it via subprocess(cmd, shell=True) with zero hand transcription",
+      "state": "returncode=1; stderr 'SyntaxError: unexpected character after line continuation character'. repr of the stored string shows a LITERAL backslash-n ('ids=[];\\\\nwalk=lambda o:[walk(v) ...'), which bash does not expand inside double quotes, so python3 -c receives ';\\nwalk' and aborts. Frozen at commit a7911f2e ('phase-86.5: queue the 26-failure triage'), predating this triage. Both prior Q/A cycles recorded 'exit=0' for this command -- that claim does not reproduce; they ran an elided variant, as did this spawn prompt (whose simplified form does exit 0). The five FILED steps are clean by contrast: 86.48/86.49/86.50/86.51/86.52 all exit=0 printing 'parsed', none carrying a literal backslash-n.",
+      "constraint": "qa.md section 1 -- the immutable verification command from .claude/masterplan.json must be run and its ACTUAL exit code reported; and this step's own criterion 2 doctrine, 'run the proposed verification command BEFORE freezing it -- a criterion that is already red for unrelated reasons is structurally uncloseable'. Criteria are immutable per CLAUDE.md, so Main cannot repair this unilaterally; it needs an operator-approved exception. Substance is unaffected -- the masterplan genuinely parses -- but nothing else in the harness will catch this, since the live_check gate only tests file existence and the verdict gate reads the critique JSON."
+    },
+    {
+      "violation_type": "Contradiction",
+      "action": "Swept all 86.5 artifacts for stale criterion-4 claims, per the spawn prompt's explicit ask, then read experiment_results_86.5.md section 2 top-to-bottom as an auditor would",
+      "state": "The literal-string sweep is CLEAN ('Measured: ONE' and 'ZERO of the six' survive only in explicit correction text at experiment_results:90 and live_check:72, plus the historical cycle-1/cycle-2 verdicts). But the same wrong answer survives in different words: experiment_results_86.5.md:46 '### The 14 that disappeared -- TWO HYPOTHESES RAISED AND BOTH REFUTED', :52 '**REFUTED.**' for H1 (the 36.28 kill-switch cluster), :62 'Only `test_phase_23_2_4` is genuinely coupled.' -- a direct contradiction of section 3's 'ALL SIX ARE COUPLED' -- and :68 '**ALSO REFUTED.**' for H2 (environment artifacts), contradicted by the file's own blockquote six lines later at :74, 'So 11 of the 14 are **environment artifacts**', and by live_check table A's 11 rows labelled ENVIRONMENT ARTIFACT. The blockquote at :70-77 explicitly reverses H1 ('H1, which I raised and then refuted with a grep, was CORRECT') but never names H2, and scopes its supersession to 'the paragraph BELOW', so both wrong conclusions are read before any correction.",
+      "constraint": "A correction must SUPERSEDE the wrong claim, not sit beside it (project doctrine feedback_diff_every_file_the_critique_named; qa.md 4b claim-auditing). WARN severity, not a criterion miss: the authoritative accounting (live_check section A) and the criterion-4 answer (section 3) are both correct and internally consistent -- the defect is in the evidence trail an executor with no memory of this triage would read first. Remedy: correct H1 and H2 in place in section 2."
+    }
+  ],
+  "certified_fallback": false,
+  "checks_run": [
+    "harness_compliance_audit_5_item",
+    "research_gate_envelope",
+    "mtime_order_contract_before_generate",
+    "log_last_and_masterplan_status",
+    "no_verdict_shopping_evidence_diff",
+    "immutable_verification_command_executed_programmatically",
+    "filed_steps_verification_commands_all_five",
+    "git_status_no_unintended_production_change",
+    "python_lint_gate_scope_derivation_empty_NA",
+    "criterion1_table_arithmetic_re_derived",
+    "criterion4_mechanism_re_verified_from_source",
+    "construction_site_line_by_line_verification",
+    "adversarial_probe_dod4_tmp_isolation_refuted",
+    "criterion5_sha256_line_count_reproduced_live",
+    "criterion6_test_tree_porcelain_and_py_diff",
+    "trap_claim_audit_86_48_money_path_flags",
+    "trap_claim_audit_86_50_86_51_86_52",
+    "stale_claim_sweep_literal_and_semantic",
+    "3rd_conditional_counter_check",
+    "certified_fallback_retry_count",
+    "code_review_heuristics",
+    "write_first_wip_record"
+  ],
+  "harness_compliance_ok": true,
+  "notes": "HARNESS COMPLIANCE CLEAN on all 5 items. Research gate: research_brief_86.5.md (80,672 B) carries brief_status COMPLETE, external_sources_read_in_full=37, urls_collected=58, recency_scan_performed=true, gate_passed=true. mtime order brief 13:38:35 < contract 13:41:44 holds (results/live_check now stamp 14:20 because cycle 3 rewrote them; the original generate was 13:54 per cycle 1). harness_log grep of the escaped pattern 'phase=86\\\\.5' returns ZERO entries and masterplan 86.5 is status=pending, so log-last is honoured. Evidence CHANGED between cycles -- commit b4cb7938 (14:20:53) touched evaluator_critique_86.5.md (+131), experiment_results_86.5.md (+44) and live_check_86.5.md (118 lines) -- so this is the documented fresh-respawn on changed evidence, not verdict-shopping. 3rd-CONDITIONAL: cycle 1 CONDITIONAL, cycle 2 FAIL; the FAIL resets the counter, so this CONDITIONAL is #1 since reset and the auto-FAIL rule does not bind (a cycle-5 CONDITIONAL would trigger it). certified_fallback false (retry_count 0 of max_retries 3). GATES NOT APPLICABLE, reported as such rather than as passes: 1a python lint (derived scope from git diff --name-only HEAD -- '*.py' UNION git ls-files --others is EMPTY -- per qa.md the empty-set guard means the gate FAILED to apply, not that it passed), 1b frontend lint/typecheck (no frontend/** touched), 1c live UI capture (this step makes no UI claims), 1d backend runtime smoke (no backend module changed). No code-review heuristic fired: there is no diff at all -- no secret, no kill-switch reachability change, no money-path edit, no test edit. METHOD NOTE ON MY MAIN FINDING: I did not hand-type the immutable command; I extracted it from .claude/masterplan.json and executed it through subprocess(shell=True), then ran the same procedure over all five filed steps as a control. That control is what makes the finding trustworthy -- five green, one red, same method, so the red indicts the subject and not my probe. A RED CONTROL WOULD HAVE INDICTED MY PROBE INSTEAD, and I checked for that explicitly. SELF-CORRECTION RECORDED: I opened an adversarial probe expecting to find that cycle-2's dod4 mutant cell died for the wrong reason (cycle 1 asserted dod4 is tmp-isolated by monkeypatching kill_switch._AUDIT_PATH at :70-86, which forcing the singleton paused would bypass). Reading the file refuted my own hypothesis -- those monkeypatches belong to the kill_switch state-transition tests, each building its own KillSwitchState(), while dod4's PaperTrader test at :32-40 is uninjected and unpatched. I am recording the refuted probe so a later cycle does not re-run it, and because it means cycle-1's 'dod4 is tmp-isolated' reading was wrong about which test in the file is coupled. EVIDENTIARY BOUNDS, since Main asked directly: the 11-count flag-flip matrix was executed in cycle 2, not this cycle, and I did NOT re-run it (86.3 warns against casual suite runs; the spawn prompt scoped me out). What I re-derived this cycle is the mechanism -- paper_trader.py:202 and :1273, the None default at :98 assigned at :117, all five cited construction sites verbatim at their cited lines, plus a sixth at test_dod4_tier1_coverage_investment.py:40 that live_check omits. That is sufficient to sustain criterion 4 and I claim no more. Main's decision to verify the mechanism itself rather than re-run my matrix was the right call and does not weaken the verdict. CREDIT: the cycle-2 remediation is honest and complete on substance -- the inversion is reversed in both artifacts, table A's 11 rows are correctly relabelled ENVIRONMENT ARTIFACT with owner 36.28 (verified still pending), the totals reconcile to 26 and 17 exactly, and the commit message's self-report is candid. The 86.48 trap remains the most valuable artifact in the step and I confirmed its premise live: both money-path flags read True from get_settings(). WRITE-FIRST RECORD at /Users/ford/.openclaw/workspace/pyfinagent/.claude/agent-memory/qa/verdicts/verdict_wip_86.5__20260811T122146Z.md (STATUS: COMPLETE, COMPLETED 2026-08-11T12:28:04Z) -- it is evidence for a next spawn, never a verdict. No write was blocked; I wrote only that file and touched nothing else. One Bash call was denied by the permission system (a compound command that included reading backend/.env); I did not work around it -- I obtained the same flag state through get_settings() in the venv, which is what the tests themselves read."
+}
+```
+
+---
+
+## Main's response
+
+**BLOCKER 1 IS AN OPERATOR ASK, AND IT INDICTS MY OWN EARLIER REPORTS.**
+
+86.5's stored immutable command **exits 1**. I extracted and ran it verbatim:
+
+```
+repr: '... ;ids=[];\\nwalk=lambda o:[walk(v) ...'
+contains a LITERAL backslash-n: True
+returncode = 1
+stderr: File "<string>", line 1
+        SyntaxError: unexpected character after line continuation character
+```
+
+The JSON holds a literal `\n`, which bash does not expand inside double quotes, so
+python receives `;\nwalk` and dies.
+
+**I reported "exit=0" on this command earlier today. That claim does not
+reproduce** -- I ran a simplified variant, and my own spawn prompts carried an
+elided version too. Neither prior cycle caught it because both were handed my
+transcription rather than the stored string. The Q/A ran it via
+`subprocess(shell=True)` with zero hand transcription, which is the only way it
+could have been caught.
+
+**The defect predates this triage** (frozen at `a7911f2e` when the step was
+queued). **Criteria are immutable, so I cannot repair it** -- this needs the
+operator. Raised as **ASK #5**.
+
+The irony is exact: **86.5's own criterion 2 encodes the doctrine this violates**
+-- *"run the proposed verification command BEFORE freezing it -- a criterion that is
+already red for unrelated reasons is structurally uncloseable"*. The step that
+teaches the rule was born breaking it.
+
+**The five FILED steps are clean** -- 86.48-86.52 each exit 0 printing `parsed`,
+none contains a literal `\n`. The deliverable is unaffected.
+
+**BLOCKER 2 -- the same wrong answer survived in DIFFERENT WORDS, and my sweep
+could not see it.** I swept for the literal strings "Measured: ONE" and "ZERO of
+the six" and declared it clean. But `experiment_results` §2 still carries, in bold:
+`:46` *"TWO HYPOTHESES RAISED AND BOTH REFUTED"*, `:52` *"REFUTED."*, `:62` *"Only
+`test_phase_23_2_4` is genuinely coupled"* -- a direct contradiction of §3's ALL
+SIX -- and `:68` *"ALSO REFUTED."* for H2. My blockquote reverses H1 by name but
+**never mentions H2**, and scopes itself to "the paragraph below", so a reader
+meets both wrong conclusions before any correction.
+
+**Third time today** that a correction sat beside its claim instead of superseding
+it. A literal-string sweep is not a semantic sweep.
+
+**AND THE Q/A STRENGTHENED MY OWN CORRECTED ANSWER by refuting its own probe.** It
+expected to find the `dod4` mutant cell died for the wrong reason -- cycle 1 had
+called `dod4` "tmp-isolated" via monkeypatched `_AUDIT_PATH`. Reading the file
+refuted that: those monkeypatches belong to the kill-switch state-transition tests,
+each constructing its own `KillSwitchState()`, while **dod4's PaperTrader test at
+`:32-40` is uninjected and unpatched**. So `dod4` couples through the same `:202`
+fallback, and `live_check` §C **understates its own case** by listing "all five"
+sites and omitting `dod4:40`.
+
+### Disposition
+
+Fix blocker 2, raise ASK #5, then **PARK** -- three graded cycles, and the step
+cannot close while its own immutable command is red.

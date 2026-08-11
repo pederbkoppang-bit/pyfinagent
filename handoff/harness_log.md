@@ -33973,3 +33973,58 @@ so a range shrink to 363 leaves it silent; enum-identity `dropped`/`verdicts_see
 `disposition()` treats `[PASS, FAIL]` as `CLOSED_PASS`), R4 (**the budget is NOT
 wired into `run_harness.py`** -- a mechanism, not an active guard; no production loop
 is bounded today, and `:1177` is documented, not edited).
+
+## Cycle 1219 -- 2026-08-11 -- phase=86.5 result=CONDITIONAL (step PARKED -- operator ASK #5)
+
+**Triage the standing test failures into per-root-cause steps.** Three graded
+cycles: CONDITIONAL, FAIL, CONDITIONAL. PARKED, and it cannot close without the
+operator.
+
+**THE DELIVERABLE IS COMPLETE**: `86.48`-`86.52` filed by REMEDY rather than root
+cause (4+1+9+1+2 = 17), each with an `audit_basis` for an executor with no memory,
+each carrying its own **"DO NOT DO THIS"** line, and each verification command
+verified exit 0.
+
+**THE COUNT**: 17, not the title's 26 -- and 26 is **STALE, not wrong**; the suite
+gained ~400 tests since the 2026-08-08 baseline. Two full runs, byte-identical
+failure sets.
+
+**THE STEP IS STRUCTURALLY UNCLOSEABLE.** Its OWN immutable verification command
+exits 1: the stored JSON carries a literal `\n` that bash will not expand inside
+double quotes, so python dies on a SyntaxError. **I reported "exit=0" on it earlier
+today and that does not reproduce** -- I ran a simplified variant, and both prior
+cycles were handed my transcription rather than the stored bytes. Frozen at
+`a7911f2e`, predating this work. Criteria are immutable -> **ASK #5**. Exactly the
+doctrine 86.5's own criterion 2 encodes.
+
+**THE FINDING I GOT WRONG TWICE, THEN INVERTED, THEN FIXED.** Are six test files
+coupled to the operator's live kill-switch state? I answered with a `grep` (five
+returned 0) and said NO. Cycle 1 rejected the proxy; **my remediation read the same
+column, relabelled it "the coupling PROPERTY", and re-derived the same wrong answer
+with more confidence.** Cycle 2 FAILED the step with a flag-flip matrix: forcing the
+singleton `paused` turns **all six RED, 11 failures matching the baseline exactly**.
+
+The mechanism is invisible to any text search -- `paper_trader.py:202` does
+`state = self._injected_ks_state or get_state()`, so an uninjected `PaperTrader`
+couples through the module singleton with **zero** occurrences of the word. Six
+construction sites, all `injected=0`.
+
+**My first hypothesis was right and I argued myself out of it.** The rule that would
+have saved three passes: **measure what CHANGES if the hypothesis is true.** Flip
+the state; a grep cannot answer a runtime-reachability question.
+
+**OPERATIONAL CONSEQUENCE FOR THE BOOK**: 11 of the 26 historical failures are
+**environment artifacts, green only because the book is unpaused**. `36.28` owns
+them and is still `pending`. They return the moment it pauses -- and my first draft
+called them "already fixed".
+
+**Corrections must SUPERSEDE.** Cycle 3 caught that my previous fix reversed H1 by
+name while leaving H2's "ALSO REFUTED" standing, so the wrong conclusion survived in
+different words -- a literal-string sweep cannot see that. Third instance today.
+
+**THE Q/A REFUTED ITS OWN PROBE, TWICE.** In cycle 2 its first matrix pointed
+`_AUDIT_PATH` at an empty tmp sink, starving `baselines_present` so the guard failed
+closed -- 7 phantom failures in the CONTROL arm; it treated a red control as an
+indictment of the probe and rebuilt it. In cycle 3 it expected to find the `dod4`
+cell died for the wrong reason, read the file, and **refuted its own expectation** --
+strengthening my corrected answer from five sites to six.
