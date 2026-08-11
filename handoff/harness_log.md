@@ -33707,3 +33707,34 @@ own step's files -- the first correct ones since 2026-08-06 -- with
 
 Final state: 6 behavioural checks, 7/7 mutants killed, 156 published / **158
 true** mismatches over 821 dirs, 16 formerly-opaque dirs fully adjudicated.
+
+## Cycle 1214 -- 2026-08-11 -- phase=86.21 result=CONDITIONAL (step PARKED)
+
+Cycles 4 and 5 both CONDITIONAL (`wf_982cd319-493`, `wf_e66ad533-e61`), on top of
+c1/c2 CONDITIONAL and c3 FAIL. **PARKED at the escalation boundary**: the step's
+own counter now reports `consecutive : 2 / auto-FAIL armed : True (a further
+CONDITIONAL would be the 3rd)`, so a cycle-6 Q/A finding anything would be
+required to return FAIL.
+
+**THE FINDING OF THE DAY, and it is about this step's own tool.** The verdict
+ledger had not been appended since 2026-08-10 -- cycles 4 and 5 were graded and
+never written -- so `--step 86.21` reported `consecutive : 0`, `auto-FAIL armed :
+False`, "a further CONDITIONAL would be the 1st", **at exit 0**, when the truth
+was five verdicts and the next one would be the 3rd. **The counter built to stop a
+silent fail-open under-count was itself silently under-counting, on its own
+step.** A well-formed-but-STALE ledger is a fifth failure mode with no status: not
+"missing", not "unreadable", not "corrupt or empty", so it falls outside criteria
+5 and 6 and nothing caught it. Rows appended; the automatic-append gap is UNFIXED
+and is the first thing the next session should read.
+
+**Cycle 4 found that a check I wrote to verify a fix could not detect the defect
+it was written for** -- `verify_broken_scoring()` asserted that `importlib` raises
+on bad syntax, a LIBRARY FACT, and inferred the scoring. With the cycle-3 defect
+restored it still reported success and the matrix still printed ALL 14 KILLED at
+rc=0. **Cycle 5 then found my fix for that was ONE-SIDED**: it pinned `broken` and
+`killed` and no `survived`, so an always-KILLED defect made the whole matrix
+report a false green with both self-check cells saying "correct" -- the same
+one-sided-guard signature cycle 2 named for `c >= 2` vs `c >= 1`, recurring twice
+more inside the self-check FOR the self-check. Third cell added; verified rc=5.
+
+Five cycles, five instances of one class. That is the honest summary.

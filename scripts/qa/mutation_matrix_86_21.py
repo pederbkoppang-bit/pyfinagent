@@ -161,6 +161,31 @@ def verify_broken_scoring(text: str) -> bool:
     print(f"  [broken-scoring self-check] real behavioural mutant -> {outcome2!r} "
           f"({'correct' if good2 else 'WRONG: scoring no longer distinguishes'})")
 
+    # THIRD CELL, cycle 6. Cycle 5's self-check pinned "broken" and "killed" and
+    # pinned NO "survived" outcome, so it was ONE-SIDED: armed against
+    # always-BROKEN (which fails CLOSED and is harmless) and BLIND to
+    # always-KILLED (which fails OPEN over every cell at once and makes the whole
+    # matrix report a false global green). The cycle-5 Q/A built exactly that
+    # defect -- `return ("killed" if r != 0 else "survived")` -> `return "killed"`
+    # -- injected a guaranteed-survivor cell, and watched it flip from
+    # "SURVIVED / 16 of 17 killed / rc=1" to "KILLED / ALL 17 MUTANTS KILLED /
+    # rc=0" with both self-check cells still reporting "correct".
+    #
+    # This is the same one-sided-guard signature the cycle-2 Q/A named for
+    # `c >= 2` vs `c >= 1`, recurring inside the self-check FOR the self-check.
+    #
+    # A mutation that CANNOT change behaviour (a comment rewrite) must score
+    # "survived". If it scores "killed", every kill in the matrix is worthless.
+    outcome3, _d3 = score_cell(
+        text,
+        '"""phase-86.21 -- a 3rd-CONDITIONAL counter that can SEE an in-flight step.',
+        '"""phase-86.21 -- COMMENT REWRITE, provably behaviour-preserving.',
+        "xcheck3")
+    good3 = outcome3 == "survived"
+    ok &= good3
+    print(f"  [broken-scoring self-check] behaviour-preserving mutant -> {outcome3!r} "
+          f"({'correct' if good3 else 'WRONG: scoring credits kills it cannot have earned'})")
+
     if not ok:
         print("  [broken-scoring self-check] the SCORING PATH is wrong -- kills"
               " from this matrix cannot be trusted.")

@@ -500,3 +500,109 @@ md5 in either artifact.
 **Again: this is Main's self-report, and cycle 4's equivalent paragraph was
 wrong. A fresh Q/A should re-derive it, and should attack `score_cell` the way
 cycle 4 attacked its predecessor.**
+
+
+---
+
+# CYCLE 5 VERDICT -- Q/A, run `wf_e66ad533-e61`
+
+**VERBATIM from the captured return value.** 198,370 tokens / 27 tool uses / 727s.
+Prior: c1 COND, c2 COND, c3 FAIL, c4 COND. **This is the 2nd consecutive
+CONDITIONAL since the FAIL -- a 3rd would auto-FAIL.**
+
+## VERDICT: CONDITIONAL   (ok=false)
+
+## violated_criteria
+
+- illusory-guard (WARN): verify_broken_scoring() is one-sided -- an always-KILLED scoring defect survives both its cells
+- claim-accuracy (WARN): experiment_results_86.21.md §2's criterion-1 evidence fence is a duplicate of §7's matrix; the real reproduction is absent from the file
+- claim-accuracy (WARN): §6's self-test capture (15 case lines) and §10's pasted `18` do not reproduce against the emitted 20
+- scope-honesty (WARN): no cycle-4/cycle-5 section; the 7 knowingly-unguarded print-layer mutants are undisclosed in experiment_results
+- scope-honesty (WARN): the ledger is ALREADY stale and the counter under-counts this very step at exit 0; STALE has no status
+
+## reason
+
+Cycle 5, 86.21. ALL SIX IMMUTABLE CRITERIA MET, harness compliance CLEAN 5/5, no unintended production change -- CONDITIONAL on one executed guard-vacuity finding plus three non-reproducing captures in experiment_results_86.21.md. (a) ANSWERED, RULING FOR THE AUTHOR ON THE MAIN CLAIM AND AGAINST IT ON ONE DIRECTION: I restored the cycle-3 defect myself (`return "broken", (f"mutant failed to LOAD` -> `"killed"`) and the matrix returned rc=5 "REFUSING TO SCORE" -- the cycle-5 fix is real, verified independently, not the author's own construction. BUT verify_broken_scoring() pins the "broken" outcome and the "killed" outcome and pins NO "survived" outcome, so I built the scoring defect it misses: `return ("killed" if r != 0 else "survived")` -> `return "killed"`. Both self-check cells reported "correct", and an injected guaranteed-survivor cell (a pure comment rewrite of the target, which cannot change behaviour) flipped from "SURVIVED / 16 of 17 killed / rc=1" under control to "KILLED / ALL 17 MUTANTS KILLED / rc=0" under the mutant. The self-check is armed against always-BROKEN, which fails CLOSED and is harmless, and blind to always-KILLED, which fails OPEN and makes the whole matrix report a false green -- the identical one-sided-guard signature the cycle-2 Q/A named for `c >= 2` vs `c >= 1`, recurring inside the self-check for the self-check. Fix is one cell in the shape of the two that exist. (b) DEFENSIBLE SCOPE CALL, NOT AN UNDER-FIX: I built 8 print-layer mutants and all 8 survive, but I measured differentials instead of filing on sight -- the ordinal mutant leaves "auto-FAIL armed : True" correct and only mis-states the parenthetical ("would be the 2nd" vs "the 3rd"), and the hardcoded-contrast mutant prints "prescribes: 0 row(s)" with the correct value ("grep says 3") still printed one line below, so my strong hypothesis that it falsifies criterion 1's contrast is WRONG and I record that. A1/A2 -- the two the author DID guard -- are exactly the two that falsify the armed flag itself. Correct prioritisation; the gap is disclosure, not scope. (c) "ADVISORY, NOT AUTHORITATIVE" IS ADEQUATE and I verified rather than accepted its auditability claim: the ledger is git-tracked (git ls-files hit) and NOT gitignored (git check-ignore exit=1), so it survives the *.log trap that has defeated this project before; the residual (a writer Main does not control) is named and recorded NOT DONE. THREE CAPTURES DO NOT HOLD, all UNDER-claiming: experiment_results §2's criterion-1 evidence fence is a byte-identical duplicate of §7's mutation matrix ("688ac349|7145f566" appears 0 times in the file) while its prose cites numbers absent from the block -- I re-ran the real reproduction from live_check §2 and it HOLDS (688ac349 grep 0 / 1 header / pending; 7145f566 grep 0 / 2 headers / pending), so C1 is substantively MET; §6's self-test block shows 15 case lines against 20 emitted today; §10 pastes `grep -cE '^   \('` -> 18 when it returns 20 and contradicts its own prose three lines later ("cycle 5 measures 20 cases"). Cycle 5's sweep was a TOKEN sweep so it could not catch a stale count or a wrong block -- third cycle of this class. Most material residual, measured: `--step 86.21` today prints status ok / consecutive 0 / "a further CONDITIONAL would be the 1st" at exit 0 while the true history is FOUR verdicts (cycle 4's CONDITIONAL never appended; ledger mtime two days stale) -- so a well-formed-but-STALE ledger is a fifth failure mode with no status, under-counting in the fail-OPEN direction on this very step; outside criterion 5's "missing or unreadable" and criterion 6's "corrupt or empty", so not a criterion miss, but undisclosed as having already happened. IMMUTABLE COMMAND exit=0 (1214 + three filenames); weak by construction and cannot go red -- on the record since cycle 1, so everything above is my own re-derivation. Not downgraded to FAIL: every non-reproducing figure under-claims, the substantive C1 evidence exists and I re-ran it, the arithmetic is correct, and 0 result=CONDITIONAL rows in harness_log plus the disclosed history give consecutive=1, so the escalation is NOT armed.
+
+## violation_details
+
+### 1. Circular_Reasoning
+
+**action** -- In-memory mutation of scripts/qa/mutation_matrix_86_21.py:132 `return ("killed" if r != 0 else "survived"), f"self-test rc={r}"` -> `return "killed", f"self-test rc={r}"`, run through the real main() with TARGET re-pinned to the real verdict_history_86_21.py and an injected guaranteed-survivor cell ZZ (a pure comment rewrite of the target). Repo never written; both md5s verified unchanged. [WARN]
+
+**state** -- CONTROL: rc=1, `SURVIVED| ZZ`, `16 of 17 killed. SURVIVORS: ZZ` -- the probe discriminates. MUTANT SC2: rc=0, both self-check cells print `(correct)`, `KILLED  | ZZ`, `ALL 17 MUTANTS KILLED -- every guard IN THIS MATRIX can fail.` A mutant that cannot change behaviour is credited as a kill and the matrix reports a false global green. Contrast SC1 (the cycle-3 defect restored, `return "broken", (f"mutant failed to LOAD` -> `"killed"`): rc=5, `REFUSING TO SCORE` -- so the fail-CLOSED direction IS pinned.
+
+**constraint** -- qa.md 4c: a guard that cannot fail when its subject is broken does not count; name the concrete mutation that makes it fail. verify_broken_scoring()'s docstring pins only 'a version that simply returns broken for everything cannot pass' -- the always-BROKEN direction, which fails closed. The always-KILLED direction, which fails OPEN over every cell simultaneously, has no cell. FIX: add a third cell driving score_cell with a COMPILABLE guard-irrelevant mutant and assert outcome == "survived".
+
+### 2. Invalid_Precondition
+
+**action** -- Read handoff/current/experiment_results_86.21.md lines 22-78 (§2 'Criterion 1 -- REPRODUCED, and from git rather than asserted'); then `grep -c "688ac349\|7145f566" handoff/current/experiment_results_86.21.md`; then re-ran the reproduction from live_check_86.21.md §2 myself. [WARN]
+
+**state** -- The fence introduced by 'replayable by anyone:' contains the mutation-matrix output (`phase-86.21 criterion 6 -- mutation matrix ... ALL 16 MUTANTS KILLED ... EXIT=0`), byte-identical to §7's block. The prose immediately after it ('Two recorded verdicts, status still pending, and the grep the rule prescribes returns ZERO') cites numbers that appear nowhere in the block. grep count for the two replay commits = 0: the reproduction is absent from this file. My own re-run: 688ac349 -> harness_log grep 0, critique headers 1, masterplan 86.20 = pending; 7145f566 -> grep 0, headers 2, pending.
+
+**constraint** -- qa.md 4b: a 'verbatim' capture must be regenerated, never edited, and every criterion must map to covering evidence in experiment_results.md. Criterion 1 is substantively MET (evidence present in live_check §2 and re-derived by me), but its experiment_results evidence block is the wrong capture. FIX: paste the git-replay block in §2.
+
+### 3. Contradiction
+
+**action** -- `python scripts/qa/verdict_history_86_21.py --self-test | grep -cE '^   \('` and a member-by-member diff of the emitted case ids against the block pasted in experiment_results_86.21.md §6. [WARN]
+
+**state** -- Emitted today: 20 case lines. §6's pasted SELF-TEST block carries 15, missing (vi-b) (vi-c) (vi-e) (vi-f) (vi-d) -- the cycle-4 AND cycle-5 additions -- and §6 is the block that carries criterion 5. §10 pastes the command above with output `18` while it returns `20`, and three lines below the SAME section states 'cycle 5 measures 20 cases / 16 cells'. Cycle 5's remediation was a TOKEN sweep (9ece5e79 / 'ALL 11 MUTANTS' / '15 self-test cases'), which cannot catch a stale count or a stale block. Third consecutive cycle of this class. Direction: UNDER-claiming in both cases; no inflated figure found. Checked and NOT filed: live_check §4/§5's '11 rows' correctly describe the cycle-2 measurement and the seeding act (ledger is 14 rows now: 36.17 x6, 86.20 x3, 86.17 x2, 86.21 x3).
+
+**constraint** -- qa.md 4b: every numeric claim must reproduce under the stated rule; §10 states the rule explicitly ('one line of --self-test RUNTIME output beginning with three spaces and an open bracket') and then contradicts its own capture. FIX: regenerate §6's block and §10's number.
+
+### 4. Missing_Assumption
+
+**action** -- Scored 8 self-built print-layer mutants of _report through the production score_cell (B1 ordinal, B2 status, B3 verdicts, B4 detail, B5 ledger_empty NOTE, B6 ledger_missing NOTE, B7 CAUSE numbers, B8 printed contrast); then grepped experiment_results_86.21.md for any disclosure of the residual and enumerated its section headers. [WARN]
+
+**state** -- All 8 survive (self-test rc=0). Differentials measured: B1 on an ARMED step gives control 'auto-FAIL armed : True  (a further CONDITIONAL would be the 3rd)' vs mutant '... would be the 2nd' -- the load-bearing boolean stays correct; B8 prints 'prescribes: 0 row(s)' with 'harness_log grep says 3' still printed one line below. So the scope call is DEFENSIBLE. But experiment_results_86.21.md has §9 = cycle 2, §10 = cycle 3, and NO cycle-4 or cycle-5 section, and never states that 7 print-layer mutants were knowingly left unguarded or why. (It IS on the record in evaluator_critique_86.21.md:391.)
+
+**constraint** -- qa.md 4c: a matrix result licenses only 'these N mutations were killed', never a global claim -- the matrix's own closing line is correctly scoped, but the reader of experiment_results is never told what remains unguarded. FIX: add a cycle-4/cycle-5 section naming A3/A5-A10 and the reason (the armed boolean and the exit code stay correct under all of them).
+
+### 5. Overgeneralization
+
+**action** -- `python scripts/qa/verdict_history_86_21.py --step 86.21`; `stat` on handoff/verdict_ledger.jsonl; row census by step_id; cross-check against the disclosed cycle history. [WARN]
+
+**state** -- Prints `status : ok`, `detail : 3 verdict(s)`, `verdicts : CONDITIONAL -> CONDITIONAL -> FAIL`, `consecutive : 0`, `auto-FAIL armed : False  (a further CONDITIONAL would be the 1st)` at exit 0. True history is FOUR verdicts -- cycle 4's CONDITIONAL (wf_982cd319-493) was never appended; ledger mtime 2026-08-09T22:35:42Z, two days stale. So consecutive is really 1 and a further CONDITIONAL would be the 2nd. A well-formed-but-STALE ledger is a fifth failure mode the four statuses cannot represent: not missing, not empty, not corrupt, not no-rows -- it reports `ok` and UNDER-counts, the fail-OPEN direction, on this very step at evaluation time.
+
+**constraint** -- Criterion 5 names 'missing or unreadable' and criterion 6 names 'corrupt or empty', so staleness is outside both wordings and this is NOT a criterion miss. §8 discloses the MECHANISM ('the ledger will silently stop tracking -- a fresh instance of the very class this step is about') but nothing states it has ALREADY happened. FIX: state the live measurement in §8 and name STALE as an unrepresented failure mode.
+
+## checks_run (24)
+
+- harness_compliance_audit_5_item
+- research_gate_envelope (gate_passed=true, 7 sources >=5, 26 URLs >=10, recency_scan=true)
+- contract_before_generate (first-commit ordering: dc621419 00:01:20 < 7897cb8c 00:06:37)
+- log_is_last (masterplan status=pending, retry_count=0; 1 harness_log row for 86.21, result=FAIL)
+- no_verdict_shopping (evidence CHANGED: 5b7966e8, 6 files, +405/-57)
+- third_conditional_check (0 result=CONDITIONAL rows for 86.21; disclosed history -> consecutive=1; NOT armed)
+- verification_command (exit=0; weak by construction, on the record since cycle 1)
+- unintended_change_scan (git diff HEAD + ls-files --others; zero backend/**, zero frontend/**)
+- derived_scope_lint_gate (git-derived 2-file scope, empty-set guard, array args)
+- ruff_F821_F401_F811 (All checks passed, exit=0)
+- ruff_liveness_probe (F821 raised on injected undefined name, exit=1)
+- ast_parse
+- self_test_reproduction (20 cases, rc=0)
+- mutation_matrix_reproduction (16/16 killed, rc=0, md5 142f6befbd7fc96689f568cb16b98820)
+- independent_mutation_SC1_cycle3_defect_restored (rc=5 REFUSING TO SCORE)
+- independent_mutation_SC2_always_killed_scoring (rc=0, SURVIVED -- finding)
+- injected_survivor_control_cell_ZZ (control rc=1 SURVIVED; discriminates)
+- print_layer_mutation_sweep_8_cells (all survive; behavioural differentials measured)
+- claim_audit_capture_reproduction (3 non-reproducing captures)
+- criterion1_git_replay_re_derived (688ac349, 7145f566)
+- live_counter_run_on_86.21 (staleness measured)
+- ledger_git_tracking_and_gitignore_check
+- code_review_heuristics
+- evaluator_critique_read (cycle-1..cycle-4 verbatim)
+
+## notes
+
+TO CLEAR TO PASS -- five small, named, non-arithmetic fixes: (1) add a THIRD cell to verify_broken_scoring() driving score_cell with a COMPILABLE guard-irrelevant mutant (a comment rewrite is enough -- I used `#: Verdict tokens that COUNT toward the consecutive run.` + ` # noqa`) and assert the outcome is "survived"; without it the always-KILLED scoring defect turns the entire matrix green; (2) replace experiment_results §2's fence with the actual criterion-1 reproduction (the `git show 688ac349:` / `7145f566:` block from live_check §2), which currently appears zero times in that file; (3) regenerate §6's self-test block (15 -> 20 case lines) and §10's `18` -> `20`; (4) add a cycle-4/cycle-5 section and disclose A3/A5-A10 as knowingly unguarded, with the reason I verified -- the `auto-FAIL armed` boolean and the exit code stay correct under all eight print-layer mutants I built; (5) state in §8 that the ledger is ALREADY stale (`--step 86.21` reports "would be the 1st" when it is the 2nd) and name STALE as a fifth failure mode the four statuses cannot represent.
+
+METHOD DISCLOSURES. All mutation work was in-memory: temp copies loaded via importlib with TARGET/REPO_ROOT re-pinned to the real repo paths; the repo was never written and both md5s were re-verified unchanged after every run (mutation_matrix 39bf33f4ef6c618f9f39b52e280934a9, verdict_history 142f6befbd7fc96689f568cb16b98820). I ran a CONTROL before every mutant and an injected guaranteed-survivor cell so a "kill" could be distinguished from a construction artifact. ONE PROBE OF MINE WAS SELF-CONTAMINATED AND I CAUGHT IT: my first differential run patched `module.LEDGER` after exec, but `read_ledger(step_id, path=LEDGER)` binds that constant as a DEFAULT ARG at definition time, so every call read a nonexistent tempdir path and returned `ledger_missing` for a step I knew had six rows. I re-ran with the source-level `REPO_ROOT` constant rewritten instead; the reported differentials are from that second, verified run. The B1/B8 differentials are the reason attack (b) resolves FOR the author -- my strong hypothesis that the hardcoded-contrast mutant falsifies criterion 1's contrast is WRONG, because the correct value still prints one line below in the DISAGREEMENT block.
+
+ON THE IMMUTABLE COMMAND: unchanged from cycle 1. `grep -c "^## Cycle"` on an unrelated file plus an `ls` of three filenames has no causal link to any of the six criteria and would exit 0 against no implementation at all. I ran it for the record (exit=0, 1214) and graded every criterion on my own re-derivation.
+
+WHAT I DID NOT REACH: I did not corroborate the 86.20/86.17 ledger run_ids against Workflow run records. I did not run backend/tests -- no backend code is touched, so qa.md 1d does not bind. No Playwright capture was taken and none was required: the step makes no UI claim and the diff contains zero frontend files, so gates 1b and 1c do not trigger. I did not audit the counter's implicit assumption that file order is chronological (the `cycle` field is never read) -- unchanged from the cycle-3 note and still unstated in §8. INCIDENTAL, NOT ATTRIBUTED TO THIS STEP: `handoff/current/research_brief_86.33.md` is untracked in the working tree and belongs to a peer session, not to 86.21; and research_brief_86.21.md's mtime moved to 07:32:49Z while remaining byte-identical to HEAD.
+
+MY OWN VIEW, offered as input and not as a verdict: the counter's logic is correct and has been correct since cycle 1; the remediation each cycle has been real and complete against what was named; and cycle 5 closed the hardest finding this step has produced. Everything I am filing is documentation hygiene plus one one-sided meta-guard. A single cycle should clear it.
+
+WRITE-FIRST RECORD: /Users/ford/.openclaw/workspace/pyfinagent/.claude/agent-memory/qa/verdicts/verdict_wip_86.21__20260811T073915Z.md (STATUS: COMPLETE; not a verdict -- evidence only).

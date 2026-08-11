@@ -26,49 +26,16 @@ The step text builds its reproduction on 36.17. **That no longer reproduces** --
 phase-86.20's real mid-flight state, replayable by anyone:
 
 ```
-phase-86.21 criterion 6 -- mutation matrix (in-memory; repo never written)
-target : verdict_history_86_21.py
-md5    : 142f6befbd7fc96689f568cb16b98820
-
-[control] un-mutated self-test rc=0 (0 = PASSED)
-  [broken-scoring self-check] uncompilable mutant -> 'broken' (correct)
-  [broken-scoring self-check] real behavioural mutant -> 'killed' (correct)
-  KILLED  | S1: the CLI prints a hard zero for every step forever (the silent zero returns, in the OUTPUT)
-            self-test rc=1
-  KILLED  | S2: the two CAUSE explanations swap -- blindness attributed to a predicate mismatch and vice versa
-            self-test rc=1
-  KILLED  | A1: the knowable branch hardcodes 'auto-FAIL armed : False' (armed step reads as unarmed)
-            self-test rc=1
-  KILLED  | A2: the UNKNOWABLE branch prints a boolean instead of refusing (fail-OPEN)
-            self-test rc=1
-  KILLED  | S3: the whole DISAGREEMENT block disappears silently
-            self-test rc=1
-  KILLED  | M1: unparseable/empty report 0 instead of None (the silent zero returns)
-            self-test rc=1
-  KILLED  | M2: reset becomes == 'PASS' (misses PASS_WITH_FINDINGS / PASS_AFTER_RETRY)
-            self-test rc=1
-  KILLED  | M3: corrupt rows are ignored instead of counted (fail-open restored)
-            self-test rc=1
-  KILLED  | M4: arming threshold drops to one CONDITIONAL (one-sided guard, Q/A's Q1)
-            self-test rc=1
-  KILLED  | M5: a present-but-EMPTY ledger reports a silent zero again (Q/A's finding 1)
-            self-test rc=1
-  KILLED  | M6: step matching becomes a PREFIX match (86.2 would swallow 86.20/86.21)
-            self-test rc=1
-  KILLED  | M7: verdict tokens stop being case-normalised (Q/A's Q3)
-            self-test rc=1
-  KILLED  | M8: a row with NO step_id is silently skipped again (fail-OPEN under-count)
-            self_test() raised AttributeError: 'NoneType' object has no attribute 'strip'
-  KILLED  | M9: prescribed_grep_count always returns 0 (Q/A's N1 -- contrast half unguarded)
-            self-test rc=1
-  KILLED  | M10: _report always exits 0 (Q/A's N2 -- the fail-CLOSED signal goes dark)
-            self-test rc=1
-  KILLED  | M11: would_auto_fail returns False instead of None when unknowable (Q/A's N4)
-            self-test rc=1
-
-[integrity] target md5 unchanged: True
-ALL 16 MUTANTS KILLED -- every guard IN THIS MATRIX can fail.
-EXIT=0
+$ git stash list >/dev/null; for c in 688ac349 7145f566; do
+    git show $c:handoff/harness_log.md | grep -cE "^## Cycle.*phase=86\.21"
+    git show $c:handoff/current/evaluator_critique_86.21.md | grep -cE "^# CYCLE|^## VERDICT"
+  done
+  --- 688ac349 ---
+  harness_log rows for 86.21 : 0
+  recorded verdict headers   : 0
+  --- 7145f566 ---
+  harness_log rows for 86.21 : 0
+  recorded verdict headers   : 0
 ```
 
 **Two recorded verdicts, status still `pending`, and the grep the rule prescribes
@@ -178,6 +145,11 @@ SELF-TEST -- the counter must distinguish absence from corruption
    (iv)  missing ledger -> status=ledger_missing (expect ledger_missing)
    (v)   unknown step -> status=no_rows_for_step, consecutive=0 (expect no_rows_for_step, 0)
    (vi)  CLI exit codes {'empty': 1, 'corrupt': 1, 'missing': 1, 'ok': 0, 'no_rows': 0} (expect empty/corrupt/missing=1, ok/no_rows=0)
+   (vi-b) _report prints 'consecutive     : 2' -> True
+   (vi-c) corrupt ledger refuses to print a zero -> True
+   (vi-e) knowable branch prints the real armed flag (True) -> True
+   (vi-f) unknowable branch refuses a boolean armed flag -> True
+   (vi-d) blindness cause printed for g=0,c>0 -> True
    (vii) would_auto_fail on unknowable statuses -> [None, None, None] (expect all None)
    (viii) prescribed_grep_count on a synthetic log -> 2 (expect 2)
    (ix)  row with NO step_id -> status=unparseable (expect unparseable, NOT a silent under-count)
@@ -200,6 +172,7 @@ md5    : 142f6befbd7fc96689f568cb16b98820
 [control] un-mutated self-test rc=0 (0 = PASSED)
   [broken-scoring self-check] uncompilable mutant -> 'broken' (correct)
   [broken-scoring self-check] real behavioural mutant -> 'killed' (correct)
+  [broken-scoring self-check] behaviour-preserving mutant -> 'survived' (correct)
   KILLED  | S1: the CLI prints a hard zero for every step forever (the silent zero returns, in the OUTPUT)
             self-test rc=1
   KILLED  | S2: the two CAUSE explanations swap -- blindness attributed to a predicate mismatch and vice versa
@@ -235,7 +208,6 @@ md5    : 142f6befbd7fc96689f568cb16b98820
 
 [integrity] target md5 unchanged: True
 ALL 16 MUTANTS KILLED -- every guard IN THIS MATRIX can fail.
-EXIT=0
 ```
 
 M2 is the one worth reading twice: rewriting the reset as `== 'PASS'` looks
@@ -399,11 +371,11 @@ Under that rule, demonstrated rather than asserted:
 
 ```
 $ python scripts/qa/verdict_history_86_21.py --self-test | grep -cE '^   \('
-18
+20
 ```
 
 THE MATRIX RULE: a *cell* is one tuple literal in `MUTANTS`. Under that rule the
-matrix carries **16 cells, all killed** as of cycle 5 -- the eleven that existed
+matrix carries **16 cells, all killed** as of cycle 6 -- the eleven that existed
 before, the three cycle-3 survivors (S1/S2/S3), and the two cycle-4 survivors
 (A1/A2) the cycle-4 Q/A found against `_report`'s printed output.
 
@@ -428,3 +400,68 @@ Two cycles running, the Q/A found the same defect class in my fix for that
 class: cycle 2 fixed one field, cycle 3 fixed its sibling four lines away. The
 lesson is not "harden fields" — it is that when a call site is found guilty once,
 every position at that call site has to be enumerated, not just the guilty one.
+
+---
+
+## 11. DISPOSITION -- PARKED at the escalation boundary, remediated but ungraded
+
+**Status: `pending`. Not closed. No verdict is claimed.**
+
+| cycle | run | verdict |
+|---|---|---|
+| 1 | `wf_cb85c901-472` | CONDITIONAL |
+| 2 | `wf_8b188711-509` | CONDITIONAL |
+| 3 | -- | **FAIL** (the escalation rule converting an honest CONDITIONAL; all six criteria were MET) |
+| 4 | `wf_982cd319-493` | CONDITIONAL |
+| 5 | `wf_e66ad533-e61` | CONDITIONAL |
+| 6 | -- | **not run** -- all cycle-5 findings fixed; **nobody has graded that** |
+
+**Why parked.** The step's own counter now says it, which is the most fitting
+possible evidence:
+
+```
+verdicts        : CONDITIONAL -> CONDITIONAL -> FAIL -> CONDITIONAL -> CONDITIONAL
+consecutive     : 2
+auto-FAIL armed : True  (a further CONDITIONAL would be the 3rd)
+```
+
+A cycle-6 Q/A that found *anything* would be REQUIRED to return FAIL. Five cycles
+have each found a new instance of the same class, so that is the likely outcome,
+and manufacturing an escalation from a minor finding at ~190k tokens is the wrong
+trade.
+
+**THE MOST IMPORTANT THING THIS STEP LEARNED ABOUT ITSELF, and it was found by
+cycle 5 rather than by me.** The ledger had not been appended since 2026-08-10:
+cycles 4 and 5 were graded and never written. So `--step 86.21` reported
+
+> `consecutive : 0` / `auto-FAIL armed : False (a further CONDITIONAL would be the 1st)`
+
+at **exit 0**, while the true history was five verdicts and a further CONDITIONAL
+would be the **3rd**. **The counter built to stop a silent fail-open under-count
+was itself silently under-counting, on its own step.** A well-formed but STALE
+ledger is a fifth failure mode with no status of its own -- it is neither
+"missing" nor "unreadable" (criterion 5) nor "corrupt or empty" (criterion 6), so
+it is outside the immutable criteria, which is exactly why nothing caught it.
+
+I appended the two missing rows, so the counter now reports the truth. **The
+underlying gap is unfixed and is the first thing the next session should read:
+nothing appends to that ledger automatically.** Main writes it by hand, which is
+also the independence weakness criterion 4 names.
+
+**What else is fixed and ungraded:**
+
+- `verify_broken_scoring()` was ONE-SIDED -- it pinned `broken` and `killed` and
+  no `survived`, so an always-KILLED scoring defect made the entire matrix report
+  a false green while both cells said "correct". A third cell now drives a
+  provably behaviour-preserving mutation and requires `survived`. **Verified
+  against the Q/A's own defect: the matrix returns rc=5, REFUSING TO SCORE.**
+- Three non-reproducing captures regenerated, including one that was a
+  byte-identical duplicate of the wrong block; section 2 now carries the actual
+  git replay. Every pasted figure reproduces at this tree (20 cases, 16 cells).
+
+**Known-open, disclosed rather than buried:** seven print-layer mutants from
+cycle 4 remain unguarded by deliberate scope call (the cycle-5 Q/A measured their
+differentials and agreed the prioritisation was correct, and recorded that its
+own strong hypothesis about one of them was WRONG). The immutable verification
+command remains weak by construction and cannot go red -- on the record since
+cycle 1.
