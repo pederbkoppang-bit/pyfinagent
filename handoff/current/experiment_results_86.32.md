@@ -178,8 +178,9 @@ honest.
 > predates M7/M8. An auditor reading it would reasonably conclude the remediation
 > was never run.
 >
-> Provenance, COMPUTED at write time rather than typed -- `git show <c>:scripts/harness/attempt_budget.py | md5` gives `638fec28...` at 4358683c and 069908c7, `e4ffc105...` at 96870e44, `157d7b58...` at bce22a74 and HEAD; worktree `157d7b58...`.
+> Provenance -- `git show <sha>:scripts/harness/attempt_budget.py | md5`, pinned to IMMUTABLE SHAs rather than the moving ref `HEAD`: `638fec28` at 4358683c, 069908c7; `e4ffc105` at 96870e44; `157d7b58` at bce22a74, 87b62f8b.
 >
+> **R1, and it is a correction of my own commit message.** `a062c674`'s subject claims this line is *"now GENERATED"* and its body says *"FIXED STRUCTURALLY, NOT TEXTUALLY"*. **There is no generator in the tree.** The values were computed once and pasted -- correct values, but a typed line -- and the previous revision still carried `HEAD`, which any later commit touching this file would falsify a fourth time. Caught by the cycle-4 Q/A. The produced STATE was right; the MECHANISM claim was not, and the two deserve separate grades. Now pinned to fixed SHAs so no future commit can invalidate it.
 > **This line is the step's THIRD typed-not-measured figure, now fixed by
 > generation.** Its previous revision said "`e4ffc105...` at 96870e44 and
 > HEAD" -- true when cycle 2 measured it, and falsified minutes later by
