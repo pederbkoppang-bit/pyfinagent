@@ -7,7 +7,7 @@
 - [Absent upstream data 86.41](project_absent_upstream_data_86_41.md) — the NoneType frame is a CLOUD FUNCTION not this repo; retry-then-return-None erases the 429; a coverage assertion proves counting, never attribution
 
 - [Headless keychain auth 86.7](project_headless_keychain_auth_86_7.md) — dead token COMMITTED in 5 tracked files; all jobs are AGENTS not daemons; keychain is `no-timeout` so screen lock does NOT lock it
-- [Shared-identity authz 86.33](project_shared_identity_authz_86_33.md) — `agent_id` documented but UNREAD; `general-purpose` really wrote 15 critique
+- [Shared-identity authz 86.33](project_shared_identity_authz_86_33.md) — agent_type = 72 values vs 2 definition files; agent_id 63/63 real vs 0/77 Main, but role-free
 - [WebSearch budget is session-shared](reference_websearch_budget_is_session_shared.md) — 200/200 can be spent BEFORE you spawn; WebFetch still works; probe with your
 - [Dead telemetry + 429 86.38](project_dead_telemetry_429_86_38.md) — Vertex has NO per-day quota; `>` vs `>=` a provable NO-OP at n=5; alarm PAYLOAD
 - [WIP clobber 86.36](project_wip_clobber_86_36.md) — born-inert makes the clobber EARLIER; MEASURED 4,921→796 bytes live
