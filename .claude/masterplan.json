@@ -24697,6 +24697,27 @@
             ],
             "live_check": "live_check_86.40.md with: the grep locating the comment at edit time with its actual line number; the re-derived risk_judge_decision distribution; the before/after comment text; the recall-test output for the comments-only instrument; and the unchanged test result."
           }
+        },
+        {
+          "id": "86.41",
+          "status": "pending",
+          "priority": "P2",
+          "harness_required": true,
+          "retry_count": 0,
+          "max_retries": 3,
+          "name": "[P2 -- THE QuantAgent NoneType CRASH IS A BIGGER SOURCE OF DEGRADED ANALYSES THAN THE 429 EVER WAS] FOUND 2026-08-11 while closing 86.38, filed per the standing queue-discovered-defects rule. RE-DERIVE EVERY NUMBER; the census instrument is checked in and the counts below were measured once. MEASURED over the ten days for which JSON-format logs exist: the 28-agent orchestrator fell back to the lite Claude analyser 9 times against 67 full-pipeline completions (11.8%). THREE of those 9 were the 429 RESOURCE_EXHAUSTED event of 2026-08-10 that phase-86.38 was filed about. THE OTHER SIX WERE THIS DEFECT: 'ERROR: QuantAgent failed for <TICKER>: NoneType object has no attribute get', on 2026-07-24 (SNDK), 2026-07-31 (NTAP, PANW, DVA) and 2026-08-05 (DDOG, CRWD). Across ALL retained logs including the pre-JSON era the same string appears 69 times, plus one 'has no attribute strip'. So this is not a tail case -- it is the LARGEST single cause of the book judging a ticker with the 2-call lite wrapper instead of the full skills pipeline, and it has been recurring for at least three weeks. WHY THIS MATTERS AND WHAT IS NOT CLAIMED: a lite-path analysis still produces a decision, so nothing crashes and no trade is lost; what is lost is the DEPTH the full pipeline provides, on a ticker chosen for analysis. It is NOT claimed that this caused the trade drought -- phase-86.38 MEASURED that 2026-08-03..09 ran 54 full-pipeline analyses with zero fallbacks and still produced no trades, so the drought has a different cause and looking for it here would be a repeat of 86.38's own mis-framing. WHAT TO ESTABLISH BEFORE FIXING: (a) WHICH `.get` call receives None -- the log line carries only the exception message, not a traceback, so the call site is NOT established and must be found rather than guessed; (b) whether the None is an absent upstream data field (a data-availability condition that should be handled) or a genuine logic error (a bug); these need different fixes and conflating them would paper over the first; (c) whether the affected tickers share anything -- SNDK/NTAP/PANW/DVA/DDOG/CRWD span sectors, so a 'thinly-covered ticker' hypothesis is available but UNTESTED. NON-SCOPE: do not touch the fallback mechanism itself (86.38 shipped that and it is working as designed -- a fallback that fires is the system degrading gracefully); do not change the RiskJudge or any gate; do not widen the bare `except Exception` that catches this without first establishing what else it catches.",
+          "verification": {
+            "command": "bash -c 'source .venv/bin/activate && python -c \"import ast;ast.parse(open(\\\"backend/services/autonomous_loop.py\\\").read());print(\\\"parsed\\\")\"'",
+            "success_criteria": [
+              "The failing `.get` call site is IDENTIFIED from source or from a reproduction, not inferred from the ticker name -- and if it cannot be identified, the step says so explicitly and states what evidence would be needed rather than guessing.",
+              "The population is RE-DERIVED with scripts/qa/derive_lite_fallback_census_86_38.py (or a successor) rather than copied from this step text, and the instrument's coverage assertion is shown passing -- an earlier version of that parser silently dropped 416 events and reported a zero that was a property of the parser.",
+              "The step states whether the None is an ABSENT UPSTREAM FIELD or a LOGIC ERROR, with the evidence that distinguishes them. 'Handle the None' without answering this is a rejected outcome.",
+              "Any fix is mutation-tested: revert it at the call site and show the guard goes red. A guard whose mutant survives does not count, and a guard whose control was already red scores nothing.",
+              "The fallback mechanism shipped by 86.38 is NOT modified: prove with a diff that `_fallback_rate_check`, `_degradation_summary_fields` and the record-always call site are byte-identical.",
+              "It is NOT claimed that this defect caused the trade drought. If the step finds evidence bearing on the drought, that evidence is filed as its own step rather than folded in here."
+            ],
+            "live_check": "live_check_86.41.md with: the re-derived census output including its coverage assertion; the identified call site or an explicit statement that it could not be identified; the absent-field-versus-logic-error adjudication with its evidence; and the mutation output."
+          }
         }
       ]
     }
