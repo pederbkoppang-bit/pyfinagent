@@ -351,6 +351,39 @@ audit to tidy a template is the same category error as renumbering history, whic
 criterion 4 declined to do. It is **named in the guard's allowlist with that reason**,
 so the exclusion is visible rather than silent.
 
+## 9b. ATTEMPT 3 DROPPED ON THE RAIL. NO VERDICT WAS RENDERED.
+
+The cycle-3 Q/A **dropped**: `agent({schema}): subagent completed without calling
+StructuredOutput`, after **174,009 tokens** and 32 tool calls. **An empty return is
+NO VERDICT, never PASS** -- this is not a CONDITIONAL, not a FAIL, and not a grade.
+
+**86.31's write-first mechanism saved the work, and this is the fourth time today.**
+`.claude/agent-memory/qa/verdicts/verdict_wip_86.44__20260811T155502Z.md` survived,
+and it **honestly declares `STATUS: INCOMPLETE -- not a verdict`** -- so I know the
+evaluation stopped mid-flight rather than having to guess whether a finished verdict
+was lost. It had cleared B1-B7 and never reached criteria 1-6.
+
+**What I took from it, and what I did NOT:**
+
+- **TAKEN, because it is a blocker I can verify independently**: a `ruff F401`,
+  `sys` unused at `tests/_phase_24_helpers.py:26`. **I re-derived its provenance
+  rather than trusting the note**: `git show ea5b1cd5^:tests/_phase_24_helpers.py`
+  shows the import already at line 26 **before** this step, and my step's diff
+  touches only `@@ -194` and `@@ -204`. So it is **pre-existing, not introduced** --
+  but my edit pulled the file into the derived lint scope, so the gate was red.
+  Removed the import after asserting **zero** `sys.` attribute uses. Gate now green
+  on a **6-file non-empty** scope.
+- **TAKEN as corroboration only**: its independent answer to grade-hardest (i) --
+  no sixth live occurrence -- and its replay of the D3 derivation across five commit
+  trees (RED at every pre-fix tree, GREEN only at HEAD), which is a stronger proof
+  than my M3/M4 because it needed no write to the tree.
+- **NOT TAKEN**: any verdict, any criterion disposition, any PASS. **The record says
+  it is not a verdict and I am not promoting it into one.**
+
+**Attempt accounting** (86.32 counts ATTEMPTS, not outcomes): this was **attempt 3
+of 5**, and it produced no grade. Attempt 4 runs against changed evidence -- the
+F401 fix -- so it is not a re-spawn on unchanged evidence.
+
 ## 10. What is NOT claimed
 
 - **Not** that cycle numbers are now unique. They are not; D4 is unfixed and filed.
