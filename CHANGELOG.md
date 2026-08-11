@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-11 | `c9314945` | phase-86.41: GENERATE artifacts -- experiment_results + live_check |
 | 2026-08-11 | `678d979f` | phase-86.41: behavioural proof of the quant guard -- and it caught two defects in it |
 | 2026-08-11 | `4c321e5c` | docs: correct the day report -- 86.39 is no longer 'not started' |
 | 2026-08-11 | `8879d662` | phase-86.39: establish the root cause from source (pre-contract measurement) |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-11 | `dad42dda` | phase-86.7: criteria 4 and 3 -- shape-verified capture, and a justified accept-the-risk |
 | 2026-08-11 | `2dbb1606` | phase-86.7: sweep the retracted claim out of the header and section 5 |
 | 2026-08-11 | `798c50f2` | phase-86.7: CORRECT my own criterion-2 finding -- there IS an alerting path |
-| 2026-08-11 | `0dae31a3` | phase-86.7: PARTIAL GENERATE -- the 08-08 outage signature reproduced, and criterion 2 answered NO |
 
 ---
 
+### v6.93.157 — phase-86.41: GENERATE artifacts -- experiment_results + live_check (2026-08-11)
+
+- **phase-86.41: GENERATE artifacts -- experiment_results + live_check**
 ### v6.93.156 — phase-86.41: behavioural proof of the quant guard -- and it caught tw... (2026-08-11)
 
 - **phase-86.41: behavioural proof of the quant guard -- and it caught two defects in it**
