@@ -396,7 +396,7 @@ files (the `archive-handoff` hook handles the rotation).
     to it -- measured between 8.6% (513 runs, all-time) and 29.2% (24 runs,
     2026-08-11) of Workflow runs; those two figures use different windows AND
     different sources and are deliberately NOT reconciled into one number.
-  - Defaults: **5 attempts** (leaves 90.9% of historically-completed steps
+  - Defaults: **5 attempts** (leaves **93.9%** of historically-completed steps
     untouched: 154 of 164 finished in <=5) and **1.2M tokens** (p50 is
     419,739; observed max 1,832,223 on step 75.5).
   - On exhaustion it **ESCALATES TO THE OPERATOR** with a written summary.

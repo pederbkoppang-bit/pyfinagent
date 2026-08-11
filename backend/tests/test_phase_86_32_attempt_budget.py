@@ -272,8 +272,17 @@ def test_86_28_replay_terminates_where_the_legacy_rule_never_would():
     r = replay_86_28()
     assert r["new_rule_terminates_at_attempt"] == 5
     assert r["new_rule_disposition"] == "ESCALATE"
-    # The legacy counter ends at zero: the CONDITIONAL at attempt 7 wipes the FAIL
-    # at attempt 6. This is the defect, asserted rather than described.
+    # The legacy counter ends at zero: the FAIL at attempt 4 raises it to 1, and
+    # the CONDITIONAL at attempt 5 wipes it. This is the defect, asserted rather
+    # than described.
+    #
+    # (Corrected 2026-08-11. This comment previously said "the CONDITIONAL at
+    # attempt 7 wipes the FAIL at attempt 6" -- the pre-remediation ordering, from
+    # the fixture the cycle-1 Q/A FAILED this step for. It survived INSIDE the file
+    # the remediation rewrote, six lines from newly-added code, because the grep
+    # that checked "did the correction reach everywhere" used a FILE LIST that did
+    # not include this file. Both halves were false against the fixture this very
+    # test imports.)
     assert r["legacy_consecutive_fails_final"] == 0
     assert r["legacy_would_have_terminated"] is False
     assert r["attempts_invisible_to_legacy_counter"] == 3

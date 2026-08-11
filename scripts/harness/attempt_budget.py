@@ -47,7 +47,7 @@ from enum import Enum
 # Cumulative attempts per step before the loop must stop and escalate.
 # Rationale, measured over 513 runs / 164 steps (phase-86.32 research gate):
 # runs-per-step {1:27, 2:48, 3:38, 4:28, 5:13, 6:5, 7:2, 8:1, 9:2}. A ceiling of 5
-# leaves 90.9% of historically-completed steps untouched (27+48+38+28+13 = 154 of
+# leaves 93.9% of historically-completed steps untouched (27+48+38+28+13 = 154 of
 # 164) while catching the 10 long tails that hold a disproportionate share of the
 # spend. It is a CEILING, not a target.
 DEFAULT_MAX_ATTEMPTS = 5
