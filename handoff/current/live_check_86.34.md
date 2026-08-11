@@ -99,7 +99,19 @@ $ grep -cF "one day behind" backend/tests/test_phase_86_24_clock_dependence.py
 1
 ```
 
-That one is the old claim being *quoted and refuted*, at `:291-296`:
+That one is the old claim being *quoted and refuted*. **Located by anchor, not by
+line number** (corrected 2026-08-11: this pointer read `:291-296`, which was
+accurate only at `a37f9da5`/`1b7e4601` and has been wrong since `73ce11ba` --
+lines 291-296 today hold a different paragraph, so the pointer misdirected a
+reader in every revision any Q/A has graded). Reproduce with:
+
+```
+$ grep -n "Both halves were wrong" backend/tests/test_phase_86_24_clock_dependence.py
+305:    two macro tests used to fail". Both halves were wrong:
+```
+
+A line number in a file under active edit is a fact with a half-life; the grep is
+not. The quoted text below is byte-accurate and was never in question:
 
 ```
     This used to hardcode `TZ=Pacific/Midway` and claim it "puts the LOCAL date
@@ -145,7 +157,11 @@ itself ... and require a NAMED assertion to fire"*. My first matrix covered only
 (b). Half (a) was unprovable because the repo contains no time-freezing conftest
 by construction, so a **test-only seam** was added --
 `PYFINAGENT_86_34_SWEEP_ROOT`, defaulting to the real `REPO`, mirroring the
-existing `PYFINAGENT_86_24_PROW_PATH` seam at `:386` of the same file.
+existing `PYFINAGENT_86_24_PROW_PATH` seam in the same file (corrected
+2026-08-11: this read `:386`; the seam is at `:389`. Located by anchor rather
+than re-tuned to today's number -- `grep -n PYFINAGENT_86_24_PROW_PATH
+backend/tests/test_phase_86_24_clock_dependence.py` -> `223:` the comment,
+`389:` the `os.environ` read).
 
 ```
 $ python scripts/qa/mutation_matrix_86_34.py

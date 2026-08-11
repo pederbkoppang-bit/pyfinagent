@@ -151,3 +151,141 @@ Evidence had CHANGED (fix commit `4e97374f`) -- this is the documented cycle-2 f
   "notes": "AMBIENT, STATED BECAUSE THIS STEP IS ABOUT CLOCK-SCOPED RESULTS: I ran 2026-08-10 19:49-20:00 UTC / 21:49-22:00 CEST. At this hour Pacific/Midway does NOT shift the calendar date and Kiritimati does -- i.e. I am inside the 13 hours in which the pre-86.34 hardcoded fixture was RED, so the greens below are meaningful rather than lucky. I claim nothing for the other 11 hours except where I swept all 24 (Midway 11/24, Kiritimati 14/24 -- both reproduce Main's coverage law exactly).\n\nTHE FOUR JUDGMENTS THE SPAWN ASKED FOR. (1) QUOTE-AND-REFUTE SATISFIES 'the old sentence is gone'. In both locations the retired sentence survives only as a citation immediately refuted in the same paragraph (test docstring :303-316, 'Both halves were wrong:'; live_check_86.24.md:12-16, 'The second clause is false'). A reader cannot reach the old claim without the retraction. The criterion's mischief -- a claim standing as an ASSERTION -- does not obtain. Criterion 1 is MET on this reading, and it is the same reading the prior Q/A applied to the test file. (2) MAIN'S HONEST COUNT OF 2 IS THE RIGHT ANSWER, NOT A DODGE. A substring oracle cannot distinguish an assertion from a quotation, so demanding literal zero would forbid recording the correction at all -- which is the behaviour phase-86.31 was filed against. I re-derived it: `grep -cF \"which is exactly the 00:00-02:00 CEST window\"` = 2, both inside the correction block, 0 outside. Reporting 2 and scoping the property is strictly more honest than reporting 0. (3) I ATTACKED THE CHECKER FIRST, as instructed, with 8 cells against a COPY in a fake repo root (scratchpad only; the real files were verified byte-identical before and after, and `git status` shows no repo change from me). V0 control rc=0. V1 KILLED -- the exact pre-fix file from git -> rc=1 'ASSERTED at line(s) [13]'; this is the decisive cell, because the cycle-1 grep scored that same input clean. V2 KILLED -- injected assertion in section E -> caught at line 181. V3 SURVIVED -- assertion inside section A after the block (finding F3). V4 SURVIVED -- 'precisely' for 'exactly' (NOTE; inherent to any literal oracle). V5 KILLED -- neutering `occurrences_outside_block()` fires control C2. V6 KILLED -- re-typing CLAIM to an absent near-miss ('CET' for 'CEST') fires C3, which is exactly the dead-string failure mode of the cycle-1 grep. V7 KILLED -- C2 still catches with C1 disabled. V8 SURVIVED but is NOT a finding: I had disabled the scope function AND both controls, i.e. deleted the guard, and a mutation that deletes a guard tests nothing (Main's own words, and correct). (4) Section F IS internally consistent and current -- all three digests reproduce byte-exactly at HEAD under my own sha256 -- but the FILE HEADER contradicts it (finding F1).\n\nWHAT REPRODUCED. Immutable command by me: `10 passed in 2.23s` EXIT=0. Conftest census with my own independent implementation: 70 total, OLD `'.venv' in parts` keeps 34 of which 32 sit under a `.venv*` element, NEW `.venv*`-prefix keeps 2 -- backend/tests/conftest.py and conftest.py, both first-party. Exact match to every published number. The guard prints `[86.34] conftest sweep population: 2 first-party file(s)` and asserts BOTH non-emptiness AND first-partyness -- the second assertion is stronger than the criterion asked for and is the one that kills N2-REVERT-EXCLUSION. mutation_matrix_86_34.py 4/4 KILLED; mutation_matrix_86_24.py 7/7 KILLED with `tracked sources UNCHANGED: True` and no strays. Criterion 6: sha256 of the 86.24 verification block = ac991bbed30c9c73 at d5180e27, 551d5188, HEAD and the worktree, status=done, `git diff -- .claude/masterplan.json` empty. Lint scope DERIVED from the step's own six commits UNION `git ls-files --others -- '*.py'` (a HEAD-vs-worktree diff would have been EMPTY and aborted the gate), asserted non-empty at 5 files, piped through xargs so the zsh no-word-split trap could not lint zero files: 'All checks passed!' exit=0; ast.parse OK on all 5.\n\nPRIOR-CYCLE REMEDIATION, RE-DERIVED BY ME RATHER THAN TRUSTED. The FAIL listed four items. (a) correct live_check_86.24.md:12-13 -- DONE, and mutation-proven. (b) replace the vacuous grep with an oracle that can fail -- DONE for live_check_86.24.md, but NOT carried into live_check_86.34.md (F2). (c) carry 9b5cb2e44e6ba8a4 into section F or state the pinning -- HALF DONE: the digest was carried, the header pinning was not corrected, and the two now contradict each other (F1). (d) refresh experiment_results -- DONE: both matrices are in the file list and the criterion-3 row now says cycle 1's MET was an OVERCLAIM. Residual on (d): the criterion-4 row still says MET and its evidence line does not mention the header field at all, so the artifact asserts a criterion it does not fully cover.\n\nHARNESS COMPLIANCE, ITEM BY ITEM. Research gate CLEAN (gate_passed true, 8 sources read in full against a floor of 5, 32 unique URLs against a floor of 10, recency scan at :358, marker COMPLETE; brief mtime 18:56:22 precedes contract 18:59:05; the contract cites it at :13 and :137). CONTRACT-BEFORE-GENERATE IS UNPROVABLE AND I AM REPORTING IT AS UNPROVABLE, NOT GREEN: commit a37f9da5 carries contract_86.34.md, research_brief_86.34.md, experiment_results_86.34.md and the test code together, so no timestamp chain orders them, and the code's mtime was overwritten by the 21:27:59 edit. This is the second live application of the rule criterion 5 wrote into the runbook. Log-last CORRECT: exactly one `phase=86.34 result=` row in harness_log (Cycle 1206 FAIL, the prior cycle), masterplan status=pending, retry_count=0. PRIOR CONDITIONALS FOR 86.34 = 0, so the 3rd-CONDITIONAL escalation is not engaged and is not what produced this verdict. NO VERDICT-SHOPPING: `git diff 551d5188..HEAD` = 5 files, 272 insertions -- the evidence CHANGED, so moving off FAIL is the documented cycle-2 flow rather than sycophancy under rebuttal. I set harness_compliance_ok=true because all five protocol items are individually clean, with item 2 unprovable by construction rather than failed; the experiment_results criterion-4 coverage gap is recorded as a criterion finding above, not as a protocol breach.\n\nSCOPE AND METHOD. The step touches NO production module -- one test module, four QA scripts, one runbook, handoff artifacts -- so qa.md 1c (live UI capture) does not apply and no browser capture was taken or needed, and 1d's live-endpoint exercise is not applicable; I did execution-level checks instead. TREE MOVEMENT DURING MY EVALUATION, DISCLOSED: HEAD moved a7667d2c -> a53886d9 at 21:50:22 CEST, 27 seconds after I started; commit 34302f05 touches ONLY handoff/harness_log.md (logging the prior FAIL). I checked its file list explicitly -- no graded artifact changed under me. NOTE, not a finding: live_check_86.24.md's correction table row 'TZ=Pacific/Midway (UTC-11) = local BEHIND UTC' carries no hour qualifier, and at the 00:30/01:30 CEST reference instant of the two rows above it Midway is in fact SAME, not BEHIND (I measured it). It matches the criterion's own phrasing and the test docstring :311-316 carries the hour caveat correctly, so the knowledge is not lost -- but in a step whose headline finding is that Midway shifts only 11/24 hours, that row deserves the caveat. READ-ONLY DISCIPLINE: the only file I wrote in the repo is the permitted WIP record at .claude/agent-memory/qa/verdicts/verdict_wip_86.34.md; qa-write-guard BLOCKED my attempt to Write a driver script into the session scratchpad via the Write tool, so I ran the whole mutation matrix as a stdin heredoc instead and its fixtures live under the scratchpad, never in the repo -- I treated the block as authoritative rather than working around it, and both subject files were verified byte-identical afterwards."
 }
 ```
+
+---
+
+# CYCLE 3 -- RAIL DROP. NO VERDICT.
+
+**Run `wf_97a608dd-2a4` (task `wi571tivw`), 2026-08-11 06:27-06:38Z. Terminated
+with `agent({schema}): subagent completed without calling StructuredOutput
+(after in-conversation nudge)` after 185,745 subagent tokens and 45 tool uses.**
+
+**THIS IS NOT A VERDICT AND MUST NEVER BE COUNTED AS ONE.** Per
+`.claude/rules/research-gate.md` and the CLAUDE.md harness protocol, an
+errored/empty return is NO VERDICT, never PASS. It also does not advance the
+consecutive-CONDITIONAL counter: the sequence for this step-id remains
+c1 = FAIL, c2 = CONDITIONAL, and the next completed grade is still cycle 3.
+
+Below is the run's write-first crash-survival record, **rescued verbatim by Main
+before the replacement spawn could overwrite it.** The file lives at a fixed
+per-step path (`.claude/agent-memory/qa/verdicts/verdict_wip_86.34.md`) with no
+per-run component, so the next spawn's first write destroys it -- the durability
+defect now queued as step 86.36 (owned by the peer session). A copy is also held
+outside the repo at `RESCUED_verdict_wip_86.34_wf97a608dd.md` in this session's
+scratchpad.
+
+It is EVIDENCE for the re-run. It is not an evaluation, it is not complete, and
+its own header says so.
+
+```
+STATUS: INCOMPLETE -- not a verdict
+STEP: 86.34
+WRITTEN: 2026-08-11T06:27:15Z
+
+CYCLE: 3 (cycle 1 = FAIL wf_839de1e6-c3c; cycle 2 = CONDITIONAL wf_6c44bae0-a83)
+NOTE: this file OVERWRITES the cycle-2 WIP record that sat at this same fixed path
+(mtime 2026-08-10 22:00). Everything below is cycle-3 work.
+
+## AMBIENT CLOCK (load-bearing for this step)
+Ran 2026-08-11 06:27-06:3x UTC / 08:27 CEST.
+MEASURED: Pacific/Midway differs from UTC on 11/24 UTC hours; Kiritimati on 14/24.
+At UTC hour 6: Midway=BEHIND (differs), Kiritimati=SAME (does not differ).
+=> I am INSIDE Midway's 00:00-10:59 shifting window, i.e. OUTSIDE the 13 hours in
+which the pre-86.34 HARDCODED-Midway fixture was RED. So my immutable-command
+green does NOT by itself demonstrate the fix; the runtime selector is exercised
+separately below (matrix N1 cell chose Kiritimati as the non-shifting zone at my
+hour, vs Midway at the artifact's 19:29 UTC -- the cell adapts, so it is not
+clock-lucky).
+
+## DETERMINISTIC
+- IMMUTABLE CMD `pytest backend/tests/test_phase_86_24_clock_dependence.py -q`
+  -> `10 passed in 5.58s`, EXIT=0. REPRODUCED.
+- git diff ea7eb194..HEAD: all three cycle-2-named files have NON-zero diffs
+  (live_check_86.24.md 42 lines, live_check_86.34.md 80, verify_86_24_direction_claim.py 42,
+  experiment_results_86.34.md 49). NOT the zero-line-diff failure class.
+- masterplan diff ea7eb194..HEAD touches ONLY step 86.21's `name`. 86.24 untouched.
+
+## CRITERION 6 -- MET (verified independently)
+sha256(json.dumps(86.24.verification, sort_keys)) = ac991bbed30c9c73493d24ce
+IDENTICAL at d5180e27 / da9263d6 / ea7eb194 / HEAD / WORKTREE. status=done at
+HEAD and WORKTREE. name_sha b421069a93583af7 also unchanged.
+
+## ATTACK THE CHECKER (scripts/qa/verify_86_24_direction_claim.py) -- 9 cells,
+## run in-memory + against scratchpad copies with REPO/TARGET monkeypatched.
+## NO repo file was written.
+  control_current      rc=0  OK                                    <- control
+  hist_551d5188        rc=1  ASSERTED at line(s) [13]  KILLED      <- cycle-2's DECISIVE cell: the real pre-fix subject
+  V3_tail              rc=1  ASSERTED at line(s) [100] KILLED      <- F3 IS CLOSED (survived at cycle 2)
+  E1_before_block      rc=1  KILLED   (claim injected BEFORE the block opens)
+  E2_sentinel_gone     rc=1  KILLED   (fail-closed works)
+  E3_sentinel_eof      rc=0  SURVIVED (sentinel MOVED to EOF re-widens scope to whole file)
+  E4_open_gone         rc=1  KILLED   (C1 shape)
+  E5_claim_absent      rc=1  KILLED   (C3 dead-guard control fires)
+  E6_reworded          rc=0  SURVIVED ("precisely" for "which is exactly" -- literal-oracle limit)
+  => the two survivors are inherent limits of a literal, sentinel-scoped oracle,
+     and the criterion itself asks for a GREP. Both graded NOTE, not blocking.
+     E3 also contradicts a comment in the checker: ":48-50 says widening the
+     region is 'a visible edit to this file' -- but the sentinel PLACEMENT lives
+     in live_check_86.24.md, not in the checker."
+
+## CRITERION 2 -- conftest census RE-DERIVED with my own implementation
+  total 70 | OLD ('.venv' in parts) 34 | of those under a .venv* element 32
+  NEW rule 2 -> ['backend/tests/conftest.py', 'conftest.py'] (both first-party)
+  symmetric difference OLD vs NEW = 32 MEMBERS (not just equal counts)
+  vendored root present = .venv.py313.bak ; conftest under node_modules = 0
+  EXACT match to every published number.
+  Guard code (test file :213-252): excludes part.startswith(".venv") or
+  part=="node_modules"; asserts `swept` non-empty; ALSO asserts no vendored
+  member (stronger than the criterion); prints
+  "[86.34] conftest sweep population: N first-party file(s)".
+
+## CRITERION 3 -- mutation_matrix_86_34.py re-run BY ME at 06:31 UTC
+  4/4 KILLED, exit=0. N1 cell chose Pacific/Kiritimati as the non-shifting zone
+  at my hour (artifact's run chose Midway at 19:29 UTC) -- the cell is runtime-
+  adaptive, i.e. not reporting the wall clock.
+  N2-POISONED-CONFTEST (criterion 3 half a) KILLED; N2-REVERT-EXCLUSION
+  (criterion 3 half b, named assertion) KILLED.
+
+## FINDING CANDIDATE F-a (stale pointer inside the fixing artifact)
+live_check_86.34.md:102 says the quoted-and-refuted claim is at ':291-296' of
+backend/tests/test_phase_86_24_clock_dependence.py. MEASURED: it is at :303-308.
+':291' was correct only at a37f9da5/1b7e4601; it has been :303 since 73ce11ba,
+i.e. stale in EVERY revision any Q/A has graded. Lines 291-296 today are a
+DIFFERENT paragraph ("THE FIRST VERSION OF THIS TEST WAS UNSOUND"), so the
+pointer misdirects. The verbatim quote pasted below it IS byte-accurate.
+Also live_check_86.34.md:148 says the PROW seam is at ':386'; actual :389.
+=> N3-shape residual (stale field in the artifact whose job is to fix stale
+fields), but the fenced captures themselves are accurate. WARN/NOTE, not a
+criterion-4 miss (criterion 4 governs live_check_86.24.md section F + header).
+
+(continuing)
+```
+
+## What Main did with it, and what Main did NOT do
+
+**Verified rather than trusted.** The record's one candidate finding (F-a: two
+stale line pointers in `live_check_86.34.md`) was re-measured by Main
+independently before being acted on:
+
+```
+$ grep -n "Both halves were wrong" backend/tests/test_phase_86_24_clock_dependence.py
+305:    two macro tests used to fail". Both halves were wrong:
+$ grep -n "PYFINAGENT_86_24_PROW_PATH" backend/tests/test_phase_86_24_clock_dependence.py
+223:    # PYFINAGENT_86_24_PROW_PATH below. Read in this test only.
+389:        "PYFINAGENT_86_24_PROW_PATH",
+```
+
+Both halves CONFIRMED: the artifact said `:291-296` (actual `:303-308`) and
+`:386` (actual `:389`). Fixed -- and fixed by **replacing the line-number
+citations with grep anchors** rather than re-tuning them to today's numbers,
+because a line number in a file under active edit is a fact with a half-life and
+this is the third time that class has bitten this step family.
+
+**Not treated as a grade.** None of the record's "MET"/"KILLED" lines are carried
+into any criterion row. A dropped run's self-report is exactly the kind of
+self-assessment the harness exists to distrust; the fresh Q/A re-derives all of
+it.
+
+**Not used to shop.** The re-spawn is not a second opinion on unchanged evidence:
+there was no first opinion, and the tree has since changed (the F-a fix). Per the
+CLAUDE.md cycle-2 flow, a fresh spawn on changed evidence is the documented path.
