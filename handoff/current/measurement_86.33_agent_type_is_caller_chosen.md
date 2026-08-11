@@ -101,10 +101,18 @@ gate it remains an instance IDENTIFIER, not a role ATTRIBUTE -- 17 chars, `a`+16
 18 distinct values, none shared across roles, joining to nothing authoritative -- so
 it still **cannot key authorization on its own**.
 
-## Carried forward from this morning
+## Carried forward from this morning -- ALSO CORRECTED
 
-The runtime **does** populate `agent_id` (23 of 33 role-typed rows at the time of
-that measurement), the key is **absent** rather than empty when unsupplied, and one
-sampled value (`ab3ff92edf47e42e5`) joins to a real transcript on disk -- so it is a
-genuine runtime identity, not an opaque token. See
-`measurement_86.33_agent_id_runtime.md`.
+That earlier file reported **"23 of 33 role-typed rows (70%)"** carry `agent_id`.
+**Same flawed filter, same artifact:** all 10 of the rows it counted as missing are
+prover rows -- `/tmp/evil.md` (2), `/tmp/x.md` (2), `../../../etc/x` (2),
+`backend/main.py` (2), `qa/MEMORY.md` (2). **Not one is a real subagent write.**
+
+**The correct figure is 100%**, matching the gate's 63/63. Both of my numbers were
+depressed by counting my own test harness as runtime evidence, and I propagated the
+70% into a committed artifact before catching it.
+
+What stands from that file unchanged: the key is **absent** rather than empty when
+unsupplied, and one sampled value (`ab3ff92edf47e42e5`) joins to a real transcript on
+disk, so it is a genuine runtime identity rather than an opaque token. See
+`measurement_86.33_agent_id_runtime.md`, corrected in the same commit.

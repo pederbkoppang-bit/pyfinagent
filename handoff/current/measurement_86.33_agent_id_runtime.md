@@ -14,6 +14,18 @@ was waiting for.
 
 ---
 
+> **CORRECTED 2026-08-11 (~15:4x CEST). THE 70% IN THIS FILE IS AN ARTIFACT OF MY
+> OWN FILTER.** I counted rows by `agent_type in (qa, researcher)` without asking
+> whether each came from a real spawn or from my own prover
+> (`scripts/qa/prove_qa_write_separation_86_31.py`), which drives the hook directly
+> with fabricated payloads. **All 10 rows I counted as "missing" are prover rows** --
+> `/tmp/evil.md`, `/tmp/x.md`, `../../../etc/x`, `backend/main.py`,
+> `qa/MEMORY.md`. The 86.33 research gate independently measured **63/63 real
+> subagent writes carry `agent_id`, and 0/77 of Main's**.
+>
+> **The correct figure is 100%, not 70%.** Everything below about field SHAPE
+> (absent-not-empty, joins to a transcript) stands; only the ratio was wrong.
+
 ## Answer: YES, the runtime populates `agent_id`
 
 **RULE -- the denominator is rows written AFTER the field existed.** The P0
