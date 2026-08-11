@@ -148,13 +148,32 @@ def main() -> int:
     # ── what the guard's role-prefix match would and would not catch ─────
     print(f"\n{'What a qa-ROLE prefix match covers':-<78}")
     types = {r.get("agent_type") or "" for r in rows}
-    qa_like = {t for t in types if t == "qa" or t.startswith(("qa-", "qa_", "QA-", "QA_"))}
-    evade = sorted(t for t in types if t and t not in qa_like)
-    print(f"  matched by a qa-role prefix : {len(qa_like)} distinct")
-    print(f"  NOT matched                 : {len(evade)} distinct")
+    # THE GUARD'S OWN PREDICATE, not a reimplementation of it.
+    # qa-write-guard.sh:120-121 lowercases first:
+    #     n = (name or "").strip().lower()
+    #     return n == "qa" or n.startswith("qa-") or n.startswith("qa_")
+    # An earlier revision of this script wrote startswith(("qa-","qa_","QA-","QA_"))
+    # instead, which DIVERGES on mixed case: the guard MATCHES "Qa-Mixed" while that
+    # version reported it as evading. Reimplementing a predicate is how a checker
+    # ends up disagreeing with the thing it checks.
+    def is_qa_role(name: str) -> bool:
+        n = (name or "").strip().lower()
+        return n == "qa" or n.startswith("qa-") or n.startswith("qa_")
+
+    qa_like = {t for t in types if is_qa_role(t)}
+    # EMPTY is a real member of this population (Main-shaped writes) and is the
+    # LARGEST bucket. Dropping it silently makes the partition not add up -- an
+    # earlier revision did exactly that and printed 34 + 37 against a total of 72.
+    evade = sorted((t for t in types if t not in qa_like), key=lambda s: (s == "", s))
+    print(f"  total distinct agent_type values : {len(types)}")
+    print(f"    matched by the guard predicate : {len(qa_like)}")
+    print(f"    NOT matched                    : {len(evade)}")
+    print(f"    -> {len(qa_like)} + {len(evade)} = {len(qa_like) + len(evade)}"
+          f"  (must equal {len(types)}; EMPTY is counted, not dropped)")
     for t in evade:
         n = sum(1 for r in rows if (r.get("agent_type") or "") == t)
-        print(f"    {t!r:<30} {n:>6}")
+        label = "(EMPTY -- Main-shaped writes)" if t == "" else repr(t)
+        print(f"    {label:<32} {n:>6}")
     print("\n  Every value above is CALLER-CHOSEN -- it is whatever was passed as")
     print("  `agentType` at spawn. 'general-purpose' was this repo's own former pin")
     print("  (.claude/workflows/qa-verdict.js:207). Widening the prefix cannot fix a")

@@ -52,15 +52,25 @@ post-restore all green: True
 RESULT: all 3 cells KILLED, control green, guard restored.
 ```
 
-## 4. Criterion 2 -- the key-set mechanism works; the REAL answer is pending
+## 4. Criterion 2 -- ANSWERED by a REAL spawn
+
+My synthetic probe echoed my own input back (8 keys) and I did not present it as the
+answer. The cycle-1 Q/A's own `Write` drove the real hook. From
+`handoff/logs/qa_write_guard.log`, rows `2026-08-11T12:59:29.967328Z` and
+`13:06:06.080792Z`:
+
 ```
-synthetic payload -> payload_keys recorded:
-  ["agent_id","agent_type","cwd","hook_event_name","permission_mode","session_id","tool_input","tool_name"]
+REAL SUBAGENT WRITE -- 12 keys:
+  agent_id, agent_type, cwd, effort, hook_event_name, permission_mode,
+  prompt_id, session_id, tool_input, tool_name, tool_use_id, transcript_path
+  agent_type='qa'   agent_id='afd21026f4056c9e0'
+
+MAIN-SHAPED WRITE -- 10 keys, agent_type and agent_id BOTH ABSENT
 ```
 
-**That is MY input echoed back.** The installed platform's key set requires a
-REAL spawn. The Q/A grading this step produces the first genuine one; read it
-from handoff/logs/qa_write_guard.log rather than from this file.
+**ANSWER: NO.** One caller-chosen role field plus one opaque instance id. Nothing
+separates TYPE from NAME. The four keys the synthetic probe lacked -- `effort`,
+`prompt_id`, `tool_use_id`, `transcript_path` -- are none of them role attributes.
 
 ## 5. Criterion 5 -- no fail-closed change shipped (ASK #6)
 

@@ -13,9 +13,33 @@ the reason is criterion 5 -- see §6.
 `scripts/qa/derive_agent_type_population_86_33.py`, re-runnable, reads
 `handoff/logs/qa_write_guard.log`.
 
-**72 distinct `agent_type` values.** A qa-role prefix match covers 34 of them and
-misses 37, including `general-purpose` (24 rows), `quality-auditor` (11),
-`workflow-subagent` (82) and 34 researcher spellings.
+**AS OF 2026-08-11T18:1x CEST: 78 distinct `agent_type` values**, partitioned by
+the guard's own predicate:
+
+```
+total distinct                    : 78
+  matched by the guard predicate  : 36
+  NOT matched                     : 42
+  -> 36 + 42 = 78   (EMPTY is counted, not dropped)
+```
+
+> **CORRECTED after the cycle-1 Q/A.** An earlier revision of this line read
+> *"72 distinct ... covers 34 ... misses 37"* -- and **34 + 37 = 71, not 72.** The
+> script's `if t` silently dropped the **EMPTY** `agent_type` from the "NOT matched"
+> side while the headline total counted it. EMPTY is the **largest single bucket**
+> (2,151 rows: Main-shaped writes), so the partition omitted its biggest member
+> without saying so.
+>
+> **The script also REIMPLEMENTED the guard's predicate** as
+> `startswith(("qa-","qa_","QA-","QA_"))` where the guard lowercases first
+> (`qa-write-guard.sh:120-121`). They **diverge on `Qa-Mixed`**: the guard MATCHES
+> it, my script reported it as evading. Now fixed to use the guard's own form.
+>
+> **EVERY COUNT FROM THIS LOG IS PERISHABLE.** The log is live and gitignored.
+> `quality-auditor` read **11** when I wrote the first draft, **21** when the Q/A
+> checked, and **97** when I re-measured an hour later. A frozen figure from a
+> growing log is stale on arrival, so counts here are **date-stamped**, and the
+> re-runnable script -- not this file -- is the source of truth.
 
 ### The script's first revision was wrong in this step's own characteristic way
 
@@ -40,43 +64,52 @@ cannot establish.
 23/33 (70%), and the script's own 85%. Each quoted a rate whose population rule was
 unsound.
 
-## 2. Criterion 2 -- the question is now ANSWERABLE; the real answer is PENDING
+## 2. Criterion 2 -- **ANSWERED: NO.** Measured on the installed platform
 
-The guard read four fields and logged only those, so **the log could never say
-whether the payload carries any other identity field**. Every identity conclusion in
-86.31 and 86.33 rested on `agent_type` alone because nothing else was recorded.
+The guard read four fields and logged only those, so the log could never say whether
+the payload carries any other identity field. It now records
+`sorted(payload.keys())` -- **keys only, never values** -- **LOG-ONLY**, exactly like
+the P0's `agent_id` leg.
 
-`.claude/hooks/qa-write-guard.sh` now records `sorted(payload.keys())` --
-**keys only, never values**, since a value could carry file content or prompt text
-and this log is committed. **LOG-ONLY**, exactly like the P0's `agent_id` leg.
-
-Driving the real hook confirms the mechanism:
+**THE MEASUREMENT, produced by a REAL spawn.** My own probe could only echo a
+synthetic payload back at me, so I refused to present it as the answer. The cycle-1
+Q/A's own `Write` drove the real hook and supplied it (rows
+`2026-08-11T12:59:29.967328Z` and `13:06:06.080792Z` in
+`handoff/logs/qa_write_guard.log`):
 
 ```
-payload_keys: ['agent_id','agent_type','cwd','hook_event_name',
-               'permission_mode','session_id','tool_input','tool_name']
+REAL SUBAGENT WRITE -- 12 keys:
+  agent_id, agent_type, cwd, effort, hook_event_name, permission_mode,
+  prompt_id, session_id, tool_input, tool_name, tool_use_id, transcript_path
+  with agent_type='qa'  agent_id='afd21026f4056c9e0'
+
+MAIN-SHAPED WRITE -- 10 keys:
+  agent_type and agent_id BOTH ABSENT
 ```
 
-> **THIS IS NOT YET THE ANSWER, AND I WILL NOT PRESENT IT AS ONE.** That key set is
-> what **I** put in a synthetic payload -- it reports my own input back to me. The
-> criterion demands the INSTALLED platform's payload, which only a **real spawn**
-> produces. The Q/A spawned to grade this step supplies the first genuine key set,
-> and the verdict cycle should read it from the log rather than from here.
+**THE ANSWER IS NO.** The payload carries exactly **one caller-chosen role field**
+(`agent_type`) plus **one opaque instance id** (`agent_id`). Nothing separates the
+subagent TYPE from the spawn NAME. The four keys my synthetic probe lacked --
+`effort`, `prompt_id`, `tool_use_id`, `transcript_path` -- are **none of them role
+attributes**.
 
-The gate's documentary answer is **NO**: the docs say `agent_type` **is** the
-definition's `name`, but **2 definitions exist against 72 logged values**, so
-invocation labels occupy the same field. `agent_id` is uniformly present on real
-subagent writes but is an instance IDENTIFIER, not a role ATTRIBUTE.
+This corroborates the documentary finding by measurement: the docs say `agent_type`
+**is** the definition's `name`, and **2 definitions exist against 78 logged values**,
+so invocation labels occupy the same field.
+
+> **Recorded because it matters procedurally:** the instrument that answered this
+> criterion is the Q/A's own write-first record -- the mechanism phase-86.31 shipped
+> this morning. The evaluation and the measurement were the same act.
 
 ## 3. Criterion 3 -- the researcher rail is UNBROKEN, driven not reasoned
 
 `scripts/qa/prove_researcher_rail_unbroken_86_33.py`: **34 spellings derived from
-the log, all ALLOW**, plus a control (`qa` -> `backend/main.py`) that must BLOCK and
+the log AS OF this run, all ALLOW**, plus a control (`qa` -> `backend/main.py`) that must BLOCK and
 does (`rc=2`).
 
 **The control is load-bearing**: without it the entire run would pass against a
 guard replaced by `exit 0`. Both population rules are reported because they disagree
-(`startswith('research')` = 31; adding `res-*` = 34) and the **wider** one is used
+(the two rules disagree; the wider gives 34 at the time of this run -- and the log GROWS, so the script re-derives rather than trusting this number) and the **wider** one is used
 for the assertion -- if a spelling is a researcher and the guard blocks it, the rail
 is broken regardless of prefix convention.
 
@@ -162,5 +195,6 @@ downgrade of a stated security property. All three are yours.
 
 - **Not** that the guard is now secure. It is not; `agent_type` remains
   caller-chosen and I demonstrated the bypass on myself twice.
-- **Not** that criterion 2 is fully answered -- the real key set needs a real spawn.
+- Criterion 2 **is** now answered (§2) -- the cycle-1 Q/A's own write supplied the
+  real payload. An earlier revision of this line said it was not; superseded.
 - **Not** that the fail-open arm fired in production; the traces are probe artifacts.
