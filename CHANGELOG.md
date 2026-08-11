@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-11 | `5546cfc0` | docs(goal): ASK #2 -- a credential is in git history; rewrite the drifted goal |
 | 2026-08-11 | `b77ec23c` | phase-86.38: criterion 6 -- close the 429 with a numbered operator ask; file all three asks |
 | 2026-08-11 | `4600f98f` | phase-86.38 cycle 2: derive PER-CYCLE, which is what criterion 2 asked for |
 | 2026-08-11 | `31e6c0db` | phase-86.38: CORRECT a protocol breach -- my contract's criteria were not the criteria |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-11 | `925e1681` | phase-86.38 cycle 2: my own docstring satisfied my own guard -- AST, not grep |
 | 2026-08-11 | `8935be78` | phase-86.33: PLAN -- contract written; the gate PASSED the floors but ran ZERO searches |
 | 2026-08-11 | `7e299924` | phase-86.38 cycle 2: guard the OTHER end of the wire -- MX/MY survived everything |
-| 2026-08-11 | `be5431cc` | phase-86.29: PARK after two completed Q/A cycles, with a disposition |
 
 ---
 
