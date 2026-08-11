@@ -33617,3 +33617,58 @@ non-empty line. Queued rather than left as prose.
 **HEAD moved mid-evaluation** (`6dabebc3` -> `fb33ee6e`, peer commits for other
 steps); the Q/A verified `git diff --stat` over all seven 86.34-relevant files is
 EMPTY, so nothing it measured moved under it.
+
+## Cycle 1211 -- 2026-08-11 -- phase=86.36 result=PASS
+
+Q/A `wf_2e5fd262-593` (176,790 tokens, 26 tool calls, 601s). Verdict verbatim in
+`evaluator_critique_86.36.md`. **All 6 criteria MET, zero violated,
+`harness_compliance_ok: true`.** Two cycles: CONDITIONAL, then PASS.
+
+**THE FIX PROVED ITSELF ON THE EVALUATOR'S OWN RUN.** Its predecessor's
+12,782-byte record was intact when it started and still intact when it finished
+-- under the pre-fix design its own first tool call would have truncated it.
+That is first-party live proof, not a simulation.
+
+**It re-did my proofs instead of reading my rebuttal**: rebuilt the B1 mutation
+in an isolated mini-repo (green control 193/0 first, then exit=1 on the two named
+needles), and checked the locator I explicitly told it to distrust -- the anchor
+occurs exactly ONCE in the file, so it cannot match a wrong section.
+
+**Cycle-1 blockers, both mine, both fixed in `6e8f3169`:**
+- **B1** -- I updated ONE of the TWO places that instruct the Q/A. `qa.md` got the
+  stamped path; `qa-verdict.js` STEP 0b, the PRIMARY launch path, kept injecting
+  the destructive fixed filename and the premise this step falsifies. The 86.31
+  anchors PASSED on the stale text, so a Q/A found it, not the guard. Anchors now
+  require the stamp in BOTH copies. *While extending them I broke them* -- the
+  locator pinned `phase-86.31)` including the closing paren.
+- **B2** -- ruff F401, a dead `re` import: fossil of the two wrong matchers.
+
+**FOUR NOTES. One is queued, one the evaluator disproved itself:**
+
+1. **F2, QUEUEING THIS** -- mutating `_RUN_STAMP_RE` to `.*` **SURVIVES both
+   checkers**. Production is correct (traversal inputs raise `BadStepId`, driven
+   directly) and the guard is a compensating control, but **no assertion pins the
+   traversal defence on the user-controlled path component this step introduced.**
+   A real behavioural gap, unlike the DEFAULT_KEEP survivor.
+2. **F1 -- it hypothesised a regression in my loosened imperative regex, built an
+   inversion mutant, and then DISPROVED its own hypothesis**: the old regex is
+   defeated by a different inversion, so neither dominates. Filed as a note, not
+   a blocker. Worth recording that the artifacts disclose the locator change but
+   not the regex change.
+3. **F4** -- the immutable command is coupled to OTHER sessions' output: one
+   malformed `verdict_wip_*.md` from any peer drives it red. Predates 86.36
+   (section [9] is 86.31's) but this step multiplies the population from
+   one-per-step to one-per-run in a directory concurrent sessions write. Green
+   today. Same class as `immutable-criteria-must-be-green-able`.
+4. **F3** -- `records_retained` is unpinned.
+
+**On the two things I asked it to judge rather than inherit**: it re-derived the
+`DEFAULT_KEEP` grep itself and accepted my reasoning (zero production callers, so
+pinning a default nothing reads is a guard without a subject); and it ruled the
+non-deterministic PASS count **not** a defect, because the gate is
+`failures == 0` -- but confirmed "201/201" cannot be cited as evidence, which is
+what the new annotation says. It measured 204.
+
+**Step flips to `done` after this entry.** Peer session pyfinagent-51 owns
+86.25/86.34 (both CLOSED on PASSes today), 86.29 and 86.38; I own and flip only
+this one.
