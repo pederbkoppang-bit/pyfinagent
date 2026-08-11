@@ -24675,6 +24675,28 @@
             ],
             "live_check": "live_check_86.39.md with: the re-derived bare-versus-role row counts and their query; the named call sites explaining the falsy agent; and the metered-exclusion query output."
           }
+        },
+        {
+          "id": "86.40",
+          "status": "pending",
+          "priority": "P3",
+          "harness_required": true,
+          "retry_count": 0,
+          "max_retries": 3,
+          "name": "[P3 -- A COMMENT BLESSING THE DEFECT 86.25 REMOVED SURVIVES ONE FILE OVER, IN THE SAME PIPELINE] FOUND 2026-08-10/11 by the phase-86.25 Q/A, raised NOTE-level in ALL THREE of its cycles (wf_dd580823-63b, wf_a59e0a03-8c2, wf_8a3969ee-ae0) and never fixed, because it sits outside 86.25's diff. Filed per the standing queue-discovered-defects rule. RE-DERIVE THE LINE NUMBER BEFORE EDITING -- it was :404-405 when measured 2026-08-11 and this file is under active change; locate it with `grep -n 'the recommendation that was acted on' backend/slack_bot/jobs/_production_fns.py` rather than trusting the number. THE DEFECT: `build_outcome_row` in backend/slack_bot/jobs/_production_fns.py carries the comment 'REQUIRED. The risk judge's decision is the recommendation that was acted on; fall back to the trade action, never to None' immediately above its `\"recommendation\": outcome.get(\"recommendation\")` key. That sentence asserts EXACTLY the mapping phase-86.25 established is false: a risk-judge decision is an APPROVAL vocabulary ('' 46 / APPROVE_REDUCED 15 / REJECT 3 / APPROVE_HEDGED 1, n=65 measured 2026-08-10 -- RE-DERIVE) with no BUY or SELL member, and it is NOT a directional recommendation. The 'fall back to the trade action' half is worse: 86.25's own mutation cell M2 showed that path reproducing a fabricated 'SELL' verbatim -- the exact row that reached production. WHY THIS IS P3 AND NOT HIGHER, STATED AT ITS TRUE SIZE: this is a COMMENT. The code beneath it was corrected by 86.25 and the S2 call site now routes through the resolver, so no behaviour is currently wrong and nothing is mis-scored today. WHAT IS AT RISK is the next reader: `_production_fns.py` is the S2 pipeline's own module, the comment reads as a design rule, and a future change made in good faith by someone following it would re-introduce the defect at the seam 86.25 just closed. 86.25's own narrative names this mechanism: 'a comment blessing the defect is how it survived review.' WHAT TO DO: correct the comment to state the ACTUAL contract of that key -- what `outcome[\"recommendation\"]` now holds, which producer sets it, and that a risk-judge approval must never be substituted for a direction. DO NOT simply delete the comment: a silent key is how the original defect went unnoticed, and the fix is a comment that is TRUE, not the absence of one. DO NOT map APPROVE_* onto a buy or sell intent under any circumstances -- that prohibition is inherited verbatim from 86.25 and is not reopened here. NON-SCOPE: no behaviour change, no test change, no touching backend/services/recommendation_vocab.py or the resolver (86.25 closed those); if reproducing the comment's falsity requires a behaviour change, STOP and file that separately rather than widening this step.",
+          "verification": {
+            "command": "bash -c 'source .venv/bin/activate && python -c \"import ast;ast.parse(open(\\\"backend/slack_bot/jobs/_production_fns.py\\\").read());print(\\\"parsed\\\")\"'",
+            "success_criteria": [
+              "The claim in the comment is DISPROVEN by measurement before it is rewritten: re-derive the risk_judge_decision distribution from financial_reports.paper_trades and show it contains no BUY or SELL member, rather than citing this step text.",
+              "The line number is RE-DERIVED by grep at edit time and the step states the number it actually found; a step that edits :404-405 because this text said so, without checking, has repeated the defect class it is fixing.",
+              "The rewritten comment names WHICH producer populates outcome['recommendation'] and what vocabulary that producer emits -- derived from source, not asserted. If the producer cannot be determined, say so explicitly rather than writing a plausible attribution.",
+              "The comment is corrected, NOT deleted, and the correction supersedes the old sentence rather than sitting beside it -- the refuted text must not survive above its own correction (the phase-86.25 cycle-2 finding, verbatim).",
+              "APPROVE_* is NOT mapped onto a buy or sell intent anywhere in the change.",
+              "Prove the change is comment-only with a mechanical check whose instrument is recall-tested against a known non-comment line -- the phase-86.25 Q/A's comments-only grep returned a FALSE ZERO on its first attempt because it left the leading '# ' in place, and that instrument must not be reused unvalidated.",
+              "No behaviour change: the immutable command parses, and the S2 outcome path's test coverage is re-run and unchanged. If any test result differs, the step has exceeded its scope and must stop."
+            ],
+            "live_check": "live_check_86.40.md with: the grep locating the comment at edit time with its actual line number; the re-derived risk_judge_decision distribution; the before/after comment text; the recall-test output for the comments-only instrument; and the unchanged test result."
+          }
         }
       ]
     }
