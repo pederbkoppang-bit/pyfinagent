@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-11 | `d13b78de` | phase-86.53: file the cycle-budget config drift found while verifying 86.9 |
 | 2026-08-11 | `38ae0f9c` | phase-86.9: GENERATE -- the raise was the wrong fix, and criterion 2 was already met |
 | 2026-08-11 | `26037c1e` | phase-86.9: PLAN -- the budget raise was the REJECTED fix, and my own criterion-1 claim was wrong |
 | 2026-08-11 | `28fc8663` | phase-86.33: [P2 -- THE qa-WRITE GUARD IS BLIND TO TWO agent_type VALUES THAT REAL SUBAGENTS RUN ... |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-11 | `b4cb7938` | phase-86.5: cycle-2 FAIL remediated -- criterion 4 was INVERTED, and I had it right first |
 | 2026-08-11 | `339e0203` | phase-86.5: cycle-1 CONDITIONAL remediated -- and criterion 4 was right by luck |
 | 2026-08-11 | `512d08a1` | chore(86.5): record the gate's verification pass appended to the brief |
-| 2026-08-11 | `380e67c1` | phase-86.5: file the five steps -- the deliverable, each carrying its own trap |
 
 ---
 
+### v6.93.200 — phase-86.53: file the cycle-budget config drift found while verifying... (2026-08-11)
+
+- **phase-86.53: file the cycle-budget config drift found while verifying 86.9**
 ### v6.93.199 — phase-86.9: GENERATE -- the raise was the wrong fix, and criterion 2... (2026-08-11)
 
 - **phase-86.9: GENERATE -- the raise was the wrong fix, and criterion 2 was already met**
