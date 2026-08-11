@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-11 | `2aff9afc` | operator ASK #4: an affected away_ops file reached origin via MY push today |
 | 2026-08-11 | `9d7628ce` | operator asks: correct ASK #3's figures -- 13 runs, 5 dropped (38.5%), ~887k wasted |
 | 2026-08-11 | `7f173592` | phase-86.38: PARK after four spawns -- remediated, verified, ungraded |
 | 2026-08-11 | `cb630238` | phase-86.7: PARK with a disposition -- 4 of 6 answered, 2 need operator-reserved verbs |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-11 | `86595f0c` | phase-86.46: queue the ledger cycle-field ambiguity (I contributed two of the three conventions) |
 | 2026-08-11 | `02309248` | phase-86.45: queue the fail-open a recorded rail drop opens in the escalation rule |
 | 2026-08-11 | `c52f0e51` | phase-86.44: queue the harness_log cycle-numbering defect |
-| 2026-08-11 | `2e848c15` | harness: backfill 7 missing verdict-ledger rows for 86.31 and 86.36 |
 
 ---
 
+### v6.93.148 — operator ASK #4: an affected away_ops file reached origin via MY push... (2026-08-11)
+
+- **operator ASK #4: an affected away_ops file reached origin via MY push today**
 ### v6.93.147 — operator asks: correct ASK #3's figures -- 13 runs, 5 dropped (38.5%)... (2026-08-11)
 
 - **operator asks: correct ASK #3's figures -- 13 runs, 5 dropped (38.5%), ~887k wasted**
