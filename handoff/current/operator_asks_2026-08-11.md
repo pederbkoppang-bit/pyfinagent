@@ -77,3 +77,51 @@ judgement substituting for a number.
 **Worth noting on the other side:** every dropped run's write-first record was
 recovered, and two of them carried findings I acted on. The drops were not
 entirely wasted, but ~700k for partial records is a poor rate.
+
+
+---
+
+## ASK #4 -- CREDENTIAL EXPOSURE: one affected file reached `origin/main` via MY push today
+
+**Raised by the peer session as their ASK #2; this entry adds a fact about
+exposure timing that they could not have known, and it is mine.**
+
+The peer reports a live 92-char credential (`sha256[:16] 32fd305146379e49`) in
+five TRACKED `handoff/away_ops/session_*.json` files spanning
+2026-08-08T20:00Z..2026-08-10T20:00Z, with 2026-08-11T05:30Z clean. **I have not
+opened, read, printed or copied any of those files** -- everything below is from
+commit metadata only, and I am deliberately not verifying the credential's
+presence myself because doing so adds handling without adding information.
+
+**What I established, by `git log --diff-filter=A` on paths only:**
+
+```
+session_am_20260808T053009Z.json   first added 4c17f06a  2026-08-08 (earlier session)
+session_pm_20260808T200008Z.json   first added 8aa3f52e  2026-08-08 (earlier session)
+session_am_20260809T053008Z.json   first added 5d0e462c  2026-08-09 (earlier session)
+session_pm_20260809T200008Z.json   first added 6763f10f  2026-08-09 (earlier session)
+session_am_20260810T053009Z.json   first added cad38647  2026-08-10 (earlier session)
+session_pm_20260810T200010Z.json   first added 630fa95b  2026-08-11 08:42  <-- MINE
+session_am_20260811T053009Z.json   first added 630fa95b  2026-08-11 08:42  (the CLEAN one)
+```
+
+**`630fa95b` is my phase-86.25 step-closure commit, and it is on `origin/main`.**
+The last file in the affected window therefore reached the remote **today, at
+08:42 local, through my push** -- not on 2026-08-10 when it was written.
+
+**How it happened, and why it is a repeat rather than a novelty.** The
+`auto-commit-and-push` hook runs `git add -A` on a masterplan status flip, so a
+step closure sweeps every dirty path in the tree under that step's name. I have a
+standing note about exactly this (`audit-the-commit-not-your-diff`) and I ran
+`git add -An` before my *manual* commits all day -- but the automated closure
+path does not consult me, and I did not check what it had swept afterwards.
+**The discipline I applied to my own commits did not extend to the hook's.**
+
+**What I did NOT do, deliberately:** no history rewrite, no file deletion, no
+`git rm`. Rewriting published history is operator-gated and the peer has already
+put rotation in front of you.
+
+**What this changes for the rotation decision:** if the timeline mattered to
+whether rotation is needed, the answer is that the exposure window on the remote
+is newer than the file dates suggest. Treat the credential as having been on
+`origin/main` since **2026-08-11T06:42Z**, not since 2026-08-10.
