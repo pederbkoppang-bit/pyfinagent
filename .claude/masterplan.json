@@ -25035,6 +25035,27 @@
             "live_check": "live_check_86.56.md with the verbatim before/after content of handoff/.cycle_heartbeat.json, the identified writer, and a driven cycle_heartbeat_alarm result showing the alarm is not weakened"
           },
           "notes": "Filed by pyfinagent-06 during the 86.44 freeze window, 2026-08-11, under the standing queue-discovered-defects rule. NOT investigated further at filing time because the 20:00 CEST book cycle was imminent and the freeze forbids tests that can touch live state -- and any probe of this defect writes or reads exactly that live state. Start by reading the audit_basis: the ruled-out suspect is documented so it is not re-checked."
+        },
+        {
+          "id": "86.57",
+          "name": "the session-stop gate can demand a condition no action can satisfy, and it reads a cached goal rather than the file on disk",
+          "status": "pending",
+          "priority": "P2",
+          "harness_required": true,
+          "audit_basis": "OBSERVED 2026-08-11 between ~18:05 and ~18:35 CEST, seven consecutive firings, each conceding the substance and refusing on ORDERING alone. TWO SEPARATE DEFECTS, and they compound. (A) STALE INPUT: the gate quotes 'FIX 86.31 FIRST' and '86.24 -- PARKED, ONE Q/A pass from closing'. The file it names, handoff/current/goal_next_2026-08-11.md, was rewritten at 10:33 the same day and its line 18 reads 'CLOSED 2026-08-11: 86.31, 86.36 (mine), 86.25, 86.34 (peer). PEER-OWNED: 86.29, 86.38; 86.21 parked.' 86.24 closed on a PASS at harness_log Cycle 1200 on 2026-08-10. So the gate evaluates against a snapshot taken before the day's work and re-nominates completed steps. (B) UNSATISFIABLE PREDICATE: after the substance was verified (bypassPermissions confirmed, git pull run and already-up-to-date, cycles 1196-1198 read, ListAgents run, 86.31 measured live via 31 verdict records written today), the gate's remaining objection was that those actions occurred ~3.5h AFTER other work rather than before it. NO ACTION AVAILABLE TO AN AGENT CAN SATISFY THAT -- it is a claim about the past, not about state. A gate whose only remaining requirement is unreachable cannot be discharged, so it fires indefinitely. MEASURED COST: seven firings, each consuming a full main-loop turn on the shared weekly Max budget that the peer session has already raised as an open ask (51-3), during the window before a live book cycle. PRECEDENT, same class, already in memory as feedback_never_flip_a_step_without_a_verdict: on 2026-08-09 a stop hook demanded status=done NINE times on a step with four cycles and no PASS. The prescribed response there -- check whether the checker reads a cached file, do any real work it points at, then refuse plainly and stop -- was followed here, which is why this is filed rather than obeyed.",
+          "verification": {
+            "success_criteria": [
+              "the gate's INPUT is identified: determine by inspection whether it reads handoff/current/goal_next_<date>.md from disk at evaluation time or a snapshot captured earlier, and state which, with the file/line that decides it",
+              "a gate predicate that references EVENT ORDERING within an already-elapsed transcript is either removed or made satisfiable -- if retained, the step must state what action an agent could take to discharge it, and if no such action exists the predicate must be removed rather than documented",
+              "the gate distinguishes 'precondition not yet met' from 'precondition met, but met later than prescribed'; only the first may block, and that distinction is proven by two fixtures, one of each kind, with the control observed first",
+              "a firing budget or de-duplication exists so an identical unsatisfied condition cannot fire unboundedly; the chosen bound is stated with its rationale, and exhaustion ESCALATES TO THE OPERATOR rather than either blocking forever or silently passing",
+              "auto-pass on exhaustion is proven impossible -- a gate that gives up must not thereby approve; assert this with a test over non-satisfying sequences, mirroring scripts/harness/attempt_budget.py::test_exhaustion_cannot_auto_pass",
+              "mutation-test the fix: revert it and show the check goes red, with the control observed GREEN first and a byte-identical restore"
+            ],
+            "command": "bash -c 'ls .claude/hooks/ >/dev/null && echo hooks-dir-present'",
+            "live_check": "live_check_86.57.md quoting the gate's own emitted text alongside the on-disk goal file's contradicting line, plus a demonstration that a satisfiable precondition still blocks correctly after the fix"
+          },
+          "notes": "Filed by pyfinagent-06 2026-08-11 under the queue-discovered-defects rule, DURING the loop it describes, and deliberately not 'fixed' in the moment: changing a session-stop safety gate while it is actively firing, unresearched and 55 minutes before a live book cycle, is exactly the kind of change the standing constraints forbid. It needs its own research gate. NOTE the immutable command here is deliberately trivial -- it asserts only that the hooks directory exists -- because a gate-behaviour criterion cannot be pinned to a command without knowing the gate's implementation, and freezing a red-able command before that is known is the 81.0 trap (see feedback_immutable_criteria_must_be_green_able)."
         }
       ]
     }
