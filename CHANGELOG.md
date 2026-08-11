@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-11 | `4c321e5c` | docs: correct the day report -- 86.39 is no longer 'not started' |
 | 2026-08-11 | `8879d662` | phase-86.39: establish the root cause from source (pre-contract measurement) |
 | 2026-08-11 | `73dcf2c8` | phase-86.41: isolate the quant sub-agent at the DEPENDENCY, not the ticker |
 | 2026-08-11 | `031d059c` | docs: day report 2026-08-11 + regenerated goal for the next session |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-11 | `798c50f2` | phase-86.7: CORRECT my own criterion-2 finding -- there IS an alerting path |
 | 2026-08-11 | `0dae31a3` | phase-86.7: PARTIAL GENERATE -- the 08-08 outage signature reproduced, and criterion 2 answered NO |
 | 2026-08-11 | `8cc78200` | phase-86.7: PLAN -- contract written; the gate REFUTED the step's own premise |
-| 2026-08-11 | `5546cfc0` | docs(goal): ASK #2 -- a credential is in git history; rewrite the drifted goal |
 
 ---
 
