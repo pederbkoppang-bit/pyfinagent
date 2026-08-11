@@ -20,7 +20,7 @@ blocker.**
   derived class** (20 events across 10 identities). Output transcribed verbatim in
   `live_check_86.33.md` §0.
 * `scripts/qa/derive_agent_type_population_86_33.py` -- the full distribution and
-  the guard-predicate partition. It produces **none** of the four elements above.
+  the guard-predicate partition. It produces **none** of the three elements above.
 
 **I wrote the second without checking that the first already existed.** The
 covering evidence was in the repo the whole time and my handoff record cited the
@@ -109,8 +109,10 @@ attributes**.
 
 This corroborates the documentary finding by measurement: the docs say `agent_type`
 **is** the definition's `name`, and **2 definitions exist against 65 distinct values in the clean
-pre-contamination slice** (the unfiltered figure is 78, but 76 of those include
-prover-fabricated identities -- see §1), so invocation labels occupy the same
+pre-contamination slice** (the unfiltered figure is 78; **13** distinct values appear ONLY at or after the
+2026-08-10T09:30:00Z cutoff, i.e. are prover- or probe-introduced -- and per §1 the
+synthetic/real split cannot be soundly derived from this log at all, so no
+contamination count here should be leaned on), so invocation labels occupy the same
 field.
 
 > **Recorded because it matters procedurally:** the instrument that answered this
