@@ -229,3 +229,64 @@ real cause is known.
 **This ask does not block the step's code.** Everything shipped here is
 observability: the degradation is now recorded on every cycle rather than only
 when it pages, and nothing touches a gate, a threshold, or the risk judge.
+
+---
+
+## 9. DISPOSITION -- PARKED after four spawns, remediated but ungraded
+
+**Status: `pending`. Not closed. No verdict is claimed.**
+
+| run | outcome | tokens |
+|---|---|---|
+| `wf_2881574d-de2` | **NO VERDICT** (rail drop) | 162,182 |
+| `wf_13a30a9d-33d` | **NO VERDICT** (rail drop) | 180,539 |
+| `wf_468907a8-b13` | **FAIL** -- 4 survivors, per-day-not-per-cycle, one false claim | 157,947 |
+| `wf_aa7f8c4d-8bf` | **NO VERDICT** (rail drop) -- reached FAIL internally, never returned | 201,156 |
+| cycle 3 | **not run** | -- |
+
+**Why parked.** Four spawns, ~702k tokens, ONE completed verdict. Three of the
+four dropped, against a session drop rate of 5 of 13 (38.5%). The remediation
+below is real and I verified every part of it by execution, but a fifth spawn is
+a poor bet at that rate and the budget is an open operator question (ASK #3).
+
+**What the two dropped runs still bought.** Both rescued records carried findings
+I acted on, so ~382k of the dropped spend was not wasted -- but recovering
+findings from a crash record is not a substitute for a verdict, and this
+disposition is not a PASS.
+
+**Everything the completed FAIL and the third drop named is FIXED and VERIFIED
+BY EXECUTION:**
+
+| finding | status |
+|---|---|
+| key-set assertion SELF-REFERENTIAL (4 of 6 keys droppable) | fixed -- literal expected set; both single-key drops KILLED |
+| record-always seam's ARGUMENTS unpinned | fixed -- AST arg pin; neutered-args KILLED |
+| `_degradation = {}` after build | fixed -- one-Assign + must-be-Call; KILLED |
+| **D1 dead DECOY call site (my "all four fixed" claim did NOT reproduce)** | fixed -- call-site COUNT pinned; KILLED |
+| **Q1 `_degradation.clear()` -- FULLY restored the defect** | fixed -- in-place-mutation guard; KILLED |
+| **Q2/Q3 `.pop()` / `.update()`** | fixed -- same guard; both KILLED |
+| criterion 2 was PER-DAY, not per-cycle | fixed -- `--per-cycle`, 10 attributable cycles, 88 UNATTRIBUTABLE |
+| "54 analyses with ZERO fallbacks" -- FALSE | corrected in 3 artifacts + 86.41's step text |
+| matrix printed the forbidden global claim | replaced with what it licenses |
+| stale captures (29 passed, ALL 7 MUTANTS) | regenerated (31, 9) |
+| criteria mapping = live_check items (the breach) | remapped to the six immutable criteria |
+
+**The protocol breach, recorded because it is the most important thing here.**
+I passed the `live_check` items to the cycle-1 Q/A as the criteria. It graded
+against a set I authored. It caught the discrepancy only by reading
+`success_criteria[1]` itself. The third dropped run judged the disclosure
+**sufficient and non-blocking** and found one residue, now fixed. **A future
+session must copy `verification.success_criteria` verbatim and check the contract
+section actually contains them** -- the header saying VERBATIM is not evidence
+that it is.
+
+**Known-open, disclosed:**
+
+- The 67-vs-66 delta between the per-day and per-cycle tables is explained
+  (section H of live_check) but its cause -- logging lag vs cycle-record timing
+  -- is **not determined**.
+- Criterion 2 is satisfied at exactly the floor (10 attributable cycles).
+- The +2h offset is validated as a sharp maximum but remains a constant with a
+  DST precondition now asserted rather than derived per event.
+- **ASK #2 is open**: the 429 cannot be classified from the body, and doing so
+  needs the GCP quota metric.

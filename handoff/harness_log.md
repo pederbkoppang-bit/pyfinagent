@@ -33738,3 +33738,42 @@ one-sided-guard signature cycle 2 named for `c >= 2` vs `c >= 1`, recurring twic
 more inside the self-check FOR the self-check. Third cell added; verified rc=5.
 
 Five cycles, five instances of one class. That is the honest summary.
+
+## Cycle 1215 -- 2026-08-11 -- phase=86.38 result=FAIL (step PARKED)
+
+Four spawns, ~702k tokens, ONE completed verdict. `wf_468907a8-b13` returned
+**FAIL**; `wf_2881574d-de2`, `wf_13a30a9d-33d` and `wf_aa7f8c4d-8bf` all dropped
+(the last reached FAIL internally and never returned it). Session drop rate 5 of
+13 = 38.5%.
+
+**PARKED, remediated but ungraded.** Every finding is fixed and verified by
+execution; a fifth spawn at that drop rate is a poor bet and the budget is an
+open operator question (ASK #3).
+
+**THE ENTRY WORTH KEEPING IS A CLAIM OF MINE THAT DID NOT REPRODUCE.** My spawn
+prompt said "the four survivors you named are all fixed and I verified each
+dies". It was false for the fourth: I named THREE remedies for FOUR findings, and
+the dead-decoy call site had none. The next run reproduced the survivor in one
+cell.
+
+**And the guard I wrote pinned the wrong thing.** Its comment claimed it pinned
+"the VALUE reaching record_cycle_end, not merely the name". It pinned the
+BINDING: `_degradation.clear()` after the build is a Call on an Attribute, not an
+Assign, so the guard could not fail on it -- and `.clear()` FULLY RESTORES the
+pre-86.38 defect behind a completely green suite. Two more (`.pop()`, `.update()`)
+survived the same way. Fixed with an in-place-mutation guard; all four now KILLED.
+
+**A PROTOCOL BREACH, disclosed.** I passed the step's `live_check` items to the
+cycle-1 Q/A as its criteria; 86.38 has SIX `verification.success_criteria` and my
+contract's section headed "VERBATIM from masterplan.json" quoted the live_check
+instead. The first grade ran against a set I had authored, and caught it only
+because the evaluator read the masterplan itself. Contract corrected, breach
+recorded, criteria remapped. **The header saying VERBATIM is not evidence that it
+is.**
+
+Substantively the step is strong: criterion 2 now derived PER-CYCLE (10
+attributable, 88 UNATTRIBUTABLE rather than zero), and the per-cycle view refutes
+the drought hypothesis far harder than the day view could -- 9 of 10 cycles
+zero-trade, **6 of them completely clean**, and the one cycle that traded was 43%
+degraded. Also corrected a false claim I had propagated four ways ("54 analyses
+with ZERO fallbacks"; truth: 54 full / 2 lite, clean subset 48 / 0).
