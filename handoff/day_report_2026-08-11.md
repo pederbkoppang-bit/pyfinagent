@@ -481,3 +481,33 @@ not-recommended-now and not-withdrawn.
 - **My own commit count.** `git log --since` returns **304** for today, but the git
   author is `Ford` for both sessions *and* for the auto-changelog hook, so I cannot
   attribute it and am not claiming it.
+
+---
+
+## Late additions after the 20:00 cycle (recorded 22:3x)
+
+**The restart happened (22:26:48, pid 66306 -> 99231), so 86.38's change is NOW
+IN FORCE** and my artifacts' "NOT IN FORCE" sections are superseded in place.
+Left as a falsifiable check rather than a bare correction: tonight's cycle ran
+*before* the restart and carries no `degradation` key (verified); **the
+2026-08-12 20:00 cycle is the first that should write one, and if it does not,
+86.38's central change did not work.**
+
+**The drought question moved, and it moved toward the risk gate.** Tonight's
+cycle completed with trades=0 for the SECOND consecutive time -- but not from an
+empty funnel: 583 -> 577 -> 10 -> 6 -> 1 -> 0, with candidates dying at the RISK
+GATE (REJECT/HIGH, position=0%, and NTAP's lite judge REJECT/EXTREME). My 86.38
+work established the drought is *upstream of the fallback and the 429* without
+saying where; this locates the stage. The next question is why the evidence
+reaching the risk judge yields EXTREME/HIGH -- upstream of the gate. **The
+prohibition on loosening the risk judge is unchanged and now rests on two cycles,
+not one.**
+
+**86.58 (P1, filed by the peer) is the same class as my 86.25**, and that is the
+part worth carrying. 86.25 was "a risk-approval vocabulary passed where a
+BUY/SELL recommendation is expected". 86.58 is "an order REASON (`new_buy_signal`)
+sitting in a RECOMMENDATION field" -- caught in production by the guard that
+shipped this morning. **Third instance of one defect class: a field receiving a
+value from the wrong vocabulary.** 86.40, which I queued today, is the fourth (a
+comment asserting that mapping is correct). A future step should treat the class,
+not the instances.
