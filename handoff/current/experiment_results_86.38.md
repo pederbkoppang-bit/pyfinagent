@@ -21,7 +21,7 @@ have sent the next investigator at the wrong subsystem.
 | the 429 might be "a per-minute limit, a **daily quota**, or a billing state" | **Vertex generative AI has NO per-day quota.** Every enforced dimension is per-minute. Per-day belongs to AI Studio, a different product. Under Dynamic Shared Quota there is no project-level number at all |
 | "the error body was **truncated** in the log line and was not read" | The body is **complete** in the log. It simply carries no discriminator -- which Google documents as by design |
 | "the deep path has been **mostly dead**" (flagged as unconfirmed) | **67 of 76 analyses (88.2%) completed the full pipeline** over 10 days. The 429 is a **one-day** event |
-| the zero-trade outcome is explained by the degraded path | **2026-08-03..09 ran 54 full-pipeline analyses with ZERO fallbacks and still produced no trades.** The drought does NOT correlate with degradation |
+| the zero-trade outcome is explained by the degraded path | **2026-08-03..09 ran 48 full-pipeline analyses across the FIVE fallback-free days in 2026-08-03..09 (the window's full total is 54 full / 2 lite -- 2026-08-05 had two QuantAgent-NoneType fallbacks) and still produced no trades.** The drought does NOT correlate with degradation |
 
 The step was right about one thing and it is the thing worth fixing: **the
 degradation was invisible to the operator.**

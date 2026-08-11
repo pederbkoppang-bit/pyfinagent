@@ -210,7 +210,29 @@ def test_the_degradation_record_carries_every_key_that_makes_a_cycle_legible():
         "unrelated_key": "must not be carried",
     }
     got = _degradation_record(summary)
-    assert set(got) == set(DEGRADATION_RECORD_KEYS), (
+
+    # A LITERAL EXPECTED SET, not the module constant. The first version asserted
+    # `set(got) == set(DEGRADATION_RECORD_KEYS)` -- and `_degradation_record`
+    # DERIVES `got` by iterating that same tuple, so both sides shrink together
+    # and dropping a key passed. MEASURED by the cycle-1 Q/A and reproduced by me:
+    # removing "fallback_reasons" from the tuple leaves all 9 tests green.
+    # Four of the six keys could vanish from the persisted record in silence,
+    # including the one carrying the 429 causes.
+    #
+    # The expected set is therefore written out HERE, where changing it is a
+    # visible edit to a test rather than a side effect of editing production.
+    EXPECTED = {
+        "fallback_rate", "fallback_alarm_fired", "fallback_reasons",
+        "degraded", "degraded_analyses", "meta_scorer_degraded",
+    }
+    assert set(DEGRADATION_RECORD_KEYS) == EXPECTED, (
+        "the production key tuple no longer matches the set this step committed "
+        f"to persisting. Production: {sorted(DEGRADATION_RECORD_KEYS)}. "
+        f"Expected: {sorted(EXPECTED)}. Adding a key is fine but must be a "
+        "deliberate edit here too; DROPPING one silently blinds every downstream "
+        "reader to that fact."
+    )
+    assert set(got) == EXPECTED, (
         "the persisted degradation record dropped or gained a key -- a key "
         "silently missing here is invisible to every downstream reader"
     )
@@ -270,4 +292,44 @@ def test_the_degradation_record_is_actually_passed_to_record_cycle_end():
 
     assert "_degradation = _degradation_record(summary)" in src, (
         "the degradation record is no longer built from the summary by the seam"
+    )
+
+    # AND THE ARGUMENTS, not just the call. The cycle-1 Q/A neutered the OTHER
+    # seam's args (`_degradation_summary_fields(_fb_fire, 0, 0, _fb_reasons)`),
+    # which makes it return {} on every cycle -- the exact defect restored -- and
+    # the suite stayed green because the guard pinned the call substring and its
+    # source ORDER, never the payload. Criterion 6 names "reverting the fix at
+    # the call site" explicitly, and that IS the call site.
+    calls_seam = [
+        n for n in ast.walk(tree)
+        if isinstance(n, ast.Call) and isinstance(n.func, ast.Name)
+        and n.func.id == "_degradation_summary_fields"
+    ]
+    assert calls_seam, "the record-always seam is never called"
+    args_ok = False
+    for c in calls_seam:
+        names = [a.id for a in c.args if isinstance(a, ast.Name)]
+        if names == ["_fb_fire", "_n_fb", "_n_fb_total", "_fb_reasons"]:
+            args_ok = True
+    assert args_ok, (
+        "the record-always seam is called with something other than the live "
+        "(_fb_fire, _n_fb, _n_fb_total, _fb_reasons) -- passing constants makes "
+        "it return {} for every cycle while this suite stays green"
+    )
+
+    # and the record must not be blanked AFTER the seam builds it: pin the VALUE
+    # reaching record_cycle_end, not merely the name.
+    assigns = [
+        n for n in ast.walk(tree)
+        if isinstance(n, ast.Assign)
+        and any(isinstance(tg, ast.Name) and tg.id == "_degradation" for tg in n.targets)
+    ]
+    assert len(assigns) == 1, (
+        f"_degradation is assigned {len(assigns)} times; a second assignment can "
+        "blank the record after the seam built it, and the AST call-site guard "
+        "pins only the NAME"
+    )
+    assert isinstance(assigns[0].value, ast.Call), (
+        "_degradation is no longer assigned from a call -- a literal here (e.g. "
+        "`_degradation = {}`) restores the defect with the name intact"
     )

@@ -124,7 +124,7 @@ is confirmed independently.
 
 The step was filed on the premise that the zero-trade outcome is explained by the
 degraded path. **Cross-referencing B and C refutes that**: 2026-08-03 through
-2026-08-09 ran **54 full-pipeline analyses with ZERO fallbacks** and still
+2026-08-09 ran **48 full-pipeline analyses across the FIVE fallback-free days in 2026-08-03..09 (the window's full total is 54 full / 2 lite -- 2026-08-05 had two QuantAgent-NoneType fallbacks)** and still
 produced no trades. Whatever stopped the book trading, it is not the fallback.
 
 **This is the single most important line in this step**, because the standing
