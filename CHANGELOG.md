@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-11 | `8935be78` | phase-86.33: PLAN -- contract written; the gate PASSED the floors but ran ZERO searches |
 | 2026-08-11 | `7e299924` | phase-86.38 cycle 2: guard the OTHER end of the wire -- MX/MY survived everything |
 | 2026-08-11 | `be5431cc` | phase-86.29: PARK after two completed Q/A cycles, with a disposition |
 | 2026-08-11 | `5b7966e8` | phase-86.21 cycle 5: my own self-check was vacuous -- the Q/A proved it |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-11 | `b3d7fe92` | phase-86.29 cycle 3: qualify every surviving figure with its grammar |
 | 2026-08-11 | `9a33594a` | phase-86.29 cycle 3: fix all five CONDITIONAL findings, plus one I made fixing them |
 | 2026-08-11 | `6b20b8fe` | phase-86.36: record cycle-1 Q/A verdict VERBATIM -- CONDITIONAL |
-| 2026-08-11 | `6adbb722` | phase-86.36: record cycle-1 Q/A verdict VERBATIM -- CONDITIONAL |
 
 ---
 
+### v6.93.122 — phase-86.33: PLAN -- contract written; the gate PASSED the floors but... (2026-08-11)
+
+- **phase-86.33: PLAN -- contract written; the gate PASSED the floors but ran ZERO searches**
 ### v6.93.121 — phase-86.38 cycle 2: guard the OTHER end of the wire -- MX/MY survive... (2026-08-11)
 
 - **phase-86.38 cycle 2: guard the OTHER end of the wire -- MX/MY survived everything**
