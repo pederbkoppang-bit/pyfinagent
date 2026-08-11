@@ -213,7 +213,28 @@ GENERATE and was parked without a Q/A, deliberately (its criteria 1 and 6 need
 `phase=86.7`.** The five-file protocol requires the append, and without it the
 step is invisible to exactly the counter phase-86.21 was filed about.
 
-**Still not started: 86.11 and 86.14.** 86.11 is audit-class (its deliverable is
+**86.11 also advanced** by a bounded pre-contract sweep (two routes, two
+viewports, live Playwright). **Two genuine responsive defects** on
+/paper-trading at 1024, both absent at 1440: the Allocation legend loses its
+`Cash`/`Technology` labels (leaving a colour-only distinction), and the
+sector-concentration progressbar disappears.
+
+**And two candidates I refuted against my own instrument** -- my first 1024
+capture showed the whole status bar as em-dashes and the NAV figures as
+overlapping glyphs. Both looked serious. A second capture moments later showed
+full values and settled figures: it was a **mid-load, mid-animation screenshot**,
+my timing rather than the app. Recorded in the step, because a sweep firing one
+capture per route will manufacture exactly those two.
+
+**A third defect in `harness_log.md`, measured after a peer hit it:** a naive
+`grep -c "phase=<sid>"` over-counts because entry BODIES discuss other steps --
+**642 header occurrences vs 33 body occurrences over 33 step ids**, and two ids
+appear *only* in bodies, so a naive counter invents cycles for steps never
+logged. It corrupts the exact query the escalation rule was originally told to
+run. Added to 86.44; the fix is one header anchor.
+
+**Still not started: 86.14** (a feature build). It is now the only item on the
+goal's list with nothing recorded against it. 86.11 is audit-class (its deliverable is
 a ranked defect list, so it wants a gate with `audit_class: true` and the
 loop-until-dry rule); 86.14 is a feature build. Neither fits the remaining
 budget.
