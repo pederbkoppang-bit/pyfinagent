@@ -124,6 +124,44 @@ read against a stale figure. Section references are to the REGENERATED live_chec
 | 5 | state explicitly whether the 89 wrong dirs are backfilled; if backfilled, show the mapping came from git history not guesswork | live_check 5. **NOT backfilled, stated plainly**, with reasons. The number is **156 at this tree**, not 89 and not cycle-1's 153 -- it moves with every closure and with the grammar, so it is always quoted with both | MET |
 | 6 | mutation-test: revert the fix and show the archiving test goes red | live_check 3. **6 cells, 6 KILLED** (M5/M6 added at cycle 2). Each asserts its anchor exists before applying and refuses to score a no-op replace | MET |
 
+
+### 4d. The 16 "genuinely opaque" dirs, ADJUDICATED -- and the floor is 158, not 156
+
+**The cycle-3 Q/A found that I had shipped a bucket labelled "needs a human read"
+while a human read of two of its members was already sitting in my own critique
+file.** The cycle-2 verdict named `phase-3.2` and `phase-60` as real uncounted
+mismatches; neither dir, nor the fact that any of the 16 were adjudicated,
+appeared anywhere in these artifacts. That is a disclosure failure, and the
+correct repair is not to add the two names -- it is to read all sixteen. Done:
+
+| dir | first heading | verdict |
+|---|---|---|
+| `phase-3.2` | `# Phase 3.2.1 Contract: Agentic Coordination Loop ...` | **MISMATCH** -- holds 3.2.1 |
+| `phase-60` | `# Contract -- 60.4 Observability + ops residuals ...` | **MISMATCH** -- holds 60.4 |
+| `phase-2.9`, `phase-2.12`, `phase-3.0`, `phase-3.1`, `phase-3.2.1`, `phase-3.3`, `phase-3.3.1`, `phase-4.0` | `# Phase <sid> Contract:` / `# Phase <sid> PLAN:` / `# Phase <sid>:` | AGREE -- the dir is correct; only the header shape is unparsed |
+| `phase-60.1`, `phase-60.2`, `phase-60.3`, `phase-60.4` | `# Contract -- <sid> ...` | AGREE -- same |
+| `phase-29.8`, `phase-29.9` | `# phase-housekeeping -- Batch residual closures per closure_roadmap.md` | **GENUINELY UNDETERMINABLE** -- declares no step id at all |
+
+**So the corrected picture is: 2 mismatches + 12 agree + 2 undeterminable.** The
+published mismatch total of **156 is a FLOOR understated by exactly 2 named
+members; the true figure at this tree is 158**, and only two directories in the
+entire archive remain genuinely unclassifiable.
+
+**Two header shapes defeat the grammar** and both are visible above:
+`# Phase <sid> Contract:` (the word "Phase", capitalised, no separator before the
+sid) and `# Contract -- <sid> ...` (a separator, but no `step`/`phase-` token
+before the sid).
+
+**I am NOT widening the grammar again in this cycle, and that is a decision, not
+an omission.** Each of the two previous widenings fixed a real gap and introduced
+a new defect in the same motion -- cycle 2's produced a dead-code branch, and
+cycle 3's produced a probe that reported the hook broken when it was not. A third
+widening on the same evidence, in the same cycle as the disclosure fix, is how
+that pattern continues. The adjudication above gives a reader the true number
+today; widening the grammar so the census derives it automatically is filed as
+follow-up work, and until then the artifact states the floor and names what it
+misses rather than implying completeness.
+
 ---
 
 ## 4. What I did NOT do, and what remains open

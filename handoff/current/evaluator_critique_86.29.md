@@ -338,3 +338,56 @@ All 6 immutable criteria are MET on the substance and harness compliance is clea
 ## notes
 
 Write-first record: .claude/agent-memory/qa/verdicts/verdict_wip_86.29__20260811T065922Z.md (COMPLETE; still not a verdict). DEVIATION FROM THE SPAWN PROMPT, deliberate: the prompt asked for the fixed name verdict_wip_86.29.md, but qa.md on disk (phase-86.36, which STEP 0 makes authoritative) mandates the run-stamped name - writing the fixed name would have destroyed the cycle-1 dropped run's record, which is precisely the defect 86.36 fixed. I wrote nothing else; no write was blocked. qa.md 1c/1d do not bind (no UI claim, no backend/frontend diff), so no Playwright capture was taken and none was needed. 3rd-CONDITIONAL rule NOT armed: grep -E 'phase=86\.29 result=(CONDITIONAL)' handoff/harness_log.md returns 0; cycle 1 dropped without a verdict and its record was treated as unverified claims, not adopted. Tree is 2682584d, two commits past the eceb3a3b the artifacts name (86.36 and 86.38 landed meanwhile); all figures above are re-derived at 2682584d and the archive is 821 dirs at both. THINGS I CHECKED AND FOUND SOUND, so Main does not chase them: (1) the 16 'genuinely opaque' bucket is honest - I read all 16 first lines, they are genuinely different header shapes, and at least two (phase-3.2 holding '# Phase 3.2.1 Contract', phase-60 holding '# Contract -- 60.4') are real uncounted mismatches, consistent with 156 being stated as a FLOOR; (2) the precision oracle's shared grammar is a real independence limit, but I supplied the missing independence myself - adjudicating phase-69 and running the old-vs-new set difference - and the residual error runs CONSERVATIVE (the oracle under-reports precision), so disclosure plus my adjudication is sufficient for criterion 1 at this tree; a future census should not rely on disclosure alone; (3) F5's remediation reproduces - R1/R2/R4 are labelled rules with commands, and the counts moved 400/415/456 -> 404/416/460 exactly as the artifact predicts ('the rule is what is stable; the number is not'). REMEDIATION FOR CYCLE 3, all small: ungate the mention-vs-declare print from `if not suspect:` (or print it unconditionally) and re-derive it as 43 of 156; state the 153->156 composition as +8/-5 and name the five corrected false positives; either widen the hook's rolling_declares_step to the same dash set as the census or delete the in-code claim that the two grammars cannot drift; refresh section 4's 153/49 to 156/16.
+
+
+---
+
+# CYCLE 3 VERDICT -- Q/A, Workflow rail run `wf_fdc81179-861`
+
+**Transcribed VERBATIM from the captured return value.** 153,571 subagent tokens
+/ 27 tool uses / 559s. This is the **2nd consecutive CONDITIONAL**; a 3rd would
+auto-FAIL.
+
+## VERDICT: CONDITIONAL   (ok=false, harness_compliance_ok=true)
+
+## violated_criteria
+
+- scope-honesty: known-uncounted opaque members not carried into the artifact
+
+## reason
+
+All 6 immutable criteria MET with evidence I re-executed myself (immutable cmd exit=0; prove script 6/6 checks GREEN, 7/7 mutants KILLED, isolation True/True over 821 dirs; census recall 2/2, controls 4/4, 156/419/222/24, 43-of-156 mention-vs-declare now printing unconditionally). Both attacks Main flagged resolve in Main's favour under INDEPENDENT probes: I drove the real hook function (awk-extracted, not the author's declared() probe) and it correctly declares on em/en-dash while still refusing wrong-sid and undeclared headers; and I proved the UNSCORABLE guard is real and generic by forcing two different control checks red (M7 and M1 each refused to score, counted as failures). I re-derived criterion 2 at 101 sids (12x Main's 8) with a live positive control: zero glob matches. I mutated the criterion-1 recall gate (known positive reported clean) and it hard-fails with no census printed. CONDITIONAL is driven by one WARN-level disclosure gap (severity WARN, not a criterion miss): the cycle-2 verdict handed Main two NAMED archive dirs in the 16-dir "genuinely opaque" bucket that are real uncounted mismatches (phase-3.2 heads "# Phase 3.2.1 Contract...", phase-60 heads "# Contract -- 60.4 ..."; both re-verified by me at this tree), and neither dir nor the fact that 2 of the 16 are already adjudicated appears anywhere in experiment_results_86.29.md or live_check_86.29.md, which still say "needs a human read" / "I did not read them". The 156 FLOOR is known-understated by at least 2 named members and the artifact does not say so. Fix is one paragraph. This is the 2nd consecutive CONDITIONAL (harness_log has 0 result=CONDITIONAL lines for 86.29; prompt states one stands), so the 3rd-CONDITIONAL rule is NOT armed.
+
+## violation_details
+
+### 1. Overgeneralization
+
+**action** -- experiment_results_86.29.md / live_check_86.29.md report the 16 unclassified dirs as 'genuinely opaque -- needs a human read' and live_check:380 states 'I did not read them'
+
+**state** -- The cycle-2 verdict, transcribed verbatim into handoff/current/evaluator_critique_86.29.md, already named two of those 16 as real uncounted mismatches. Re-verified by me at HEAD=c4fb1ff3: handoff/archive/phase-3.2/contract.md line 1 = '# Phase 3.2.1 Contract: Agentic Coordination Loop - Session Spawning & Routing'; handoff/archive/phase-60/contract.md line 1 = '# Contract -- 60.4 Observability + ops residuals (AW-7, AW-1/AW-2 residuals, AW-10, hygiene)'. grep -nE 'phase-3\.2|phase-60|3\.2\.1|60\.4' over both artifacts returns ZERO hits. So the stated 156 FLOOR is known-understated by at least 2 named members and neither artifact records that the author already possessed a human read of 2 of the 16. SEVERITY: WARN (forces CONDITIONAL, does not block a criterion).
+
+**constraint** -- Criterion 1 requires the unparsed population to be re-classified or explicitly reported as still-unclassified WITH THE REASON; scope honesty requires the artifact to carry information the author already holds that makes its own number more honest. The 'or explicitly reported' branch is technically satisfied, so this is WARN-level disclosure completeness, not a criterion miss.
+
+## checks_run (17)
+
+- harness_compliance_audit_5of5
+- immutable_verification_command_exit0
+- named_file_diff_nonzero_all_5
+- unintended_production_change_scan
+- ruff_F821_F401_F811_derived_scope_13_files_exit0
+- prove_archive_provenance_rerun_6checks_7mutants
+- derive_archive_misattribution_rerun_recall2of2_controls4of4
+- independent_hook_emdash_endash_drive
+- unscorable_guard_forced_red_probe_x2
+- recall_gate_mutation_known_positive_blinded
+- criterion2_glob_rederivation_101_sids_with_positive_control
+- phase69_suspect_readjudication
+- live_minted_archive_dirs_verification
+- prefix_ref_authenticity_check
+- code_review_heuristics
+- evaluator_critique
+- 3rd_conditional_counter_grep
+
+## notes
+
+Full working record (every command, exit code, mutation cell and criterion mapping) is at /Users/ford/.openclaw/workspace/pyfinagent/.claude/agent-memory/qa/verdicts/verdict_wip_86.29__20260811T071750Z.md -- that file is EVIDENCE, never a verdict. Harness compliance 5/5: research (17:19Z, rerun 18:40Z, envelope COMPLETE / 7 sources / recency true / gate_passed true) < contract (22:52Z, committed alone at c806cad6 before any hook edit; hook's prior commit is db5771d0 2026-05-16) < generate; experiment_results present; no harness_log result line and masterplan 86.29 still status=pending; evidence CHANGED between spawns (all five named files have non-zero diffs 4b526b61..HEAD: 46/42/92/87/286 lines). No unintended production change -- 9a33594a touched 7 files and b3d7fe92 touched 2, none under backend/** or frontend/** (autonomous_loop.py and cycle_health.py appear in the commit RANGE but belong to step 86.38). No UI claim, so gates 1b/1c are not triggered; no backend/** in this step's diff, so 1d is N/A. Three NOTE-level residuals, all disclosed by Main and none blocking: (1) dash_grammar_parity hardcodes three separators and neither imports nor compares against the census's _DASH (grep for _DASH/import.*derive_archive in prove_archive_provenance_86_29.py returns no hits) -- it catches the ASCII reversion it was built for (M7) but not a future widening on the census side; the parity is enumerated, not derived; named fix is to import _DASH or assert the two alternation literals byte-equal; direction is fail-closed and no criterion requires grammar parity. (2) precision 0.9936 is a LOWER bound: I re-adjudicated phase-69 independently (contract head '# Contract - Step 69.3', line 3 '**Phase / step**: phase-69 -> 69.3'), the oracle's SUSPECT comes from the loose '^#.*?phase-(SID)' pattern matching the '## Immutable success criteria (verbatim from ... phase-69 -> 69.3)' heading, i.e. a masterplan-path citation, not a self-declaration -- Main deferring to the cycle-2 adjudication was correct and no re-adjudication was owed. (3) the live-ungraded hook window: I verified all three minted dirs (phase-86.31/86.25/86.34) each head '# Contract -- step <own sid>' and carry PROVENANCE.md, so the window produced no defect; I concur with cycle 2's NOTE grading. On the oracle sharing the classifier grammar: criterion 1 mandates RECALL against an externally-supplied known-positive set (86.6/86.26, chosen by the criterion author, not Main) and that passes and hard-fails when blinded, so disclosure suffices for criterion 1. To close this CONDITIONAL: add the two named dirs and the "2 of the 16 are already adjudicated as real mismatches, so 156 is understated by at least 2 known members" sentence to the opaque-bucket paragraph in experiment_results_86.29.md and live_check_86.29.md, then re-spawn a fresh Q/A on the changed evidence.

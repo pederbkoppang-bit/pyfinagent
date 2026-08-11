@@ -1,73 +1,50 @@
 {
   "ok": false,
   "verdict": "CONDITIONAL",
-  "reason": "All 6 immutable criteria are MET on the substance and harness compliance is clean 5/5 (immutable cmd exit=0; ruff F821/F401/F811 exit=0 on a git-derived non-empty 2-file scope; prove script re-run by me = 5/5 checks GREEN, 6/6 mutants KILLED, isolation True/True at 821 dirs; census re-run = recall 2/2, controls 4/4, 156/419/222/24; the three post-fix archive dirs phase-86.31/86.25/86.34 each declare their own step). I independently verified the anchor guard is non-vacuous (absent anchor and no-op replace both REFUSE to score and count as failures, RESULT: FAIL(2)), and killed a differently-constructed mutant of my own (hardcode the wrong-but-existing sid 82.54 in the derived path) with BOTH right_step and no_alien_files, so the kills are not construction artifacts. I adjudicated the one unadjudicated suspect: handoff/archive/phase-69/contract.md heads '# Contract - Step 69.3', so the census is CORRECT and the SUSPECT is an ORACLE false alarm - precision 0.9936 understates, and the widening introduced no census false positive. CONDITIONAL is forced by three WARN-level claim defects, all executed not argued: (A) experiment_results section 7 F4 claims 'the code now prints both numbers' - it prints NEITHER, because that block is gated on `if not suspect:` (derive_archive_misattribution_86_29.py:342) and this tree HAS a suspect, a fact stated four paragraphs earlier in the same document; the surviving figure '47 of 153' re-derives to 43 of 156 under the cycle-2 grammar. (B) the 153->156 move is reported as purely 'members it had been blind to', but by symmetric difference it is +8 (phase-69, 75.1, 75.5.12, 76.9.3, 78.0, 78.16, 78.2, 79.2) and -5 (phase-69.0..69.4, false positives the ASCII-only grammar had produced); the -5 half is disclosed nowhere and 153+7 != 156. (C) the SHIPPED hook's rolling_declares_step comment asserts its patterns are 'the SAME set' as the census so the two 'cannot drift' - they have drifted (census widened _DASH in cycle 2, hook did not; 7 patterns vs 4), proven behaviourally: identical declaration, '# Contract -- step 99.5' COPIED vs '# Contract - step 99.6' (em-dash) REFUSED. (C) is fail-closed so it cannot re-poison an archive. Full record: .claude/agent-memory/qa/verdicts/verdict_wip_86.29__20260811T065922Z.md",
+  "reason": "All 6 immutable criteria MET with evidence I re-executed myself (immutable cmd exit=0; prove script 6/6 checks GREEN, 7/7 mutants KILLED, isolation True/True over 821 dirs; census recall 2/2, controls 4/4, 156/419/222/24, 43-of-156 mention-vs-declare now printing unconditionally). Both attacks Main flagged resolve in Main's favour under INDEPENDENT probes: I drove the real hook function (awk-extracted, not the author's declared() probe) and it correctly declares on em/en-dash while still refusing wrong-sid and undeclared headers; and I proved the UNSCORABLE guard is real and generic by forcing two different control checks red (M7 and M1 each refused to score, counted as failures). I re-derived criterion 2 at 101 sids (12x Main's 8) with a live positive control: zero glob matches. I mutated the criterion-1 recall gate (known positive reported clean) and it hard-fails with no census printed. CONDITIONAL is driven by one WARN-level disclosure gap (severity WARN, not a criterion miss): the cycle-2 verdict handed Main two NAMED archive dirs in the 16-dir \"genuinely opaque\" bucket that are real uncounted mismatches (phase-3.2 heads \"# Phase 3.2.1 Contract...\", phase-60 heads \"# Contract -- 60.4 ...\"; both re-verified by me at this tree), and neither dir nor the fact that 2 of the 16 are already adjudicated appears anywhere in experiment_results_86.29.md or live_check_86.29.md, which still say \"needs a human read\" / \"I did not read them\". The 156 FLOOR is known-understated by at least 2 named members and the artifact does not say so. Fix is one paragraph. This is the 2nd consecutive CONDITIONAL (harness_log has 0 result=CONDITIONAL lines for 86.29; prompt states one stands), so the 3rd-CONDITIONAL rule is NOT armed.",
   "violated_criteria": [
-    "claim-does-not-reproduce: F4 remediation is unreachable code at this tree (experiment_results s7 F4)",
-    "stale-figure: '47 of 153' re-derives to 43 of 156 (live_check:29,:266-267)",
-    "undisclosed-composition: 153->156 is +8/-5, the -5 false-positive correction is reported nowhere",
-    "false-invariant-in-shipped-source: rolling_declares_step comment claims one grammar two consumers; they have drifted",
-    "stale-figures-in-section-4: '153 dirs' and '49 unclassified' contradict s3/s6/s7 156 and 16"
+    "scope-honesty: known-uncounted opaque members not carried into the artifact"
   ],
   "violation_details": [
     {
-      "violation_type": "Contradiction",
-      "action": "python scripts/qa/derive_archive_misattribution_86_29.py (run by Q/A at tree 2682584d)",
-      "state": "Script printed the SUSPECT line and did NOT print 'STATED AT TRUE SIZE: N of M DO mention their own sid'. The corrected mention-vs-declare output lives inside `if not suspect:` at derive_archive_misattribution_86_29.py:342, and precision is 0.9936 with 1 suspect (phase-69) at this tree, so the branch is dead. Re-derived independently: 43 of 156 mismatched dirs mention their own sid; the artifact says 47 of 153.",
-      "constraint": "SEVERITY WARN. experiment_results_86.29.md s7 F4: 'Fixed: the code now prints both numbers and names the distinction between mentioning and declaring'. qa.md s4b: a numeric claim whose reproducing command does not reproduce it is a Contradiction finding."
-    },
-    {
       "violation_type": "Overgeneralization",
-      "action": "Symmetric difference of the mismatch SETS under the ASCII-only (cycle-1) and dash-widened (cycle-2) grammars, computed by Q/A over the same 821 dirs",
-      "state": "GAINED 8: phase-69, 75.1, 75.5.12, 76.9.3, 78.0, 78.16, 78.2, 79.2. LOST 5: phase-69.0, 69.1, 69.2, 69.3, 69.4 - these were FALSE POSITIVES of the ASCII-only grammar (em-dash heading unmatched, fell through to `^#.*?\\bphase-(SID)` and declared '69' != '69.0'). Net +3. Nothing in experiment_results or live_check mentions the -5; the only sentence conceding over-flagging is inside the same dead `if not suspect:` block.",
-      "constraint": "SEVERITY WARN. experiment_results s6: 'the jump from 153 to 156 is not three new bad dirs, it is the census finally seeing members it had been blind to'; s7 F3: '7 of them are genuine mismatches the census was not counting'. qa.md s4b: cardinality agreement is not sufficient - compare two operationalizations by symmetric difference and report the residual."
-    },
-    {
-      "violation_type": "Contradiction",
-      "action": "Drove the SHIPPED hook in a scratch tree with only rolling files, identical declaration for the step being archived, varying only the dash character",
-      "state": "'# Contract -- step `99.5`' -> rolling contract.md COPIED. '# Contract - step `99.6`' (em-dash) -> REFUSED, nothing copied. The census accepts all three dashes (_DASH = (?:--|em|en)) since cycle 2; the hook's rolling_declares_step still hard-codes `--`, and carries 4 patterns to the census's 7. Direction is fail-closed (under-copy surfacing as the loud-failure path), so it cannot reintroduce misattribution.",
-      "constraint": "SEVERITY WARN. .claude/hooks/archive-handoff.sh, rolling_declares_step comment: 'the patterns below are deliberately the SAME set used by scripts/qa/derive_archive_misattribution_86_29.py -- one declaration grammar, two consumers, so the census and the hook cannot drift into disagreeing about what \"declares a step\" means.'"
-    },
-    {
-      "violation_type": "Contradiction",
-      "action": "Read experiment_results_86.29.md s4 against s3/s6/s7 of the same file",
-      "state": "s4 says 'Not backfilled the 153 dirs' and '49 archive dirs remain genuinely unclassified'; s3/s6/s7 say 156 and 16. Commit 4b526b61 superseded sections 1/3/5/6 and left 4 carrying cycle-1 figures with no superseded marker.",
-      "constraint": "SEVERITY NOTE. The artifact's own rule (s3): 'The cycle-1 values they supersede are kept only in section 7's movement table, so this table cannot be read against a stale figure.'"
-    },
-    {
-      "violation_type": "Invalid_Precondition",
-      "action": "The hook edit was in force for a concurrent session before it was graded; archive dirs phase-86.31, 86.25, 86.34 were minted by the ungraded change",
-      "state": "Disclosed in experiment_results s4b with the correct limitation stated (rolling_skipped=0, so the live run exercised the derivation branch only and is NOT evidence the poison guard refuses poisoned input). I verified all three dirs independently: each contains '# Contract -- step <own sid>' plus PROVENANCE.md. Outcome correct; the risk was borne by a peer session.",
-      "constraint": "SEVERITY NOTE. Recorded as a process finding, NOT a criterion miss - criteria 1-6 are all MET and the change is fail-open (trap 'exit 0' EXIT preserved). Does not block; must not be repeated for a PostToolUse hook while a peer session is live."
+      "action": "experiment_results_86.29.md / live_check_86.29.md report the 16 unclassified dirs as 'genuinely opaque -- needs a human read' and live_check:380 states 'I did not read them'",
+      "state": "The cycle-2 verdict, transcribed verbatim into handoff/current/evaluator_critique_86.29.md, already named two of those 16 as real uncounted mismatches. Re-verified by me at HEAD=c4fb1ff3: handoff/archive/phase-3.2/contract.md line 1 = '# Phase 3.2.1 Contract: Agentic Coordination Loop - Session Spawning & Routing'; handoff/archive/phase-60/contract.md line 1 = '# Contract -- 60.4 Observability + ops residuals (AW-7, AW-1/AW-2 residuals, AW-10, hygiene)'. grep -nE 'phase-3\\.2|phase-60|3\\.2\\.1|60\\.4' over both artifacts returns ZERO hits. So the stated 156 FLOOR is known-understated by at least 2 named members and neither artifact records that the author already possessed a human read of 2 of the 16. SEVERITY: WARN (forces CONDITIONAL, does not block a criterion).",
+      "constraint": "Criterion 1 requires the unparsed population to be re-classified or explicitly reported as still-unclassified WITH THE REASON; scope honesty requires the artifact to carry information the author already holds that makes its own number more honest. The 'or explicitly reported' branch is technically satisfied, so this is WARN-level disclosure completeness, not a criterion miss."
     }
   ],
   "certified_fallback": false,
   "checks_run": [
-    "harness_compliance_audit_5_of_5",
-    "immutable_verification_command_exit_0",
-    "python_lint_gate_ruff_F821_F401_F811_derived_scope",
-    "no_unintended_production_change",
-    "prove_archive_provenance_rerun_5_checks_6_mutants",
-    "census_rerun_recall_2_of_2_controls_4_of_4",
-    "anchor_guard_independent_probe_absent_anchor_and_noop_replace",
-    "independent_mutant_QA_MX7_wrong_but_existing_sid",
-    "grammar_symmetric_difference_old_vs_new",
-    "adjudicated_phase_69_precision_suspect",
-    "read_all_16_genuinely_opaque_dirs",
-    "live_archive_dirs_86_31_86_25_86_34_verified",
-    "hook_census_grammar_drift_behavioural_differential",
-    "claim_reproduction_R1_R2_R4_counts",
-    "3rd_conditional_counter_check_harness_log",
+    "harness_compliance_audit_5of5",
+    "immutable_verification_command_exit0",
+    "named_file_diff_nonzero_all_5",
+    "unintended_production_change_scan",
+    "ruff_F821_F401_F811_derived_scope_13_files_exit0",
+    "prove_archive_provenance_rerun_6checks_7mutants",
+    "derive_archive_misattribution_rerun_recall2of2_controls4of4",
+    "independent_hook_emdash_endash_drive",
+    "unscorable_guard_forced_red_probe_x2",
+    "recall_gate_mutation_known_positive_blinded",
+    "criterion2_glob_rederivation_101_sids_with_positive_control",
+    "phase69_suspect_readjudication",
+    "live_minted_archive_dirs_verification",
+    "prefix_ref_authenticity_check",
     "code_review_heuristics",
-    "evaluator_critique"
+    "evaluator_critique",
+    "3rd_conditional_counter_grep"
   ],
   "harness_compliance_ok": true,
-  "notes": "Write-first record: .claude/agent-memory/qa/verdicts/verdict_wip_86.29__20260811T065922Z.md (COMPLETE; still not a verdict). DEVIATION FROM THE SPAWN PROMPT, deliberate: the prompt asked for the fixed name verdict_wip_86.29.md, but qa.md on disk (phase-86.36, which STEP 0 makes authoritative) mandates the run-stamped name - writing the fixed name would have destroyed the cycle-1 dropped run's record, which is precisely the defect 86.36 fixed. I wrote nothing else; no write was blocked. qa.md 1c/1d do not bind (no UI claim, no backend/frontend diff), so no Playwright capture was taken and none was needed. 3rd-CONDITIONAL rule NOT armed: grep -E 'phase=86\\.29 result=(CONDITIONAL)' handoff/harness_log.md returns 0; cycle 1 dropped without a verdict and its record was treated as unverified claims, not adopted. Tree is 2682584d, two commits past the eceb3a3b the artifacts name (86.36 and 86.38 landed meanwhile); all figures above are re-derived at 2682584d and the archive is 821 dirs at both. THINGS I CHECKED AND FOUND SOUND, so Main does not chase them: (1) the 16 'genuinely opaque' bucket is honest - I read all 16 first lines, they are genuinely different header shapes, and at least two (phase-3.2 holding '# Phase 3.2.1 Contract', phase-60 holding '# Contract -- 60.4') are real uncounted mismatches, consistent with 156 being stated as a FLOOR; (2) the precision oracle's shared grammar is a real independence limit, but I supplied the missing independence myself - adjudicating phase-69 and running the old-vs-new set difference - and the residual error runs CONSERVATIVE (the oracle under-reports precision), so disclosure plus my adjudication is sufficient for criterion 1 at this tree; a future census should not rely on disclosure alone; (3) F5's remediation reproduces - R1/R2/R4 are labelled rules with commands, and the counts moved 400/415/456 -> 404/416/460 exactly as the artifact predicts ('the rule is what is stable; the number is not'). REMEDIATION FOR CYCLE 3, all small: ungate the mention-vs-declare print from `if not suspect:` (or print it unconditionally) and re-derive it as 43 of 156; state the 153->156 composition as +8/-5 and name the five corrected false positives; either widen the hook's rolling_declares_step to the same dash set as the census or delete the in-code claim that the two grammars cannot drift; refresh section 4's 153/49 to 156/16.",
-  "_cycle": 2,
-  "_run_id": "wf_2675058b-ab3",
-  "_recorded_at": "2026-08-11T07:09:25.186089+00:00",
+  "notes": "Full working record (every command, exit code, mutation cell and criterion mapping) is at /Users/ford/.openclaw/workspace/pyfinagent/.claude/agent-memory/qa/verdicts/verdict_wip_86.29__20260811T071750Z.md -- that file is EVIDENCE, never a verdict. Harness compliance 5/5: research (17:19Z, rerun 18:40Z, envelope COMPLETE / 7 sources / recency true / gate_passed true) < contract (22:52Z, committed alone at c806cad6 before any hook edit; hook's prior commit is db5771d0 2026-05-16) < generate; experiment_results present; no harness_log result line and masterplan 86.29 still status=pending; evidence CHANGED between spawns (all five named files have non-zero diffs 4b526b61..HEAD: 46/42/92/87/286 lines). No unintended production change -- 9a33594a touched 7 files and b3d7fe92 touched 2, none under backend/** or frontend/** (autonomous_loop.py and cycle_health.py appear in the commit RANGE but belong to step 86.38). No UI claim, so gates 1b/1c are not triggered; no backend/** in this step's diff, so 1d is N/A. Three NOTE-level residuals, all disclosed by Main and none blocking: (1) dash_grammar_parity hardcodes three separators and neither imports nor compares against the census's _DASH (grep for _DASH/import.*derive_archive in prove_archive_provenance_86_29.py returns no hits) -- it catches the ASCII reversion it was built for (M7) but not a future widening on the census side; the parity is enumerated, not derived; named fix is to import _DASH or assert the two alternation literals byte-equal; direction is fail-closed and no criterion requires grammar parity. (2) precision 0.9936 is a LOWER bound: I re-adjudicated phase-69 independently (contract head '# Contract - Step 69.3', line 3 '**Phase / step**: phase-69 -> 69.3'), the oracle's SUSPECT comes from the loose '^#.*?phase-(SID)' pattern matching the '## Immutable success criteria (verbatim from ... phase-69 -> 69.3)' heading, i.e. a masterplan-path citation, not a self-declaration -- Main deferring to the cycle-2 adjudication was correct and no re-adjudication was owed. (3) the live-ungraded hook window: I verified all three minted dirs (phase-86.31/86.25/86.34) each head '# Contract -- step <own sid>' and carry PROVENANCE.md, so the window produced no defect; I concur with cycle 2's NOTE grading. On the oracle sharing the classifier grammar: criterion 1 mandates RECALL against an externally-supplied known-positive set (86.6/86.26, chosen by the criterion author, not Main) and that passes and hard-fails when blinded, so disclosure suffices for criterion 1. To close this CONDITIONAL: add the two named dirs and the \"2 of the 16 are already adjudicated as real mismatches, so 156 is understated by at least 2 known members\" sentence to the opaque-bucket paragraph in experiment_results_86.29.md and live_check_86.29.md, then re-spawn a fresh Q/A on the changed evidence.",
+  "_cycle": 3,
+  "_run_id": "wf_fdc81179-861",
+  "_recorded_at": "2026-08-11T07:31:55.630146+00:00",
   "_recorded_by": "Main (pyfinagent-51) -- transcribed VERBATIM from the captured return value",
-  "_prior_cycles": [
+  "supersedes": [
+    {
+      "cycle": 2,
+      "verdict": "CONDITIONAL",
+      "run": "wf_2675058b-ab3"
+    },
     {
       "cycle": 1,
       "verdict": "NO_VERDICT (rail drop)",

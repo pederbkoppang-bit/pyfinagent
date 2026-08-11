@@ -354,6 +354,50 @@ Cycle 3 prints it unconditionally. The figure also moved with the grammar: the
 "47 of 153" cycle 2 published was measured under the ASCII-only grammar and
 re-derives to **43 of 156**.
 
+
+### 4d. The 16 "genuinely opaque" dirs, ADJUDICATED -- and the floor is 158, not 156
+
+**NOTE FIRST: the census output pasted in section 4 above still prints
+`16  genuinely opaque -- needs a human read`. That line is a verbatim capture
+and it is correct about what the SCRIPT can derive; this section supersedes it
+with what a human read actually found. The script has not been taught these
+header shapes -- see the decision at the end of this section.**
+
+**The cycle-3 Q/A found that I had shipped a bucket labelled "needs a human read"
+while a human read of two of its members was already sitting in my own critique
+file.** The cycle-2 verdict named `phase-3.2` and `phase-60` as real uncounted
+mismatches; neither dir, nor the fact that any of the 16 were adjudicated,
+appeared anywhere in these artifacts. That is a disclosure failure, and the
+correct repair is not to add the two names -- it is to read all sixteen. Done:
+
+| dir | first heading | verdict |
+|---|---|---|
+| `phase-3.2` | `# Phase 3.2.1 Contract: Agentic Coordination Loop ...` | **MISMATCH** -- holds 3.2.1 |
+| `phase-60` | `# Contract -- 60.4 Observability + ops residuals ...` | **MISMATCH** -- holds 60.4 |
+| `phase-2.9`, `phase-2.12`, `phase-3.0`, `phase-3.1`, `phase-3.2.1`, `phase-3.3`, `phase-3.3.1`, `phase-4.0` | `# Phase <sid> Contract:` / `# Phase <sid> PLAN:` / `# Phase <sid>:` | AGREE -- the dir is correct; only the header shape is unparsed |
+| `phase-60.1`, `phase-60.2`, `phase-60.3`, `phase-60.4` | `# Contract -- <sid> ...` | AGREE -- same |
+| `phase-29.8`, `phase-29.9` | `# phase-housekeeping -- Batch residual closures per closure_roadmap.md` | **GENUINELY UNDETERMINABLE** -- declares no step id at all |
+
+**So the corrected picture is: 2 mismatches + 12 agree + 2 undeterminable.** The
+published mismatch total of **156 is a FLOOR understated by exactly 2 named
+members; the true figure at this tree is 158**, and only two directories in the
+entire archive remain genuinely unclassifiable.
+
+**Two header shapes defeat the grammar** and both are visible above:
+`# Phase <sid> Contract:` (the word "Phase", capitalised, no separator before the
+sid) and `# Contract -- <sid> ...` (a separator, but no `step`/`phase-` token
+before the sid).
+
+**I am NOT widening the grammar again in this cycle, and that is a decision, not
+an omission.** Each of the two previous widenings fixed a real gap and introduced
+a new defect in the same motion -- cycle 2's produced a dead-code branch, and
+cycle 3's produced a probe that reported the hook broken when it was not. A third
+widening on the same evidence, in the same cycle as the disclosure fix, is how
+that pattern continues. The adjudication above gives a reader the true number
+today; widening the grammar so the census derives it automatically is filed as
+follow-up work, and until then the artifact states the floor and names what it
+misses rather than implying completeness.
+
 ---
 
 ## 5. Criterion 5 -- the backfill decision, stated plainly
@@ -377,10 +421,14 @@ future dir self-describing via `PROVENANCE.md`.
 
 ## 6. What I did NOT verify, and what is not in force
 
-- **The 16 genuinely-opaque dirs are unclassified, NOT clean.** I did not read
-  them individually.
-- **`phase-69` (the one precision suspect) is unadjudicated.** It is reported,
-  not resolved.
+- **The 16 formerly-opaque dirs HAVE now been read individually** (section 4d):
+  2 are real mismatches, 12 actually agree, 2 are genuinely undeterminable.
+  The published 156 is a floor understated by exactly 2 named members; the
+  true figure at this tree is **158**.
+- **`phase-69` (the one precision suspect) was adjudicated by the cycle-2 and
+  cycle-3 Q/As, not by me**: the census is CORRECT and the SUSPECT is an oracle
+  false alarm (the dir heads `# Contract - Step 69.3`). Precision 0.9936 is
+  therefore a LOWER bound. I did not re-derive it and say so.
 - **I have not driven the new hook against the real `handoff/current/`.**
   Criterion 3 forbids it. The live exercises came from genuine step closures, not
   from me.
