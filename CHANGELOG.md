@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-11 | `c52f0e51` | phase-86.44: queue the harness_log cycle-numbering defect |
 | 2026-08-11 | `2e848c15` | harness: backfill 7 missing verdict-ledger rows for 86.31 and 86.36 |
 | 2026-08-11 | `6e8504d5` | phase-86.38: supersede sections 1/3/4 -- they contradicted section 7 on counts |
 | 2026-08-11 | `6694f924` | phase-86.38 cycle 2: record both dropped-run findings and their fixes |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-11 | `5f5a2697` | phase-86.36: [P2 -- THE Q/A WRITE-FIRST RECORD IS DESTROYED BY THE NEXT CYCLE'S SPAWN, SO ONLY TH... |
 | 2026-08-11 | `0be43e06` | phase-86.36: harness_log cycle 1211 -- PASS |
 | 2026-08-11 | `961137c1` | phase-86.36: record cycle-2 Q/A verdict VERBATIM -- PASS |
-| 2026-08-11 | `a477b74a` | phase-86.38: prove NOT-IN-FORCE against the running process, not the file |
 
 ---
 
+### v6.93.131 — phase-86.44: queue the harness_log cycle-numbering defect (2026-08-11)
+
+- **phase-86.44: queue the harness_log cycle-numbering defect**
 ### v6.93.130 — backfill 7 missing verdict-ledger rows for 86.31 and 86.36 (2026-08-11)
 
 - **backfill 7 missing verdict-ledger rows for 86.31 and 86.36**
