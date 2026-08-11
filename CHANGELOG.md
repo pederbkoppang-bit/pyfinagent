@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-11 | `0dae31a3` | phase-86.7: PARTIAL GENERATE -- the 08-08 outage signature reproduced, and criterion 2 answered NO |
 | 2026-08-11 | `8cc78200` | phase-86.7: PLAN -- contract written; the gate REFUTED the step's own premise |
 | 2026-08-11 | `5546cfc0` | docs(goal): ASK #2 -- a credential is in git history; rewrite the drifted goal |
 | 2026-08-11 | `b77ec23c` | phase-86.38: criterion 6 -- close the 429 with a numbered operator ask; file all three asks |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-11 | `5483c23e` | phase-86.21: PARK at the escalation boundary; the counter caught ITSELF under-counting |
 | 2026-08-11 | `8a9a4293` | phase-86.33 P0: log agent_id -- measure before redesigning, decide nothing on it yet |
 | 2026-08-11 | `925e1681` | phase-86.38 cycle 2: my own docstring satisfied my own guard -- AST, not grep |
-| 2026-08-11 | `8935be78` | phase-86.33: PLAN -- contract written; the gate PASSED the floors but ran ZERO searches |
 
 ---
 
+### v6.93.140 — phase-86.7: PARTIAL GENERATE -- the 08-08 outage signature reproduced... (2026-08-11)
+
+- **phase-86.7: PARTIAL GENERATE -- the 08-08 outage signature reproduced, and criterion 2 answered NO**
 ### v6.93.139 — phase-86.7: PLAN -- contract written; the gate REFUTED the step's own... (2026-08-11)
 
 - **phase-86.7: PLAN -- contract written; the gate REFUTED the step's own premise**
