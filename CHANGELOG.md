@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-11 | `96870e44` | phase-86.32: cycle-1 FAIL remediated -- the fixture was not the 86.28 series |
 | 2026-08-11 | `069908c7` | phase-86.32: correct a count I asserted instead of measured |
 | 2026-08-11 | `4358683c` | phase-86.32: GENERATE -- a cumulative attempt budget that no verdict resets |
 | 2026-08-11 | `4a3c0262` | docs: disposition of the goal's prescribed work list, every item measured |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-11 | `503a7fa8` | phase-86.7: backfill the missing harness_log row (five-file protocol debt) |
 | 2026-08-11 | `e748f67e` | docs: record 86.7's true state -- my summary omitted it |
 | 2026-08-11 | `99522571` | docs: record the 86.10 live-verification refutation in the report and goal |
-| 2026-08-11 | `a9fee776` | phase-86.10: live Playwright verification -- the defect as stated did NOT reproduce |
 
 ---
 
+### v6.93.173 — phase-86.32: cycle-1 FAIL remediated -- the fixture was not the 86.28... (2026-08-11)
+
+- **phase-86.32: cycle-1 FAIL remediated -- the fixture was not the 86.28 series**
 ### v6.93.172 — phase-86.32: correct a count I asserted instead of measured (2026-08-11)
 
 - **phase-86.32: correct a count I asserted instead of measured**
