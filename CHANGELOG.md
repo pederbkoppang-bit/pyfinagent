@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-11 | `974297ce` | phase-86.29: GENERATE -- derive archive names from the step id, guard the rolling fallback |
 | 2026-08-11 | `de195df1` | phase-86.31: CLOSED -- status done after a PASS on cycle 5 |
 | 2026-08-11 | `11aa663b` | phase-86.31: harness_log cycle 1210 -- PASS after five cycles |
 | 2026-08-11 | `1d4323e8` | phase-86.31: record cycle-5 Q/A verdict VERBATIM -- PASS |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-10 | `fceac931` | phase-86.31: PROVE the write separation by driving the real hook -- 15/15 |
 | 2026-08-10 | `74dddc43` | docs: goal to     3898 chars, verified under 4000 before committing this time |
 | 2026-08-10 | `f3e721cc` | docs: goal -- 86.34 parked after 2 Q/A cycles, remediated but ungraded |
-| 2026-08-10 | `e3ba30ea` | phase-86.34: harness_log cycle 1207 -- CONDITIONAL, step parked with disposition |
 
 ---
 
+### v6.93.89 — phase-86.29: GENERATE -- derive archive names from the step id, guard... (2026-08-11)
+
+- **phase-86.29: GENERATE -- derive archive names from the step id, guard the rolling fallback**
 ### v6.93.88 — phase-86.31: CLOSED -- status done after a PASS on cycle 5 (2026-08-11)
 
 - **phase-86.31: CLOSED -- status done after a PASS on cycle 5**
