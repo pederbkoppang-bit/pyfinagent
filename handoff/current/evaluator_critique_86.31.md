@@ -284,3 +284,51 @@ Evidence had CHANGED (`fceac931`, `d4638584`, `9bf5e78b` added an execution-base
   "notes": "Write-first record at /Users/ford/.openclaw/workspace/pyfinagent/.claude/agent-memory/qa/verdicts/verdict_wip_86.31.md (STATUS: COMPLETE, WRITTEN 2026-08-10T20:13:17Z, COMPLETED 2026-08-10T20:27:41Z) -- it is NOT a verdict, this structured return is. It overwrote cycle 2's COMPLETE file at the fixed path; the WRITTEN stamp is what makes that safe, and I verified the staleness leg fires (qa_wip.py 86.31 --spawned-at 2026-08-10T23:00:00Z returns STALE/recoverable=false). No write was blocked; I stayed inside the permitted path and used in-memory bash -c and OS-temp copies for all mutation work, so the repo tree is untouched. No UI claims in this step, so section 1c does not apply; no backend/frontend files changed, so 1b/1d do not apply. Attack results for Main: (1) LIVENESS -- the probe is real, I broke the guard three ways and it refused to report clean each time, but its stated rationale is wrong (see violation 2). (2) FALSE POSITIVES -- confirmed no over-blocking: researcher, Main (empty agent_type), quality-auditor and qa-Read all ALLOW on the real hook, and an always-block guard is killed by 7 cases. (3) TRAVERSAL -- confirmed, the normpath collapse really happens; removing it is the one mutation that flips the traversal case. (4) CONFIRMED both numbers exactly (370/912 substring, 252/1030 normpath, 118 delta) once I recovered the population rule and cutoff -- but the live_check states neither, and the log is gitignored and append-only (now 1334 events for that date), so a future reader cannot reproduce without guessing; consider recording the rule and cutoff. (5) REFUTED -- 156 is not defensible; see violation 1. Two smaller notes, not blocking: the NEW prover alone covers only 2 of criterion 1's 4 explicitly-named deny classes (no test file, no masterplan.json) -- the older checker covers all four, so it is not sole coverage, but calling the prover \"the\" execution proof under-informs a reader; and criterion 2's disclosed residual (workflow-subagent / general-purpose unmatched, queued as 86.33) is honest and currently inert because qa-verdict.js:226 pins agentType 'qa', which my own guard-log entry corroborates."
 }
 ```
+
+
+---
+
+# CYCLE 5 -- verdict: PASS
+
+Q/A via Workflow rail `wf_0b3f5194-325`, 2026-08-11 06:21:40-06:33:29Z. 172,008 subagent tokens | 41 tool calls | 709s.
+
+Evidence CHANGED since the cycle-3 FAIL (corrections in `9df1239f`, live-drop evidence in `b1427909`). The cycle-3 FAIL reset the escalation counter.
+
+**Transcribed VERBATIM from the captured return value.**
+
+```json
+{
+  "ok": true,
+  "verdict": "PASS",
+  "reason": "All 7 immutable criteria MET with evidence I executed myself, harness compliance clean on all 5 items, and no unintended production change. Immutable command reproduced (guard-present=0, exit 0). I drove the REAL hook as agent_type=qa and all four explicitly-named deny classes BLOCK with verbatim stderr (production code rc=2, backend/tests/test_paper_trader.py rc=2, .claude/masterplan.json rc=2, handoff/current/experiment_results_86.34.md rc=2; plus the critique, qa.md and the guard itself rc=2), while the one allowed path returns rc=0; the guard log confirms my own identity is literally \"qa\", so the guard genuinely evaluated this rail and the ALLOW leg is production evidence rather than an unguarded bypass. Author scripts re-run by me: prove_qa_write_separation 15 cases 8 BLOCK/7 ALLOW exit 0, verify_qa_write_first 194/194 green, mutation_matrix 24/24 KILLED with zero survivors and zero ANCHOR-BAD. Both cycle-3 corrections verified by independent re-measurement rather than inherited: (1) I rebuilt the apostrophe variants as real script files and reproduced the corrected table cell-for-cell -- odd=BLOCKS EVERYTHING via a bash parse error (loud), even and compile-error=SILENT FAIL-OPEN -- confirming the retracted claim was false in both halves and the correction names the shape the original understated; (2) the 252/1030 census reproduces EXACTLY (N=1282, substring 370/912, normpath 252/1030, delta 118) once the population rule is applied, and both of its restrictions are stated in the artifact. Withdrawing \"156 organic writes\" without replacement is correct, not evasion: I contaminated that very population first-hand -- my genuine verdict write and my synthetic probe drives are both logged as agent_type \"qa\" -- so the organic/synthetic partition is unrecoverable in principle and the weaker \"252 allowed DECISIONS\" is reproducible. Criterion 3 rests on a real drop (wf_66c37324-b95, 187,369 tokens returning nothing, 6,239 bytes STATUS: INCOMPLETE written 4s after spawn), and qa_wip.py returns is_verdict:false on every status including COMPLETE, STALE and ABSENT, so a partial can never be mistaken for a verdict.",
+  "violated_criteria": [],
+  "violation_details": [],
+  "certified_fallback": false,
+  "checks_run": [
+    "qa_md_read_in_full",
+    "write_first_wip_file",
+    "harness_compliance_audit_5_items",
+    "research_gate_envelope",
+    "contract_order_mtime_chain",
+    "immutable_verification_command",
+    "git_status_no_unintended_change",
+    "derived_scope_ruff_F821_F401_F811",
+    "bash_n_guard_syntax",
+    "node_check_workflow",
+    "prove_qa_write_separation_re_run",
+    "verify_qa_write_first_re_run",
+    "mutation_matrix_re_run_24_cells",
+    "own_mutations_bash_dispatch_and_failopen_channels",
+    "four_named_deny_classes_driven_against_real_hook",
+    "guard_log_identity_confirmation",
+    "liveness_apostrophe_variants_independently_remeasured",
+    "census_252_1030_re_derivation",
+    "qa_wip_recovery_reader_all_branches",
+    "criterion_6_drop_table_overlap",
+    "harness_log_conditional_counter",
+    "code_review_heuristics"
+  ],
+  "harness_compliance_ok": true,
+  "notes": "Write-first record at /Users/ford/.openclaw/workspace/pyfinagent/.claude/agent-memory/qa/verdicts/verdict_wip_86.31.md (STATUS: COMPLETE, WRITTEN 2026-08-11T06:21:44Z, COMPLETED 2026-08-11T06:32:50Z) -- it is NOT a verdict; this structured return is. No write of mine was blocked; I stayed inside the permitted path and used scratchpad copies and mkdtemp for all mutation work, so the repo tree is untouched. Counter check: harness_log has exactly 3 rows for phase=86.31 (PARKED / FAIL / NO_VERDICT) and ZERO result=CONDITIONAL rows, confirming the 86.21 counter blindness; the cycle-3 FAIL reset the counter so no escalation was armed and PASS is available on the evidence. No UI claims and no backend/frontend change in this step, so gates 1b/1c/1d do not apply. FOUR NOTES, none blocking, none a criterion miss. (1) DURABILITY, and I caused it: my own first write DESTROYED the cycle-4 6,239-byte INCOMPLETE artifact. The path is fixed per step and that file was never committed -- git log shows one commit whose content is the CYCLE-2 file -- so it survives only because Main hand-copied it into live_check_86.31.md section \"THE MECHANISM PROVED ITSELF ON A REAL DROP\". The recovery window closes at the next spawn's first write. I watched this happen live to two other steps mid-evaluation (verdict_wip_86.34.md 9,307/COMPLETE -> 616/INCOMPLETE at 06:27:15Z, verdict_wip_86.25.md -> 583 bytes) from concurrent Q/A cycles in other sessions. This is disclosed and queued as 86.36 (confirmed present in the masterplan); criterion 3 asks for recoverability, not durability beyond that window, so it does not cap the verdict -- but Main should read a dropped run's WIP BEFORE respawning, and 86.36 should consider a cycle-suffixed path or an automatic copy. (2) The new prover alone covers only 2 of criterion 1's 4 named deny classes (no test file, no masterplan.json); it is not sole coverage -- the 194-assertion checker and my own drive cover all four -- but describing it as \"the\" execution proof under-informs a reader. (3) Latent fragility I found with my own mutation: the bash dispatch `case \"$decision\" in deny*)` is case-sensitive and coupled to the python's literal by convention only -- printing \"DENY\" instead of \"deny\" yields rc=0, a silent fail-open. Current code is correct and the checked-in prover would catch a future edit that introduced it. (4) Environmental fail-open: with an uncreatable guard-log dir the `2>>\"$GUARD_LOG\"` redirect empties the command substitution and the guard allows (rc=0); covered in spirit by the file's explicit fail-open-by-design doctrine and unreachable in practice. Also residual: handoff/logs/qa_write_guard.log is gitignored (.gitignore:76) and append-only -- it grew from 4,362 records at the stated cutoff to 5,196 during my run -- so the 252/1030 census is not reproducible off this machine, though the rule, the cutoff and the derivation script (scripts/qa/census_qa_write_guard_log_86_31.py) are all recorded, which closes the cycle-3 complaint. Criterion 2's disclosed residual (agent_type 'workflow-subagent' / 'general-purpose' unmatched, queued as 86.33) is honest and currently inert because qa-verdict.js pins agentType 'qa' -- corroborated by my own guard-log entry."
+}
+```
