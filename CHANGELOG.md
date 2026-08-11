@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-11 | `ae739417` | chore(researcher): persist the 86.9 timeout-raise research memory |
 | 2026-08-11 | `4b67c0c3` | phase-86.9: FAIL on the third cycle -- defects fixed, step PARKED, no flip |
 | 2026-08-11 | `f967f319` | phase-86.9: cycle-3 verdict FAIL, persisted verbatim -- 3rd-CONDITIONAL rule fired |
 | 2026-08-11 | `85790892` | docs(86.21): the CONDITIONAL counter over-counts as well as under-counts |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-11 | `28fc8663` | phase-86.33: [P2 -- THE qa-WRITE GUARD IS BLIND TO TWO agent_type VALUES THAT REAL SUBAGENTS RUN ... |
 | 2026-08-11 | `98b74e2d` | phase-86.33: cycle-3 PASS -- verdicts transcribed (all three, late), NOTEs fixed, log appended |
 | 2026-08-11 | `556389ac` | phase-86.33: cycle-2 CONDITIONAL remediated -- the census the record never carried |
-| 2026-08-11 | `f55a248d` | ops: ASK #7 -- a live Slack token is inlined in the crontab (NOT in git) |
 
 ---
 
