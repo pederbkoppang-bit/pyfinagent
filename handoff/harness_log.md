@@ -33450,3 +33450,64 @@ escalation is armed.
 
 Today's rail-drop rate is now **9 of 51 runs (17.6%)** against a 7.5% all-time
 rate, at **>8.7M subagent tokens**. That is the standing operator decision.
+
+## Cycle 1210 -- 2026-08-11 -- phase=86.31 result=PASS
+
+Q/A `wf_0b3f5194-325` (172,008 tokens, 41 tool calls, 709s). Verdict verbatim in
+`evaluator_critique_86.31.md`. **All 7 criteria MET, zero violated,
+`harness_compliance_ok: true`, no unintended production change.**
+
+**Five cycles: CONDITIONAL, CONDITIONAL, FAIL, rail-drop, PASS.** The cycle-3
+FAIL reset the escalation counter; its two prose defects were corrected in
+`9df1239f` and this cycle verified the corrections by INDEPENDENT re-measurement
+rather than inheriting my account of them.
+
+**It executed instead of reading.** It drove the real hook as `agent_type=qa`,
+then confirmed from the guard log that its own identity is literally `qa` -- so
+the ALLOW leg is production evidence, not an unguarded bypass. All four named
+deny classes BLOCK with verbatim stderr (production code, a test file,
+`.claude/masterplan.json`, another step's handoff artifact). It re-ran all three
+author scripts (15/15 8-BLOCK/7-ALLOW, 194/194, 24/24 KILLED with zero survivors
+and zero bad anchors) and rebuilt the apostrophe variants as real script files,
+reproducing the corrected parity table cell for cell: odd = loud block-everything
+via a bash parse error, even and compile-error = the SILENT fail-open.
+
+**It ruled the withdrawn "156 organic writes" figure correct rather than evasive
+-- because it contaminated that population itself**: its own genuine verdict
+write and its synthetic probe drives are both logged as `agent_type: qa`, so the
+organic/synthetic partition is unrecoverable in principle and the weaker
+"252 allowed DECISIONS" is the reproducible claim. The census reproduces exactly
+(N=1282, substring 370/912, normpath 252/1030, delta 118).
+
+**FOUR NOTES, none blocking, all recorded rather than smoothed:**
+
+1. **DURABILITY, and the evaluator caused it.** Its own first write DESTROYED
+   cycle 4's 6,239-byte INCOMPLETE artifact -- the WIP path is fixed per step and
+   that file was never committed, so it survives ONLY because I hand-copied it
+   into `live_check_86.31.md`. **The recovery window closes at the next spawn's
+   first write.** It watched the same happen live to `verdict_wip_86.34.md`
+   (9,307/COMPLETE -> 616/INCOMPLETE at 06:27:15Z) and `verdict_wip_86.25.md`
+   from a CONCURRENT session's Q/As. Criterion 3 asks for recoverability, not
+   durability beyond that window, so it does not cap the verdict -- but **read a
+   dropped run's WIP BEFORE respawning.** Queued as 86.36 (a cycle-suffixed path
+   or an automatic copy).
+2. The new prover alone covers 2 of criterion 1's 4 named deny classes; it is not
+   sole coverage (the 194-assertion checker and the evaluator's own drive cover
+   all four), but calling it "the" execution proof under-informs a reader.
+3. **Latent fragility found by its own mutation:** the bash dispatch
+   `case "$decision" in deny*)` is case-sensitive and coupled to the python's
+   literal by convention only -- printing `DENY` yields rc=0, a silent fail-open.
+   Current code is correct and the checked-in prover would catch such an edit.
+4. Environmental fail-open: an uncreatable guard-log dir empties the command
+   substitution and the guard allows. Covered by the file's explicit
+   fail-open-by-design doctrine; unreachable in practice.
+
+Residual, disclosed: `handoff/logs/qa_write_guard.log` is gitignored and
+append-only (4,362 -> 5,196 records during the run), so the census is not
+reproducible off this machine -- but the rule, cutoff and derivation script are
+recorded. Criterion 2's `workflow-subagent`/`general-purpose` gap (86.33) is
+inert because `qa-verdict.js` pins `agentType: 'qa'`, corroborated by the
+evaluator's own guard-log entry.
+
+**Step flips to `done` after this entry.** Concurrent session pyfinagent-51 owns
+86.25/86.34/86.29/86.38; I own and flip only this one.
