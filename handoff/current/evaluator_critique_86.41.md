@@ -122,3 +122,103 @@ description was asserted, not measured. Correcting it.
 **PRECISION 2 -- criterion 6 has no forward pointer.** The Q/A is right that "the
 drought belongs to its own step" names no step-id a reader can follow. I will
 queue one rather than leave a dangling promise.
+
+---
+
+# CYCLE 3 -- FINAL VERDICT: PASS
+
+**`ok: True` | violated_criteria: NONE |
+harness_compliance_ok: True**
+
+Q/A via Workflow structured-output rail, run `wf_7ba7f2fe-32a`
+(182,878 tokens, 33 tool uses, 672s). Q/A write-first record:
+`.claude/agent-memory/qa/verdicts/verdict_wip_86.41__20260811T093031Z.md`
+(STATUS: COMPLETE). **Transcribed VERBATIM by Main.**
+
+## Verdict (verbatim)
+
+```json
+{
+  "ok": true,
+  "verdict": "PASS",
+  "reason": "CYCLE 3. The cycle-2 blocker is FIXED and I proved my green discriminates rather than accepting it. Lint gate over the DERIVED step scope (4 .py from b8d2ea96..HEAD; the HEAD-diff form aborts on its own empty-set guard because the work is committed), files passed as SEPARATE args via `xargs -0` AND re-run with 4 explicit args: `uvx ruff check --select F821,F401,F811` -> All checks passed!, exit=0 both forms. THREE POSITIVE CONTROLS, because an exit-0 ruff run is exactly the shape that lies: (A) the same selector on the PRE-FIX blobs at 13c6d5ce via `git show | ruff --stdin-filename -` is RED -- F401 `pytest` at test_phase_86_41_quant_isolation.py:26:8 and F401 `shutil` at mutation_matrix_86_41.py:27:8, exit=1 each; (B) the same on the HEAD blobs is green; (C) the instrument is alive on the wider tree -- `ruff --select F401 backend/tests/` reports 47 errors, and cycle 2 measured 48 pre-existing, so 48-1=47 reconciles the deletion exactly. THE DELETIONS BROKE NOTHING: `grep pytest` in the test file and `grep shutil` in the matrix both return NONE (no dynamic use), 38 tests pass / 0 skipped (7 in the step file, matching the claim), `import backend.agents.orchestrator` OK. MUTATION MATRIX RE-RUN BY ME: md5 14168c1174b34b9b7e657b6f7f60bf6d before AND after (the md5 cycle 2 recorded), control green FIRST, 5/5 KILLED with the credited named test red in every cell, restore byte-identical, git status on the target empty. I ALSO RAN A MUTATION THE AUTHOR'S MATRIX DOES NOT CONTAIN -- all 5 of their cells mutate production code, none mutates the stub -- so I mutated the FIXTURE in memory (nothing on disk touched, anchor count asserted ==1, control run first and green): blanking the yfinance call counter turns test_quant_failure_does_not_abort_the_ticker RED on its positive control, while test_healthy_quant_is_untouched_by_the_guard stays GREEN (its `_yf_calls == []` is vacuously true) -- which is precisely why that positive control exists. Vacuity shape #5 closed by execution. THE FOUR NOTES: (1) call site now names the FUNCTION `get_cik` with the line marked version-dependent -- my own word-boundary-corrected log census reproduces BOTH quoted counts exactly (`:89` 14x, `:79` 20x); (2) contract and research_brief are ANNOTATED, not rewritten -- `git show --numstat fb21682b` gives 28/0 and 10/0 insertions/deletions, so the frozen text is byte-unchanged; (3) the three unreproducible region hashes are replaced by whole-file sha256 b1c38453bee0be23, which I verified identical at b8d2ea96, HEAD and the working tree with an EMPTY diff -- strictly stronger than the regions it replaced; (4) the 16-of-17 pairing correction is present at experiment_results:126-132 naming the exception, and criterion 6 now names 86.47, which I checked is a FREE id (masterplan holds 86.40..86.46). Criterion 2's census re-runs on my machine byte-for-byte (442 accounted, 67/9/11.8%, exit 0). Criterion 5's diff is empty across 17 commits. Sole production change is orchestrator.py +59/-4, entirely inside the quant step plus an additive kwarg with a default pinned by a test and by cell M5; kill_switch/stop-loss/perf_metrics untouched. Harness compliance clean 5/5: contract 10:46 < guard 10:52 < tests 10:58 < results 11:02; 0 harness_log rows for 86.41; status pending, retry 0/3; evidence CHANGED at fb21682b so this is the documented fresh-respawn. TWO NON-BLOCKING NOTES carried forward, both named with file:line in the record. (i) OVERGENERALIZATION: the corrected paragraph says the function is invariant \"across BOTH deployments\", but my per-file census finds a THIRD Quant address, `/workspace/main.py:81`, at 40x -- twice `:79` and nearly 3x `:89` -- and the pre-JSON log carries 79 AND 81 together. The counts quoted reproduce; the set membership was asserted. This strengthens the conclusion (the FUNCTION is the invariant) rather than weakening it. (ii) The note-1 correction reached the artifacts but NOT the source: `/workspace/main.py:89` is still cited unqualified at backend/agents/orchestrator.py:1807 and backend/tests/test_phase_86_41_quant_isolation.py:7, and `:89` is the least common of the three addresses. Comments only, no behaviour. Neither note touches a criterion, so per the severity dispatch they flag a PASS rather than degrading it -- and I did not manufacture either into a blocker.",
+  "violated_criteria": [],
+  "violation_details": [],
+  "certified_fallback": false,
+  "checks_run": [
+    "qa_md_read_in_full",
+    "write_first_wip_record",
+    "harness_compliance_5_item_audit",
+    "immutable_verification_command_exit_0",
+    "step_scope_derived_from_commit_range",
+    "python_lint_gate_ruff_F821_F401_F811_exit_0",
+    "lint_gate_positive_control_prefix_blobs_red",
+    "lint_gate_positive_control_head_blobs_green",
+    "lint_gate_instrument_alive_47_vs_48_reconciles",
+    "deleted_imports_dynamic_use_grep",
+    "scoped_pytest_38_passed_0_skipped",
+    "backend_runtime_smoke_import",
+    "mutation_matrix_rerun_control_green_5of5_killed_md5_restore",
+    "independent_fixture_mutation_in_memory_killed",
+    "mutation_runner_failsafe_review",
+    "criterion_2_census_rerun_reproduces_exactly",
+    "criterion_5_whole_file_sha256_three_revisions",
+    "note1_get_cik_log_census_word_boundary_corrected",
+    "note2_annotate_not_rewrite_numstat_zero_deletions",
+    "note3_region_hashes_replaced_verified",
+    "precision2_86_47_id_free_in_masterplan",
+    "poisson_arithmetic_recomputed",
+    "production_diff_review_no_unintended_change",
+    "third_conditional_counter_harness_log",
+    "code_review_heuristics"
+  ],
+  "harness_compliance_ok": true,
+  "notes": "CYCLE 3, and the verdict reversal from cycle 2's CONDITIONAL rests on CHANGED evidence plus my own re-measurement, not on the author's rebuttal: fb21682b deleted the two offending import lines (-2/-1) and updated three artifacts, and I re-ran the gate from the pre-fix blobs forward with three positive controls rather than trusting the reported exit code. Adversarial worst-of-N-lenses: correctness lens PASS (5/5 production mutants killed on MY run with a green control, plus an independent FIXTURE mutant killed); does-it-reproduce lens PASS on every claim I tested -- census output byte-for-byte, both get_cik counts exact, sha256 identical at three revisions, Poisson 6.95% recomputed, 48-1=47 lint delta; scope-honesty lens PASS and unusually strong (the artifact volunteers two defects in its own guard, records that the immutable command reaches criterion 1 only, states NOT IN FORCE, and withdraws its own earlier claim about what the coverage assertion proves). Worst lens is still PASS. My write-first record is at /Users/ford/.openclaw/workspace/pyfinagent/.claude/agent-memory/qa/verdicts/verdict_wip_86.41__20260811T093031Z.md (STATUS: COMPLETE -- a record, not a verdict). No file outside that path was written and no write was blocked; the only tree mutation was the checked-in mutation matrix's own mutate-and-restore, which I bracketed with an md5, a scratchpad copy outside the repo, a post-run diff and a clean git status. TWO PROCESS CAVEATS, disclosed rather than smoothed over. (1) The research brief and the contract were committed in the SAME commit (b8d2ea96) and fb21682b re-touched both, so neither git-time nor mtime can order them TODAY; cycle 2 measured brief 10:41 < contract 10:45 before the annotations existed, and the contract cites the brief's findings, so I am relying on a prior measurement plus content ordering for that one item. (2) Criterion 6's forward pointer to 86.47 is a PROMISE -- the id is free and the deferral reason (no mid-EVALUATE masterplan edit, because the auto-commit hook's `git add -A` cross-attributes in-flight files) is the project's own doctrine, but the step is not filed yet. That obligation should be discharged at close and is worth a glance from whoever closes this step. Two numbers in the criterion-6 block are BQ-sourced and I did NOT re-derive them (\"last trade 2026-07-31 NTAP\", \"8 trades across 21 weekdays\"); they are outside this step's criteria and are seed evidence for 86.47, but they should be re-measured there rather than inherited. Finally, a self-correction worth recording: my first get_cik census over-counted because `line N, in get_cik` also matches `get_cik_map`, and two of the six addresses turned out to belong to the Ingestion sub-agent, not Quant -- the corrected word-boundary + agent-split census is what the finding above rests on."
+}
+```
+
+---
+
+## Main's response to the two non-blocking notes
+
+**BOTH ARE CORRECT AND BOTH ARE MINE. They are fixed in a FOLLOW-UP commit, not
+in the graded tree** -- the PASS was rendered against specific bytes, and editing
+them after the verdict would make the verdict describe something that no longer
+exists.
+
+**NOTE (i) -- I over-claimed a SET immediately after correcting a NUMBER.** My
+corrected text says `get_cik` is invariant "across BOTH deployments". The Q/A
+measured a **THIRD** address, `/workspace/main.py:81`, at **40x** -- more common
+than `:79` (20x) and `:89` (14x) combined-ish, and the pre-JSON log carries 79 AND
+81 together. So there are at least three deployments, not two.
+
+The counts I quoted reproduce exactly; the **set membership was asserted**. This
+is the same defect as the line number it was written to fix, one level up -- I
+corrected "the line number is fixed" into "there are two", and both were claims
+about a population I never enumerated. It strengthens the conclusion (the FUNCTION
+is the invariant, which is why naming the function was right) but the reasoning
+was lucky, not sound.
+
+**NOTE (ii) -- the correction reached the ARTIFACTS but not the SOURCE.**
+`/workspace/main.py:89` is still cited unqualified in two production/test
+comments: `backend/agents/orchestrator.py:1807` and
+`backend/tests/test_phase_86_41_quant_isolation.py:7`. Comments only, no
+behaviour -- but `:89` is the **least** common of the three addresses, so the
+source now carries the weakest form of the claim. Fixing both to name the
+function.
+
+## Two process caveats the Q/A disclosed rather than smoothed over
+
+1. **Brief-vs-contract ordering is not measurable TODAY.** Both were committed in
+   `b8d2ea96` and both were re-touched by `fb21682b`, so neither git-time nor
+   mtime can order them now. Cycle 2 measured brief 10:41 < contract 10:45 before
+   the annotations existed, and the contract cites the brief's findings. The Q/A
+   relied on a prior measurement plus content ordering and **said so** rather
+   than presenting it as freshly measured.
+2. **Criterion 6's pointer to 86.47 is a PROMISE, not a filing.** The id is free
+   and the deferral reason is the project's own doctrine, but the step does not
+   exist yet. **Discharged immediately after this close.**
+3. Two numbers in the criterion-6 block ("last trade 2026-07-31 NTAP", "8 trades
+   across 21 weekdays") are **BQ-sourced and were NOT re-derived by the Q/A**.
+   They are outside this step's criteria and are seed evidence for 86.47, which
+   must re-derive them rather than inherit them.

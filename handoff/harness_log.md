@@ -33836,3 +33836,81 @@ is RECALL, not precision.
 **Disposition: PARKED.** Full text in `handoff/current/experiment_results_86.7.md`
 sec 9. Do NOT re-run the step's immutable command and record it as criterion 1 --
 it is green and does not satisfy that criterion.
+
+## Cycle 1217 -- 2026-08-11 -- phase=86.41 result=PASS
+
+**Isolate the quant sub-agent at the DEPENDENCY, not the ticker.** Three graded
+cycles; cycle 1 returned NO VERDICT (rail drop), cycle 2 CONDITIONAL, cycle 3 PASS
+with zero violated criteria.
+
+**THE STEP'S PREMISE WAS REFUTED BEFORE EXECUTION.** Titled "the QuantAgent
+NoneType crash is a bigger source of degraded analyses than the 429 ever was" -- it
+is not a competing cause. It is DOWNSTREAM of a different provider's 429, raised in
+a REMOTE Cloud Function (`get_cik` in `/workspace/main.py`) that is not in this
+repository, so "fix the NoneType" was never a change available here. Attribution
+re-measured at the event level: **17 of 17 events (100%)** carry an upstream
+SEC.gov 429 cue, **0 Vertex**.
+
+**What was actually ours, and narrower than the title:** `orchestrator.py` had
+exactly ONE unguarded sub-agent call while RAG, ingestion and the phase-32.3 call
+all failed open, and `autonomous_loop.py:2201` converted that single remote failure
+into a WHOLE-TICKER lite fallback. The guard falls back to the yfinance-only quant
+that phase-60.1 already built and proved for the SAME failing stage, under a
+deliberately distinct reason string (reusing 60.1's "non-US listing" text would
+relabel a rate limit as a listing-coverage fact -- the exact wrapper-string
+collapse that made the census read 6 code defects where there were 0).
+
+**THE GUARD SHIPPED WITH TWO DEFECTS OF ITS OWN, found only by driving the real
+pipeline.** Both passed `ast.parse` and 22 green pre-existing tests:
+1. `report["skipped_stages"]` is created only under `if not _sec_covered`; the
+   guard runs in the other branch, so a plain `.append` raised KeyError and aborted
+   the ticker anyway -- **worse than useless in the exact case it exists for**.
+2. `step()` sat inside the `try`. It invokes a caller-supplied progress callback,
+   so a raising SSE emitter was caught, mislabelled a quant failure, and silently
+   overwrote a GOOD quant report.
+
+**The mutation matrix then found a hole in the suite testing the guard.** M3
+survived initially: the healthy-path test read only the first quant event, whose
+message is identical whether the guard stood aside or fired and overwrote the
+report -- control answer and mutant answer coincided. Closed with a yfinance call
+counter plus a positive control. Final: 5/5 KILLED, control green first, target
+restored byte-identical (md5 `14168c1174b34b9b7e657b6f7f60bf6d` before and after).
+
+**THE Q/A RAN A MUTATION MY MATRIX DID NOT CONTAIN.** All five of my cells mutate
+production code; none mutates the stub. It mutated the FIXTURE in memory: blanking
+the yfinance call counter turns the degraded test RED on its positive control while
+the healthy test stays GREEN (its `_yf_calls == []` is vacuously true). That is
+precisely why the positive control exists -- vacuity shape closed by execution
+rather than by argument.
+
+**Cycle 2's blocker was mine and the reproduction was worse than the finding.** Two
+F401 unused imports in files this step created; no artifact mentioned a lint gate
+because I never ran one. My first reproduction printed "All checks passed!" beside
+a "No such file or directory" warning -- zsh does not word-split `$FILES`, so four
+paths went in as ONE argument and nothing was linted. Re-run with an array: exit 1,
+2 errors. The zsh trap already in memory, hit while checking someone else's finding.
+The Q/A then proved its own green with THREE positive controls, including
+reconciling 48-1=47 pre-existing F401s across the tree.
+
+**Corrections carried, all mine, all recorded rather than quietly fixed:**
+- "34 raw events" was a LINE count. Every occurrence emits two lines 17 apart, so
+  the population is 17 EVENTS. Neither 94% (one phantom) nor 50% (double-counted)
+  was right; it is 100%.
+- The coverage assertion is VACUOUS against the defect it was written for: `raw`
+  and `parsed` increment in the same branch, so `parsed == raw` is structurally
+  guaranteed and the read-level filter that dropped the 416 leaves it green.
+- `/workspace/main.py:89` is deployment-version-dependent -- and the Q/A found a
+  THIRD address (`:81`, 40x) after I had "corrected" the claim to two. I fixed a
+  number and then over-claimed a set.
+- Three region hashes replaced by a whole-file sha256; I never stated the
+  extraction rule, so nobody else could reproduce them.
+
+**Frozen artifacts ANNOTATED, never rewritten** -- `git show --numstat fb21682b`
+gives 28/0 and 10/0 on contract and brief, so the original text is byte-unchanged.
+
+**NOT IN FORCE.** Backend pid 66306 started 2026-08-10 21:33:01; the guard
+committed 2026-08-11 10:52:32. Restarts batch to session end, so this does NOT
+reach tonight's 20:00 CEST cycle unless the operator restarts.
+
+**Owed at close:** step **86.47** (drought owner, promised in criterion 6), and a
+follow-up fixing two source comments that still cite `:89` unqualified.
