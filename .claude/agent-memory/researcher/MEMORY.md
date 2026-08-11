@@ -1,5 +1,7 @@
 # Researcher Agent Memory Index
 
+- [Retry-loop bounding 86.32](project_retry_loop_bounding_86_32.md) — reset-on-success is a HEALTH-CHECK idiom on a WORK-ACCOUNTING problem; CONDITIONAL resets too; max_retries read by NOTHING
+
 - [Absent upstream data 86.41](project_absent_upstream_data_86_41.md) — the NoneType frame is a CLOUD FUNCTION not this repo; retry-then-return-None erases the 429; a coverage assertion proves counting, never attribution
 
 - [Headless keychain auth 86.7](project_headless_keychain_auth_86_7.md) — dead token COMMITTED in 5 tracked files; all jobs are AGENTS not daemons; keychain is `no-timeout` so screen lock does NOT lock it
