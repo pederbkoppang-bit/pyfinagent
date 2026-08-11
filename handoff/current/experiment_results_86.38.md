@@ -175,3 +175,51 @@ directions at once: it missed the seam docstring's `(3/6 = 0.500, no page)` and
 simultaneously reported `autonomous_loop.py` as having zero qualifiers, because
 my corrected text spans a comment line break that a flat grep cannot see. Fixed
 with a wrap-normalising sweep that now reports every file clean.
+
+---
+
+## 8. CRITERION 6 -- the conclusion IS an operator decision. Numbered ask below.
+
+Criterion 6 says plainly that if the correct action is an operator decision,
+"the step closes with that stated plainly and a numbered ask -- that is a valid
+outcome and is preferable to a speculative code change." **That is where this
+step lands on the 429**, and stating it is the deliverable rather than a
+substitute for one.
+
+### OPERATOR ASK #2 -- classify the 429, or accept lite-on-quota-exhaustion
+
+**What I established.** The 429 body is captured verbatim and is COMPLETE (it was
+never truncated -- the step text was wrong about that). It carries **no
+discriminator**. Google documents this as by design: the same condition surfaces
+as 429 REST, `ResourceExhausted` gRPC, 403 on GCE and 5XX under Provisioned
+Throughput, and classification must be done **out of band** from
+`serviceruntime.googleapis.com/quota/rate/net_usage`. Vertex generative AI has
+**no per-day quota at all** -- per-day belongs to AI Studio, a different product
+-- so the step's own trichotomy was mis-stated. The real one is **rate limit /
+Dynamic-Shared-Quota capacity / model-or-billing state**.
+
+**Why I cannot close it myself.** Reading that quota metric is a GCP
+console/monitoring action outside this step's surface, and the remedies
+(requesting a quota increase, enabling Provisioned Throughput, or a paid tier)
+are all spend decisions. The standing constraint is **$0 metered**, so none of
+them is mine to take.
+
+**The three options, with what each costs and what it buys:**
+
+| option | cost | buys |
+|---|---|---|
+| A. Read `quota/rate/net_usage` in the console for 2026-08-10 18:00-19:15Z | free, ~5 min of operator time | the actual classification -- rate vs DSQ capacity |
+| B. Accept lite-on-quota-exhaustion as designed behaviour | free | nothing changes; the fallback already degrades gracefully and is now RECORDED per cycle |
+| C. Provisioned Throughput / paid tier | **metered spend** | removes DSQ contention |
+
+**My recommendation is A, then B.** The 429 was a **single-day event** in ten
+cycles, the deep path ran at 88.2%, and -- decisively -- the per-cycle evidence
+in live_check B2 shows degradation does NOT explain the trade drought (six
+completely clean cycles produced zero trades; the one cycle that DID trade was
+43% degraded). **Spending money to fix a fallback that is not causing the problem
+would be the wrong trade**, and C should not be considered until the drought's
+real cause is known.
+
+**This ask does not block the step's code.** Everything shipped here is
+observability: the degradation is now recorded on every cycle rather than only
+when it pages, and nothing touches a gate, a threshold, or the risk judge.
