@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-11 | `8879d662` | phase-86.39: establish the root cause from source (pre-contract measurement) |
 | 2026-08-11 | `73dcf2c8` | phase-86.41: isolate the quant sub-agent at the DEPENDENCY, not the ticker |
 | 2026-08-11 | `031d059c` | docs: day report 2026-08-11 + regenerated goal for the next session |
 | 2026-08-11 | `b4b7008b` | phase-86.5: record measured triage input -- the title says 26, I measure 17 |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-11 | `0dae31a3` | phase-86.7: PARTIAL GENERATE -- the 08-08 outage signature reproduced, and criterion 2 answered NO |
 | 2026-08-11 | `8cc78200` | phase-86.7: PLAN -- contract written; the gate REFUTED the step's own premise |
 | 2026-08-11 | `5546cfc0` | docs(goal): ASK #2 -- a credential is in git history; rewrite the drifted goal |
-| 2026-08-11 | `b77ec23c` | phase-86.38: criterion 6 -- close the 429 with a numbered operator ask; file all three asks |
 
 ---
 
+### v6.93.155 — phase-86.39: establish the root cause from source (pre-contract measu... (2026-08-11)
+
+- **phase-86.39: establish the root cause from source (pre-contract measurement)**
 ### v6.93.154 — phase-86.41: isolate the quant sub-agent at the DEPENDENCY, not the t... (2026-08-11)
 
 - **phase-86.41: isolate the quant sub-agent at the DEPENDENCY, not the ticker**
