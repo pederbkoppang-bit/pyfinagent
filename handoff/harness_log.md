@@ -33564,3 +33564,56 @@ load-bearing 108 is exact, the denominator drifted as later steps added tests.
 **NOT IN FORCE.** The backend has not been restarted, so this is committed but
 not live in the running process. S2 is an ungated 04:00 UTC cron, so the next run
 picks up the new code without a restart.
+
+## Cycle 1212 -- 2026-08-11 -- phase=86.34 result=PASS
+
+Cycle-3 Q/A `wf_9d7e0010-66f` (Workflow rail), **154,603 subagent tokens / 29 tool
+uses / 519s**. Verdict **PASS**, `ok=true`, `harness_compliance_ok=true`,
+**`violated_criteria: []`**, all 6 immutable criteria MET. Transcribed verbatim
+into `evaluator_critique_86.34.md` and written to
+`evaluator_critique_86.34.json` (which did not previously exist for this step --
+the auto-push verdict gate reads the `.json`, and its absence logs a NO INPUT
+warning meaning nothing verified the push).
+
+**THIS CYCLE COST TWO RUNS.** The first attempt `wf_97a608dd-2a4` DROPPED at
+**185,745 tokens / 45 tool uses** without calling StructuredOutput -- NO VERDICT,
+never PASS, not counted as a cycle. Its write-first record (4,921 bytes, marked
+INCOMPLETE) was rescued verbatim by Main **before the replacement spawn's first
+write destroyed it** at the fixed per-step path, and is appended to the critique.
+That recovery window is the durability defect now queued as 86.36. The re-spawn
+used a deliberately leaner, priority-ordered prompt and returned in 29 tool uses
+against the drop's 45.
+
+**The dropped run earned its keep.** Its one candidate finding was re-measured by
+Main and CONFIRMED: `live_check_86.34.md` cited the test file at `:291-296`
+(actual `:303-308`, and wrong since `73ce11ba` -- i.e. stale in every revision any
+Q/A had graded) and the PROW seam at `:386` (actual `:389`). Fixed by **replacing
+the line-number citations with grep anchors** rather than re-tuning them.
+
+**The fresh Q/A ruled on that remedy explicitly (F-3) and it is the entry worth
+keeping**: anchors are "the RIGHT fix, not a relocation of the problem" -- it
+verified both anchors resolve and are unique -- but the residual is real and
+different in KIND: the pasted grep OUTPUT still embeds `305:`/`223:`/`389:`, and
+those are captured output of a stated reproducible command, so drift
+self-corrects when a reader re-runs, whereas a bare pointer silently misdirects
+forever. **Staleness reduced, not eliminated.**
+
+**THE Q/A DISCLOSED ITS OWN CLOCK AGAINST ITSELF.** It ran at UTC hour 06, INSIDE
+Pacific/Midway's shifting window -- meaning the pre-86.34 hardcoded fixture would
+have been green at that hour too, so its immutable-command green is **not by
+itself a demonstration of the fix**. It said so rather than letting the green
+read as proof, and pointed instead at the artifact's own 19:20 UTC run and at the
+mutation cell that re-derives the non-shifting zone at run time. It also applied
+criterion 5's brand-new doctrine to this very step: the brief and contract both
+first appear in commit `a37f9da5`, so their git ordering is UNPROVABLE and it
+reported it as mtime-only rather than as a green tick.
+
+**Five NOTE findings, none blocking.** F-1 is the one worth carrying: the
+criterion-1 oracle guards sentinel DELETION (fails closed) but not RELOCATION --
+moving `[END phase-86.34 CORRECTION]` to EOF re-widens the block to the whole
+file, reproduced at rc=0. Named fix: also assert the END sentinel is not the last
+non-empty line. Queued rather than left as prose.
+
+**HEAD moved mid-evaluation** (`6dabebc3` -> `fb33ee6e`, peer commits for other
+steps); the Q/A verified `git diff --stat` over all seven 86.34-relevant files is
+EMPTY, so nothing it measured moved under it.

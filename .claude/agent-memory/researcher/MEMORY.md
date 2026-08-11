@@ -1,5 +1,7 @@
 # Researcher Agent Memory Index
 
+- [WIP clobber 86.36](project_wip_clobber_86_36.md) — born-inert makes the clobber EARLIER (the retry's first stub lands on the prior attempt); MEASURED live 4,921→796 bytes mid-session; write-guard misses Bash `mv`; HEAD already held the post-destruction state
+
 - [Id-collision resolver 86.19](project_id_collision_resolver_86_19.md) — JSON key order decides the winner so the ARCHIVE wins 5.1; `phase-6.5` is cross-type (phase vs step) and no archive exclusion closes it; defect is LATENT (no colliding id has a live_check)
 - [Claims-correctness 86.34](project_claims_correctness_86_34.md) — a TZ shift holds for only |offset|/24 hours so it can NEVER be hour-independent; `.venv.py313.bak` defeats exact-match filters (95.5% of scanned .py is vendored); a "verbatim" digest went stale on a legit edit
 - [Silent glob + archive provenance 86.29](project_silent_glob_archive_86_29.md) — the glob NEVER had a domain (0/5 sids, 896 suffix vs 169 all-historical prefix); zsh NOMATCH gives a false loud-failure; OAIS+17a-4 both PERMIT documented repair

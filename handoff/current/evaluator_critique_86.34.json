@@ -1,0 +1,59 @@
+{
+  "ok": true,
+  "verdict": "PASS",
+  "reason": "All 6 immutable criteria MET, each verified by my own execution rather than by reading claims. C1: the inverted sentence survives in both files only inside an explicitly-labelled, immediately-refuted correction block (live_check_86.24.md:22-32, test file :304); I accept quote-and-refute explicitly, and I killed the oracle on the REAL pre-fix subject (git show 551d5188 -> rc=1 \"ASSERTED at line(s) [13]\", the exact input on which the retired grep returned 0) plus my own re-assert-after-sentinel cell (rc=1, line [80]). C2: my independent census reproduces exactly -- 70 total / 34 OLD / 32 vendored under .venv.py313.bak / 2 NEW, symmetric difference 32 MEMBERS not merely equal counts; the guard asserts non-empty AND the stronger first-party property and PRINTS \"[86.34] conftest sweep population: 2 first-party file(s)\", which I confirmed emits in a real -s run. C3: I re-ran both matrices -- mutation_matrix_86_34.py 4/4 KILLED (poisoned-conftest = half (a), revert-exclusion with named assertion = half (b)) and mutation_matrix_86_24.py 7/7 KILLED, tracked sources unchanged, no stray files; the N1 cell re-derived the non-shifting zone at run time (Kiritimati at my hour vs Midway at the artifact's), so it is not reporting the wall clock. C4: sha256 digest fb97b52ecf7fb5be reproduces byte-exactly, section F is regenerated in full with its producing command inline, and the header now names the tree actually measured (a9707993). C5: docs/runbooks/per-step-protocol.md:141-148 records the unprovable-ordering doctrine in the EVALUATE audit a future Q/A reads. C6: sha256 of 86.24's verification block = ac991bbed30c9c73... identical at f3a3a4bb~1/f3a3a4bb/a33640a4/HEAD/worktree with status done. Immutable command exit=0 (10 passed); ruff F821/F401/F811 exit=0 on a git-derived 9-file scope with the non-empty guard asserted; no backend/frontend production file touched; harness compliance clean on all 5 items; harness_log shows exactly FAIL then CONDITIONAL, so the 3rd-CONDITIONAL rule is not reached. Five NOTE-level findings recorded, none blocking.",
+  "violated_criteria": [],
+  "violation_details": [],
+  "certified_fallback": false,
+  "checks_run": [
+    "qa_md_read_at_runtime",
+    "write_first_wip_verdict_file",
+    "harness_compliance_audit_5_item",
+    "research_gate_envelope",
+    "contract_before_generate_commit_and_mtime_ordering",
+    "log_last_masterplan_status",
+    "no_verdict_shopping_evidence_diff",
+    "immutable_verification_command_exit_code",
+    "ruff_F821_F401_F811_git_derived_scope",
+    "git_status_unintended_change",
+    "tree_stability_across_moving_HEAD",
+    "masterplan_86_24_verification_sha_across_commits",
+    "criterion1_oracle_execution",
+    "criterion1_independent_mutation_cells_in_memory",
+    "criterion2_independent_conftest_census_symmetric_difference",
+    "criterion2_guard_code_read_and_print_observed",
+    "mutation_matrix_86_34",
+    "mutation_matrix_86_24",
+    "criterion4_digest_regeneration",
+    "criterion5_runbook_record",
+    "grep_anchor_uniqueness_verification",
+    "harness_log_conditional_counter",
+    "code_review_heuristics",
+    "evaluator_critique",
+    "experiment_results",
+    "live_check"
+  ],
+  "harness_compliance_ok": true,
+  "notes": "AMBIENT CLOCK, stated because this step is about exactly this: I ran at UTC hour 06. Pacific/Midway (UTC-11) shifts the calendar date on UTC 00:00-10:59, so at MY hour the pre-86.34 hardcoded-Midway fixture would have been green too. My immutable-command green is therefore NOT by itself a demonstration of the fix; the artifact's own 19:20 UTC run (inside the 13 red hours) is, and the hour-independent demonstration I contributed is the mutation matrix whose N1 cell re-derived the non-shifting zone at run time. The same caveat applies to mutation_matrix_86_24 cell M1 at my hour. HEAD moved from 6dabebc3 to fb33ee6e mid-evaluation from peer commits for other steps; I verified `git diff --stat 6dabebc3..HEAD` over all seven 86.34-relevant files is EMPTY, so nothing I measured moved under me. FIVE NOTE-LEVEL FINDINGS, none blocking: (F-1) scripts/qa/verify_86_24_direction_claim.py guards sentinel DELETION (fails closed) but not RELOCATION -- I independently reproduced rc=0 when [END phase-86.34 CORRECTION] is moved to EOF, which re-widens the block to the whole file; this is a residual of a literal sentinel-scoped oracle, NOT vacuity, since P1 proves it kills on the real defect, and relocation is a visible edit. Named fix: also assert the END sentinel is not the last non-empty line. (F-2) the reciprocal clock disclosure above, so the two greens are not read as two demonstrations. (F-3) JUDGING MAIN'S REMEDY, as asked: replacing :291-296 and :386 with grep anchors is the RIGHT fix, not a relocation of the problem. I verified the anchors resolve and are unique -- \"Both halves were wrong\" has exactly 1 hit (:305) and PYFINAGENT_86_24_PROW_PATH resolves to :223 (comment) and :389 (os.environ read), both roles named correctly. The residual is real but different in KIND: the pasted grep OUTPUT still embeds 305:/223:/389:, yet those are captured output of a stated reproducible command, so drift self-corrects when a reader re-runs, whereas the old bare pointer had no command attached and silently misdirected in every revision any Q/A graded. Staleness reduced, not eliminated. (F-4) the surviving bare pointer at live_check_86.34.md:56 (\"live_check_86.24.md:12-13\") is CORRECT and correctly scoped -- past tense, about the PRE-FIX file, and my P1 cell independently reports line [13] at 551d5188. (F-5) PYFINAGENT_86_34_SWEEP_ROOT is a genuine escape hatch (a stray env var would redirect the production sweep) but is disclosed in section H, mirrors the accepted PROW_PATH seam, and is the extraction-for-testability shape qa.md 4c recommends. ONE HONEST BLIND CHECK, applying criterion 5's own new doctrine to this very step: research_brief_86.34.md and contract_86.34.md BOTH first appear in the single commit a37f9da5, so their git ordering is UNPROVABLE; the mtime chain (18:56 < 18:59) supports it and these are live working-tree files, but I report it as mtime-only rather than as a green tick. Contract-before-GENERATE is separately PROVABLE and green (mutation_matrix_86_34.py committed 21:26, verify_86_24_direction_claim.py 21:49, both after the 19:02 contract). I treated the dropped run's WIP as unverified claims and re-derived independently; I found no disagreement with it, and I reproduced its two candidate items (the E3/P3 sentinel survivor and the census) myself. All my mutation work was done fully IN MEMORY via a shim over the oracle's TARGET -- no repo file and no scratchpad file was written; the only file I wrote is .claude/agent-memory/qa/verdicts/verdict_wip_86.34.md, which is the write-first crash-survival record and is NOT a verdict. No write was blocked. Scope confirmed: no backend module and no frontend file, so qa.md 1c/1d do not bind and no browser capture was needed.",
+  "_cycle": 3,
+  "_run_id": "wf_9d7e0010-66f",
+  "_recorded_at": "2026-08-11T06:49:24.835620+00:00",
+  "_recorded_by": "Main (pyfinagent-51) -- transcribed VERBATIM from the captured return value",
+  "_prior_cycles": [
+    {
+      "cycle": 1,
+      "verdict": "FAIL",
+      "run": "wf_839de1e6-c3c"
+    },
+    {
+      "cycle": 2,
+      "verdict": "CONDITIONAL",
+      "run": "wf_6c44bae0-a83"
+    },
+    {
+      "cycle": "3 (aborted)",
+      "verdict": "NO_VERDICT (rail drop)",
+      "run": "wf_97a608dd-2a4"
+    }
+  ]
+}
