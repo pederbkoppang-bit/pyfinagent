@@ -69,9 +69,21 @@ def _run(cmd, env=None, cwd=None):
     )
 
 
-def make_scratch(step_id: str, with_per_step: bool) -> pathlib.Path:
-    """A minimal fake repo: masterplan with `step_id` done, poisoned rolling
-    files, and (optionally) correctly-named per-step artifacts."""
+#: phase-86.29 cycle 2 -- ALIEN FILES ARE THE POINT, NOT SET DRESSING.
+#: The first fixture put ONLY the step-under-test's files in `handoff/current/`.
+#: The real directory holds 400-500 files belonging to ~200 steps, and criterion
+#: 4 names "copies another step's files" as a failure that must be VISIBLE. With
+#: a one-step fixture, a mutant that widens the variant glob to `${base}_*.md`
+#: SURVIVED -- it had nothing else to sweep up. With alien files present the same
+#: mutant copies 18 of them into the wrong archive dir and dies. A fixture that
+#: cannot contain the defect cannot test for it.
+ALIEN_STEPS = ("82.54", "82.6", "80.2")
+
+
+def make_scratch(step_id: str, with_per_step: bool, alien: bool = True) -> pathlib.Path:
+    """A fake repo: masterplan with `step_id` done, poisoned rolling files,
+    optionally the correctly-named per-step artifacts, and (by default) OTHER
+    steps' per-step artifacts so the directory resembles the real one."""
     root = pathlib.Path(tempfile.mkdtemp(prefix=f"arch86_29_{step_id}_"))
     (root / ".claude").mkdir()
     (root / "handoff" / "current").mkdir(parents=True)
@@ -103,6 +115,13 @@ def make_scratch(step_id: str, with_per_step: bool) -> pathlib.Path:
             f"# Research Brief -- step {step_id}\n\n**Step**: `{step_id}`\n")
         (cur / f"research_brief_{step_id}_rerun.md").write_text(
             f"# Research Brief -- step {step_id} (RERUN)\n\n**Step**: `{step_id}`\n")
+
+    if alien:
+        for other in ALIEN_STEPS:
+            for base in ("contract", "experiment_results", "evaluator_critique",
+                         "research_brief", "live_check", "goal"):
+                (cur / f"{base}_{other}.md").write_text(
+                    f"# {base} -- step `{other}`\n\nBELONGS TO ANOTHER STEP.\n")
     return root
 
 
@@ -181,10 +200,66 @@ def check_loud_on_empty(hook: pathlib.Path) -> str | None:
         shutil.rmtree(root, ignore_errors=True)
 
 
+def check_no_alien_files(hook: pathlib.Path) -> str | None:
+    """criterion 4, the half the first fixture could not express.
+
+    An archive dir for step 99.1 must contain 99.1's artifacts and NOTHING
+    belonging to another step. This is the "copies another step's files" failure
+    named verbatim in criterion 4, and it needs a `handoff/current/` that
+    actually holds other steps' files to be expressible at all.
+    """
+    root = make_scratch("99.1", with_per_step=True, alien=True)
+    try:
+        drive(hook, root)
+        target = root / "handoff" / "archive" / "phase-99.1"
+        if not target.is_dir():
+            return "no archive dir created at all"
+        strays = []
+        for f in sorted(target.iterdir()):
+            if f.name == "PROVENANCE.md":
+                continue
+            text = f.read_text(errors="replace")[:400]
+            for other in ALIEN_STEPS:
+                if f"step `{other}`" in text or f"phase-{other}" in text:
+                    strays.append(f"{f.name} (holds {other})")
+        if strays:
+            return f"{len(strays)} alien file(s) archived: {', '.join(strays[:6])}"
+        return None
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def check_undeclared_rolling_refused(hook: pathlib.Path) -> str | None:
+    """The fall-through: a rolling file declaring NOTHING must not be copied.
+
+    The hook's guard exits non-zero when NO declaration pattern matches at all.
+    Every other fixture here gives the rolling files a declaration for some
+    OTHER step, which exercises the `!=` comparison but never the
+    no-pattern-matched path -- so that path had zero coverage while the hook's
+    own comment called the asymmetry "the whole fix".
+    """
+    root = make_scratch("99.4", with_per_step=False, alien=False)
+    try:
+        cur = root / "handoff" / "current"
+        for name in ROLLING:
+            (cur / name).write_text("Some prose with no step declaration at all.\n")
+        drive(hook, root)
+        target = root / "handoff" / "archive" / "phase-99.4"
+        copied = [f.name for f in target.iterdir() if f.name != "PROVENANCE.md"] \
+            if target.is_dir() else []
+        if copied:
+            return f"undeclared rolling file(s) WERE copied: {copied}"
+        return None
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
 CHECKS = [
     ("right_step", check_right_step),
     ("no_poison_substitution", check_no_poison_substitution),
     ("loud_on_empty", check_loud_on_empty),
+    ("no_alien_files", check_no_alien_files),
+    ("undeclared_rolling_refused", check_undeclared_rolling_refused),
 ]
 
 #: (cell, description, old, new, which check MUST go red)
@@ -205,6 +280,15 @@ MUTANTS = [
      'if [ "$total" -eq 0 ]; then',
      'if false; then',
      "loud_on_empty"),
+    # phase-86.29 cycle 2 -- the two cells the first matrix could not express.
+    ("M5", "widen the variant glob so it sweeps EVERY step's files",
+     'for extra in "$CURRENT_DIR/${base}_${short_sid}_"*.md; do',
+     'for extra in "$CURRENT_DIR/${base}_"*.md; do',
+     "no_alien_files"),
+    ("M6", "make the declaration check pass when NO pattern matches",
+     "sys.exit(1)\nPYEOF",
+     "sys.exit(0)\nPYEOF",
+     "undeclared_rolling_refused"),
 ]
 
 

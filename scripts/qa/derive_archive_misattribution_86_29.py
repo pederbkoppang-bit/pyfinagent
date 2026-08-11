@@ -53,13 +53,25 @@ KNOWN_POSITIVES = ("phase-86.6", "phase-86.26")
 #: (2/2) and precision had NOT -- so the census read 211 when it was not.
 _SID = r"[0-9]+(?:\.[0-9A-Za-z]+)*"
 
+#: phase-86.29 cycle 2 -- THE SEPARATOR IS NOT ALWAYS ASCII. The grammar below
+#: originally hard-coded `--`, so a header written `# Contract — Step 76.9.2`
+#: (EM-DASH) matched nothing and the directory fell into "unclassified". That is
+#: not a cosmetic gap: MEASURED, 38 of the 255 unclassified dirs carry an
+#: en/em-dash heading and **7 of them are genuine mismatches the census was not
+#: counting** (phase-75.5.12 / 76.9.3 / 78.0 / 78.16 / 78.2 / 79.2 all hold
+#: 76.9.2's contract; phase-75.1 holds 75.2's). The reported total was therefore
+#: a FLOOR, not a count -- a one-character grammar gap hiding real members of the
+#: population. Found by the cycle-1 Q/A run that dropped before returning a
+#: verdict; re-measured by Main before the fix.
+_DASH = r"(?:--|—|–)"
+
 #: The harness runner writes its OWN per-cycle contract with no step id. Those
 #: are not per-step artifacts and must not be counted as unexplained.
 _HARNESS_CYCLE_RE = re.compile(r"^#\s*Sprint Contract\s*--\s*Cycle\s*\d+\s*$", re.I)
 
 _DECLARE = [
-    re.compile(rf"^#\s*Contract\s*--\s*step\s*`?({_SID})`?", re.M | re.I),
-    re.compile(rf"^#\s*(?:Sprint\s+)?Contract\s*--\s*(?:.*?)phase-({_SID})", re.M | re.I),
+    re.compile(rf"^#\s*Contract\s*{_DASH}\s*step\s*`?({_SID})`?", re.M | re.I),
+    re.compile(rf"^#\s*(?:Sprint\s+)?Contract\s*{_DASH}\s*(?:.*?)phase-({_SID})", re.M | re.I),
     re.compile(rf"^\*\*Step ID\*\*:\s*`?(?:phase-)?({_SID})`?", re.M | re.I),
     re.compile(rf"^\*\*Step\*\*:\s*`?(?:phase-)?({_SID})`?", re.M),
     re.compile(rf"^step:\s*(?:phase-)?({_SID})\s*$", re.M | re.I),
@@ -133,6 +145,32 @@ def run_controls() -> bool:
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
     return ok
+
+
+def _contract_head(d: pathlib.Path) -> str:
+    contract = d / "contract.md"
+    if not contract.exists():
+        alt = sorted(d.glob("contract_*.md"))
+        if not alt:
+            return ""
+        contract = alt[0]
+    try:
+        return contract.read_text(encoding="utf-8", errors="replace")[:4000]
+    except Exception:                                              # noqa: BLE001
+        return ""
+
+
+def _mentions_sid_anywhere(d: pathlib.Path, dir_sid: str) -> bool:
+    """The BROAD property: does the dir's sid appear at all in the head?
+
+    Deliberately distinct from `confirm_mismatch`, which tests the NARROW
+    property (does it appear in a DECLARATION). Keeping both callable is what
+    stops the report claiming the broad one while measuring the narrow one.
+    """
+    return bool(re.search(
+        r"(?<![0-9A-Za-z.])" + re.escape(dir_sid) + r"(?![0-9A-Za-z.])",
+        _contract_head(d),
+    ))
 
 
 def confirm_mismatch(d: pathlib.Path, dir_sid: str) -> bool:
@@ -302,8 +340,28 @@ def main() -> int:
     for name, got in suspect[:10]:
         print(f"      SUSPECT {name:22s} census said it declares {got!r}")
     if not suspect:
-        print("  no suspects: no mismatched dir mentions its own step id anywhere")
-        print("  in its contract head, so none of them is the 86.19 truncation shape.")
+        # phase-86.29 cycle 2 -- THIS SENTENCE USED TO OVERSTATE ITS OWN RESULT.
+        # It read "no mismatched dir mentions its own step id anywhere in its
+        # contract head". MEASURED: 47 of 153 DO mention it -- e.g.
+        # handoff/archive/phase-10.5.0/contract.md heads with
+        # "step: phase-10.5-batch (covers 10.5.0, 10.5.1, ...)". The property the
+        # oracle actually tests is the NARROWER one, and the narrow one is what
+        # supports the conclusion; the broad claim was simply false. Stated at
+        # its true size, with the broad number printed alongside so the
+        # distinction cannot be glossed again.
+        mentions = sum(
+            1 for name, _g in wrong
+            if _mentions_sid_anywhere(ARCHIVE / name, name[len("phase-"):])
+        )
+        print("  no suspects: no mismatched dir's own step id appears in any")
+        print("  DECLARATION the grammar finds in its contract head, so none of")
+        print("  them is the 86.19 truncation shape.")
+        print(f"  STATED AT TRUE SIZE: {mentions} of {total_wrong} DO mention their own")
+        print("  sid somewhere in the head (batch contracts such as")
+        print("  'phase-10.5-batch (covers 10.5.0, ...)'). Mentioning is not")
+        print("  declaring; only the narrow property is claimed. Note a batch")
+        print("  contract also means the census can over-flag: 153 has")
+        print("  contestable positives as well as the known false negatives above.")
     print()
 
     by_declared = collections.Counter(g for _n, g in wrong)

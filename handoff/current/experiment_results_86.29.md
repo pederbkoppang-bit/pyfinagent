@@ -218,3 +218,95 @@ one to `mismatch`. Under the new hook, closing a step adds one to `agree`. The
 Any future reader re-running the census will get a different total. That is
 correct and expected; the tree must be named next to the number, which is why
 both rows above carry theirs.
+
+---
+
+## 7. CYCLE 2 -- five findings from a dropped Q/A, all confirmed and remediated
+
+The cycle-1 Q/A dropped without returning a verdict. Its write-first record
+survived and named five findings. **A recovered record is evidence, never a
+verdict** -- so none of its conclusions were adopted, and each finding was
+re-measured by Main before any code changed. All five reproduced.
+
+### F1 -- the fixture could not express criterion 4's own failure class
+
+`make_scratch` put ONLY the step-under-test's files in `handoff/current/`. The
+real directory holds 400-500 files belonging to ~200 steps. A mutant widening the
+variant glob from `${base}_${short_sid}_*.md` to `${base}_*.md` therefore had
+nothing to sweep up and **SURVIVED** the author's suite.
+
+**Fixed**: `make_scratch(..., alien=True)` now seeds three other steps' artifacts,
+a new check `no_alien_files` asserts the archive contains nothing belonging to
+another step, and cell **M5** performs exactly that widening. It now copies **15**
+alien files into `phase-99.1/` and dies. This is verbatim the criterion-4 failure
+-- *"copies another step's files ... must be a visible failure"*.
+
+**The general lesson, recorded because it is the reusable part**: a fixture that
+cannot CONTAIN the defect cannot TEST for it. The suite was green because the
+world it built was too small to be wrong in the relevant way.
+
+### F2 -- the no-declaration fall-through had zero coverage
+
+Every fixture rolling file declared *some* step, which exercises the `!=`
+comparison but never the **no-pattern-matched** path -- while the hook's own
+comment calls that "unsure means do not copy" asymmetry *the whole fix*.
+
+**Fixed**: new check `undeclared_rolling_refused` builds rolling files with no
+declaration at all, and cell **M6** flips the fall-through to success. It copies
+all four undeclared files and dies.
+
+### F3 -- the census grammar was ASCII-only, and it was hiding real members
+
+`_DECLARE` hard-coded a `--` separator, so `# Contract — Step 76.9.2` (em-dash)
+matched nothing and fell into "unclassified". **Measured: 38 of 255 unclassified
+dirs carry an en/em-dash heading and 7 of them are genuine mismatches the census
+was not counting.** The cycle-1 figure of 153 was a FLOOR, not a count.
+
+**Fixed**: `_DASH = r"(?:--|—|–)"`. After the fix `phase-76.9.2` appears in the
+top-8 with 6 dirs -- exactly six of the seven above.
+
+Also conceded: the precision oracle **shares the classifier's grammar**,
+differing only in aggregation. It detects "right pattern, wrong order" and is
+blind to "the grammar does not recognise this header", which is this exact class.
+That is a real independence limit and it is now stated in the live_check rather
+than defended. Precision consequently reads **0.9936 with one live suspect**
+instead of a suspiciously perfect 1.0000.
+
+### F4 -- a printed sentence overstated its own result
+
+The census printed, and the cycle-1 live_check reproduced: *"no mismatched dir
+mentions its own step id anywhere in its contract head."* **False -- 47 of 153
+did**, e.g. `phase-10.5.0/contract.md` heading `step: phase-10.5-batch (covers
+10.5.0, 10.5.1, ...)`. The tabular line above it stated the correct narrower
+property; the summary claimed the broader one.
+
+**Fixed**: the code now prints both numbers and names the distinction between
+*mentioning* and *declaring*, plus the corollary that batch contracts mean the
+census can also over-flag.
+
+### F5 -- a figure with no command next to it
+
+Section B printed "456 suffix-convention files" with no `$ command` line, and it
+did not reproduce under four rules a reader tried. **Re-derived**: my original
+command yields 462 today (the tree grew by six during this step); 456 was every
+`*.md` in `handoff/current`, which is a different set from the one the sentence
+named.
+
+**Fixed**: the live_check now prints three explicitly-labelled rules with their
+counts and states that the rule is what is stable, not the number.
+
+### Numbers that MOVED as a result
+
+| figure | cycle 1 | cycle 2 | why |
+|---|---|---|---|
+| archive dirs | 819 | 821 | 86.25 and 86.34 closed |
+| mismatch | 153 | **156** | grammar fix found more; still a FLOOR |
+| agree | 387 | 419 | 33 dashy dirs reclassified |
+| unclassified | 255 | 222 | same |
+| genuinely opaque | 49 | **16** | same |
+| precision | 1.0000 | **0.9936** | oracle now disagrees on live data |
+| behavioural checks | 3 | **5** | F1, F2 |
+| mutation cells | 4 | **6** | M5, M6 |
+
+**No number in this table is a constant.** Each is quoted with its tree, because
+the population grows every time a step closes.
