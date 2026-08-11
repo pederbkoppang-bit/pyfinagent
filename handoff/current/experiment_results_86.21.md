@@ -336,8 +336,32 @@ docstring says a caller that treats `None` as `0` has reintroduced the defect.
    used to say "it has genuinely not been graded yet"; the Q/A ran the tool on
    **86.21 itself** and got that sentence while a cycle-1 verdict sat on disk.
 
-Self-test 9 cases -> **15**. Matrix 7 cells -> **11**, and the four new ones are
-exactly the Q/A's surviving mutants.
+**COUNTS, WITH THE RULE STATED -- and one figure withdrawn (cycle 4).**
+
+The cycle-3 verdict FAILED partly on this sentence, which read "Self-test 9
+cases -> **15**". **That claim does not reproduce and it is withdrawn rather
+than re-tuned.** The cycle-3 Q/A measured 11 -> 15; I have since tried four
+separate operationalizations (runtime output lines, source `print` emitters
+under two regexes, and per-commit `git show` counts) and got 5 / 7 / 4 / 18
+across revisions -- no rule I can construct yields 9. **A number whose
+counting rule was never written down cannot be checked, which is exactly the
+defect, so the honest repair is to state a rule and count under it, not to
+find a rule that rescues the old figure.**
+
+THE RULE: a self-test *case* is one line of `--self-test` RUNTIME output
+beginning with three spaces and an open bracket -- what a reader actually sees.
+Under that rule, demonstrated rather than asserted:
+
+```
+$ python scripts/qa/verdict_history_86_21.py --self-test | grep -cE '^   \('
+18
+```
+
+THE MATRIX RULE: a *cell* is one tuple literal in `MUTANTS`. Under that rule the
+matrix now carries **14 cells, all killed** -- the three cycle-3 survivors
+(S1/S2/S3) plus the eleven that existed before.
+
+No historical figure is restated here, because none of them can be reproduced.
 
 Two harness defects also fell out and were fixed: the M8 mutant CRASHES rather
 than failing an assertion, and letting that propagate aborted the whole matrix

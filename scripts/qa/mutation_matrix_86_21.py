@@ -25,6 +25,19 @@ import tempfile
 TARGET = pathlib.Path(__file__).resolve().parents[2] / "scripts" / "qa" / "verdict_history_86_21.py"
 
 MUTANTS = [
+    # ---- phase-86.21 cycle 4: the three survivors the cycle-3 Q/A found -----
+    # All three lived in `_report`'s PRINTED OUTPUT, which had zero automated
+    # coverage because the self-test discarded the stdout buffer. They are the
+    # reason cases (vi-b)/(vi-c)/(vi-d) now keep it.
+    ("S1", "the CLI prints a hard zero for every step forever (the silent zero returns, in the OUTPUT)",
+     'print(f"consecutive     : {c}")',
+     'print(f"consecutive     : 0")'),
+    ("S2", "the two CAUSE explanations swap -- blindness attributed to a predicate mismatch and vice versa",
+     "        if g == 0 and c > 0:",
+     "        if not (g == 0 and c > 0):"),
+    ("S3", "the whole DISAGREEMENT block disappears silently",
+     "    if c is not None and g != c:",
+     "    if False:"),
     ("M1", "unparseable/empty report 0 instead of None (the silent zero returns)",
      "        if self.status in (UNPARSEABLE, LEDGER_EMPTY, LEDGER_MISSING):\n            return None",
      "        if False:\n            return None"),
@@ -76,6 +89,32 @@ def _load(src_text: str, tag: str):
     return mod
 
 
+def verify_broken_scoring(text: str) -> bool:
+    """phase-86.21 cycle 4 -- prove the BROKEN path actually fires.
+
+    The cycle-3 Q/A showed this harness scoring guard-IRRELEVANT mutants as
+    KILLED and then printing "every guard IN THIS MATRIX can fail". The fix
+    separates load-time failure from self_test() failure -- but a fix that is
+    never observed working is exactly what this step is about. So: inject a
+    mutant that CANNOT COMPILE and require `_load` to raise, which is what the
+    BROKEN branch keys on. Run as part of every matrix run, not on request.
+    """
+    broken_src = text.replace("def self_test() -> int:", "def self_test(((", 1)
+    if broken_src == text:
+        print("  [broken-scoring self-check] ANCHOR MISSING -- cannot verify")
+        return False
+    try:
+        _load(broken_src, "xcheck")
+    except Exception as exc:                                   # noqa: BLE001
+        print(f"  [broken-scoring self-check] _load raised {type(exc).__name__}"
+              " -> the BROKEN branch is reachable, guard-irrelevant mutants"
+              " cannot be scored as kills")
+        return True
+    print("  [broken-scoring self-check] an UNCOMPILABLE mutant LOADED -- the"
+          " BROKEN branch is unreachable and kills cannot be trusted")
+    return False
+
+
 def main() -> int:
     before = hashlib.md5(TARGET.read_bytes()).hexdigest()
     text = TARGET.read_text()
@@ -93,6 +132,10 @@ def main() -> int:
         print(buf.getvalue())
         return 2
 
+    if not verify_broken_scoring(text):
+        print("REFUSING TO SCORE -- the BROKEN path could not be verified.")
+        return 5
+
     killed, survived, broken = 0, [], []
     for mid, desc, old, new in MUTANTS:
         n = text.count(old)
@@ -106,14 +149,34 @@ def main() -> int:
         # AttributeError. Letting that propagate aborted the whole matrix and
         # reported nothing about the remaining cells, which is a worse failure
         # than the mutant itself.
+        # phase-86.21 cycle 4 -- A LOAD-TIME CRASH IS NOT A KILL, IT IS A BROKEN
+        # CELL. The cycle-3 Q/A demonstrated the hole by monkeypatching in three
+        # guard-IRRELEVANT mutants -- a syntax error, an unimportable module, a
+        # broken indent -- and this harness scored all three "KILLED" and then
+        # printed "every guard IN THIS MATRIX can fail". None of those mutants
+        # ever reached a guard. A mutant that cannot execute licenses NOTHING,
+        # and crediting it to the guard is the mis-attributed-kill shape (qa.md
+        # 4c #11): the mutation died, but not by the assertion claimed.
+        #
+        # `_load()` compiles and execs the module, so it is separated out. Only
+        # exceptions raised INSIDE self_test() are kills -- and those are real
+        # ones, e.g. removing the step_id guard leaves `sid` None and the next
+        # line raises AttributeError, which IS the guard's subject failing.
         try:
             mod = _load(text.replace(old, new, 1), mid)
+        except Exception as exc:  # noqa: BLE001 -- did not reach any guard
+            broken.append(mid)
+            print(f"  BROKEN  | {mid}: {desc}")
+            print(f"            mutant failed to LOAD ({type(exc).__name__}: {exc})")
+            print("            -- it never reached a guard, so this cell scores NOTHING")
+            continue
+        try:
             b = io.StringIO()
             with contextlib.redirect_stdout(b):
                 r = mod.self_test()
-        except Exception as exc:  # noqa: BLE001 -- a crash IS a kill
+        except Exception as exc:  # noqa: BLE001 -- raised INSIDE the guard: a kill
             killed += 1
-            print(f"  KILLED  | {mid}: {desc}\n            raised {type(exc).__name__}: {exc}")
+            print(f"  KILLED  | {mid}: {desc}\n            self_test() raised {type(exc).__name__}: {exc}")
             continue
         if r != 0:
             killed += 1

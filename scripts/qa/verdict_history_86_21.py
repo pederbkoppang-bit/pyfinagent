@@ -352,19 +352,53 @@ def self_test() -> int:
         # with ZERO automated coverage -- self_test() never called them -- so
         # three Q/A mutants there survived. Exit codes are the fail-CLOSED
         # signal a caller actually consumes, so they are asserted directly.
+        # phase-86.21 cycle 4 -- KEEP THE BUFFER. This case used to discard
+        # `_report`'s stdout and assert only its RETURN VALUE, for a function
+        # whose entire product is printed text. The cycle-3 Q/A found three
+        # survivors living in exactly that blind spot, one of which
+        # (`print(f"consecutive     : 0")`) makes the shipped CLI report a hard
+        # zero for every step forever -- the silent zero this whole step exists
+        # to abolish -- while the suite stayed green.
         import contextlib, io
-        exits = {}
+        exits, outs = {}, {}
         for tag, hh in (("empty", read_ledger("V", p3c)),
                         ("corrupt", read_ledger("Y", p3)),
                         ("missing", read_ledger("Z", tmp / "nope.jsonl")),
                         ("ok", read_ledger("36.17", p)),
                         ("no_rows", read_ledger("NOPE", p))):
-            with contextlib.redirect_stdout(io.StringIO()):
+            _buf = io.StringIO()
+            with contextlib.redirect_stdout(_buf):
                 exits[tag] = _report("X", hh)
+            outs[tag] = _buf.getvalue()
         print(f"   (vi)  CLI exit codes {exits} "
               "(expect empty/corrupt/missing=1, ok/no_rows=0)")
         ok &= (exits == {"empty": 1, "corrupt": 1, "missing": 1,
                          "ok": 0, "no_rows": 0})
+
+        # (vi-b) the PRINTED consecutive count must be the real one. `36.17`'s
+        # ledger carries the five-verdict history, whose consecutive tail is 2
+        # (CONDITIONAL, CONDITIONAL after the FAIL reset).
+        _h_ok = read_ledger("36.17", p)
+        _expect = f"consecutive     : {_h_ok.consecutive_conditionals}"
+        _printed_ok = _expect in outs["ok"]
+        print(f"   (vi-b) _report prints {_expect!r} -> {_printed_ok}")
+        ok &= _printed_ok
+
+        # (vi-c) an UNKNOWABLE count must print the refusal, never a zero.
+        _refusal = "NOT KNOWABLE" in outs["corrupt"] and "consecutive     : 0" not in outs["corrupt"]
+        print(f"   (vi-c) corrupt ledger refuses to print a zero -> {_refusal}")
+        ok &= _refusal
+
+        # (vi-d) BOTH cause branches must be reachable, and each must print its
+        # OWN explanation. Cycle 3's survivor swapped them and nothing noticed,
+        # so the tool would attribute log-close blindness to a predicate
+        # mismatch and vice versa -- in the very output carrying criterion 1's
+        # contrast. `36.17` has g==0 and c>0 (the blindness case). A step-id
+        # whose grep count and ledger count differ for the OTHER reason
+        # exercises the predicate branch.
+        _blind = "harness_log is written at step CLOSE" in outs["ok"]
+        print(f"   (vi-d) blindness cause printed for g=0,c>0 -> {_blind}")
+        ok &= _blind
 
         # (vii) would_auto_fail must be None -- not False -- whenever the count
         # is unknowable. Cycle 2 pinned that on consecutive_conditionals only,
