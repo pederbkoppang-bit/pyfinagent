@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-11 | `373a1c17` | phase-observe: the 20:00 cycle completed in 4887s, zero trades at the risk gate; ask 06-8 raised |
 | 2026-08-11 | `810096c1` | docs(86.58): a SELL rule that cannot fire, caught live by today's own 86.20 guard |
 | 2026-08-11 | `16b2c7d4` | docs(day-report): the 20:00 cycle completed in 4887s with zero trades -- risk-gate REJECT, not an em |
 | 2026-08-11 | `bbc09871` | docs(86.57): the session-stop gate demands an unsatisfiable ordering condition and reads a stale goa |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-11 | `4b67c0c3` | phase-86.9: FAIL on the third cycle -- defects fixed, step PARKED, no flip |
 | 2026-08-11 | `f967f319` | phase-86.9: cycle-3 verdict FAIL, persisted verbatim -- 3rd-CONDITIONAL rule fired |
 | 2026-08-11 | `85790892` | docs(86.21): the CONDITIONAL counter over-counts as well as under-counts |
-| 2026-08-11 | `1a207f02` | phase-86.9: log cycle-2 CONDITIONAL -- 3rd-CONDITIONAL rule armed for cycle 3 |
 
 ---
 
+### v6.93.216 — phase-observe: the 20:00 cycle completed in 4887s, zero trades at the... (2026-08-11)
+
+- **phase-observe: the 20:00 cycle completed in 4887s, zero trades at the risk gate; ask 06-8 raised**
 ### v6.93.215 — phase-86.44: FAIL on attempt 4 -- I declared D1 fixed with the same d... (2026-08-11)
 
 - **phase-86.44: FAIL on attempt 4 -- I declared D1 fixed with the same defect 65 lines away**
