@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-11 | `380e67c1` | phase-86.5: file the five steps -- the deliverable, each carrying its own trap |
 | 2026-08-11 | `32006221` | phase-86.5: PLAN -- 9 of 17 failures are the TEST being wrong, and two naive fixes are harmful |
 | 2026-08-11 | `aa043609` | phase-86.5: the failure census, MEASURED -- 17 not 26, and two failures that invert |
 | 2026-08-11 | `d11fda37` | phase-86.32: P2 THE EVALUATE LOOP HAS NO CEILING: F1 counts CONSECUTIVE failures, so an interveni... |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-11 | `1806bb56` | chore: commit agent-memory + Q/A WIP records under their OWN description |
 | 2026-08-11 | `85aeea6c` | phase-86.41: cycle-3 PASS -- verdict persisted verbatim + harness_log append |
 | 2026-08-11 | `fb21682b` | phase-86.41: cycle-2 CONDITIONAL remediated -- lint blocker + all four notes |
-| 2026-08-11 | `13c6d5ce` | phase-86.41: cycle-1 Q/A findings C1+D1 -- both CONFIRMED and corrected |
 
 ---
 
+### v6.93.181 — phase-86.5: file the five steps -- the deliverable, each carrying its... (2026-08-11)
+
+- **phase-86.5: file the five steps -- the deliverable, each carrying its own trap**
 ### v6.93.180 — phase-86.5: PLAN -- 9 of 17 failures are the TEST being wrong, and tw... (2026-08-11)
 
 - **phase-86.5: PLAN -- 9 of 17 failures are the TEST being wrong, and two naive fixes are harmful**
