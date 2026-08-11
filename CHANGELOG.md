@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-11 | `4b67c0c3` | phase-86.9: FAIL on the third cycle -- defects fixed, step PARKED, no flip |
 | 2026-08-11 | `f967f319` | phase-86.9: cycle-3 verdict FAIL, persisted verbatim -- 3rd-CONDITIONAL rule fired |
 | 2026-08-11 | `85790892` | docs(86.21): the CONDITIONAL counter over-counts as well as under-counts |
 | 2026-08-11 | `1a207f02` | phase-86.9: log cycle-2 CONDITIONAL -- 3rd-CONDITIONAL rule armed for cycle 3 |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-11 | `98b74e2d` | phase-86.33: cycle-3 PASS -- verdicts transcribed (all three, late), NOTEs fixed, log appended |
 | 2026-08-11 | `556389ac` | phase-86.33: cycle-2 CONDITIONAL remediated -- the census the record never carried |
 | 2026-08-11 | `f55a248d` | ops: ASK #7 -- a live Slack token is inlined in the crontab (NOT in git) |
-| 2026-08-11 | `335257a8` | phase-86.33: cycle-1 CONDITIONAL remediated -- criterion 2 ANSWERED, partition fixed |
 
 ---
 
+### v6.93.207 — phase-86.9: FAIL on the third cycle -- defects fixed, step PARKED, no... (2026-08-11)
+
+- **phase-86.9: FAIL on the third cycle -- defects fixed, step PARKED, no flip**
 ### v6.93.206 — phase-86.9: cycle-3 verdict FAIL, persisted verbatim -- 3rd-CONDITION... (2026-08-11)
 
 - **phase-86.9: cycle-3 verdict FAIL, persisted verbatim -- 3rd-CONDITIONAL rule fired**
