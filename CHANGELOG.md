@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-11 | `9d7628ce` | operator asks: correct ASK #3's figures -- 13 runs, 5 dropped (38.5%), ~887k wasted |
 | 2026-08-11 | `7f173592` | phase-86.38: PARK after four spawns -- remediated, verified, ungraded |
 | 2026-08-11 | `cb630238` | phase-86.7: PARK with a disposition -- 4 of 6 answered, 2 need operator-reserved verbs |
 | 2026-08-11 | `d3b4823d` | phase-86.38 cycle 2: fix four more survivors a THIRD dropped run found |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-11 | `02309248` | phase-86.45: queue the fail-open a recorded rail drop opens in the escalation rule |
 | 2026-08-11 | `c52f0e51` | phase-86.44: queue the harness_log cycle-numbering defect |
 | 2026-08-11 | `2e848c15` | harness: backfill 7 missing verdict-ledger rows for 86.31 and 86.36 |
-| 2026-08-11 | `6e8504d5` | phase-86.38: supersede sections 1/3/4 -- they contradicted section 7 on counts |
 
 ---
 
+### v6.93.147 — operator asks: correct ASK #3's figures -- 13 runs, 5 dropped (38.5%)... (2026-08-11)
+
+- **operator asks: correct ASK #3's figures -- 13 runs, 5 dropped (38.5%), ~887k wasted**
 ### v6.93.146 — phase-86.38: PARK after four spawns -- remediated, verified, ungraded (2026-08-11)
 
 - **phase-86.38: PARK after four spawns -- remediated, verified, ungraded**
