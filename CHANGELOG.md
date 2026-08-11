@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-11 | `0cc71504` | docs(day-report): derived disposition for the goal's sequenced backlog -- 4 done, 4 parked, 1 peer-o |
 | 2026-08-11 | `345fabae` | docs(day-report): append the pyfinagent-06 section -- six population errors, D1 data loss, D2 not in |
 | 2026-08-11 | `47f3409e` | docs: the 20:00 book cycle is an in-process APScheduler job, not a crontab entry |
 | 2026-08-11 | `d153e4e9` | phase-86.44: FAIL on attempt 4 -- I declared D1 fixed with the same defect 65 lines away |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-11 | `d1a3f18b` | phase-86.9: cycle-2 verdict CONDITIONAL, persisted verbatim before remediation |
 | 2026-08-11 | `08a078c2` | docs(86.49): a second instance -- the safety scanner matches text a command CARRIES |
 | 2026-08-11 | `e5c61b46` | docs: narrow the ask-collision claim -- only #2 collides, and say what my scan cannot see |
-| 2026-08-11 | `417b120a` | docs: 06-2 and 51-4 are ONE ask about ONE credential, not two |
 
 ---
 
