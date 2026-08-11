@@ -24739,6 +24739,27 @@
             ],
             "live_check": "live_check_86.42.md with: the pre-fix mutation showing both checkers green under a permissive regex; the post-fix mutation showing a NAMED assertion red with its green control; the hostile-input table with BadStepId raised for each; and the before/after accept-set comparison proving no valid stamp was rejected."
           }
+        },
+        {
+          "id": "86.43",
+          "status": "pending",
+          "priority": "P2",
+          "harness_required": true,
+          "retry_count": 0,
+          "max_retries": 3,
+          "name": "[P2 -- WRITE-FIRST AT A STEP-SCOPED PATH LETS ONE SESSION DESTROY ANOTHER'S LIVE ARTIFACT] FOUND 2026-08-11 BY CAUSING IT. Two Claude sessions run concurrently on this repo as a matter of routine. phase-86.31 makes write-first mandatory for the researcher and the Q/A, and the researcher's brief path is STEP-SCOPED (handoff/current/research_brief_<sid>.md). So when a second session spawns a gate on a step the first already owns, the new researcher's FIRST tool call truncates the owner's brief. MEASURED: research_brief_86.21.md went 24,904 bytes -> 1,164 bytes and stayed wrong for roughly four minutes (2026-08-11 ~07:42Z-07:46Z) before being restored from HEAD. It was recoverable ONLY because it had been committed; uncommitted, the owner's research would have been unrecoverable. THIS IS NOT phase-86.36 AND THE 86.36 FIX DOES NOT COVER IT. 86.36 addressed a RETRY overwriting a PRIOR ATTEMPT at a run-scoped path, and a per-run filename stamp fixed it. This is a DIFFERENT SESSION overwriting a LIVE artifact at a step-scoped path, where a run stamp does not help because the artifact is deliberately one-per-step. THE PROXIMATE CAUSE WAS A PROCESS ERROR (a claim broadcast and a writer spawned in the same message, without waiting for an ack) AND THAT IS ALREADY FIXED IN PRACTICE -- but relying on two agents' etiquette to protect a 24,904-byte artifact is not a control. DO NOT 'FIX' THIS BY WEAKENING WRITE-FIRST: a partial brief surviving a drop is the property that makes the research gate auditable, and it has paid for itself repeatedly. NOT ESTABLISHED, and the step must establish rather than assume: (a) whether any OTHER step-scoped artifact has the same exposure -- contract_<sid>.md, experiment_results_<sid>.md, live_check_<sid>.md are all written by one role at a shared path; (b) whether a cheap precondition check (refuse to create a brief that already exists and is substantially larger, unless an explicit override is passed) is safe, or whether it would break a legitimate re-run; (c) whether the Q/A's verdict sink is exposed the same way now that 86.36 made it run-scoped.",
+          "verification": {
+            "command": "bash -c 'source .venv/bin/activate && python -c \"import ast;ast.parse(open(\\\"scripts/qa/qa_wip.py\\\").read());print(\\\"parsed\\\")\"'",
+            "success_criteria": [
+              "the destruction is REPRODUCED in a scratch tree, not merely cited: drive a second researcher-style write at an occupied step-scoped path and show the before/after byte counts. State whether a real or simulated collision was used",
+              "the EXPOSED SET is enumerated rather than assumed: list every step-scoped handoff artifact written by a Layer-3 role at a shared path, say for each whether it is exposed, and give the command that produced the list. contract/experiment_results/live_check/research_brief are the starting point, not the assumed total",
+              "whatever control is chosen must NOT weaken write-first: prove a dropped run still leaves a partial artifact on disk after the change, with the same evidence shape phase-86.31 used",
+              "a legitimate re-run is still possible: show that the intended workflow (same session re-running its own gate for the same step) is not blocked, or that the override is documented where the operator will find it",
+              "MUTATION-TESTED: revert the control and show a NAMED assertion goes red, with a green control captured first",
+              "if the conclusion is that no code control is warranted and the process rule is sufficient, the step closes with that stated plainly and the reasoning recorded -- that is a valid outcome, but it must be argued against criterion 2's enumerated exposure, not asserted"
+            ],
+            "live_check": "live_check_86.43.md with: the reproduced before/after byte counts; the enumerated exposed-artifact list and the command that derived it; proof write-first still survives a drop; and the mutation output."
+          }
         }
       ]
     }
