@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-11 | `e1332362` | docs: record 86.14 scoping -- every item on the goal's list now has measured work |
 | 2026-08-11 | `7a72af4a` | phase-86.14: pre-contract scoping -- this is NOT a frontend-only build |
 | 2026-08-11 | `68c35835` | phase-86.44: a naive phase= grep over-counts -- 642 headers vs 33 body matches |
 | 2026-08-11 | `0e866751` | phase-86.11: bounded pre-contract UI sweep -- 2 real defects, 2 refuted against my own instrument |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-11 | `b8d2ea96` | phase-86.41: PLAN -- the gate REFUTED the step's premise; the crash is not ours |
 | 2026-08-11 | `debbc932` | phase-86.32: record a SECOND measured instance -- today reproduced it on five steps |
 | 2026-08-11 | `30cacbf1` | docs(goal): ASK #2 -- correct the exposure timeline; ~3 days on origin, not 48h |
-| 2026-08-11 | `2aff9afc` | operator ASK #4: an affected away_ops file reached origin via MY push today |
 
 ---
 
