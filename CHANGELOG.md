@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-11 | `2dbb1606` | phase-86.7: sweep the retracted claim out of the header and section 5 |
 | 2026-08-11 | `798c50f2` | phase-86.7: CORRECT my own criterion-2 finding -- there IS an alerting path |
 | 2026-08-11 | `0dae31a3` | phase-86.7: PARTIAL GENERATE -- the 08-08 outage signature reproduced, and criterion 2 answered NO |
 | 2026-08-11 | `8cc78200` | phase-86.7: PLAN -- contract written; the gate REFUTED the step's own premise |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-11 | `7a7184d2` | phase-86.38: correct the last unqualified boundary claim (seam docstring) |
 | 2026-08-11 | `e4d7f968` | phase-86.33: P0 shipped; P1 BLOCKED, and the reason is a contamination trap |
 | 2026-08-11 | `5483c23e` | phase-86.21: PARK at the escalation boundary; the counter caught ITSELF under-counting |
-| 2026-08-11 | `8a9a4293` | phase-86.33 P0: log agent_id -- measure before redesigning, decide nothing on it yet |
 
 ---
 
+### v6.93.142 — phase-86.7: sweep the retracted claim out of the header and section 5 (2026-08-11)
+
+- **phase-86.7: sweep the retracted claim out of the header and section 5**
 ### v6.93.141 — phase-86.7: CORRECT my own criterion-2 finding -- there IS an alertin... (2026-08-11)
 
 - **phase-86.7: CORRECT my own criterion-2 finding -- there IS an alerting path**
