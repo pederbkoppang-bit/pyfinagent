@@ -375,6 +375,44 @@ files (the `archive-handoff` hook handles the rotation).
   that step-id. Counter resets on PASS, FAIL, or new step-id. This
   prevents the harness from logging instead of correcting (see
   `docs/runbooks/per-step-protocol.md` §4 EVALUATE for full text).
+- **F1b (CUMULATIVE attempt budget, phase-86.32) -- READ THIS TOGETHER WITH
+  F1 ABOVE, because F1 alone cannot terminate a loop.** F1's counter is
+  CONSECUTIVE, and both PASS (`run_harness.py:1162`) and **CONDITIONAL**
+  (`:1177`, comment: "does not count as a FAIL") reset it to zero. Since
+  CONDITIONAL is the most common non-terminal verdict, the sequence
+  `CONDITIONAL, FAIL, CONDITIONAL, ...` tops out at 1 and
+  `MAX_CONSECUTIVE_FAIL` is **unreachable**. The counter is also
+  process-local, so it cannot see a loop spread across sessions -- which is
+  how the Layer-3 per-step loop actually runs. Separately, the per-step
+  `max_retries` field in `.claude/masterplan.json` is **decorative**: every
+  file that touches the masterplan and mentions it WRITES it
+  (`generate_masterplan.py:203` + the `add_phase_*.py` scripts); nothing
+  reads it. Step 75.5 carries `retry_count: 3, max_retries: 3, status: done`
+  -- it reached its ceiling and closed anyway.
+  **The bound is therefore CUMULATIVE and lives in
+  `scripts/harness/attempt_budget.py`:**
+  - It increments on **ATTEMPT, not OUTCOME**. A dropped/errored spawn costs
+    full tokens and returns no verdict, so a verdict-keyed counter is blind
+    to it -- measured between 8.6% (513 runs, all-time) and 29.2% (24 runs,
+    2026-08-11) of Workflow runs; those two figures use different windows AND
+    different sources and are deliberately NOT reconciled into one number.
+  - Defaults: **5 attempts** (leaves 90.9% of historically-completed steps
+    untouched: 154 of 164 finished in <=5) and **1.2M tokens** (p50 is
+    419,739; observed max 1,832,223 on step 75.5).
+  - On exhaustion it **ESCALATES TO THE OPERATOR** with a written summary.
+    **Auto-pass on exhaustion is forbidden** and is proven impossible by
+    `test_exhaustion_cannot_auto_pass` (exhaustive over every non-PASS
+    sequence) plus mutation cell M3.
+  - It **changes NO verdict semantics**. A budget can only stop the loop
+    EARLIER; it can never admit work a Q/A refused. `qa.md` is untouched.
+  - It separates **PRODUCT-correct** from **EVIDENCE-complete**, so a step
+    with verified code but residual instrumentation can close with those
+    residuals queued -- reachable ONLY from an actual Q/A PASS, so a FAIL
+    stays a FAIL under every flag combination (mutation cell M4).
+  Regression fixture: the 86.28 series (8 attempts, 5 verdicts, **3 rail
+  drops**). Replayed, the new rule terminates at **attempt 5**; F1's counter
+  ends at **0** and would never have terminated, because the CONDITIONAL at
+  attempt 7 wipes the FAIL at attempt 6.
 - F2 (research-on-demand): planner emits `research_needed` flag
   with a 4-key brief (objective / output_format / tool_scope /
   task_boundaries). The harness reads this and re-spawns research
