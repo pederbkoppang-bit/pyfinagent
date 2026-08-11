@@ -191,7 +191,22 @@ line-number-drift class, again, in live source.
 **The research gate still must run before any contract.** This is pre-contract
 measurement only, the same pattern used for 86.38.
 
-**Still not started: the UI cluster** (86.10 / 86.11 / 86.14).
+**86.10 also advanced, by live Playwright verification** -- and the result is a
+refutation: **the defect as stated did NOT reproduce on v6.93.156.** Four
+transitions driven against the running app; **3 of 4 tab switches reset to the
+top** with the full status bar and every NAV/CASH/P&L card visible. The one that
+did not left a ~24px clip of the status bar's first row with the cards entirely
+visible -- far milder than the step's description. Two transitions from the SAME
+deep-scrolled state disagree by destination and **I could not explain it**;
+hypotheses are recorded as untested.
+
+Stated limit: this Playwright surface has no `browser_evaluate`, so I could not
+read `window.scrollY` -- it is all visual inference, and the step now says so.
+
+**Still not started: 86.11 and 86.14.** 86.11 is audit-class (its deliverable is
+a ranked defect list, so it wants a gate with `audit_class: true` and the
+loop-until-dry rule); 86.14 is a feature build. Neither fits the remaining
+budget.
 
 ---
 
