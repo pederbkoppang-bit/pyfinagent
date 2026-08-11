@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-11 | `6e8504d5` | phase-86.38: supersede sections 1/3/4 -- they contradicted section 7 on counts |
 | 2026-08-11 | `6694f924` | phase-86.38 cycle 2: record both dropped-run findings and their fixes |
 | 2026-08-11 | `7a7184d2` | phase-86.38: correct the last unqualified boundary claim (seam docstring) |
 | 2026-08-11 | `e4d7f968` | phase-86.33: P0 shipped; P1 BLOCKED, and the reason is a contamination trap |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-11 | `961137c1` | phase-86.36: record cycle-2 Q/A verdict VERBATIM -- PASS |
 | 2026-08-11 | `a477b74a` | phase-86.38: prove NOT-IN-FORCE against the running process, not the file |
 | 2026-08-11 | `d921643c` | phase-86.21: record the cycle-4 remediation in the critique (Main's note, not a verdict) |
-| 2026-08-11 | `8074e371` | phase-86.21 cycle 4: fix the three FAIL blockers |
 
 ---
 
+### v6.93.129 — phase-86.38: supersede sections 1/3/4 -- they contradicted section 7... (2026-08-11)
+
+- **phase-86.38: supersede sections 1/3/4 -- they contradicted section 7 on counts**
 ### v6.93.128 — phase-86.38 cycle 2: record both dropped-run findings and their fixes (2026-08-11)
 
 - **phase-86.38 cycle 2: record both dropped-run findings and their fixes**
