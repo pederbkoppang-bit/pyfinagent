@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-11 | `d98f2b0f` | docs(86.58): the vocabulary-boundary class has FIVE members, three open -- take the class, not the i |
 | 2026-08-11 | `4393da80` | phase-86.38 + day report: the drought moved to the risk gate; 86.58 is the same class as 86.25 |
 | 2026-08-11 | `301d9df1` | phase-86.38: supersede the NOT-IN-FORCE claim -- the restart happened |
 | 2026-08-11 | `d6873398` | docs(goal): addendum for 2026-08-12 -- 86.58 (P1) to the top, parks, restart state, measured cycle r |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-11 | `431401dc` | phase-86.44: cycle-1 remediated -- my D3 guard could not fail on half its own class |
 | 2026-08-11 | `bc96eb48` | phase-86.44: cycle-1 verdict CONDITIONAL, persisted verbatim before remediation |
 | 2026-08-11 | `fe9a6dad` | phase-86.44: the harness log's own writer was destroying concurrent entries |
-| 2026-08-11 | `ea5b1cd5` | phase-86.44: contract + research brief -- the cycle number is write-only state; the real defects are |
 
 ---
 
