@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-11 | `810096c1` | docs(86.58): a SELL rule that cannot fire, caught live by today's own 86.20 guard |
 | 2026-08-11 | `16b2c7d4` | docs(day-report): the 20:00 cycle completed in 4887s with zero trades -- risk-gate REJECT, not an em |
 | 2026-08-11 | `bbc09871` | docs(86.57): the session-stop gate demands an unsatisfiable ordering condition and reads a stale goa |
 | 2026-08-11 | `62c84c45` | docs(86.56): a dead-man's-switch is being refreshed by something that is not a cycle |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-11 | `f967f319` | phase-86.9: cycle-3 verdict FAIL, persisted verbatim -- 3rd-CONDITIONAL rule fired |
 | 2026-08-11 | `85790892` | docs(86.21): the CONDITIONAL counter over-counts as well as under-counts |
 | 2026-08-11 | `1a207f02` | phase-86.9: log cycle-2 CONDITIONAL -- 3rd-CONDITIONAL rule armed for cycle 3 |
-| 2026-08-11 | `473f9b43` | phase-86.9: cycle-2 remediated -- my contract deleted the clause that found the bug |
 
 ---
 
