@@ -24103,6 +24103,28 @@
           }
         },
         {
+          "id": "86.53",
+          "audit_basis": "Found 2026-08-11 during 86.9 while verifying the cycle-budget raise, and filed per the standing queue-discovered-defects rule. You need no memory of that step. MEASURED, all four sites read directly: backend/services/autonomous_loop.py:507 does `float(getattr(settings, \"paper_cycle_max_seconds\", 1800.0))`; backend/config/settings.py:33 declares `Field(7200.0, ...)`; backend/api/settings_api.py:123 declares `paper_cycle_max_seconds: float = 7200.0` and :383 repeats `getattr(s, \"paper_cycle_max_seconds\", 7200.0)`; backend/.env:70 carries the live 10800.0, confirmed via GET /api/settings/ against the running backend. scripts/diagnostics/measure_analysis_phase.py:263 adds a fifth with `--budget-sec default=7200.0`. THE DANGEROUS ONE IS THE CONSUMER FALLBACK: if `settings` ever lacks the attribute, autonomous_loop silently runs the trading cycle on a 1800s budget -- 30 minutes, a SIXTH of the operator-authorised 10800 -- and because it is a getattr default there is no error, no log line and no alert. The diagnostic's stale default is the visible symptom: on 2026-08-11 it printed 'PROJECTED cycle 4492s vs budget 7200s / VERDICT within budget' while the live budget was 10800.0. That did not change the verdict for a 4492s cycle, but it inverts for any cycle between 7200 and 10800 -- exactly the band the raise was authorised to create.",
+          "status": "pending",
+          "priority": "P2",
+          "harness_required": true,
+          "retry_count": 0,
+          "max_retries": 3,
+          "name": "[P2 -- ONE CYCLE-BUDGET CONCEPT HAS FOUR DIFFERENT VALUES, AND THE CONSUMER'S FALLBACK IS THE SMALLEST] Filed 2026-08-11 by the 86.9 step. paper_cycle_max_seconds resolves to 1800.0 (consumer fallback), 7200.0 (settings default, API default, API getattr default), 10800.0 (.env, live) or 7200.0 (diagnostic CLI default) depending on which site you read. NOT A STYLE ISSUE: the consumer fallback governs the LIVE TRADING CYCLE's deadline and fails SILENTLY to a value six times smaller than the authorised one. WHAT TO ESTABLISH BEFORE CHANGING ANYTHING: (a) can `settings` actually lack the attribute in any reachable path, or is the fallback dead code? A dead fallback is a documentation defect; a reachable one is a live hazard, and the remedy differs. (b) is there a single place the value SHOULD come from, and do all consumers agree to read it there? (c) the diagnostic's default is a separate decision -- a measurement tool arguably SHOULD take its budget as an argument rather than importing production config, so 'make them all one constant' may be the wrong fix for that site. NON-SCOPE: do NOT change the live value (10800.0 is operator-authorised, see 86.9); do NOT touch backend/.env (the standing goal forbids .env writes); do not alter cycle behaviour -- this step is about making one number have one meaning, not about tuning it.",
+          "verification": {
+            "command": "bash -c 'source .venv/bin/activate && python -c \"import ast;ast.parse(open(\\\"backend/services/autonomous_loop.py\\\").read());print(\\\"parsed\\\")\"'",
+            "success_criteria": [
+              "every site that resolves paper_cycle_max_seconds is ENUMERATED by a committed grep-or-script over the repo, not a hand-typed list, and each is reported with its file:line and its literal value",
+              "the step states whether the 1800.0 consumer fallback is REACHABLE -- with the evidence that decides it -- and does not merely change it on the assumption that it is",
+              "if the fallback is reachable, the fix makes a missing value fail LOUDLY (raise or alert) rather than silently substituting a smaller deadline; if it is unreachable, the step says so and removes or documents it rather than pretending a fix was needed",
+              "the live authorised value 10800.0 is UNCHANGED at the end -- prove with a read from the running process via GET /api/settings/, not from .env",
+              "any change is mutation-tested: revert it and show a NAMED assertion go red, with the control green first",
+              "the diagnostic's --budget-sec default is addressed explicitly as its own decision, with a stated reason, rather than silently unified with production config"
+            ],
+            "live_check": "live_check_86.53.md with: the enumerated site table (file:line -> value) from the committed derivation; the reachability evidence for the 1800.0 fallback; the post-change read of paper_cycle_max_seconds from GET /api/settings/ showing 10800.0; and the mutation output."
+          }
+        },
+        {
           "id": "86.9",
           "status": "pending",
           "priority": "P1",
