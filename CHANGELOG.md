@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-11 | `52c3c209` | docs(goal): the 8.1M/8.7M token figures are NOT re-derivable -- mark the provenance |
 | 2026-08-11 | `c2e5f140` | phase-86.45/86.46: correct two of my own numbers, both quoted from memory |
 | 2026-08-11 | `86595f0c` | phase-86.46: queue the ledger cycle-field ambiguity (I contributed two of the three conventions) |
 | 2026-08-11 | `02309248` | phase-86.45: queue the fail-open a recorded rail drop opens in the escalation rule |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-11 | `7614a568` | phase-86.43: queue the cross-session artifact collision I caused today |
 | 2026-08-11 | `da4fdb01` | phase-86.38: record the cycle-1 rail drop and rescue its write-first record |
 | 2026-08-11 | `542d4ee1` | phase-86.29 cycle 4: adjudicate ALL 16 opaque dirs, not just the 2 the Q/A named |
-| 2026-08-11 | `30c1ceba` | phase-86.42: queue the 86.36 Q/A's F2 -- I claimed 'queued' in a commit and had not done it |
 
 ---
 
