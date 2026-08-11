@@ -23909,6 +23909,104 @@
           }
         },
         {
+          "id": "86.48",
+          "status": "pending",
+          "priority": "P2",
+          "harness_required": true,
+          "retry_count": 0,
+          "max_retries": 3,
+          "name": "[P2 -- FOUR TESTS ASSERT A CODE DEFAULT BUT MEASURE AN OPERATOR OVERRIDE] Filed 2026-08-11 by the 86.5 triage. THE FAILURE: test_phase_60_3_data_integrity.py::test_60_3_flag_defaults_off and test_phase_57_1_reject_binding.py::{test_reject_binding_main_path_off_emits_on_blocks, test_reject_binding_swap_path_off_emits_on_blocks, test_off_identity_prompts_are_verbatim_constants} all fail with signatures like 'assert True is False'. ROOT CAUSE, MEASURED: the tests name a CODE DEFAULT (backend/config/settings.py:46 paper_data_integrity_enabled=False, :342 paper_risk_judge_reject_binding=False) but construct Settings() with no isolation, and Settings resolves backend/.env, where :83 PAPER_DATA_INTEGRITY_ENABLED=true and :84 PAPER_RISK_JUDGE_REJECT_BINDING=true. Verified: Settings().paper_data_integrity_enabled is True and Settings().paper_risk_judge_reject_binding is True. This is a TEST-ISOLATION defect (Fowler, 'lack of isolation'), NOT an obsolete expectation and NOT a code defect -- the invariant the tests protect (flag-OFF is byte-identical) is still live and still valuable. *** THE TRAP, READ BEFORE ACTING: DO NOT flip either default and DO NOT edit backend/.env to obtain green. Both flags are DELIBERATELY ARMED money-path features; making these tests pass that way would SILENTLY DISARM TWO ARMED MONEY-PATH FEATURES, and nothing in the suite would tell you. *** SECOND TRAP: the obvious remedy Settings(_env_file=None) DOES NOT WORK -- verified, it raises ValidationError on four other required fields (gcp_project_id, rag_data_store_id, ingestion_agent_url, quant_agent_url) that are also sourced from .env. The remedy that runs is to override the two fields EXPLICITLY on construction. NON-SCOPE: do not touch backend/.env (the standing goal forbids .env writes outright), do not change either Field default, do not promote or demote any flag.",
+          "verification": {
+            "command": "bash -c 'source .venv/bin/activate && python -c \"import ast;ast.parse(open(\\\"backend/config/settings.py\\\").read());print(\\\"parsed\\\")\"'",
+            "success_criteria": [
+              "the four node ids pass WITHOUT any change to backend/.env, to either Field default in backend/config/settings.py, or to any flag's armed state -- prove the last by reading the two values from a live Settings() before and after and showing both remain True",
+              "the fix is test-side isolation: the tests construct Settings with the two fields overridden explicitly, and the artifact states why Settings(_env_file=None) was NOT used (it raises ValidationError on four other required env-sourced fields -- reproduce that error rather than citing it)",
+              "the invariant the tests exist to protect is preserved, not weakened: flag-OFF must still assert byte-identical behaviour, demonstrated by a mutation that breaks flag-OFF parity and turns a NAMED test red",
+              "no other test's behaviour changes: run the full backend/tests suite and show the failure count moves from 17 to 13 with the same remaining set"
+            ],
+            "live_check": "live_check_86.48.md with: the before/after Settings() values for both flags proving they stayed armed; the reproduced ValidationError from Settings(_env_file=None); and the mutation output."
+          }
+        },
+        {
+          "id": "86.49",
+          "status": "pending",
+          "priority": "P3",
+          "harness_required": true,
+          "retry_count": 0,
+          "max_retries": 3,
+          "name": "[P3 -- A SAFETY SCANNER IS HEREDOC-BLIND AND INDICTS A CORRECT SCRIPT] Filed 2026-08-11 by the 86.5 triage. THE FAILURE: backend/tests/test_phase_75_sre_ops.py::test_c6_no_launchctl_bootstrap_executed_in_ops_scripts fails with 'reissue_cc_oauth_token.sh: RELOAD_HINT_2=launchctl bootstrap gui/$(id -u) ...'. ROOT CAUSE, MEASURED: the scanner at test_phase_75_sre_ops.py:360-368 walks OPS_DIR.glob('*.sh') line by line, skips only lines whose strip() starts with '#', and asserts 'launchctl bootstrap' not in the line. It is BLIND TO HEREDOCS. In scripts/ops/reissue_cc_oauth_token.sh the hit at :17 is a VARIABLE ASSIGNMENT, and its only expansion at :117 sits inside a `cat <<EOF` opened at :110 -- it is PRINTED TO THE OPERATOR, never executed. The script explains itself at :107-109: bootout/bootstrap is deliberately NOT automated because away-ops rail 9 reserves it for the operator, since a bootout that succeeds followed by a bootstrap that fails leaves paper trading UNLOADED rather than merely stopped. THE PRODUCTION CODE IS CORRECT AND THE TEST'S INTENT IS CORRECT; only the implementation of the check is wrong. *** THE TRAP, READ BEFORE ACTING: DO NOT edit scripts/ops/reissue_cc_oauth_token.sh to satisfy this test. Doing so DELETES THE OPERATOR'S RESTART INSTRUCTIONS from a runbook script that deliberately prints them rather than running them. The subject is right; the probe is wrong. *** REMEDY: make the scanner heredoc-aware and quote-aware, so it distinguishes an EXECUTED command from a printed or assigned string.",
+          "verification": {
+            "command": "bash -c 'source .venv/bin/activate && python -c \"import ast;ast.parse(open(\\\"backend/tests/test_phase_75_sre_ops.py\\\").read());print(\\\"parsed\\\")\"'",
+            "success_criteria": [
+              "scripts/ops/reissue_cc_oauth_token.sh is BYTE-IDENTICAL before and after -- prove with sha256; the operator's printed restart instructions must survive verbatim",
+              "the scanner distinguishes executed from printed/assigned: it still goes RED on a genuinely executed `launchctl bootstrap` (demonstrate by adding one to a scratch copy, never to a real ops script) and GREEN on the heredoc and assignment forms",
+              "the fix is justified by reading the actual script structure -- cite the heredoc open/close line numbers and the assignment line, re-derived rather than copied from this step text (line numbers move)",
+              "no other ops script's scan result changes: list every *.sh the scanner walks and show its verdict before and after"
+            ],
+            "live_check": "live_check_86.49.md with: the sha256 pair for reissue_cc_oauth_token.sh; the scanner's red-on-executed / green-on-printed demonstration; and the per-script before/after verdict table."
+          }
+        },
+        {
+          "id": "86.50",
+          "status": "pending",
+          "priority": "P3",
+          "harness_required": true,
+          "retry_count": 0,
+          "max_retries": 3,
+          "name": "[P3 -- NINE TESTS ARE FROZEN AGAINST MOVING ARTIFACTS, BUT ONE OF THEM IS RIGHT] Filed 2026-08-11 by the 86.5 triage. THE FAILURES (9): test_phase_75_17_verification_paths.py x3, test_phase_75_19_preflight_calibration.py x1, test_phase_75_prompt_contracts.py x1, test_phase_75_sre_ops.py::test_c1_runbook_and_operator_token_drafted x1, test_phase_40_2_claude_code_v2_1_140_features.py x1, test_phase_23_2_6_sector_cap_emit.py x1, test_phase_82_39_outcome_rebuild_query.py x1. ROOT CAUSE: each compares a LIVE, MOVING artifact against a figure or file list frozen at authoring time -- the live .claude/masterplan.json, handoff files that were archived when their step closed (2 fail with FileNotFoundError), a config value that was deliberately superseded, and the rotating backend.log. *** THE TRAP, READ BEFORE ACTING: DO NOT re-baseline all nine. AT LEAST ONE IS NOT STALE -- test_sweep_over_live_masterplan_is_clean caught a REAL defect: step 86.31's text references `.claude/hooks/lib/qa_write_guard.py`, which VERIFIED DOES NOT EXIST (the real guard is `.claude/hooks/qa-write-guard.sh`). Fix the bad reference; do not re-baseline over it. Re-baselining a working detector is worse than leaving it red, because it teaches the suite to ignore a check that was doing its job. *** SECOND TRAP: test_phase_40_2 asserts effortLevel=='xhigh'; the real value is 'max', raised xhigh->max on 2026-08-04 by DIRECT OPERATOR INSTRUCTION and recorded at CLAUDE.md:59. The TEST is wrong here -- reverting .claude/settings.json to xhigh would silently undo an operator decision. *** THIRD ITEM: one of these declares a quarantine that was NEVER WIRED -- its skip never fires because the 14MB backend.log is present, so it is a silent quarantine, the exact anti-pattern the 86.5 research flagged. ADJUDICATE EACH OF THE NINE SEPARATELY; they share a shape, not a verdict.",
+          "verification": {
+            "command": "bash -c 'source .venv/bin/activate && python -c \"import ast;ast.parse(open(\\\"backend/tests/test_phase_75_17_verification_paths.py\\\").read());print(\\\"parsed\\\")\"'",
+            "success_criteria": [
+              "each of the nine is adjudicated INDIVIDUALLY as test-wrong or subject-wrong, with the evidence that distinguishes them recorded per test -- a blanket re-baseline is a rejected outcome",
+              "the 86.31 bad path reference is FIXED at its source (the step text), not suppressed, and the sweep is shown going green for that reason rather than by widening its allowlist",
+              "no operator decision is reverted: .claude/settings.json effortLevel remains 'max' and the artifact states why the test rather than the config was changed",
+              "any quarantine introduced or repaired is NON-SILENT: it must be owned, time-boxed, and emit a visible skip reason -- prove the skip actually fires by running it in the condition it claims to guard",
+              "the full suite failure count moves from 17 to 8 with the same remaining set"
+            ],
+            "live_check": "live_check_86.50.md with: the per-test adjudication table; proof the 86.31 reference is fixed at source; the effortLevel value read from the live settings file; and evidence a repaired quarantine's skip actually fires."
+          }
+        },
+        {
+          "id": "86.51",
+          "status": "pending",
+          "priority": "P2",
+          "harness_required": true,
+          "retry_count": 0,
+          "max_retries": 3,
+          "name": "[P2 -- A SWAP PRODUCES ONE SELL WHERE THE TEST REQUIRES TWO: GENUINE BEHAVIOURAL REGRESSION ON THE TRADING PATH] Filed 2026-08-11 by the 86.5 triage as the ONLY failure of the 17 that is unambiguously a production-behaviour claim rather than a test defect. THE FAILURE: backend/tests/test_portfolio_swap.py::test_swap_framework_fills_zero_buy_gap -- 'Expected 2 swap SELLs, got 1; orders=[TradeOrder(ticker=...)]'. The test imports backend.services.portfolio_manager.decide_trades. NOTE the module is portfolio_manager.py; there is NO backend/services/paper_trading.py (verified -- an earlier draft of this step cited it and would have frozen a criterion on a non-existent file). WHY THIS IS FILED ALONE: the other 16 failures are test-side or artifact-side. This one asserts what the system DOES with money. It must not be batched with housekeeping, and it must not be closed by adjusting the expectation from 2 to 1 without first establishing which count is correct. *** THE TRAP: 'Expected 2, got 1' has two readings -- the swap framework under-fills, or the test's expectation is stale. ESTABLISH WHICH BEFORE CHANGING EITHER. If the framework under-fills, a zero-buy gap goes unfilled in live paper trading. Do not weaken the assertion to obtain green; the standing goal forbids it and this is the worst possible place to do it.",
+          "verification": {
+            "command": "bash -c 'source .venv/bin/activate && python -c \"import ast;ast.parse(open(\\\"backend/services/portfolio_manager.py\\\").read());print(\\\"parsed\\\")\"'",
+            "success_criteria": [
+              "the step states whether the SWAP FRAMEWORK under-fills or the TEST'S EXPECTATION is stale, with the evidence that distinguishes them -- 'adjusted the expectation' without that adjudication is a rejected outcome",
+              "if the framework is at fault, the fix is mutation-tested: revert it and show a NAMED assertion go red, with the control green first",
+              "if the expectation is at fault, the step proves the CURRENT behaviour is correct by reference to the swap design intent, not merely by observing what the code does today",
+              "no gate, threshold, or risk parameter is loosened, and paper-trading behaviour is unchanged except by the specific fix -- prove with a diff",
+              "the change is shown NOT to alter the number of orders produced on a healthy (non-zero-buy-gap) path, so the fix is scoped to the gap case"
+            ],
+            "live_check": "live_check_86.51.md with: the adjudication and its evidence; the mutation output if the framework was changed; and the order-count comparison on a healthy path before and after."
+          }
+        },
+        {
+          "id": "86.52",
+          "status": "pending",
+          "priority": "P2",
+          "harness_required": true,
+          "retry_count": 0,
+          "max_retries": 3,
+          "name": "[P2 -- DID 86.25'S OUTCOME-VOCABULARY FIX ACTUALLY LAND? TWO TESTS SAY NOT FULLY] Filed 2026-08-11 by the 86.5 triage. THE FAILURES: backend/tests/test_phase_82_48_outcome_write_schema.py::test_write_really_persists_into_bigquery ('assert UNKNOWN == BUY') and ::test_the_fetch_supplies_every_field_the_write_REQUIRES ('with no recommendation source the outcome must be skipped' -- a row was written that should not have been). *** THE ASSUMPTION TO AVOID: these look like duplicates of step 86.25 and MUST NOT be filed or closed as such. 86.25 is status=done and owns exactly this defect (a risk-approval vocabulary passed where a BUY/SELL recommendation is expected, so fallback-path outcome rows are scored with no direction). It has THREE commits against backend/services/autonomous_loop.py, one of them titled 'phase-86.25 cycle 3: finish the remediation I claimed but did not do (PARKED)'. So the live question is whether 86.25's remediation is INCOMPLETE, or whether these two tests assert behaviour that was never shipped. ESTABLISH WHICH. *** NOTE 86.25's own citation is stale: its text names autonomous_loop.py:3412 as the fix site, and :3412 now sits inside an unrelated _degraded block -- the line moved. Re-derive the site by SYMBOL, not by line number. *** WHY THIS MATTERS BEYOND THE TESTS: if the vocabulary defect is still live on any path, outcome rows are being scored with no direction, which poisons the learn loop -- the same class 86.22 and 86.25 were both filed for. NON-SCOPE: do not re-open 86.25; file the residue here.",
+          "verification": {
+            "command": "bash -c 'source .venv/bin/activate && python -c \"import ast;ast.parse(open(\\\"backend/services/autonomous_loop.py\\\").read());print(\\\"parsed\\\")\"'",
+            "success_criteria": [
+              "the step states plainly whether 86.25's fix is INCOMPLETE or the two tests assert unshipped behaviour, with the evidence that distinguishes them -- and it locates the current fix site by SYMBOL, showing the re-derived line number rather than trusting 86.25's stale :3412",
+              "if a real path still scores an outcome with no direction, that path is identified and the number of affected rows is MEASURED from BigQuery rather than estimated",
+              "any fix is mutation-tested with a green control first, and a NAMED assertion goes red when it is reverted",
+              "86.25 is NOT re-opened and its closure is not disturbed; the residue is owned by this step",
+              "the full suite failure count moves from 17 to 15 with the same remaining set"
+            ],
+            "live_check": "live_check_86.52.md with: the adjudication and its evidence; the re-derived fix site by symbol; the measured BigQuery row count if any path is still affected; and the mutation output."
+          }
+        },
+        {
           "id": "86.5",
           "status": "pending",
           "harness_required": true,
