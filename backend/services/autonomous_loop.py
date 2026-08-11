@@ -1344,11 +1344,9 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
                 # (its strict `>` is pinned by
                 # test_phase_60_1_deep_pipeline.py::test_fallback_alarm_threshold_is_strictly_greater_than
                 # and changing it is an operator decision, not this step's).
-                if _n_fb_total:
-                    summary["fallback_rate"] = f"{_n_fb}/{_n_fb_total}"
-                    summary["fallback_alarm_fired"] = bool(_fb_fire)
-                    if _fb_reasons:
-                        summary["fallback_reasons"] = _fb_reasons
+                summary.update(_degradation_summary_fields(
+                    _fb_fire, _n_fb, _n_fb_total, _fb_reasons,
+                ))
                 if _fb_fire:
                     logger.warning(
                         "Fallback-rate alarm fired: %d/%d analyses fell back full->lite (threshold %.0f%%)",
@@ -2672,6 +2670,36 @@ def _fallback_rate_check(
     n_fallback = len(reasons)
     fire = n_total > 0 and (n_fallback / n_total) > threshold
     return fire, n_fallback, n_total, reasons
+
+
+def _degradation_summary_fields(
+    fire: bool, n_fallback: int, n_total: int, reasons: dict[str, str],
+) -> dict:
+    """phase-86.38 pure predicate: what a cycle RECORDS about its own degradation.
+
+    Extracted as a real seam rather than left inline, because the inline version
+    could only be guarded by asserting the ORDER of source text -- and a mutation
+    that disabled it (`if _n_fb_total:` -> `if False:`) left that order untouched
+    and SURVIVED the matrix. A guard that cannot fail when its subject is broken
+    does not count, so the subject was moved somewhere a test can execute it.
+
+    Returns `{}` only when the cycle analysed nothing. Otherwise the rate is
+    ALWAYS reported, together with whether it paged -- a reader must be able to
+    tell "quiet because fine" from "quiet because below threshold", which is the
+    distinction the 2026-08-10 cycle (3/6 = 0.500, no page) had no way to record.
+
+    Reporting is not paging: this function never decides whether to alert.
+    `_fallback_rate_check` owns that and is untouched.
+    """
+    if not n_total:
+        return {}
+    out: dict = {
+        "fallback_rate": f"{n_fallback}/{n_total}",
+        "fallback_alarm_fired": bool(fire),
+    }
+    if reasons:
+        out["fallback_reasons"] = dict(reasons)
+    return out
 
 
 def _all_conviction_fallback(candidates: list[dict]) -> bool:

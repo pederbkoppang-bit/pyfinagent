@@ -36,16 +36,28 @@ TESTS = "backend/tests/test_phase_86_38_degradation_visibility.py"
 
 #: (cell, file, old, new, test node, description)
 MUTANTS = [
+    # M1 in the FIRST version of this matrix SURVIVED, and that survivor is why
+    # the logic was extracted into a seam. It disabled the recording with
+    # `if _n_fb_total:` -> `if False:`; the guard of the day asserted only the
+    # ORDER of source text, which that mutation does not move. The two cells
+    # below replace it and attack the seam from both ends -- its BEHAVIOUR and
+    # its CALL SITE -- because killing only one of those leaves the other
+    # untested.
     ("M1", LOOP,
-     'if _n_fb_total:\n                    summary["fallback_rate"]',
-     'if False:\n                    summary["fallback_rate"]',
-     "test_degradation_fields_are_set_outside_the_fire_branch",
-     "stop recording the rate unless the alarm fires (the original defect)"),
+     "    if not n_total:\n        return {}",
+     "    if True:\n        return {}",
+     "test_the_recorded_fields_are_produced_by_a_seam_that_can_be_EXECUTED",
+     "seam reports nothing for every cycle (the original defect, relocated)"),
+    ("M1b", LOOP,
+     "summary.update(_degradation_summary_fields(",
+     "_unused_degradation = (_degradation_summary_fields(",
+     "test_the_seam_is_actually_wired_into_the_cycle",
+     "seam still correct but no longer wired into the cycle"),
     ("M2", LOOP,
-     'summary["fallback_alarm_fired"] = bool(_fb_fire)',
-     '_unused_fired = bool(_fb_fire)',
-     "test_degradation_fields_are_set_outside_the_fire_branch",
-     "record the rate but drop whether it paged"),
+     '"fallback_alarm_fired": bool(fire),',
+     '"fallback_alarm_fired": False,',
+     "test_the_recorded_fields_are_produced_by_a_seam_that_can_be_EXECUTED",
+     "record the rate but hardcode that it never paged"),
     ("M3", LOOP,
      '_lite["_fallback_reason"] = _fb_reason[:500]',
      '_lite["_fallback_reason"] = _fb_reason[:500]\n            _lite["_intended_path"] = "full"',

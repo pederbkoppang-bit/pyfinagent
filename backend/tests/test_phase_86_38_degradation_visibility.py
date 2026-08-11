@@ -26,7 +26,10 @@ import inspect
 
 import pytest
 
-from backend.services.autonomous_loop import _fallback_rate_check
+from backend.services.autonomous_loop import (
+    _degradation_summary_fields,
+    _fallback_rate_check,
+)
 from backend.services import autonomous_loop as al
 from backend.services.cycle_health import CycleHealthLog
 
@@ -79,20 +82,48 @@ def test_one_more_degraded_ticker_would_have_paged():
 #    `run_cycle` itself, which needs BQ, a broker and ~80 minutes.
 # ---------------------------------------------------------------------------
 
-def test_degradation_fields_are_set_outside_the_fire_branch():
+def test_the_recorded_fields_are_produced_by_a_seam_that_can_be_EXECUTED():
+    """BEHAVIOURAL, not source-order.
+
+    The first version of this guard asserted only that `summary["fallback_rate"]`
+    appeared BEFORE `if _fb_fire:` in the source. Mutation cell M1 disabled the
+    recording entirely (`if _n_fb_total:` -> `if False:`), which does not move any
+    text, and the guard SURVIVED. The logic was therefore extracted into
+    `_degradation_summary_fields` so it can be driven for real.
+    """
+    # the measured incident: degraded, below threshold, must still be reported
+    got = _degradation_summary_fields(False, 3, 6, {"HPE": "429"})
+    assert got["fallback_rate"] == "3/6"
+    assert got["fallback_alarm_fired"] is False
+    assert got["fallback_reasons"] == {"HPE": "429"}
+
+    # a paging cycle reports the same shape, with the flag flipped
+    loud = _degradation_summary_fields(True, 4, 6, {"HPE": "429"})
+    assert loud["fallback_rate"] == "4/6" and loud["fallback_alarm_fired"] is True
+
+    # a HEALTHY cycle still reports -- absence of a rate must mean "no analyses",
+    # never "nothing went wrong", or the two are indistinguishable downstream
+    fine = _degradation_summary_fields(False, 0, 6, {})
+    assert fine["fallback_rate"] == "0/6"
+    assert fine["fallback_alarm_fired"] is False
+    assert "fallback_reasons" not in fine
+
+    # the ONLY empty case is a cycle that analysed nothing
+    assert _degradation_summary_fields(False, 0, 0, {}) == {}
+
+
+def test_the_seam_is_actually_wired_into_the_cycle():
+    """A seam nothing calls is a seam that guards nothing."""
     src = inspect.getsource(al)
-    i_record = src.find('summary["fallback_rate"]')
-    i_fire = src.find("if _fb_fire:", src.find("_fb_fire, _n_fb, _n_fb_total"))
-    assert i_record != -1, "the fallback_rate record site vanished"
-    assert i_fire != -1, "the paging branch vanished"
-    assert i_record < i_fire, (
-        "fallback_rate is set INSIDE/AFTER the `if _fb_fire:` branch again -- "
-        "a sub-threshold degraded cycle would leave no durable trace, which is "
-        "the exact defect phase-86.38 removed"
+    assert "summary.update(_degradation_summary_fields(" in src, (
+        "the extracted seam is no longer called from the cycle -- the fields "
+        "would never reach the summary regardless of how well the seam behaves"
     )
-    assert 'summary["fallback_alarm_fired"]' in src, (
-        "the recorded rate must say whether it paged, else a reader cannot tell "
-        "a quiet-because-fine cycle from a quiet-because-below-threshold one"
+    i_call = src.find("summary.update(_degradation_summary_fields(")
+    i_fire = src.find("if _fb_fire:", src.find("_fb_fire, _n_fb, _n_fb_total"))
+    assert i_call < i_fire, (
+        "the recording call moved INSIDE/AFTER the paging branch again -- a "
+        "sub-threshold degraded cycle would leave no durable trace"
     )
 
 
