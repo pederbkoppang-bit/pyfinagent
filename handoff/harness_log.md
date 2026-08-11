@@ -33777,3 +33777,62 @@ the drought hypothesis far harder than the day view could -- 9 of 10 cycles
 zero-trade, **6 of them completely clean**, and the one cycle that traded was 43%
 degraded. Also corrected a false claim I had propagated four ways ("54 analyses
 with ZERO fallbacks"; truth: 54 full / 2 lite, clean subset 48 / 0).
+
+## Cycle 1216 -- 2026-08-11 -- phase=86.7 result=NO-VERDICT (step PARKED before EVALUATE)
+
+**Backfilled append.** This row was missing; the work landed but the LOG leg of the
+five-file protocol did not. Caught by the peer session (`pyfinagent-51`) and
+verified here independently: `grep -c "phase=86.7"` returned 0 while the same
+probe returned 4/1/1 for 86.31/86.36/86.30, so the zero was real and not a broken
+check. Without this row the step is invisible to exactly the CONDITIONAL counter
+that phase-86.21 was filed about.
+
+**result=NO-VERDICT, deliberately.** No Q/A was spawned for 86.7 and none is
+claimed: `handoff/verdict_ledger.jsonl` carries 0 rows for the step and no
+`evaluator_critique_86.7.md` exists. An unspawned evaluation is NO VERDICT -- it
+is not a PASS, and the step is NOT marked done.
+
+**Research gate PASSED** -- `wf_d6c07606-eb3`, tier moderate, brief
+`research_brief_86.7.md` (55,714 chars), 10 sources read in full (floor 5), 22
+URLs (floor 10), recency scan present, `brief_status: COMPLETE`.
+
+**The gate refuted the step's own premise.** The step's title says the plist token
+"no longer exists". IT DOES. Verified by hash, printing no values: 5 git-tracked
+`handoff/away_ops/session_*.json` carry one 92-char `sk-ant-*`
+(sha256[:16] `32fd305146379e49`); 12 plist-like files carry 3 other tokens.
+Criterion 5 therefore answers STILL-OPEN for both 62.1.1 and 85.3.3, and 85.3.3's
+git-history criterion resolves POSITIVE -- which by its own text mandates
+rotation. **Raised as operator ASK #2; nothing rotated, deleted, or
+history-rewritten.**
+
+**I got the exposure direction WRONG first, in the dangerous direction.** My
+initial read said the leak was ONGOING because I sorted filenames alphabetically
+and `session_pm_*` outranks `session_am_*`. Corrected by sorting on the embedded
+timestamp: writing STOPPED (08-11T05:30Z clean). The peer then corrected me again
+on what actually matters -- 4 files have been on origin continuously since
+2026-08-08T20:29Z, so REMOTE exposure is ~3 days, not the 48h my first framing
+implied.
+
+**4 of 6 criteria answered; 1 and 6 are operator-gated.** Criterion 1 needs an
+away-session probe in a real launchd context (`claude auth status` is ruled out --
+`healthcheck.sh:86-89` says it proves credential PRESENCE, not validity, and a 401
+exits 0). Criterion 6 needs `bootout`+`bootstrap`, which away-ops rail 9 reserves
+for the operator, and `kickstart -k` does not re-read a plist's
+`EnvironmentVariables` (measured 2026-08-09).
+
+**Criterion 2 was NOT proven and is not claimed.** The criterion permits locking
+the keychain OR running without it; I took neither leg to completion, because the
+backend (pid 66306) authenticates through the login keychain and the book runs at
+20:00 CEST. A dark rail at 20:00 is a worse outcome than an unproven criterion,
+and that trade is not mine to make unilaterally.
+
+**Findings worth carrying:** every pyfinagent launchd job is an AGENT, zero
+LaunchDaemons -- which is *why* the keychain is reachable (TN2083); the login
+keychain measures `no-timeout`, so screen lock does NOT lock it (reboot is the
+real trigger, partly refuting the step's audit basis); and every alert is a
+one-shot latch with `run_away_session.sh:157` exiting 0 on auth-dead, so the gap
+is RECALL, not precision.
+
+**Disposition: PARKED.** Full text in `handoff/current/experiment_results_86.7.md`
+sec 9. Do NOT re-run the step's immutable command and record it as criterion 1 --
+it is green and does not satisfy that criterion.
