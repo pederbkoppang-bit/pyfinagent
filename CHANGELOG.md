@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-11 | `27cf76d5` | docs: day report -- the vocabulary class is FIVE, and 86.25's filter could not see two |
 | 2026-08-11 | `58fbc9bd` | phase-86.52 + day report: the vocabulary class is FIVE, and 86.25's filter could not see two of them |
 | 2026-08-11 | `d98f2b0f` | docs(86.58): the vocabulary-boundary class has FIVE members, three open -- take the class, not the i |
 | 2026-08-11 | `4393da80` | phase-86.38 + day report: the drought moved to the risk gate; 86.58 is the same class as 86.25 |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-11 | `010b2b07` | phase-86.44: cycle-2 remediated -- I got the D3 class wrong twice, so the guard now derives it |
 | 2026-08-11 | `f2d7ff09` | phase-86.44: cycle-2 verdict CONDITIONAL, persisted verbatim |
 | 2026-08-11 | `431401dc` | phase-86.44: cycle-1 remediated -- my D3 guard could not fail on half its own class |
-| 2026-08-11 | `bc96eb48` | phase-86.44: cycle-1 verdict CONDITIONAL, persisted verbatim before remediation |
 
 ---
 
