@@ -25,8 +25,8 @@ before being acted on; the measurements are shown.
 |---|---|---|
 | F1 fixture cannot express "copies another step's files" (criterion 4) | yes | **CONFIRMED** -- fixed, new check + cell M5 |
 | F2 the no-declaration fall-through had zero coverage | yes | **CONFIRMED** -- fixed, new check + cell M6 |
-| F3 precision oracle shares the classifier's grammar; ASCII-only `--` hides real members | yes | **CONFIRMED** -- 7 genuine mismatches were being missed; grammar fixed |
-| F4 a printed sentence overstated its own result | yes | **CONFIRMED** -- 47 of 153 did mention their sid; sentence corrected |
+| F3 precision oracle shares the classifier's grammar; ASCII-only `--` hides real members | yes | **CONFIRMED** -- grammar fixed. NOTE the cycle-2 write-up of this was itself incomplete: the move is **+8 / -5**, not +7 (section 4a) |
+| F4 a printed sentence overstated its own result | yes | **CONFIRMED** -- 47 of 153 under the OLD grammar, **43 of 156** under the current one; and cycle-2's fix for it was dead code (section 4c) |
 | F5 section B had no `$ command` line and its count did not reproduce | yes | **CONFIRMED** -- commands and rules now stated |
 
 ---

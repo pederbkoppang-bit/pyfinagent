@@ -305,8 +305,10 @@ instead of a suspiciously perfect 1.0000.
 ### F4 -- a printed sentence overstated its own result
 
 The census printed, and the cycle-1 live_check reproduced: *"no mismatched dir
-mentions its own step id anywhere in its contract head."* **False -- 47 of 153
-did**, e.g. `phase-10.5.0/contract.md` heading `step: phase-10.5-batch (covers
+mentions its own step id anywhere in its contract head."* **False.** Measured
+**47 of 153 under the cycle-1 ASCII-only grammar, and 43 of 156 under the
+current one** -- the figure moves with the grammar, so it is never quoted
+without it. Example: `phase-10.5.0/contract.md` heading `step: phase-10.5-batch (covers
 10.5.0, 10.5.1, ...)`. The tabular line above it stated the correct narrower
 property; the summary claimed the broader one.
 
