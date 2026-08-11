@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-11 | `13c6d5ce` | phase-86.41: cycle-1 Q/A findings C1+D1 -- both CONFIRMED and corrected |
 | 2026-08-11 | `e1332362` | docs: record 86.14 scoping -- every item on the goal's list now has measured work |
 | 2026-08-11 | `7a72af4a` | phase-86.14: pre-contract scoping -- this is NOT a frontend-only build |
 | 2026-08-11 | `68c35835` | phase-86.44: a naive phase= grep over-counts -- 642 headers vs 33 body matches |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-11 | `8e95fb88` | phase-86.38: my classifier read the WRAPPER -- all 9 fallbacks are rate limits |
 | 2026-08-11 | `b8d2ea96` | phase-86.41: PLAN -- the gate REFUTED the step's premise; the crash is not ours |
 | 2026-08-11 | `debbc932` | phase-86.32: record a SECOND measured instance -- today reproduced it on five steps |
-| 2026-08-11 | `30cacbf1` | docs(goal): ASK #2 -- correct the exposure timeline; ~3 days on origin, not 48h |
 
 ---
 
+### v6.93.163 — phase-86.41: cycle-1 Q/A findings C1+D1 -- both CONFIRMED and corrected (2026-08-11)
+
+- **phase-86.41: cycle-1 Q/A findings C1+D1 -- both CONFIRMED and corrected**
 ### v6.93.162 — phase-86.14: pre-contract scoping -- this is NOT a frontend-only build (2026-08-11)
 
 - **phase-86.14: pre-contract scoping -- this is NOT a frontend-only build**
