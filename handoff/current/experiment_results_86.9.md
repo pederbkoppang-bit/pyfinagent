@@ -192,10 +192,19 @@ cost, and it is bounded by a mechanism that was built for this exact failure.
 **AND THE POST-FIX DATUM THAT DOES EXIST CUTS AGAINST URGENCY**: 1 timeout in 152
 calls, **0.66%**. On that night alone, #24 would have changed almost nothing.
 
-**Why I still recommend it:** the 0.66% night is one sample, and five other measured
-cycles ran **9.9%-23.4%**. The honest case for #24 is not "the last cycle was bad" --
-it is that the rate is **highly variable** and the cap sits **5s above the longest
-observed success**, so on a bad night the cap censors work that would have completed.
+**Why I still recommend it, with the population DERIVED this time:** of the six
+cycles other than #7, **FOUR ran 9.9%-23.4%** (#1 23.4%, #3 18.1%, #2 14.9%, #6 9.9%)
+and **two ran 0.0%** (#4 and #5) -- and those two are not comparable cycles: **340.4s
+and 322.1s wall, with 20 and 33 rail calls**, against 124-177 calls in the others.
+
+> **CORRECTED: I had written "five other measured cycles".** It is four. Worse, I
+> **adopted that figure from the cycle-2 critique without re-deriving it** -- taking a
+> reviewer's number at face value is the same failure as taking my own on faith, and
+> it overstated prevalence 4/6 -> 5/6 in the direction supporting my recommendation.
+
+The honest case for #24 is not "the last cycle was bad" -- it is that the rate is
+**highly variable across comparable cycles** and the cap sits **5s above the longest
+observed success**, so on a bad night it censors work that would have completed.
 That is the argument, and it rests on the pre-fix distribution, which I now say
 plainly.
 
@@ -232,14 +241,44 @@ confirmed live on the same endpoint, **not lowered**.
 8,554s and 8,529s both land inside 10,800s. Had it been in force, neither cycle
 would have been cut off, and each would have analysed the ticker it dropped.
 
-**(b) It is aimed at the WRONG CAUSAL TARGET.** The overruns were produced by rail
-timeouts, not by batch size:
+**(b) It is aimed at a DIFFERENT CAUSAL TARGET than batch size -- but the evidence is
+weaker than I twice claimed, and the honest version contains a counterexample to my
+own thesis.**
 
-- overrun cycles ran a **9.9%-23.4%** rail-timeout rate; the healthy one ran **0.66%**
-- **32 x 150s = 4,800s** of rail-timeout waste against a **1,329s** overrun -- the
-  waste is **3.6x** the problem it caused
-- the post-raise cycle finished **2,708s inside the OLD budget**, so the budget was
-  not its binding constraint
+> **CORRECTED after the cycle-3 FAIL. All three bullets below were wrong, in the
+> direction that flattered the argument.** Every figure is now read off the table at
+> `research_brief_86.9.md:380-388`:
+>
+> | # | terminal | wall / projected | rail rate |
+> |---|---|---|---|
+> | 1 | (none) | 5,670s projected | **0.2339** |
+> | 2 | **timeout** | 7,200.117s | **0.1486** |
+> | 3 | **timeout** | 7,200.077s | **0.1808** |
+> | 4 | completed | 340.4s | 0.0 |
+> | 5 | completed | 322.1s | 0.0 |
+> | 6 | completed | 5,942.7s | 0.0988 |
+> | 7 | completed | 4,532.1s | 0.0066 |
+
+- **The two cycles that actually overran ran 14.9% and 18.1%** -- not the
+  "9.9%-23.4%" I wrote. That range's endpoints are cycles **#6 and #1, neither of
+  which overran.** My own contract at §3 states the correct pair; the results section
+  widened it.
+- **AND THE WIDENING CONCEALED A COUNTEREXAMPLE TO MY OWN CLAIM.** Cycle **#1 carries
+  the HIGHEST rail-timeout rate in the entire set (23.4%) and did NOT overrun** --
+  6/6 finished, 5,670s projected. So "overruns are produced by rail timeouts" is
+  **not** supported as a sufficient condition: the worst rail night in the set
+  completed comfortably. The defensible claim is narrower -- **both overruns coincided
+  with elevated rail-timeout rates, and the two cycles that overran were also the only
+  two that dropped a ticker (5/6, NTAP both times)**.
+- **The waste multiple is ~1.95x, not 3.6x.** `32 x 150s = 4,800` is **subprocess**
+  seconds; the 1,329s overrun is **wall** seconds. Dividing them compares different
+  units. At the measured parallelism of 1.85, 4,800 subprocess-seconds is **~2,595s
+  of wall time**, giving **1.95x**. The brief performed this conversion *and* stated a
+  caveat against its own interest; **I carried the number forward and dropped both.**
+  The conclusion survives -- even at 1.95x the recovered time clears the 1,329s
+  overrun -- but the stated multiple did not reproduce.
+- The post-raise cycle finished **2,708s inside the OLD budget**, so the budget was
+  not its binding constraint. *(This bullet was correct.)*
 
 **So the honest reading is: ask #23 buys headroom that works, while ask #24 addresses
 the thing generating the need for headroom.** Nothing should be reverted -- an

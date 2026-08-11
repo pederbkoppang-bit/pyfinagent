@@ -34179,3 +34179,59 @@ Also corrected: *"the sole inner cap is 150s"* (five caps exist, none per-ticker
 **three defaults plus a validation range**.
 
 **Nothing was changed in production by this step.** Every finding is a measurement.
+
+## Cycle 1223 -- 2026-08-11 -- phase=86.9 result=FAIL (step PARKED -- disposition below)
+
+**Third graded cycle: `CONDITIONAL, CONDITIONAL, FAIL`.** The Q/A's judgment on the
+merits was CONDITIONAL; **the 3rd-CONDITIONAL rule converted it to FAIL**, and it was
+right to. All three cycles found **the same defect class -- claims that do not
+reproduce against their own source** -- which is exactly the recurrence that rule
+exists to stop.
+
+**PRODUCT STATE IS SOUND AND WAS NEVER IN DOUBT.** All six immutable criteria are MET
+and were independently re-derived by the Q/A in all three cycles: live endpoint
+10800.0 from listener pid 66306; `measure_analysis_phase.py` reproducing wall
+4532.113s / mean 1315.2s / parallelism 1.85 / cc_rail 152-1-0.0066 numerically
+identically; the pid-43839 chain verified from a contiguous archive+live log pair;
+`_run_single_analysis` (:2088-2305) containing **zero** timeout tokens;
+`cycle_health.py:61 = 93_600.0` and `:80 = 345_600.0`. Harness compliance clean.
+**Zero production files changed. Nothing to revert.**
+
+**THE THREE CYCLE-3 DEFECTS, all mine, all in the direction that flattered my own
+argument:**
+
+1. **§7 attributed a "9.9%-23.4%" rail-timeout rate to "overrun cycles". The cycles
+   that actually overran ran 14.9% and 18.1%** -- and the range's endpoints belong to
+   cycles #6 and #1, **neither of which overran**. My own contract §3 had the correct
+   pair; the results section widened it.
+   **AND THE WIDENING CONCEALED A COUNTEREXAMPLE TO MY OWN THESIS**: cycle #1 carries
+   the **highest** rail-timeout rate in the set (23.4%) and **did not overrun**, 6/6
+   finished. So "overruns are produced by rail timeouts" is not supported as a
+   sufficient condition. The defensible claim is narrower and is now what §7 says.
+2. **"five other measured cycles ran 9.9%-23.4%" is FOUR**, and I **adopted the figure
+   from the cycle-2 critique without re-deriving it.** Taking a reviewer's number on
+   faith is the same failure as taking my own on faith.
+3. **"3.6x waste" divided SUBPROCESS-seconds by WALL-seconds.** At the measured 1.85
+   parallelism the unit-consistent ratio is **1.95x**. The brief performed that
+   conversion *and* stated a caveat against its own interest; I carried the number
+   forward and dropped both.
+
+**DISPOSITION: PARKED. Status stays `pending`. No flip -- there is no PASS.**
+
+I am **not** spawning cycle 4, though the attempt budget allows it (3 of 5) and the
+remaining defects are fixable prose. Three iterations of one defect class is a signal
+about **my claim discipline**, not about this step, and a fourth ~175k-token spend to
+convert a FAIL on a step whose product state was never in question is not the right
+use of a shared budget the peer session has already flagged (their ASK #3).
+
+**All three defects are FIXED in the artifacts** -- §7(b) now carries the source table
+inline with every figure read off it, §5 derives its population, and the
+operator-facing ask file is corrected, including the counterexample that **weakens my
+own recommendation**. What is missing is a PASS, and I will not manufacture one.
+
+**Criterion 2 does not need tonight's cycle**: it is already MET by measurement via
+the pid-43839 chain. Tonight's 20:00 run is recorded in the day report as an
+independent observation, not as a reason to reopen this step.
+
+**To close 86.9 later**: re-spawn a single Q/A against the corrected artifacts. The
+3rd-CONDITIONAL counter resets on a FAIL, so the next verdict is unconstrained.

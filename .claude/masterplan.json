@@ -24145,7 +24145,8 @@
               "no other setting changed; paper_analyze_top_n is NOT lowered; the .env backup is retained and referenced"
             ],
             "live_check": "live_check_86.9.md with the running-process value (pid + start time), the verbatim completion line of a cycle run under the new budget, and the re-derived per-ticker timing"
-          }
+          },
+          "notes": " PARKED 2026-08-11 after THREE graded Q/A cycles (CONDITIONAL, CONDITIONAL, FAIL -- the 3rd-CONDITIONAL rule converted a merits-CONDITIONAL into FAIL). STATUS DELIBERATELY LEFT pending: there is no PASS and none was manufactured. All six criteria are MET and were independently re-derived by the Q/A in all three cycles; zero production files were changed; nothing needs reverting. The blocker across all three was one defect class -- claims that do not reproduce against their own source. All known instances are now fixed in the artifacts. TO CLOSE: re-spawn one Q/A against the corrected handoff files; the CONDITIONAL counter resets on a FAIL so the next verdict is unconstrained. Criterion 2 does NOT require another cycle -- it is already met by measurement (the pid-43839 startup chain)."
         },
         {
           "id": "86.10",

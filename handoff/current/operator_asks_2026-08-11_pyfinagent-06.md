@@ -99,9 +99,21 @@ cycle.
 
 **And the post-fix datum that does exist argues against urgency**: 1 timeout in 152
 calls (**0.66%**). The honest case is not "the last cycle was bad" -- it is that the
-rate is **highly variable** (five other measured cycles ran **9.9%-23.4%**) and the
-cap sits 5s above the longest observed success, so on a bad night it censors work
-that would have finished.
+rate is **highly variable across comparable cycles** and the cap sits 5s above the
+longest observed success, so on a bad night it censors work that would have finished.
+
+> **CORRECTED before you act on this.** An earlier version of this paragraph said
+> *"five other measured cycles ran 9.9%-23.4%"*. **It is FOUR** (#1 23.4%, #3 18.1%,
+> #2 14.9%, #6 9.9%); two further cycles ran 0.0% but are not comparable -- 340s and
+> 322s wall with 20 and 33 rail calls, against 124-177 in the others. I had adopted
+> the figure from a reviewer's critique without re-deriving it, and it overstated
+> prevalence in the direction supporting this very recommendation.
+>
+> **One more thing you should weigh, because it cuts against me**: the cycle with the
+> **highest** rail-timeout rate in the whole set (#1, 23.4%) **did not overrun** --
+> 6/6 tickers finished. So a high rail-timeout rate is not sufficient to cause an
+> overrun. #24 is still worth doing on censored-distribution grounds, but the causal
+> story is weaker than my earlier framing implied.
 
 This is the **endorsed** remedy in the literature (raise a per-ITEM cap against a
 censored distribution). The already-shipped budget raise was the **rejected** one
