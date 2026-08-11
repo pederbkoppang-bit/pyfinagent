@@ -109,10 +109,24 @@ nothing on disk. That is the asymmetry this section removes.
 
 **What you do, from your first few tool calls:**
 
-1. **Create** `.claude/agent-memory/qa/verdicts/verdict_wip_<step_id>.md`
-   (create the `verdicts/` directory if absent). This exact path is the one
-   `qa-write-guard.sh` already permits — **no allowlist was added for this**,
-   so every other path is denied exactly as before.
+1. **Create**
+   `.claude/agent-memory/qa/verdicts/verdict_wip_<step_id>__<STAMP>.md`
+   (create the `verdicts/` directory if absent), where `<STAMP>` is the CURRENT
+   UTC time as `date -u +%Y%m%dT%H%M%SZ` — e.g.
+   `verdict_wip_86.36__20260811T064144Z.md`. Use the SAME instant you put in
+   `WRITTEN:` below. This is still inside the directory `qa-write-guard.sh`
+   already permits — **no allowlist was added or widened**, so every other path
+   is denied exactly as before.
+
+   **Why the stamp (phase-86.36).** The name used to be fixed per step, and
+   because rule 3 makes you write on your FIRST tool call, a retry's opening
+   act destroyed the previous attempt's analysis. MEASURED in production:
+   `verdict_wip_86.34.md` went 4,921 → 796 bytes between two tool calls of a
+   single observer, and a 6,239-byte record of a real drop survived only
+   because a human copied it out first. The write that makes a crash
+   survivable was the write that erased the last crash's testimony. **Do not
+   reuse another run's stamp and do not omit it** — that reintroduces the
+   defect exactly.
 2. Its **first four lines** must be, verbatim (with your own values):
 
    ```
@@ -121,10 +135,14 @@ nothing on disk. That is the asymmetry this section removes.
    WRITTEN: <current UTC time, ISO-8601, e.g. 2026-08-10T12:34:56Z>
    ```
 
-   The `WRITTEN` stamp is not decoration. The path is FIXED per step, so a
-   cycle-2 spawn that drops before its first write leaves cycle-1's file
-   sitting there — and without a timestamp Main would read pre-fix evidence as
-   current. Get the time from `date -u +%Y-%m-%dT%H:%M:%SZ`.
+   The `WRITTEN` stamp is not decoration, and phase-86.36 did NOT make it
+   redundant. The filename stamp keeps attempts from overwriting each other;
+   the `WRITTEN` header is what lets `qa_wip.py` decide whether a record
+   belongs to the spawn being recovered from — a run that drops before its
+   first write leaves an EARLIER attempt as the newest file on disk, and only
+   the header can expose that. Get the time from
+   `date -u +%Y-%m-%dT%H:%M:%SZ` and the filename stamp from
+   `date -u +%Y%m%dT%H%M%SZ`.
 3. **Append findings as you establish them** — the immutable command's exit
    code, each deterministic check, each mutation cell, each criterion's
    MET/NOT MET with its evidence. Never a single end-of-run flush: the whole

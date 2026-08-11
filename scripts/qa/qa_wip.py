@@ -103,16 +103,110 @@ class BadStepId(ValueError):
     """Raised for a step id that is not a dotted numeric path."""
 
 
-def resolve_wip_path(step_id: str, repo: pathlib.Path | None = None) -> pathlib.Path:
-    """Return the WIP path for `step_id`. Raises BadStepId on anything else."""
+#: phase-86.36. A run-unique component in the NAME. The fixed per-step path made
+#: the retry's first write destroy the prior attempt -- and because 86.31
+#: requires that write to happen before any analysis, the safety property and
+#: the hazard were the same write. MEASURED pre-fix: 4,386 -> 124 bytes, and in
+#: production verdict_wip_86.34.md 4,921 -> 796 between two tool calls of a
+#: single observer.
+#:
+#: A COUNTER WAS REJECTED. Deriving `c<N>` requires read-then-write on the
+#: directory; two concurrent Claude sessions (routine here) race and silently
+#: land on the same N. The stamp needs no coordination and no caller change:
+#: the writer already knows its own spawn time because it writes WRITTEN:.
+#: Precedent: Airflow `attempt={try_number}.log`, journald `.journal~`, k8s
+#: retaining exactly one prior -- a path component plus BOUNDED retention, never
+#: locking.
+_RUN_STAMP_RE = re.compile(r"\A[0-9]{8}T[0-9]{6}Z\Z")
+#: Current record + this many prior attempts. Bounded on the k8s/journald
+#: precedent: nobody retains every attempt, and this directory is read by the
+#: memory tooling.
+DEFAULT_KEEP = 3
+
+
+def _sid_or_raise(step_id: str) -> str:
     sid = str(step_id).strip()
     if not _STEP_ID_RE.match(sid):
         raise BadStepId(
             f"refusing step id {sid!r}: expected a dotted numeric path such as "
             f"'86.31' (a resolver that repairs a hostile id is how traversal gets in)"
         )
+    return sid
+
+
+def resolve_wip_path(step_id: str, repo: pathlib.Path | None = None,
+                     run_stamp: str | None = None) -> pathlib.Path:
+    """Return the WIP path for `step_id`. Raises BadStepId on anything else.
+
+    `run_stamp` (phase-86.36, compact UTC `YYYYMMDDTHHMMSSZ`) makes the name
+    unique per run. Omitted, this returns the LEGACY fixed path unchanged --
+    deliberately, so pre-86.36 artifacts written by a live peer session still
+    resolve and every phase-86.31 assertion keeps its exact subject.
+    """
+    sid = _sid_or_raise(step_id)
     root = pathlib.Path(repo) if repo is not None else REPO
-    return root / MEMORY_DIR / WIP_SUBDIR / f"verdict_wip_{sid}.md"
+    sink = root / MEMORY_DIR / WIP_SUBDIR
+    if run_stamp is None:
+        return sink / f"verdict_wip_{sid}.md"
+    stamp = str(run_stamp).strip()
+    if not _RUN_STAMP_RE.match(stamp):
+        raise BadStepId(
+            f"refusing run stamp {stamp!r}: expected compact UTC "
+            f"'YYYYMMDDTHHMMSSZ'. Refused rather than sanitised, for the same "
+            f"reason as the step id."
+        )
+    return sink / f"verdict_wip_{sid}__{stamp}.md"
+
+
+def list_wip_records(step_id: str, repo: pathlib.Path | None = None) -> list[pathlib.Path]:
+    """Every retained record for `step_id`, NEWEST FIRST.
+
+    Includes the legacy un-stamped path when present. Ordering is by the
+    WRITTEN stamp inside each file, falling back to mtime, so a record is
+    ordered by when the RUN happened rather than by when the bytes last moved.
+    """
+    sid = _sid_or_raise(step_id)
+    root = pathlib.Path(repo) if repo is not None else REPO
+    sink = root / MEMORY_DIR / WIP_SUBDIR
+    if not sink.is_dir():
+        return []
+    found = [p for p in sink.glob(f"verdict_wip_{sid}.md") if p.is_file()]
+    found += [p for p in sink.glob(f"verdict_wip_{sid}__*.md") if p.is_file()]
+
+    def _key(p: pathlib.Path):
+        try:
+            dt = _parse_ts(headers(p.read_text(encoding="utf-8", errors="replace"))
+                           .get(WRITTEN_KEY, ""))
+        except Exception:
+            dt = None
+        return dt or datetime.datetime.fromtimestamp(p.stat().st_mtime,
+                                                     datetime.timezone.utc)
+
+    return sorted(set(found), key=_key, reverse=True)
+
+
+def prune_wip_records(step_id: str, repo: pathlib.Path | None = None,
+                      keep: int = DEFAULT_KEEP) -> list[pathlib.Path]:
+    """Delete all but the `keep` newest records. Returns what was removed.
+
+    Retention is BOUNDED on purpose: an unbounded sink is a slow leak in a
+    directory the memory tooling reads. `keep < 1` is refused -- keeping zero
+    records would reintroduce exactly the data loss this step removes.
+    """
+    if keep < 1:
+        raise ValueError(
+            f"refusing keep={keep}: retaining zero records is the defect "
+            f"phase-86.36 exists to remove, not a configuration of it"
+        )
+    records = list_wip_records(step_id, repo)
+    removed = []
+    for p in records[keep:]:
+        try:
+            p.unlink()
+            removed.append(p)
+        except OSError:
+            pass
+    return removed
 
 
 def classify(text: str) -> str:
@@ -160,7 +254,30 @@ def report(step_id: str, repo: pathlib.Path | None = None,
     Pass it: without it this function cannot tell a current artifact from a
     previous cycle's, and the fixed per-step path guarantees they collide.
     """
+    # phase-86.36: several records may now coexist. Pick the one belonging to
+    # THIS spawn -- the newest whose WRITTEN is not before it -- and report the
+    # rest as priors instead of destroying them. With a single legacy file this
+    # selects that file, so every phase-86.31 assertion keeps its exact subject.
+    records = list_wip_records(step_id, repo)
+    spawn_dt_sel = _parse_ts(spawned_at) if spawned_at else None
     path = resolve_wip_path(step_id, repo)
+    if records:
+        path = records[0]
+        if spawn_dt_sel is not None:
+            # OLDEST-first. The record belonging to a spawn is the EARLIEST one
+            # written at or after it -- walking newest-first instead picks the
+            # most recent record for every spawn, so recovering an older cycle
+            # silently hands back a newer cycle's file. That was a real bug in
+            # the first version of this selection, caught by the criterion-3
+            # assertion "spawn 1 resolves to cycle 1's record".
+            for cand in reversed(records):
+                w = _parse_ts(headers(cand.read_text(encoding="utf-8",
+                                                     errors="replace"))
+                              .get(WRITTEN_KEY, ""))
+                if w is not None and w >= spawn_dt_sel:
+                    path = cand
+                    break
+
     out = {
         "step_id": str(step_id).strip(),
         "path": str(path),
@@ -173,6 +290,11 @@ def report(step_id: str, repo: pathlib.Path | None = None,
         "completed_at": "",
         "identity_checked": bool(spawned_at),
         "guidance": "",
+        # Priors are LISTED, never merged: each is its own attempt and reading
+        # two half-analyses as one is how a recovered partial turns into a
+        # confident wrong answer.
+        "prior_records": [str(p) for p in records if p != path],
+        "records_retained": len(records),
     }
     if not path.exists():
         out["guidance"] = (
