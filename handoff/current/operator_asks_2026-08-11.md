@@ -28,6 +28,26 @@
 > dates suggest. Answer `06-2`; read `51-4` as evidence for it, not as a second
 > decision.
 >
+> ### The collision is NARROWER than this header first said
+>
+> Corrected 2026-08-11 after `pyfinagent-06` narrowed their own claim and I
+> re-measured. **Only `#2` has two cross-session referents.** `#5`, `#6` and `#7`
+> have one definition each and do NOT collide -- my first version implied a wider
+> clash than exists, and a wider-than-true claim in a disambiguation note is
+> self-defeating.
+>
+> My scan (heading-anchored, over `handoff/current/*.md`) found `#1` and `#2` with
+> two headings each -- **but in both cases both headings are MINE**, the same ask
+> restated in its step's `experiment_results` and in this file. That is duplication,
+> not ambiguity.
+>
+> **STATED LIMIT OF THAT SCAN:** it matches only heading lines, so it CANNOT see
+> `06-2`, which is defined in prose inside `experiment_results_86.7.md`
+> ("Rotation is **operator ASK #2**"). It also returns zero for `#5` and `#6`. So
+> my scan neither confirms nor refutes the peer's count -- I am taking their
+> narrower claim on their measurement, and recording that mine could not check it
+> rather than implying it did.
+>
 > **Separately, `06-7` is a DIFFERENT credential** (a Slack bot token in the
 > crontab, reportedly in zero git-tracked files). Do not conflate it with the
 > `away_ops` one.
