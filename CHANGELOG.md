@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-11 | `503a7fa8` | phase-86.7: backfill the missing harness_log row (five-file protocol debt) |
 | 2026-08-11 | `e748f67e` | docs: record 86.7's true state -- my summary omitted it |
 | 2026-08-11 | `99522571` | docs: record the 86.10 live-verification refutation in the report and goal |
 | 2026-08-11 | `a9fee776` | phase-86.10: live Playwright verification -- the defect as stated did NOT reproduce |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-11 | `9d7628ce` | operator asks: correct ASK #3's figures -- 13 runs, 5 dropped (38.5%), ~887k wasted |
 | 2026-08-11 | `7f173592` | phase-86.38: PARK after four spawns -- remediated, verified, ungraded |
 | 2026-08-11 | `cb630238` | phase-86.7: PARK with a disposition -- 4 of 6 answered, 2 need operator-reserved verbs |
-| 2026-08-11 | `d3b4823d` | phase-86.38 cycle 2: fix four more survivors a THIRD dropped run found |
 
 ---
 
+### v6.93.159 — phase-86.7: backfill the missing harness_log row (five-file protocol... (2026-08-11)
+
+- **phase-86.7: backfill the missing harness_log row (five-file protocol debt)**
 ### v6.93.158 — phase-86.10: live Playwright verification -- the defect as stated did... (2026-08-11)
 
 - **phase-86.10: live Playwright verification -- the defect as stated did NOT reproduce**
