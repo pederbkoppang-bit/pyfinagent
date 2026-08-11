@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-11 | `d1a3f18b` | phase-86.9: cycle-2 verdict CONDITIONAL, persisted verbatim before remediation |
 | 2026-08-11 | `08a078c2` | docs(86.49): a second instance -- the safety scanner matches text a command CARRIES |
 | 2026-08-11 | `e5c61b46` | docs: narrow the ask-collision claim -- only #2 collides, and say what my scan cannot see |
 | 2026-08-11 | `417b120a` | docs: 06-2 and 51-4 are ONE ask about ONE credential, not two |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-11 | `7fd1c131` | phase-86.33 criteria 3+4+6: the researcher rail holds, and one apostrophe kills everything |
 | 2026-08-11 | `a6d4c42f` | phase-86.33 criterion 2: log the payload KEY SET so the question becomes answerable |
 | 2026-08-11 | `9a0a55bb` | phase-86.33 criterion 1: the log cannot certify its own population, and that IS the finding |
-| 2026-08-11 | `10a703db` | phase-86.33: PLAN -- the payload cannot distinguish TYPE from NAME, and I proved it on myself |
 
 ---
 
+### v6.93.203 — phase-86.9: cycle-2 verdict CONDITIONAL, persisted verbatim before re... (2026-08-11)
+
+- **phase-86.9: cycle-2 verdict CONDITIONAL, persisted verbatim before remediation**
 ### v6.93.202 — phase-86.9: the pid's start time exposed a hole in my own criterion-2... (2026-08-11)
 
 - **phase-86.9: the pid's start time exposed a hole in my own criterion-2 evidence**
