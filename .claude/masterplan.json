@@ -24720,6 +24720,27 @@
           }
         },
         {
+          "id": "86.44",
+          "status": "pending",
+          "priority": "P3",
+          "harness_required": true,
+          "retry_count": 0,
+          "max_retries": 3,
+          "name": "[P3 -- harness_log.md CYCLE NUMBERS ARE NEITHER UNIQUE NOR UNIFORMLY SHAPED] FOUND 2026-08-11 while closing 86.25/86.34, filed per the standing queue-discovered-defects rule. RE-DERIVE EVERY NUMBER; these were measured once, with the commands given so a reader re-derives rather than trusts. MEASURED at tree 692d5935: `grep -oE '^## Cycle [0-9]+' handoff/harness_log.md | sort | uniq -d | wc -l` = 141 DUPLICATED cycle numbers; `grep -cE '^## Cycle [0-9]+'` = 1103 numeric headers; `grep -c '^## Cycle'` = 1214 headers total. So 111 headers do not match the numeric form at all, and 141 numbers are reused. The duplication is NOT new and is NOT purely a concurrency artifact: duplicates exist from `## Cycle 92` onward, long predating the two-session working pattern -- though 2026-08-11 did produce a fresh instance, where this session logged `Cycle 1211 -- phase=86.25` and a concurrent session logged `Cycle 1211 -- phase=86.36`, because each numbers independently by counting existing headers. WHAT IS NOT CLAIMED, and the step must not inflate it: NO consequence has been established. Nothing is known to index or join on the cycle number, no verdict has been shown to be mis-attributed, and no data is lost -- each entry still carries its own `phase=` and `result=`. The FILE IS APPEND-ONLY AND NOTHING IS OVERWRITTEN. This is a P3 integrity defect in the harness's own audit record, not a live-system fault, and a step that dresses it up as one has widened it. WHY IT IS WORTH FIXING ANYWAY: `handoff/harness_log.md` is the file the 3rd-CONDITIONAL escalation rule was originally told to count, and phase-86.21 MEASURED that ~48% of it is unparseable as a counting source (574 of 1189 headers carrying no `phase=`). Duplicate and malformed numbering is the same weakness one layer down: an audit record whose primary key repeats cannot support any per-cycle claim, and future tooling WILL try. ESTABLISH BEFORE FIXING: (a) whether ANY code or script reads the cycle number -- grep the repo, and report honestly if the answer is nothing, because that materially changes the right fix; (b) whether the 111 non-numeric headers are a distinct format or corruption; (c) whether renumbering history is safe or whether the append-only record should be left alone with the numbering fixed only going forward -- the latter is the likely right answer and 86.29's precedent (leave wrong-but-honest history, fix the producer) applies directly. NON-SCOPE: do NOT rewrite historical entries to renumber them unless (c) concludes it is safe AND the mapping is derived rather than guessed; do NOT change the LOG-is-last ordering rule; do NOT touch the verdict ledger (that is 86.21's surface and it is PARKED).",
+          "verification": {
+            "command": "bash -c 'test -f handoff/harness_log.md && grep -c \"^## Cycle\" handoff/harness_log.md'",
+            "success_criteria": [
+              "The duplicate and malformed-header counts are RE-DERIVED with the commands stated, at a named tree, and reported as a range or with the tree named -- the file grows daily and any bare figure is stale on arrival.",
+              "Whether anything READS the cycle number is DETERMINED by grep across the repo, and the answer is stated plainly even if it is 'nothing does' -- that answer changes the correct fix and must not be skipped because it is unglamorous.",
+              "The 111 non-numeric headers are characterised (distinct format vs corruption) rather than counted and left opaque.",
+              "The decision on historical renumbering is STATED with its reason. Leaving history wrong-but-honest is an acceptable outcome; leaving it wrong while implying it is fixed is not.",
+              "If the producer is changed, the new numbering is proven UNIQUE under concurrent writers -- two sessions appending in the same second must not collide, demonstrated rather than argued.",
+              "Mutation-test any new guard: revert it and show the check goes red, with the control observed GREEN first."
+            ],
+            "live_check": "live_check_86.44.md with: the re-derived counts and their commands at a named tree; the grep result for readers of the cycle number; the characterisation of the non-numeric headers; the renumbering decision; and the concurrent-writer uniqueness demonstration if the producer changed."
+          }
+        },
+        {
           "id": "86.42",
           "status": "pending",
           "priority": "P3",
