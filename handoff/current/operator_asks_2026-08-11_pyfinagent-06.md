@@ -130,6 +130,45 @@ so headroom exists -- but the measured binding constraint is the rail timeout ra
 and changing dispatch shape and the rail cap together would make neither
 attributable. **Revisit after 06-#24 lands.** No decision needed today.
 
+## 06-#8 -- a SELL rule cannot fire on held positions. Two DARK flags gate the fix.
+
+**Raised from live observation of tonight's completed book cycle**, by the guard this
+project shipped this morning. Full detail: masterplan step **86.58**.
+
+Verbatim from the 21:21 production log:
+
+```
+phase-86.20: UNRECOGNISED recommendation 'new_buy_signal'
+             (held position row ticker=NTAP) -- treated as neither buy nor sell
+```
+
+**`new_buy_signal` is not an unknown word -- it is an order REASON sitting in a
+RECOMMENDATION field.** `portfolio_manager.py:49-56` documents this precisely:
+`paper_trader` historically wrote `reason` into `paper_positions.recommendation`, so
+the signal_downgrade SELL rule at `:264` (`old_rec in _BUY_RECS`, where `_BUY_RECS =
+{"BUY","STRONG_BUY"}`) **can never match those rows -- structurally dead.**
+
+**A held position whose analysis downgrades to HOLD or SELL cannot be sold by that
+rule.** That is why this is a money-relevant ask rather than a tidy-up.
+
+**NEEDS: a decision on two DARK flags, both measured `False`:**
+
+| flag | source | note |
+|---|---|---|
+| `paper_position_recommendation_fix_enabled` | `settings.py:210` | phase-61.2; its own description says *"SEPARATE flag because its blast radius is SELL"* |
+| `paper_recommendation_vocab_fix_enabled` | `settings.py:214` | phase-86.20; canonicalises onto the closed set |
+
+**I have not touched either** -- the standing constraints forbid flag promotions
+outright, and this one deserves the caution: `portfolio_manager.py:208-218` already
+warns in source that reviving signal_downgrade means **"HOLDs can trigger
+signal_downgrade SELLs of healthy positions."** So promotion is not one line; the
+revived rule sells on HOLD, and 86.58's criteria require that blast radius be
+**measured** before anyone flips it.
+
+**The good news, which is real:** the 86.20 guard did exactly its job. Before it, this
+row was dropped **silently**. Tonight it was **loud, in production, within hours of
+shipping.** Whatever you decide about the flags, do not let a fix quiet that log line.
+
 ---
 
 ## Not asks -- just so they are not lost

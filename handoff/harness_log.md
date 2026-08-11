@@ -34294,3 +34294,52 @@ CONDITIONAL counter resets on a FAIL, so the next verdict is unconstrained.
 membership I asserted where I had not run the derivation. That is the pattern of the
 day, and it is recorded in memory as `a-range-can-hide-its-counterexample` and
 `guard-from-instance-not-class`.
+
+## Cycle 1225 -- 2026-08-11 -- phase=OBSERVE result=CYCLE-COMPLETED (book cycle, not a step)
+
+**The 20:00 CEST book cycle ran and completed.** Recorded as an observation, not a
+graded step -- no criteria, no verdict, no flip.
+
+```
+start   2026-08-11 20:00:02     end 2026-08-11 21:21:29
+wall    4,887s                  budget 10,800s -> 5,913s HEADROOM (55% unused)
+NAV     $23,881.12              P&L +19.41%   trades=0   cost $0.51
+pid     66306 -- the SAME process whose 10800.0 I read directly from /api/settings/
+```
+
+**THIS CLOSES 86.9's INFERENCE GAP.** Yesterday's qualifying cycle ran under pid
+43839, which had exited, so its budget had to be reconstructed from startup lines.
+**Tonight's ran under a live pid whose value I read directly** -- criterion 2 now has
+a MEASURED sample. It also finished **2,313s inside the OLD 7,200s budget**, so on a
+second consecutive cycle the raise remains unexercised.
+
+**THE STANDING QUESTION -- "does a healthy cycle place trades?" -- ANSWERED: not
+tonight, and not because the funnel was empty.** My first reading of the log said the
+funnel starved at screening; **I checked and that was wrong.** Derived:
+
+```
+583 tickers (US/EU/KR) -> 577 passed filters -> 10 meta-scored
+  -> 6 analyzed (5 new + 1 re-eval) -> 1 signal logged -> 0 buys, 0 sells
+```
+
+Candidates died at the **RISK GATE**: `decision=REJECT, risk_level=HIGH, position=0%`
+twice, plus `Lite risk judge for NTAP: decision=REJECT position_pct=1.0
+risk_level=EXTREME`. With a 90-day BUY rate of 21.1%, one zero-trade cycle is
+variance -- but this is **two consecutive completed cycles at zero**, and tonight's is
+a risk-gate decision rather than an empty funnel.
+
+**THE 86.20 GUARD FIRED IN PRODUCTION, HOURS AFTER SHIPPING, AND CAUGHT SOMETHING
+REAL.** `UNRECOGNISED recommendation 'new_buy_signal' (held position row
+ticker=NTAP)`. That is **not** a missing vocabulary word -- it is an order **reason**
+in a **recommendation** field, which `portfolio_manager.py:49-56` already documents as
+making the signal_downgrade SELL rule **structurally dead** on such rows. **A held
+position that downgrades cannot be sold by that rule.** Filed **86.58 (P1)**; the fix
+sits behind two DARK flags, both measured `False`, and promotion is **ask 06-8** --
+not taken, because the source itself warns the revived rule sells on HOLD.
+
+**Also logged, not investigated**: `Promoted strategy BQ unavailable, falling back to
+optimizer_best: 404` at cycle start, and `MetaCoordinator decision: perf_opt (p95
+latency 6267ms > 500ms threshold)`.
+
+**The freeze is over** (cycle completed 21:21). The deferred D2 backend restart
+(`pending_restart_2026-08-11.md`) is now safe to perform.
