@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-11 | `58f6d372` | phase-86.34: [P3 -- THREE NOTE-LEVEL DEFECTS THE 86.24 PASS SURFACED AND DELIBERATELY DID NOT FIX... |
 | 2026-08-11 | `7602e3e2` | phase-86.36: PLAN -- contract written after a PASSED research gate |
 | 2026-08-11 | `c116e63a` | phase-86.38: PRE-CONTRACT measurement -- lite-fallback census with a coverage assertion |
 | 2026-08-11 | `a18ab6c7` | phase-86.40: queue the stale comment blessing the defect 86.25 removed |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-10 | `b1427909` | phase-86.31: the mechanism proved itself on a REAL rail drop |
 | 2026-08-10 | `b96b5551` | docs: goal -- parked steps are NOT equivalent; 86.25 closeable, 86.30 never closeable |
 | 2026-08-10 | `219136e4` | phase-86.31: harness_log cycle 1208 -- FAIL by escalation; all 7 criteria MET, mechanism sound |
-| 2026-08-10 | `9df1239f` | phase-86.31 cycle 3: correct both claim-accuracy defects the FAIL named |
 
 ---
 
+### v6.93.96 — phase-86.34: [P3 -- THREE NOTE-LEVEL DEFECTS THE 86.24 PASS SURFACED... (2026-08-11)
+
+- **phase-86.34: [P3 -- THREE NOTE-LEVEL DEFECTS THE 86.24 PASS SURFACED AND DELIBERATELY DID NOT FIX...**
 ### v6.93.95 — phase-86.36: PLAN -- contract written after a PASSED research gate (2026-08-11)
 
 - **phase-86.36: PLAN -- contract written after a PASSED research gate**
