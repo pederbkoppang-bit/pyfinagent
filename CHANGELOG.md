@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-11 | `a18ab6c7` | phase-86.40: queue the stale comment blessing the defect 86.25 removed |
 | 2026-08-11 | `630fa95b` | phase-86.25: [P2 -- A RISK-APPROVAL VOCABULARY IS PASSED WHERE A BUY/SELL RECOMMENDATION IS EXPEC... |
 | 2026-08-11 | `a33640a4` | phase-86.31: sync the machine-readable verdict -- it still held cycle 1's CONDITIONAL |
 | 2026-08-11 | `f3a3a4bb` | phase-86.34: rescue the dropped cycle-3 Q/A record; fix two stale line pointers |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-10 | `9df1239f` | phase-86.31 cycle 3: correct both claim-accuracy defects the FAIL named |
 | 2026-08-10 | `fc17b0d1` | phase-86.31: record cycle-3 Q/A verdict VERBATIM -- FAIL by escalation |
 | 2026-08-10 | `9bf5e78b` | phase-86.31: add the execution-based separation proof + corrected production figures to the live_che |
-| 2026-08-10 | `d4638584` | fix(86.31): drop unused import -- I committed an F401 because my '&&' guarded only the echo, not the |
 
 ---
 
+### v6.93.93 — phase-86.40: queue the stale comment blessing the defect 86.25 removed (2026-08-11)
+
+- **phase-86.40: queue the stale comment blessing the defect 86.25 removed**
 ### v6.93.92 — phase-86.25: [P2 -- A RISK-APPROVAL VOCABULARY IS PASSED WHERE A BUY/... (2026-08-11)
 
 - **phase-86.25: [P2 -- A RISK-APPROVAL VOCABULARY IS PASSED WHERE A BUY/SELL RECOMMENDATION IS EXPEC...**
