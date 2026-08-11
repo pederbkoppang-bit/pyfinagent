@@ -14,8 +14,8 @@ that **no verdict resets**, incrementing on **ATTEMPT rather than OUTCOME**.
 | File | Role |
 |---|---|
 | `scripts/harness/attempt_budget.py` | NEW -- the budget, the 86.28 fixture, and a faithful reimplementation of the legacy rule for comparison |
-| `backend/tests/test_phase_86_32_attempt_budget.py` | NEW -- 13 tests, two of them exhaustive rather than illustrative |
-| `scripts/qa/mutation_matrix_86_32.py` | NEW -- 6 cells |
+| `backend/tests/test_phase_86_32_attempt_budget.py` | NEW -- 15 tests, two exhaustive rather than illustrative, plus a guard that READS the 86.28 record |
+| `scripts/qa/mutation_matrix_86_32.py` | NEW -- 8 cells (M7/M8 pin the cycle-1 fixture defect) |
 | `CLAUDE.md` | F1b documented immediately after F1 (criterion 1) |
 
 ## 2. Immutable success criteria -- VERBATIM
@@ -86,21 +86,41 @@ red.
 
 ### Criterion 5 -- the 86.28 replay
 
-**The fixture is DERIVED, not transcribed.** Parsed in document order from
-`evaluator_critique_86.28_history.md`: 8 distinct workflow run ids, 5 carrying a
-recorded verdict, **3 carrying none**. Those 3 independently corroborate the
-step's own "three rail failures", which is why the sequence is trusted.
+> **THIS SECTION WAS THE REASON FOR THE CYCLE-1 FAIL. It is rebuilt from the
+> record.**
+>
+> The original fixture was built by parsing `evaluator_critique_86.28_history.md`
+> in **document order**, scraping `wf_*` ids and verdict headings and pairing them
+> positionally. That file holds **two populations of run id** -- Q/A attempts, and
+> the 86.28 author's own live `research-gate.js` evidence runs -- and a positional
+> parse cannot separate them. **3 of 8 rows were not attempts** (one,
+> `wf_23d9ed4b-22c`, actually SUCCEEDED at `agentCount 0 / totalTokens 0 /
+> durationMs 5`, and I recorded it as a drop), **2 outcomes were inverted**, and
+> **2 real attempts were missing**.
+>
+> My justification -- "the 3 no-verdict attempts corroborate that step's claim of
+> three rail failures" -- was **cardinality agreement over a different member
+> set**. Symmetric difference: 3 spurious, 2 omitted, out of 8. I hold a memory
+> entry on exactly this trap and reproduced it anyway.
+>
+> **An authoritative ledger existed and I did not read it**:
+> `evaluator_critique_86.28.md:9-27`, `## Verdict ledger`. I scraped prose while a
+> structured record sat one file away.
 
-| attempt | run | outcome |
-|---|---|---|
-| 1 | `wf_10c6cbd2-cad` | CONDITIONAL |
-| 2 | `wf_23d9ed4b-22c` | **NO VERDICT** |
-| 3 | `wf_d0934c91-70b` | CONDITIONAL |
-| 4 | `wf_4da39b31-695` | **NO VERDICT** |
-| 5 | `wf_e262facc-cdc` | CONDITIONAL |
-| 6 | `wf_01c83c86-09d` | FAIL |
-| 7 | `wf_344395f1-4ac` | CONDITIONAL |
-| 8 | `wf_60de95f7-5dc` | **NO VERDICT** |
+**The series, rebuilt** -- ledger rows 1-7 plus the cycle-7 drop from
+`live_check_86.28.md` §9 (**the ledger itself omits that drop**, which is darkly
+apt for a step about drops going uncounted):
+
+| # | cycle | run | outcome |
+|---|---|---|---|
+| 1 | 1 | `wf_10c6cbd2-cad` | CONDITIONAL |
+| 2 | 2 | `wf_d0934c91-70b` | CONDITIONAL |
+| 3 | 3 | `wf_01c83c86-09d` | **NO VERDICT** |
+| 4 | 3 | `wf_e262facc-cdc` | FAIL |
+| 5 | 4 | `wf_5a217e41-9b9` | CONDITIONAL |
+| 6 | 5 | `wf_344395f1-4ac` | CONDITIONAL |
+| 7 | 6 | `wf_9c55b720-ef3` | **NO VERDICT** |
+| 8 | 7 | `wf_e03ec2d0-c07` | **NO VERDICT** |
 
 ```json
 {
@@ -115,17 +135,25 @@ step's own "three rail failures", which is why the sequence is trusted.
 }
 ```
 
-**It terminates at attempt 5, and the reasoning is the whole point.** Under F1 the
-counter ends at **0**: the FAIL at attempt 6 raises it to 1, and the CONDITIONAL at
-attempt 7 wipes it. It never approaches 3, so **F1 would have let this run
-forever** -- attempts 7 and 8 happened *after* a FAIL. Three attempts were
-invisible to it entirely.
+**Terminates at attempt 5. The CORRECTED reasoning:** under F1 the counter ends at
+**0** -- the FAIL at **attempt 4** raises it to 1, and the CONDITIONAL at
+**attempt 5** wipes it. (The earlier revision said "attempt 7 wipes attempt 6",
+describing attempts that do not exist in the record.) Three attempts were
+invisible to F1 entirely.
 
-**A note on the 3rd-CONDITIONAL rule:** CONDITIONALs land at attempts 1, 3 and 5,
-and attempt 6 returned FAIL -- so the rule *did* fire, **as prose, by instructing
-the Q/A**. It still did not stop the loop, because nothing acts on the FAIL. That
-is consistent with the gate's finding that the rule is instructions-only
-(`verdict_history_86_21.py` is advisory and called by nothing).
+**THE GUARD NOW READS THE RECORD.** The replaced test asserted `len == 8`, `3
+NO_VERDICT`, `4 CONDITIONAL`, `1 FAIL`, `8 distinct ids` -- every one a property of
+the fixture **constant**, never opening a file. The Q/A ran its exact body against
+both the wrong and the right sequence and got **PASS/PASS**.
+`test_fixture_matches_the_recorded_ledger` now parses the ledger off disk and
+compares `(run_id, outcome)` pairs by **symmetric difference**, then by order.
+Proven to discriminate: with the drop/FAIL pair inverted it fails, where the old
+guard passed. Cells **M7** and **M8** pin both halves of the original defect.
+
+**On the headline surviving:** the replay numbers are unchanged, because no PASS
+appears anywhere and exhaustion-at-5 is therefore order-independent. **That is
+luck, not method.** The conclusion survived a broken derivation; the derivation
+did not.
 
 ### Criterion 6 -- nothing about Q/A rigor changed
 

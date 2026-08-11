@@ -229,21 +229,56 @@ class BudgetState:
 
 # ── criterion 5: the 86.28 regression fixture ────────────────────────────
 #
-# DERIVED, not transcribed from the step text: parsed in document order from
-# `handoff/current/evaluator_critique_86.28_history.md` -- 8 distinct workflow run
-# ids, 5 carrying a recorded verdict and 3 carrying none. The 3 no-verdict
-# attempts independently corroborate that step's own claim of "three rail
-# failures", which is why this sequence is trusted as the fixture.
-FIXTURE_86_28: list[tuple[str, Outcome]] = [
-    ("wf_10c6cbd2-cad", Outcome.CONDITIONAL),
-    ("wf_23d9ed4b-22c", Outcome.NO_VERDICT),
-    ("wf_d0934c91-70b", Outcome.CONDITIONAL),
-    ("wf_4da39b31-695", Outcome.NO_VERDICT),
-    ("wf_e262facc-cdc", Outcome.CONDITIONAL),
-    ("wf_01c83c86-09d", Outcome.FAIL),
-    ("wf_344395f1-4ac", Outcome.CONDITIONAL),
-    ("wf_60de95f7-5dc", Outcome.NO_VERDICT),
+# REBUILT FROM THE RECORD after the cycle-1 Q/A FAILED this step (2026-08-11).
+#
+# THE ORIGINAL FIXTURE WAS WRONG AND THE FAILURE MODE IS WORTH KEEPING.
+# It was built by parsing `evaluator_critique_86.28_history.md` in DOCUMENT ORDER,
+# scraping `wf_*` ids and verdict headings and pairing them positionally. That file
+# contains TWO DIFFERENT POPULATIONS of run id -- Q/A attempts, and the 86.28
+# author's own live `research-gate.js` evidence runs -- and a positional parse
+# cannot tell them apart. Result: 3 of 8 rows were not attempts at all (one of
+# them, wf_23d9ed4b-22c, SUCCEEDED: agentCount 0 / totalTokens 0 / durationMs 5,
+# recorded as a drop), 2 outcomes were inverted, and 2 real attempts were missing.
+#
+# The justification offered for trusting it -- "the 3 no-verdict attempts
+# corroborate that step's claim of three rail failures" -- was pure CARDINALITY
+# AGREEMENT over a different member set. Symmetric difference: 3 spurious, 2
+# omitted, out of 8.
+#
+# Each row now carries its SOURCE, and `test_fixture_matches_the_recorded_ledger`
+# re-derives the sequence from those files rather than asserting properties of this
+# constant. A fixture that cannot be checked against the record is not a fixture.
+#
+# NOTE THE LEDGER ITSELF IS INCOMPLETE, which is darkly apt for this step: the
+# `## Verdict ledger` table records 7 attempts and OMITS the cycle-7 drop, which
+# lives only in `live_check_86.28.md` §9. A drop went unrecorded in the very ledger
+# whose subject is drops going unrecorded.
+#
+# (cycle, run_id, outcome, source)
+FIXTURE_86_28_ROWS: list[tuple[int, str, Outcome, str]] = [
+    (1, "wf_10c6cbd2-cad", Outcome.CONDITIONAL, "evaluator_critique_86.28.md::ledger"),
+    (2, "wf_d0934c91-70b", Outcome.CONDITIONAL, "evaluator_critique_86.28.md::ledger"),
+    (3, "wf_01c83c86-09d", Outcome.NO_VERDICT,  "evaluator_critique_86.28.md::ledger"),
+    (3, "wf_e262facc-cdc", Outcome.FAIL,        "evaluator_critique_86.28.md::ledger"),
+    (4, "wf_5a217e41-9b9", Outcome.CONDITIONAL, "evaluator_critique_86.28.md::ledger"),
+    (5, "wf_344395f1-4ac", Outcome.CONDITIONAL, "evaluator_critique_86.28.md::ledger"),
+    (6, "wf_9c55b720-ef3", Outcome.NO_VERDICT,  "evaluator_critique_86.28.md::ledger"),
+    (7, "wf_e03ec2d0-c07", Outcome.NO_VERDICT,  "live_check_86.28.md::section-9"),
 ]
+
+FIXTURE_86_28: list[tuple[str, Outcome]] = [
+    (run_id, outcome) for _cycle, run_id, outcome, _src in FIXTURE_86_28_ROWS
+]
+
+# Run ids that appear in the 86.28 artifacts but are NOT Q/A attempts. Named so a
+# future parse cannot silently re-absorb them: this is the exact set the original
+# fixture mistook for attempts, plus the audit and gate runs.
+NOT_QA_ATTEMPTS_86_28: set[str] = {
+    "wf_23d9ed4b-22c",  # live research-gate.js evidence run (SUCCEEDED)
+    "wf_4da39b31-695",  # live research-gate.js evidence run
+    "wf_60de95f7-5dc",  # the step's own research GATE run
+    "wf_d61fef3b-25c",  # audit run, report-only
+}
 
 
 def legacy_consecutive_fails(seq: list[Outcome]) -> int:

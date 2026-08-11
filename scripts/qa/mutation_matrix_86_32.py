@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 """phase-86.32 mutation matrix -- is the attempt budget's suite load-bearing?
 
-Six cells, each breaking exactly one property the budget claims. Every cell names
+Eight cells, each breaking exactly one property the step claims. Six target the
+budget's logic; M7 and M8 reproduce the two halves of the fixture defect that
+FAILED this step at cycle 1 -- an inverted outcome pair, and a research-gate run
+posing as a Q/A attempt -- so neither can recur silently. Every cell names
 the test that must go red; a cell whose reds are all in OTHER tests is reported
 MIS-ATTRIB, not KILLED, because a red somewhere is not evidence about the property
 under test.
@@ -117,6 +120,25 @@ CELLS = [
             return ""
 """,
         "expect_named": ["test_no_summary_when_not_exhausted"],
+    },
+    {
+        "id": "M7-fixture-outcomes-inverted",
+        "what": "reproduce the SHIPPED cycle-1 defect: invert the drop/FAIL pair",
+        "old": """    (3, "wf_01c83c86-09d", Outcome.NO_VERDICT,  "evaluator_critique_86.28.md::ledger"),
+    (3, "wf_e262facc-cdc", Outcome.FAIL,        "evaluator_critique_86.28.md::ledger"),""",
+        "new": """    (3, "wf_01c83c86-09d", Outcome.FAIL,        "evaluator_critique_86.28.md::ledger"),
+    (3, "wf_e262facc-cdc", Outcome.NO_VERDICT,  "evaluator_critique_86.28.md::ledger"),""",
+        "expect_named": ["test_fixture_matches_the_recorded_ledger"],
+    },
+    {
+        "id": "M8-non-attempt-leaks-in",
+        "what": "reproduce the other half: a research-gate run posing as an attempt",
+        "old": """    (1, "wf_10c6cbd2-cad", Outcome.CONDITIONAL, "evaluator_critique_86.28.md::ledger"),""",
+        "new": """    (1, "wf_23d9ed4b-22c", Outcome.NO_VERDICT, "evaluator_critique_86.28.md::ledger"),""",
+        "expect_named": [
+            "test_fixture_matches_the_recorded_ledger",
+            "test_no_non_attempt_run_id_leaked_into_the_fixture",
+        ],
     },
 ]
 

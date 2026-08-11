@@ -410,9 +410,18 @@ files (the `archive-handoff` hook handles the rotation).
     residuals queued -- reachable ONLY from an actual Q/A PASS, so a FAIL
     stays a FAIL under every flag combination (mutation cell M4).
   Regression fixture: the 86.28 series (8 attempts, 5 verdicts, **3 rail
-  drops**). Replayed, the new rule terminates at **attempt 5**; F1's counter
-  ends at **0** and would never have terminated, because the CONDITIONAL at
-  attempt 7 wipes the FAIL at attempt 6.
+  drops**) -- `[C, C, NV, F, C, C, NV, NV]`, rebuilt from the `## Verdict
+  ledger` in `evaluator_critique_86.28.md` plus the cycle-7 drop recorded in
+  `live_check_86.28.md` §9. Replayed, the new rule terminates at **attempt
+  5**; F1's counter ends at **0** and would never have terminated, because
+  **the CONDITIONAL at attempt 5 wipes the FAIL at attempt 4**.
+  *(Corrected 2026-08-11: an earlier revision of this line said "the
+  CONDITIONAL at attempt 7 wipes the FAIL at attempt 6". That came from a
+  fixture built by parsing a history file in DOCUMENT ORDER, which conflated
+  Q/A attempts with the author's own research-gate evidence runs -- 3
+  non-attempts included, 2 outcomes inverted, 2 real attempts omitted. Caught
+  by the 86.32 cycle-1 Q/A, which FAILED the step for it. The ledger is the
+  source of truth; note it too omits the cycle-7 drop.)*
 - F2 (research-on-demand): planner emits `research_needed` flag
   with a 4-key brief (objective / output_format / tool_scope /
   task_boundaries). The harness reads this and re-spawns research

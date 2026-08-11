@@ -157,3 +157,31 @@ this step touches nothing on the analysis path.
   arXiv 2310.01798; arXiv 2303.17651
 - `scripts/harness/run_harness.py:1109,1160-1177`; `scripts/generate_masterplan.py:203`;
   masterplan step 75.5
+
+---
+
+## ANNOTATION (appended 2026-08-11 after the cycle-1 Q/A FAIL -- ORIGINAL TEXT ABOVE UNCHANGED)
+
+**Harness-compliance finding, accepted.** The Q/A found this contract carries no
+verbatim immutable-criteria block. The five-file protocol requires the contract to
+contain *"immutable success criteria copied verbatim from `.claude/masterplan.json`"*,
+and I deferred them to `experiment_results` §2 instead. Supplied here rather than
+edited into the frozen text above:
+
+> 1. a TOTAL-attempt budget per step exists alongside the consecutive counters, and it is documented where F1 is documented so the two are read together rather than one overriding the other silently
+
+> 2. the budget counts DROPPED/errored spawns explicitly -- as attempts against a cost ceiling even though they are not verdicts -- because on 86.28 three rail failures extended the loop at no counter cost while spending ~556K tokens
+
+> 3. on exhaustion the harness ESCALATES TO THE OPERATOR with a written summary rather than either auto-passing or auto-failing: what is verified, what is outstanding, and the residuals to queue. Auto-pass on exhaustion is explicitly forbidden and a check must demonstrate it cannot happen
+
+> 4. PRODUCT-correct and EVIDENCE-complete are separable in the recorded outcome, so a step whose code is verified but whose instrumentation has residuals can close with those residuals queued as their own steps. The separation must NOT lower any existing threshold -- demonstrate on the 86.28 history that the 2026-08-10 FAIL for a fabricated transcript would STILL be a FAIL under the new scheme
+
+> 5. the 86.28 series is used as the regression fixture: replay its eight recorded outcomes against the new rule and state at which attempt it would have terminated, with the reasoning
+
+> 6. no verdict threshold, criterion, or Q/A rigor is changed; prove this by diffing qa.md and showing no criteria-affecting edit
+
+
+**Also superseded by the cycle-1 FAIL:** §3's claim that the 86.28 fixture was
+corroborated by "three rail failures" is FALSE -- that was cardinality agreement
+over a different member set. The true series is `[C, C, NV, F, C, C, NV, NV]`,
+rebuilt from the ledger. See `evaluator_critique_86.32.md`.

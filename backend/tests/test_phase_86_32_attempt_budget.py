@@ -13,10 +13,14 @@ spawn invisible, or that lets exhaustion pass, must turn a NAMED test red.
 from __future__ import annotations
 
 import itertools
+import pathlib
+import re
 
 from scripts.harness.attempt_budget import (
     DEFAULT_MAX_ATTEMPTS,
     FIXTURE_86_28,
+    FIXTURE_86_28_ROWS,
+    NOT_QA_ATTEMPTS_86_28,
     BudgetState,
     Disposition,
     Outcome,
@@ -186,16 +190,82 @@ def test_pass_on_the_final_permitted_attempt_still_closes_green():
 # ── criterion 5: the 86.28 replay ────────────────────────────────────────
 
 
-def test_86_28_fixture_shape_matches_the_recorded_history():
-    """Precondition: if the fixture drifts, the replay proves nothing."""
-    assert len(FIXTURE_86_28) == 8
-    outcomes = [o for _, o in FIXTURE_86_28]
-    assert sum(1 for o in outcomes if o is Outcome.NO_VERDICT) == 3, (
-        "the recorded history has three rail failures; the fixture must match"
+def _parse_ledger_from_record() -> list[tuple[str, Outcome]]:
+    """Re-derive the 86.28 attempt series FROM THE RECORD ON DISK.
+
+    This is the whole point of the rewrite. The previous version of this guard
+    asserted `len == 8`, `3 NO_VERDICT`, `4 CONDITIONAL`, `1 FAIL` and `8 distinct
+    ids` -- every one a property of the fixture CONSTANT. It never opened a file,
+    so it passed identically against the correct sequence and against a fixture
+    with 3 non-attempts, 2 inverted outcomes and 2 omissions. The cycle-1 Q/A ran
+    its exact body against both and got PASS/PASS.
+    """
+    root = pathlib.Path(__file__).resolve().parents[2]
+    ledger = (root / "handoff" / "current" / "evaluator_critique_86.28.md").read_text(
+        errors="replace"
     )
-    assert sum(1 for o in outcomes if o is Outcome.CONDITIONAL) == 4
-    assert sum(1 for o in outcomes if o is Outcome.FAIL) == 1
-    assert len({r for r, _ in FIXTURE_86_28}) == 8, "run ids must be distinct"
+    rows: list[tuple[str, Outcome]] = []
+    # | # | cycle | `wf_...` | VERDICT | headline |
+    row_re = re.compile(
+        r"^\|\s*[\d-]+\s*\|\s*(\d+)\s*\|\s*`(wf_[0-9a-f]{8}-[0-9a-z]{3})`\s*\|\s*"
+        r"\**([A-Z]+)\**",
+        re.M,
+    )
+    for m in row_re.finditer(ledger):
+        raw = m.group(3).upper()
+        rows.append((m.group(2), Outcome.NO_VERDICT if raw == "DROPPED" else Outcome(raw)))
+    return rows
+
+
+def test_fixture_matches_the_recorded_ledger():
+    """The guard that the cycle-1 FAIL was about. It READS the record.
+
+    Compared by SYMMETRIC DIFFERENCE over (run_id, outcome) pairs, never by count:
+    two sequences with equal cardinality can cover different members, which is
+    exactly how the original fixture passed its own check.
+    """
+    recorded = _parse_ledger_from_record()
+    assert len(recorded) >= 7, (
+        f"parsed only {len(recorded)} ledger rows -- the parser is broken, and a "
+        "broken parser must fail loudly rather than silently agreeing"
+    )
+    fixture_prefix = FIXTURE_86_28[: len(recorded)]
+    missing = set(recorded) - set(fixture_prefix)
+    spurious = set(fixture_prefix) - set(recorded)
+    assert not missing and not spurious, (
+        f"fixture does not match the ledger.\n  missing from fixture: {sorted(missing)}"
+        f"\n  spurious in fixture: {sorted(spurious)}"
+    )
+    assert fixture_prefix == recorded, (
+        f"same members, WRONG ORDER.\n  ledger : {recorded}\n  fixture: {fixture_prefix}"
+    )
+
+
+def test_the_eighth_attempt_is_documented_where_the_fixture_says_it_is():
+    """The ledger table omits the cycle-7 drop; it lives in live_check §9.
+
+    Asserted against the file rather than trusted, because the fixture's own
+    provenance string is just as capable of being wrong as its outcome was.
+    """
+    root = pathlib.Path(__file__).resolve().parents[2]
+    lc = (root / "handoff" / "current" / "live_check_86.28.md").read_text(errors="replace")
+    cycle, run_id, outcome, source = FIXTURE_86_28_ROWS[-1]
+    assert cycle == 7 and outcome is Outcome.NO_VERDICT
+    assert run_id in lc, f"{run_id} is not in live_check_86.28.md -- provenance is false"
+    assert "dropped without a verdict" in lc, "the drop is not recorded as a drop"
+    assert "live_check_86.28.md" in source
+
+
+def test_no_non_attempt_run_id_leaked_into_the_fixture():
+    """The original defect, pinned so it cannot recur.
+
+    Three research-gate/audit runs were mistaken for Q/A attempts by a positional
+    parse of a file containing two populations of run id.
+    """
+    ids = {r for r, _ in FIXTURE_86_28}
+    leaked = ids & NOT_QA_ATTEMPTS_86_28
+    assert not leaked, f"non-attempt run ids in the fixture: {sorted(leaked)}"
+    assert len(ids) == len(FIXTURE_86_28), "run ids must be distinct"
 
 
 def test_86_28_replay_terminates_where_the_legacy_rule_never_would():

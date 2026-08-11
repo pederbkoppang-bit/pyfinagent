@@ -1,16 +1,31 @@
 # live_check -- step 86.32
 
-Required by `verification.live_check`: the 86.28 eight-attempt replay against
-the new rule showing where it terminates; the demonstration that a
-fabricated-transcript FAIL is still a FAIL; and the check proving exhaustion
-cannot auto-pass.
+Required: the 86.28 eight-attempt replay showing where it terminates; the
+demonstration that a fabricated-transcript FAIL is still a FAIL; and the check
+proving exhaustion cannot auto-pass.
 
-Captured 2026-08-11 by Main (`pyfinagent-06`). All output verbatim from
-`scripts/harness/attempt_budget.py`.
+**Regenerated 2026-08-11 after the cycle-1 Q/A FAIL.** The previous revision's
+per-attempt table misattributed 3 of 5 printed rows.
 
 ---
 
 ## 1. The 86.28 eight-attempt replay -- where it terminates
+
+The fixture is REBUILT FROM THE RECORD after the cycle-1 Q/A FAILED this
+step for using a sequence that was not the 86.28 series. Each row carries its
+source; `test_fixture_matches_the_recorded_ledger` re-derives it from those
+files rather than asserting properties of the constant.
+
+| # | cycle | run | outcome | source |
+|---|---|---|---|---|
+| 1 | 1 | `wf_10c6cbd2-cad` | CONDITIONAL | evaluator_critique_86.28.md::ledger |
+| 2 | 2 | `wf_d0934c91-70b` | CONDITIONAL | evaluator_critique_86.28.md::ledger |
+| 3 | 3 | `wf_01c83c86-09d` | **NO VERDICT** | evaluator_critique_86.28.md::ledger |
+| 4 | 3 | `wf_e262facc-cdc` | FAIL | evaluator_critique_86.28.md::ledger |
+| 5 | 4 | `wf_5a217e41-9b9` | CONDITIONAL | evaluator_critique_86.28.md::ledger |
+| 6 | 5 | `wf_344395f1-4ac` | CONDITIONAL | evaluator_critique_86.28.md::ledger |
+| 7 | 6 | `wf_9c55b720-ef3` | **NO VERDICT** | evaluator_critique_86.28.md::ledger |
+| 8 | 7 | `wf_e03ec2d0-c07` | **NO VERDICT** | live_check_86.28.md::section-9 |
 
 ```json
 {
@@ -26,14 +41,13 @@ Captured 2026-08-11 by Main (`pyfinagent-06`). All output verbatim from
 ```
 
 ### The escalation it produces
-
 ```
 # BUDGET EXHAUSTED -- step 86.28 -- OPERATOR DECISION REQUIRED
 
 - attempts used : 5 / 5
 - tokens used   : 0 / 1,200,000
-- verdicts seen : 3  (so 2 attempt(s) produced NO verdict and cost tokens anyway)
-- outcome mix   : {'CONDITIONAL': 3, 'NO_VERDICT': 2}
+- verdicts seen : 4  (so 1 attempt(s) produced NO verdict and cost tokens anyway)
+- outcome mix   : {'CONDITIONAL': 3, 'NO_VERDICT': 1, 'FAIL': 1}
 
 ## THIS IS NOT A PASS AND NOT A FAIL
 
@@ -50,35 +64,31 @@ which says nothing about whether the work is correct.
 ## Per-attempt record
 
 - attempt 1: CONDITIONAL  run=wf_10c6cbd2-cad
-- attempt 2: NO_VERDICT  run=wf_23d9ed4b-22c
-- attempt 3: CONDITIONAL  run=wf_d0934c91-70b
-- attempt 4: NO_VERDICT  run=wf_4da39b31-695
-- attempt 5: CONDITIONAL  run=wf_e262facc-cdc
+- attempt 2: CONDITIONAL  run=wf_d0934c91-70b
+- attempt 3: NO_VERDICT  run=wf_01c83c86-09d
+- attempt 4: FAIL  run=wf_e262facc-cdc
+- attempt 5: CONDITIONAL  run=wf_5a217e41-9b9
 ```
 
 ## 2. A fabricated-transcript FAIL is STILL a FAIL
-
 ```
-  close_kind(product_verified=True , evidence_complete=True ) -> CONTINUE
-  close_kind(product_verified=True , evidence_complete=False) -> CONTINUE
-  close_kind(product_verified=False, evidence_complete=True ) -> CONTINUE
-  close_kind(product_verified=False, evidence_complete=False) -> CONTINUE
+  close_kind(product=True , evidence=True ) -> CONTINUE
+  close_kind(product=True , evidence=False) -> CONTINUE
+  close_kind(product=False, evidence=True ) -> CONTINUE
+  close_kind(product=False, evidence=False) -> CONTINUE
 
-  No combination yields CLOSED_COMPLETE or CLOSED_PRODUCT_RESIDUALS_QUEUED.
-  The residuals door is reachable ONLY from an actual Q/A PASS.
+  No combination closes. The residuals door needs an actual Q/A PASS.
 ```
 
 ## 3. Exhaustion cannot auto-pass
-
 ```
-  exhaustive sweep over every non-PASS sequence, length 1..6
-    sequences examined : 1092
+  exhaustive sweep, lengths 1..6
+    sequences examined  : 1092
     yielding CLOSED_PASS: 0
-  -> auto-pass on exhaustion is unreachable (1092 sequences, 0 passes)
 ```
 
-## 4. Scope note
+## 4. Scope
 
-The budget is **not yet wired into `run_harness.py`**. This capture proves the
-MECHANISM and its guards; it is not evidence that any production loop is
-currently bounded. The reset at `run_harness.py:1177` is documented, not edited.
+The budget is **not wired into `run_harness.py`**. This proves the MECHANISM;
+it is not evidence that any production loop is bounded. `run_harness.py:1177`
+is documented, not edited.
