@@ -234,3 +234,84 @@ edit, no paraphrase, no reordering.
 ## notes
 
 WIP write-first record: /Users/ford/.openclaw/workspace/pyfinagent/.claude/agent-memory/qa/verdicts/verdict_wip_86.9__20260811T141151Z.md (STATUS: COMPLETE; it is evidence, not a verdict). VERDICT SCOPE: harness_log.md has exactly ONE '## Cycle' row for phase=86.9 (line 34081, Cycle 1221, CONDITIONAL), so this is the 2nd and the 3rd-CONDITIONAL auto-FAIL does NOT bind; note grep -c 'phase=86\\.9 ' returns 2 because hit #2 is your own prose about the grep. retry_count=0 < max_retries=3. TWO BASH COMMANDS WERE DENIED by the permission system, both reading backend/.env values (a full value-by-value diff against the backup, and a stat/ls over backend/). I did not work around them. Consequence: criterion 6's 'exactly ONE changed value' is corroborated by key-NAME symmetric difference (empty, 51 vs 51) plus the one key I could read directly (PAPER_CYCLE_MAX_SECONDS 7200.0 -> 10800.0) and PAPER_MAX_PER_SECTOR unchanged at 5 -- it is NOT exhaustively re-derived by me. I grade criterion 6 MET on that basis and flag the limit rather than implying full coverage. Sections 1a/1b/1c are N/A BY DERIVATION, not green: git diff --name-only HEAD -- '*.py' and git ls-files --others -- '*.py' are both EMPTY, correct for a step that deliberately changed nothing, and there are no UI claims. THINGS THAT DESERVE THE RECORD: all four cycle-1 remediations landed and I checked each one (8554/8529 now at experiment_results:177 and :189, matching research_brief_86.9.md:397 verbatim; the FOUR-sites undercount replaced by an enumeration including cycle_lock.py; the #24 figures dated to research_brief_85.4.md:321 as PRE-fix and reconciled against 0.66%; 'six archives' corrected to one archive holding six cycles). The self-incriminating trailing-slash retraction in §1 is true. §9 'What is NOT claimed' and the MEASURED/INFERRED table are real scope honesty and are why every finding here is WARN/NOTE and none is a criterion miss. ON THE QUESTION YOU ASKED DIRECTLY: neither of the two answers you offered is right. Criterion 2 is not unmet, and 'satisfied but weakly' is not the honest grade either -- it is honest in direction but false in its premise. You measured pid 66306's start time, found it post-dated the cycle, and stopped. The next query was 'then who ran it, and when did THAT start', and it is answerable in one grep of the archive: pid 43839, 2026-08-09 22:11:55 CEST, six hours after the .env write. That is the 'guards stop one seam short' class, applied to your own evidence rather than to a guard. ONE ITEM WORTH FILING SEPARATELY (not a blocker): the research gate ran with WebSearch exhausted 200/200 so the mandatory three-variant discipline did not run -- .claude/rules/research-gate.md calls a single-variant search a protocol breach. You disclosed it in both the contract and the spawn prompt and the load-bearing findings are internal measurements I re-derived myself, so it does not cap this verdict; but a gate that can silently degrade when a shared session budget is exhausted, with no mechanical record in the envelope, is a harness defect and belongs in 86.21's orbit.
+
+
+---
+
+# CYCLE 3 VERDICT -- transcribed VERBATIM from the Workflow return (2026-08-11T16:42:05)
+
+Run `wf_cd7339e2-5d9`. Main records the verdict; Main never authors it.
+
+**verdict**: `FAIL` | **ok**: `False` | **harness_compliance_ok**: `True` | **certified_fallback**: `False`
+
+## reason
+
+> All 6 immutable criteria are MET in substance and I re-derived every one independently (live endpoint 10800.0 from listener pid 66306 started 2026-08-10 21:33:01; measure_analysis_phase.py reproduces wall=4532.113s / mean 1315.2s / parallelism 1.85 / cc_rail 152-1-0.0066 numerically identically; the pid-43839 chain verified from a contiguous archive+live log pair; _run_single_analysis lines 2088-2305 contain ZERO timeout/wait_for/TimeoutError tokens; cycle_health.py:61=93_600.0 and :80=345_600.0 with 3.85%/1.04% checking out; analyze_top_n=5 live and the .env backup retained). Harness compliance is clean and zero production files changed. All five cycle-2 findings are genuinely fixed: contract §4 is now byte-equal to masterplan.json on all six criteria, and §8's fenced census reproduces against /usr/bin/grep with symmetric difference 0 in BOTH directions AND in row order. However three claim defects remain, two of them in §7 -- the section answering the step's headline question. (F1, material) §7:238 attributes a "9.9%-23.4%" rail-timeout rate to "overrun cycles"; the overrun cycles are 14.9% and 18.1% (research_brief_86.9.md:382-383), and the range's endpoints belong to cycles #6 (9.88%) and #1 (23.39%), NEITHER of which overran -- #1 has the HIGHEST rate in the set and COMPLETED at 5,670s projected, a direct counterexample to §7(b)'s causal claim that the widened range conceals; Main's own contract §3:65 states the correct pair. (F2) §5:196 "five other measured cycles ran 9.9%-23.4%" is FOUR (#1,#2,#3,#6); two of the six others ran 0.0%. (F3) §7:239-240's "3.6x" divides subprocess-seconds by wall-seconds; the brief converts at parallelism 1.85 to ~2,600s wall and states the caveat against interest, giving ~1.95x. My judgment is CONDITIONAL (fixable claim defects, product state sound, nothing to revert). The header-anchored count grep -cE '^## Cycle [0-9]+ -- .* -- phase=86\.9 result=' returns 2 (Cycle 1221, 1222, both CONDITIONAL, no intervening PASS/FAIL), so this would be the THIRD consecutive CONDITIONAL and qa.md's 3rd-CONDITIONAL rule converts it to FAIL. ANSWERS TO THE GRADED-HARDEST QUESTIONS: §7's STRUCTURE is now correctly balanced (both halves stated, the 8554s/8529s-fit-inside-10800 rebuttal restored, n=1 disclosed, "nothing should be reverted") but its EVIDENCE is not -- two of half (b)'s three bullets misstate their own cited source. Criterion 4 IS fully answered on both the latency and the detection half as the masterplan words it. 86.54 is still a REAL defect, not vacuous: I measured that the correct -E form of its grep also returns 0 with a positive control at 1.
+
+## violated_criteria
+
+- criterion_5_supporting_evidence_misattributed
+- headline_conclusion_contradicts_its_own_source
+- third_consecutive_CONDITIONAL_auto_FAIL
+
+## violation_details
+
+### 1. Contradiction
+
+**action**: Read experiment_results_86.9.md:238 and re-derive the rail-timeout rate population from research_brief_86.9.md:380-386
+
+**state**: §7 states 'overrun cycles ran a 9.9%-23.4% rail-timeout rate; the healthy one ran 0.66%'. Ground truth from the brief's own table: the two overrun (terminal=timeout) cycles are #2 08-06 rate 0.1486 and #3 08-07 rate 0.1808. The range endpoints belong to cycle #6 (0.0988) and cycle #1 (0.2339), NEITHER of which overran -- cycle #1 carries the HIGHEST rail-timeout rate in the entire set and COMPLETED at a projected 5,670s. Main's own contract_86.9.md:65 states the correct pair '(18.1% / 14.9% vs a 0.66% baseline)'.
+
+**constraint**: qa.md §4b: every numeric or set-membership claim must reproduce against the command/source that produces it; a claim whose output does not reproduce is a Contradiction. MATERIAL because the widened range conceals cycle #1, a direct counterexample to §7(b)'s assertion that 'The overruns were produced by rail timeouts, not by batch size' -- the highest-rate cycle in the set did not overrun.
+
+### 2. Contradiction
+
+**action**: Read experiment_results_86.9.md:196 and count cycles in [9.9%, 23.4%] from the brief table
+
+**state**: §5 states 'five other measured cycles ran 9.9%-23.4%' as the honest case for ask #24. Actual membership is FOUR cycles (#1 23.4%, #2 14.9%, #3 18.1%, #6 9.9%); of the six non-#7 cycles, TWO (#4, #5) ran 0.0%. The figure was adopted verbatim from the cycle-2 critique (evaluator_critique_86.9.md:44) without re-derivation, and it overstates prevalence 4/6 -> 5/6 in the direction that supports the recommendation.
+
+**constraint**: Immutable criterion 5 requires asks #24/#25 be 're-evaluated against post-fix data'. The disposition is explicit so the criterion is met in form, but qa.md §4b requires the supporting count be DERIVED, not adopted -- and a reviewer-supplied number is exactly the kind that must be re-derived before it is restated as the author's own.
+
+### 3. Unjustified_Inference
+
+**action**: Check the unit consistency of experiment_results_86.9.md:239-240 against research_brief_86.9.md:413-417
+
+**state**: §7 states '32 x 150s = 4,800s of rail-timeout waste against a 1,329s overrun -- the waste is 3.6x the problem it caused'. 4,800 is SUBPROCESS-seconds; 1,329 is WALL-clock seconds. The brief performs the parallelism conversion (~1.85) to ~2,600s wall AND states the estimate caveat against interest ('I did not capture cycle 3's own parallelism figure'); the unit-consistent ratio is ~1.95x. §7 dropped both the conversion and the caveat, inflating the stated multiple by ~1.85x.
+
+**constraint**: qa.md §4b + code-review Dim-4: a derived figure must be reproducible in its stated units, and a source's stated-against-interest caveat may not be silently dropped when the figure is carried forward. The conclusion survives ('even halving it clears the overrun' -- brief) but the stated multiple does not reproduce.
+
+### 4. Unjustified_Inference
+
+**action**: grep -cE '^## Cycle [0-9]+ -- .* -- phase=86\.9 result=' handoff/harness_log.md
+
+**state**: Returns 2: Cycle 1221 result=CONDITIONAL (cycle 1) and Cycle 1222 result=CONDITIONAL (cycle 2), consecutive, with no intervening PASS or FAIL. Main's claim that the naive 'grep -c phase=86.9 ' returns an inflated 3 also reproduces -- the extra hit is a prose quote at harness_log.md:34087. My judgment on the merits above is CONDITIONAL (fixable claim defects; product state sound, nothing to revert), which would be the THIRD consecutive CONDITIONAL for this step-id.
+
+**constraint**: qa.md 'Constraints' + docs/runbooks/per-step-protocol.md §4 EVALUATE: 'If there are already 2+ result=CONDITIONAL entries for this step-id, return FAIL instead. Stacking a third CONDITIONAL means the harness is logging, not correcting.' The findings above are the SAME class (claims that do not reproduce against their own source) as both prior cycles, which is precisely the recurrence this rule exists to stop.
+
+
+## checks_run
+
+- harness_compliance_audit_5_item
+- immutable_verification_command_exit_0
+- criteria_immutability_md5_across_25_commits
+- git_scope_no_production_file_changed
+- artifact_first_appearance_ordering
+- research_gate_envelope_check
+- contract_section4_byte_equality_vs_masterplan
+- section8_census_symmetric_difference_and_order
+- measure_analysis_phase_independent_rerun
+- live_settings_endpoint_read
+- listener_pid_and_ps_lstart
+- log_startup_chain_reconstruction_archive_plus_live
+- env_backup_retention_and_byte_delta
+- source_inspection_run_single_analysis_timeout_scan
+- cycle_health_staleness_constants
+- claim_audit_numeric_reproduction
+- filed_step_vacuity_check_86_53_86_54
+- third_conditional_header_anchored_count
+- code_review_heuristics
+- evaluator_critique_prior_cycles
+
+## notes
+
+WRITE-FIRST RECORD: .claude/agent-memory/qa/verdicts/verdict_wip_86.9__20260811T143220Z.md (STATUS: COMPLETE). It is a crash-survival record, NOT a verdict -- this structured return is the deliverable. GATE APPLICABILITY: ruff F821/F401/F811 is N/A (git diff --name-only HEAD -- '*.py' is empty because NO .py file changed at all, not because a scope resolved to nothing -- git status confirms only audit jsonl, a researcher memory file and my own WIP are dirty). Frontend lint/tsc N/A (no frontend/** in the diff). Live UI capture gate N/A (no UI claims). Backend runtime smoke satisfied via the live :8000 /api/settings/ read rather than an import, since no backend module changed. BLOCKED CHECK, disclosed: a direct read of backend/.env (to confirm criterion 6 key-by-key myself) was DENIED by the permission system; I corroborated instead via the live endpoint (analyze_top_n=5) plus the byte delta backend/.env 6129 b vs .env.bak.20260809T155016 6128 b (+1 byte, consistent with 7200.0 -> 10800.0) and .env mtime 9 aug 15:50 unchanged since the raise -- that last fact also independently strengthens criterion 2's chain. DISCLOSURE (a) ASSESSED: the research gate's three-variant search discipline did not run (WebSearch 200/200 exhausted). Main discloses it prominently in contract §1. The enforced floors did clear (8 sources >= 5, 21 URLs >= 10, recency scan present, brief_status COMPLETE, gate_passed true) and every load-bearing finding is an internal measurement I re-derived myself, so I record this as a NOTE, not a blocker -- honest disclosure of a narrowed external half is the correct behaviour. DISCLOSURE (b): tonight's 20:00 CEST cycle has not run; criterion 2 does not depend on it (the 08-10 cycle satisfies it), and holding the flip for a second sample is a reasonable independent choice. DISCLOSURE (c) ACTED ON: I re-derived every clean grep rather than accepting it -- the §8 census (18 rows on both /usr/bin/grep and this shell's grep once -I is present), the harness_log counter (2 vs the naive 3), and the 86.54 grep (0 under BOTH the published literal form and the correct -E form, with 'Application startup complete' = 1 as a positive control). WHAT IS NOT WRONG WITH THIS STEP: the config value, the criteria coverage, and the recommendation set are all sound; nothing should be reverted, and the FAIL is not an instruction to change any production state. The remediation path is narrow -- correct three sentences in experiment_results §5/§7 so they reproduce against research_brief_86.9.md:380-386, and state plainly that cycle #1 ran the set's highest rail-timeout rate (23.4%) WITHOUT overrunning, since that is the honest wrinkle in the 'rate, not batch size' story. FORWARD-LOOKING NOTE for whoever executes 86.54: its audit_basis still quotes grep -c 'cycle_timeout|effective cycle budget' without -E; the filed defect is real (I measured it), but that command cannot detect the fix either, so pin -E and /usr/bin/grep the way §8 now does.
