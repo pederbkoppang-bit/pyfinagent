@@ -61,15 +61,30 @@ CYCLE  started=2026-08-10 20:00:02.593000  terminal=completed  wall=4532.113s
 | **projected cycle** | **4,492s** |
 | cc_rail | started 152, timed_out 1, **rate 0.0066** |
 
-**SAMPLE-SIZE HONESTY**: my run reports `cycles_with_analysis_phase=1` -- the live
-`backend.log` rotated at 08-11 08:41 and holds one cycle. The gate's **n=7** spans
-6 rotated archives. **I am not claiming n=7 as my own measurement**; the figures in
-this table are from the single cycle I re-derived, and the n=7 distribution is
-attributed to the gate.
+**SAMPLE-SIZE HONESTY, CORRECTED.** My run reports
+`cycles_with_analysis_phase=1` -- the live `backend.log` rotated **2026-08-10
+08:41** and holds one cycle. The gate's **n=7** is that cycle plus **ONE rotated
+archive** (`backend.log.20260810T064130Z.gz`) holding **6 further cycles**.
+
+> An earlier revision said the gate's n=7 "spans **6 rotated archives**". Wrong: six
+> *cycles* in **one** archive. Six archives do exist in `handoff/logs/`, which is
+> exactly what made the misstatement look checkable. The rotation date was also
+> wrong (08-11, actually 08-10). **A step being careful to attribute a figure to the
+> gate has to describe the gate's evidence correctly, or the attribution is itself
+> unverifiable.**
+
+I am not claiming n=7 as my own measurement; the table above is the single cycle I
+re-derived.
 
 ## 4. Criterion 4 -- ANSWERED: there is NO per-ticker timeout
 
-Verified in source. `autonomous_loop.py:514` is the **only** `asyncio.timeout` and
+> **PATH DISAMBIGUATION**: two files are named `autonomous_loop.py` --
+> `backend/autonomous_loop.py` and `backend/services/autonomous_loop.py`. **Every
+> line number in this artifact resolves against `backend/services/`**; the
+> top-level file carries unrelated code at those lines.
+
+Verified in source. **`backend/services/autonomous_loop.py:514`** is the **only**
+`asyncio.timeout` and
 it wraps the **entire cycle**:
 
 ```python
@@ -83,18 +98,34 @@ The sole inner cap is a per-call 150s at `claude_code_client.py:593`.
 it.** With effective parallelism 1.85 and a mean of 1,315s/ticker, one wedged
 ticker still burns the whole deadline exactly as before.
 
-## 5. Criterion 5 -- #24 RECOMMENDED, #25 deferred. Both as ASKS.
+## 5. Criterion 5 -- #24 RECOMMENDED, #25 DEFERRED. Both as ASKS.
 
-**ASK #24 (rail timeout 150 -> 210): RECOMMENDED, and the data is the argument.**
-p90 = 134s and the **longest SUCCESS = 145s** against a **150s cap**. That is a
-**censored distribution** by definition -- calls that would have succeeded are being
-cut at the cap. Raising a **per-ITEM** cap against censored data is the *endorsed*
-remedy in the literature; raising the **global batch deadline** is the rejected one.
+**ASK #24 (rail timeout 150 -> 210): RECOMMENDED -- but read the provenance first.**
 
-**ASK #25 (merged dispatch): DEFERRED, not withdrawn.** Effective parallelism is
-1.85 against a cap of 3, so there is real headroom -- but the measured binding
-constraint is the rail timeout rate, not dispatch shape, and changing two things at
-once would make neither attributable.
+> **THE DECISIVE FIGURES ARE PRE-FIX AND I PRESENTED THEM AS CURRENT.** p90 = 134s
+> and longest-success = 145s trace to **`research_brief_85.4.md:321`**, dated to
+> phase-85.4. They **cannot be re-derived from the post-fix window**:
+> `measure_analysis_phase.py` computes `p90_s` and `n_within_5s_of_150s_cap`
+> (`:249/:251`), but both my run and the Q/A's print **`agent latency : None`** for
+> the 08-10 cycle. Criterion 5 asks for post-fix data, and on this leg I do not have
+> it.
+
+**AND THE POST-FIX DATUM THAT DOES EXIST CUTS AGAINST URGENCY**: 1 timeout in 152
+calls, **0.66%**. On that night alone, #24 would have changed almost nothing.
+
+**Why I still recommend it:** the 0.66% night is one sample, and five other measured
+cycles ran **9.9%-23.4%**. The honest case for #24 is not "the last cycle was bad" --
+it is that the rate is **highly variable** and the cap sits **5s above the longest
+observed success**, so on a bad night the cap censors work that would have completed.
+That is the argument, and it rests on the pre-fix distribution, which I now say
+plainly.
+
+**ASK #25 (merged dispatch): DEFERRED -- and "deferred" is a third value against a
+criterion worded "recommended or withdrawn", so let me be unambiguous: NOT
+recommended now, NOT withdrawn.** Effective parallelism is 1.85 against a cap of 3,
+so headroom exists, but the measured binding constraint is the rail rate. Changing
+dispatch shape and the rail cap together would make neither attributable. Revisit
+**after** #24 lands.
 
 ## 6. Criterion 6 -- MET
 
@@ -103,44 +134,71 @@ key set **identical**, **exactly one changed value**
 (`PAPER_CYCLE_MAX_SECONDS: '7200.0' -> '10800.0'`). `paper_analyze_top_n` is **5**,
 confirmed live on the same endpoint, **not lowered**.
 
-## 7. THE CONCLUSION THE STEP ASKED FOR: the raise was the WRONG FIX
+## 7. THE CONCLUSION THE STEP ASKED FOR -- restated after the cycle-1 Q/A
 
-The step's second question is *"whether a longer budget is the right fix at all."*
-**It is not**, and the evidence is arithmetic rather than rhetorical:
+> **AN EARLIER REVISION SAID FLATLY "IT IS NOT [the right fix]" AND OMITTED THE
+> ARITHMETIC THAT MOST DIRECTLY REBUTS THAT.** The two overrun cycles project to
+> **8,554s and 8,529s** (`research_brief_86.9.md:397`) -- **both fit inside the new
+> 10,800s budget with ~2,250s to spare.** So the raise **would have converted both
+> observed failures into completions**. Those figures were in the brief I
+> commissioned; `grep` over my own artifacts returned zero hits for them. I had the
+> counter-evidence and did not carry it.
+>
+> The flat form was also the dangerous one: **"the raise was the WRONG fix" is the
+> one framing that could invite reverting an operator-authorised value.**
 
-- **Both 7200s overruns PRE-DATE the raise.** No post-raise cycle has overrun.
-- The post-raise cycle finished **2,708s INSIDE THE OLD BUDGET**. The budget was
-  never the binding constraint for it.
-- Overruns track the **rail timeout rate** -- 18.1% and 14.9% on the overrun cycles
-  against **0.66%** on the healthy one -- **not batch size**.
-- **32 x 150s = 4,800s** of rail-timeout waste against a **1,329s** overrun. The
-  waste is 3.6x the overrun it produced.
+**THE ACCURATE ANSWER, both halves true:**
 
-**The raise (ask #23) treated a symptom of ask #24.** Nothing needs reverting -- a
-larger ceiling is harmless when it is not reached -- but the open item is the rail
-cap, and closing this step without saying so would be the real failure.
+**(a) The raise IS an effective mitigation for the observed overrun magnitude.**
+8,554s and 8,529s both land inside 10,800s. Had it been in force, neither cycle
+would have been cut off, and each would have analysed the ticker it dropped.
 
-## 8. NEW DEFECT FOUND -- config drift across FOUR sites
+**(b) It is aimed at the WRONG CAUSAL TARGET.** The overruns were produced by rail
+timeouts, not by batch size:
 
-One concept, four values:
+- overrun cycles ran a **9.9%-23.4%** rail-timeout rate; the healthy one ran **0.66%**
+- **32 x 150s = 4,800s** of rail-timeout waste against a **1,329s** overrun -- the
+  waste is **3.6x** the problem it caused
+- the post-raise cycle finished **2,708s inside the OLD budget**, so the budget was
+  not its binding constraint
 
-| site | value |
+**So the honest reading is: ask #23 buys headroom that works, while ask #24 addresses
+the thing generating the need for headroom.** Nothing should be reverted -- an
+unreached ceiling is harmless and this one is operator-authorised.
+
+**AND THE POST-RAISE EVIDENCE IS n=1**, on what was the healthiest rail night in the
+measured set. One completion under a raised ceiling, on the quietest night, is weak
+evidence that the ceiling is right-sized. Tonight's cycle is a second sample.
+
+## 8. NEW DEFECT FOUND -- config drift, population DERIVED
+
+> **CORRECTED.** An earlier revision said "across FOUR sites" above a table with
+> **five** rows, and I propagated that undercount into 86.53's `audit_basis`. The
+> count was typed, not derived. Below is the output of
+> `grep -rn "paper_cycle_max_seconds|_CYCLE_BUDGET_FALLBACK_SEC" backend/ scripts/`.
+
+| site | value / role |
 |---|---|
-| `autonomous_loop.py:507` **consumer fallback** | **1800.0** |
-| `backend/config/settings.py:33` | 7200.0 |
-| `backend/api/settings_api.py:123` | 7200.0 |
-| `backend/.env:70` (live) | **10800.0** |
-| `scripts/diagnostics/measure_analysis_phase.py:263` `--budget-sec` default | 7200.0 |
+| `backend/config/settings.py:33` | `Field(7200.0, ...)` |
+| `backend/api/settings_api.py:123` | `= 7200.0` |
+| `backend/api/settings_api.py:171` | validation bounds `ge=300.0, le=21600.0` |
+| `backend/api/settings_api.py:308` | env-name mapping (phase 38.12) |
+| `backend/api/settings_api.py:383` | `getattr(s, ..., 7200.0)` |
+| **`backend/services/autonomous_loop.py:507`** | **`getattr(settings, ..., 1800.0)`** |
+| **`backend/services/cycle_lock.py:63`** | **`_CYCLE_BUDGET_FALLBACK_SEC = 7200.0`** |
+| `backend/services/cycle_lock.py:82,84,86` | three separate returns of that fallback |
+| `scripts/diagnostics/measure_analysis_phase.py:263` | `--budget-sec default=7200.0` |
+| `backend/.env:70` | **10800.0 (live)** |
 
-**The consumer fallback is the dangerous one**: if `settings` ever lacks the
-attribute, the cycle budget silently becomes **30 minutes** -- a sixth of the
-authorized value -- and the `getattr` default means that failure is **silent**.
+**`cycle_lock.py` was missing from my table entirely** -- and its own comment at
+`:57` already documents the drift: *"paper_cycle_max_seconds (1800s) ... while the
+budget in force had moved to"*. Someone had already noticed and left a note.
 
-The diagnostic's stale default is the visible one: it printed *"within budget
-7200s"* while the live budget was 10800.0. It happened not to change the verdict
-here; it would have flipped it for a cycle between 7,200s and 10,800s.
+**The consumer fallback remains the hazard**: a missing attribute silently yields a
+**30-minute** cycle budget, a sixth of the authorised value, with no error or alert.
 
-**To be filed as its own step**, not fixed here.
+Filed as **86.53**, whose criterion 1 requires a grep-derived enumeration precisely
+so the executor does not inherit a typed count.
 
 ## 9. What is NOT claimed
 
