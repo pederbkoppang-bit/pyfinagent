@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-11 | `11aa663b` | phase-86.31: harness_log cycle 1210 -- PASS after five cycles |
 | 2026-08-11 | `1d4323e8` | phase-86.31: record cycle-5 Q/A verdict VERBATIM -- PASS |
 | 2026-08-11 | `1a9e75af` | docs(goal): fix a wrong escalation claim -- 86.34 is NOT at 3rd-CONDITIONAL risk |
 | 2026-08-11 | `3ed23ae7` | docs: today's goal (2026-08-11) -- three steps are one Q/A from closing |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-10 | `f3e721cc` | docs: goal -- 86.34 parked after 2 Q/A cycles, remediated but ungraded |
 | 2026-08-10 | `e3ba30ea` | phase-86.34: harness_log cycle 1207 -- CONDITIONAL, step parked with disposition |
 | 2026-08-10 | `9bc80454` | phase-86.34: PARK after 2 Q/A cycles with a disposition -- remediated but ungraded |
-| 2026-08-10 | `82e3e55d` | phase-86.34 cycle 3: fix all three CONDITIONAL findings |
 
 ---
 
+### v6.93.87 — phase-86.31: harness_log cycle 1210 -- PASS after five cycles (2026-08-11)
+
+- **phase-86.31: harness_log cycle 1210 -- PASS after five cycles**
 ### v6.93.86 — phase-86.31: record cycle-5 Q/A verdict VERBATIM -- PASS (2026-08-11)
 
 - **phase-86.31: record cycle-5 Q/A verdict VERBATIM -- PASS**
