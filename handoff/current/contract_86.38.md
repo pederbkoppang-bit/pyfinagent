@@ -128,17 +128,42 @@ Two further findings from the gate's internal sweep, both re-measured by me:
 
 ## 3. Immutable success criteria (VERBATIM from `.claude/masterplan.json`)
 
-The step's criteria are expressed through its `live_check` requirement:
+**CORRECTION, 2026-08-11 -- THIS SECTION WAS WRONG AND THE ERROR IS MINE.**
+The original version of this section carried the header "VERBATIM from
+`.claude/masterplan.json`" and then quoted the step's `live_check` requirement
+instead of its six `verification.success_criteria`. The header was false about
+its own contents. Worse, I then passed those live_check items to the Q/A as the
+criteria, so the first completed grade was performed against a set I had
+authored rather than the immutable one. The Q/A caught the discrepancy anyway --
+it went and read `success_criteria[1]` itself and returned FAIL on it -- but that
+is the evaluator compensating for a breach, not the absence of one.
 
-> `live_check_86.38.md` with: the verbatim 429 body or an explicit statement that
-> it could not be captured; the per-cycle full-versus-lite table over >=10 cycles
-> with the command that produced it; and the measured date of the last
-> paper_trades row.
+The six immutable criteria, actually copied verbatim:
+
+1. the 429 is CHARACTERISED from primary evidence, not guessed: capture the full error body (the log line truncates it) and state which quota it is -- per-minute, per-day, or billing -- with the provider response quoted verbatim. If the body cannot be captured, say so and state what was done instead.
+
+2. the degradation RATE is derived over at least the last 10 completed cycles: for each, how many tickers ran the full orchestrator versus fell back to lite. State the derivation command. Do not infer the count from llm_call_log gemini row counts alone without first showing that one full-pipeline ticker produces a known number of rows.
+
+3. the correlation with the trade drought is either demonstrated or explicitly refuted: the last paper_trades row is 2026-07-31 (measured). Show whether degraded cycles and zero-trade cycles coincide, and state plainly if the data cannot support the claim.
+
+4. operator visibility is stated as a fact: does a 429 fallback surface anywhere the operator sees (Slack, the UI, a badge), or is it log-only? If log-only, that is the finding, whether or not it is fixed here.
+
+5. any remedy is fail-safe and does not touch the risk judge, position sizing, or any gate threshold. A remedy that makes the lite path MORE likely to trade is out of contract.
+
+6. if the conclusion is that the correct action is an operator decision (paid tier, quota increase, or accepting lite-only operation), the step closes with that stated plainly and a numbered ask -- that is a valid outcome and is preferable to a speculative code change.
 
 **Verification command** (immutable):
 `bash -c 'source .venv/bin/activate && python -c "import ast;ast.parse(open(\"backend/services/autonomous_loop.py\").read());print(\"parsed\")"'`
 -- a PARSE CHECK only. It proves the module is syntactically valid and nothing
 else. Stated here so no reader mistakes a green command for a green step.
+
+**The `live_check` requirement is a SEPARATE, ADDITIONAL obligation**, not a
+restatement of the criteria, and conflating the two is what produced this error:
+
+> `live_check_86.38.md` with: the verbatim 429 body or an explicit statement that
+> it could not be captured; the per-cycle full-versus-lite table over >=10 cycles
+> with the command that produced it; and the measured date of the last
+> paper_trades row.
 
 ## 4. Plan
 
