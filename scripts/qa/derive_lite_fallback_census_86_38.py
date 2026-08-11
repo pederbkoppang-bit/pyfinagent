@@ -36,6 +36,45 @@ _LEGACY_TIME = re.compile(r"(\d{2}:\d{2}:\d{2})\s+[A-Z]\s+\[")
 _REASON = re.compile(r"Full orchestrator failed for (\S+?): (.*?) -- falling back", re.S)
 
 
+#: phase-86.38 cycle 3 -- THE WRAPPER IS NOT THE CAUSE.
+#: `classify()` receives only the string inside "Full orchestrator failed for X:
+#: <reason> -- falling back", and for the QuantAgent family that reason reads
+#: "'NoneType' object has no attribute 'get'". The ACTUAL cause is logged on an
+#: EARLIER line and never reaches this function, so the 429 branch -- which is
+#: first -- could not fire, and every such event fell through to the NoneType
+#: bucket. That is why the census reported a 6-vs-3 "code defect vs quota" split
+#: and why phase-86.41 was filed on a premise that does not hold.
+#:
+#: MEASURED over all 42 retained log files: 34 raw QuantAgent-NoneType wrapper
+#: events; 17 are preceded within 8 lines by a SEC.gov 429 on the CIK map
+#: ("Quant: SEC 429 rate-limit on CIK map" / "Failed to fetch CIK map: 429
+#: Client Error ... sec.gov"); 17 are not. **NONE is a Vertex 429** -- these are
+#: a different provider's rate limit from the one phase-86.38 investigated, and
+#: the NoneType itself is raised in a REMOTE Cloud Function (/workspace/main.py
+#: get_cik), not in this repository.
+_UPSTREAM_CAUSE = [
+    (("sec 429", "company_tickers.json", "cik map"), "SEC.gov 429 on the CIK map (upstream)"),
+    (("resource_exhausted", "aiplatform"), "Vertex 429 (upstream)"),
+]
+
+
+def classify_with_context(reason: str, recent: list[str]) -> str:
+    """Classify a fallback using the lines that PRECEDE it, not just the wrapper.
+
+    Falls back to `classify()` when no upstream cause is visible. A NoneType
+    wrapper with no identifiable upstream is reported as exactly that -- unknown
+    upstream -- rather than being asserted as a code defect.
+    """
+    base = classify(reason)
+    if "nonetype" not in reason.lower():
+        return base
+    blob = " ".join(recent).lower()
+    for needles, label in _UPSTREAM_CAUSE:
+        if any(n in blob for n in needles):
+            return f"remote QuantAgent crash after {label}"
+    return "QuantAgent NoneType, upstream cause NOT identified"
+
+
 def classify(reason: str) -> str:
     r = reason.lower()
     if "resource_exhausted" in r or "429" in reason:
@@ -217,11 +256,25 @@ def main() -> int:
 
     for p in files:
         raw = 0
+        recent: list[str] = []
         for line in read_lines(p):
+            recent.append(line)
+            # WINDOW SIZE IS MEASURED, NOT CHOSEN. My first attempt used 8 lines
+            # and reported "upstream cause NOT identified" for all 6 JSON-era
+            # events -- a suspiciously uniform clean result. Measuring the actual
+            # distance: the SEC-429/CIK cue sits EXACTLY 18 lines back in all six
+            # (the remote traceback is interleaved between). 8 was a false
+            # negative of my own making. 25 covers it with margin.
+            # TRADE-OFF, stated: a wider window can pick up an unrelated 429 from
+            # a different ticker in a busy cycle, so this errs toward attributing
+            # a cause. The bucket name says "after", not "caused by".
+            if len(recent) > 26:
+                recent.pop(0)
             if FALLBACK_MARK in line:
                 raw += 1
                 m = _REASON.search(line)
-                reason = classify(m.group(2) if m else "(unparsed reason)")
+                reason = classify_with_context(
+                    m.group(2) if m else "(unparsed reason)", recent[:-1])
                 day = None
                 if line.lstrip().startswith("{"):
                     try:

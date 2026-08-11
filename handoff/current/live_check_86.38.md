@@ -385,3 +385,79 @@ attribution). It DOES mean a cycle's recorded `completed_at` can precede its las
 emitted event, so per-cycle attribution has a small tail loss. Not claimed:
 whether that is a logging lag or a cycle-record timing defect. I did not
 determine it.
+
+---
+
+## I. CORRECTION -- my classifier read the WRAPPER, not the cause. All 9 fallbacks are rate limits.
+
+**Found by the peer session executing phase-86.41 (the step I filed), verified by
+me. It refutes a headline finding of mine and the refutation is better than the
+finding.**
+
+`classify()` receives only the string inside
+`Full orchestrator failed for X: <reason> -- falling back`. For the QuantAgent
+family that reason is `'NoneType' object has no attribute 'get'`. **The actual
+cause is logged on an earlier line and never reaches the function**, so the 429
+branch -- which is FIRST in the function -- could not fire, and every such event
+fell through to a bucket labelled "code defect".
+
+Verified by reading the log directly:
+
+```
+02:21:09 Quant: Failed to fetch CIK map: 429 Client Error: Too Many Requests
+                for url: https://www.sec.gov/files/company_tickers.json
+02:21:09 Quant: QuantAgent failed for STX: 'NoneType' object has no attribute 'get'
+02:21:09 Quant:   File "/workspace/main.py", line 79, in get_cik
+02:21:09 W [autonomous_loop] Full orchestrator failed for STX: ERROR: QuantAgent
+                failed for STX: 'NoneType' object has no attribute 'get' -- falling back
+```
+
+### The corrected split
+
+| cause | count | provider |
+|---|---|---|
+| `429 RESOURCE_EXHAUSTED` | 3 | **Vertex AI** (2026-08-10) |
+| remote QuantAgent crash after a 429 on the CIK map | 6 | **SEC.gov** |
+
+**ALL NINE fallbacks in the ten-day window are rate-limit-caused.** They are two
+DIFFERENT providers' limits, and the NoneType is raised in a **remote Cloud
+Function** (`/workspace/main.py`, `get_cik`) that is not in this repository --
+so "fix the NoneType" was never a change available here.
+
+My earlier statement -- *"6 of the 9 fallbacks are a QuantAgent NoneType code
+defect, not quota"* -- is **REFUTED**. Corrected wherever it appeared, including
+phase-86.41's step text, which was filed on that premise.
+
+### And my fix for it was wrong the first time, in the direction that hides things
+
+The context-aware classifier initially used an 8-line lookback and reported
+"upstream cause NOT identified" for **all six** JSON-era events. A uniformly
+clean result on a question I had just been told was dirty is exactly the shape to
+distrust, so I measured the real distance: **the cue sits exactly 18 lines back
+in all six** (the remote traceback is interleaved). 8 was a false negative of my
+own construction. The window is now 25 and the measurement is recorded in the
+source next to the constant.
+
+**Stated trade-off**: a wider window can attribute an unrelated 429 from another
+ticker in a busy cycle. The bucket is therefore named *"after"*, not *"caused
+by"* -- correlation at a measured distance, not a proven causal chain.
+
+```
+$ python scripts/qa/derive_lite_fallback_census_86_38.py
+PER-DAY full-pipeline vs lite-fallback  (JSON-format era only -- see UNDATED below)
+========================================================================================
+date           full   lite   lite%  causes
+----------------------------------------------------------------------------------------
+2026-07-24        3      1     25%  remote QuantAgent crash after SEC.gov 429 on the CIK map (upstream) x1
+2026-07-30        3      0      0%  
+2026-07-31        4      3     43%  remote QuantAgent crash after SEC.gov 429 on the CIK map (upstream) x3
+2026-08-03        8      0      0%  
+2026-08-04       11      0      0%  
+2026-08-05        6      2     25%  remote QuantAgent crash after SEC.gov 429 on the CIK map (upstream) x2
+2026-08-06       11      0      0%  
+2026-08-07       10      0      0%  
+2026-08-09        8      0      0%  
+2026-08-10        3      3     50%  429 RESOURCE_EXHAUSTED (quota) x3
+----------------------------------------------------------------------------------------
+TOTAL            67      9   11.8%
+```
