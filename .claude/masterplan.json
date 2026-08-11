@@ -24718,6 +24718,27 @@
             ],
             "live_check": "live_check_86.41.md with: the re-derived census output including its coverage assertion; the identified call site or an explicit statement that it could not be identified; the absent-field-versus-logic-error adjudication with its evidence; and the mutation output."
           }
+        },
+        {
+          "id": "86.42",
+          "status": "pending",
+          "priority": "P3",
+          "harness_required": true,
+          "retry_count": 0,
+          "max_retries": 3,
+          "name": "[P3 -- THE NEW USER-CONTROLLED PATH COMPONENT HAS NO TEST PINNING ITS TRAVERSAL DEFENCE] FOUND 2026-08-11 by the phase-86.36 cycle-2 Q/A (verdict PASS, wf_2e5fd262-593) as note F2, filed per the standing queue-discovered-defects rule and NOT fixed post-verdict -- the tree that was graded stays frozen (86.1 precedent). MEASURED BY THAT Q/A: mutating `_RUN_STAMP_RE` in scripts/qa/qa_wip.py from r'\\\\A[0-9]{8}T[0-9]{6}Z\\\\Z' to r'.*' SURVIVES BOTH checkers -- scripts/qa/verify_wip_retention_86_36.py (23 assertions) and scripts/qa/verify_qa_write_first_86_31.py stay green. THE PRODUCTION CODE IS CORRECT AND THIS IS NOT A LIVE VULNERABILITY: the Q/A drove it directly and '../../../backend/main', '86.36; rm -rf /' and 'notastamp' all raise BadStepId, and .claude/hooks/qa-write-guard.sh is a compensating control that confines the qa role to .claude/agent-memory/qa/ after os.path.normpath. THE DEFECT IS THE MISSING ASSERTION: phase-86.36 introduced `run_stamp` as a SECOND user-controlled component of a filesystem path and shipped no test that pins its validation, so a future edit that loosens or drops the regex is invisible to every guard in the repo. Contrast `_STEP_ID_RE`, whose refusal IS asserted -- the new component was given the same defensive treatment in code and none of it in tests. TWO SIBLING NOTES FROM THE SAME Q/A, both lower value, decide whether to fold them in: F3 -- `records_retained` is unpinned (mutating it to a constant 1 survives), and it is the number a recovering Main reads from the CLI. F4 -- the immutable command of 86.31/86.36 is COUPLED TO OTHER SESSIONS' OUTPUT: section [9] emits one assertion per live verdict_wip_*.md, so a single malformed record written by any concurrent session drives it red, and 86.36 multiplied that population from one-per-step to one-per-run. Green today; same class as the immutable-criteria-must-be-green-able lesson. NON-SCOPE: do not re-open 86.36's verdict; do not touch .claude/hooks/qa-write-guard.sh (86.33); do not weaken _RUN_STAMP_RE to make a test easier.",
+          "verification": {
+            "command": "bash -c 'source .venv/bin/activate && python scripts/qa/verify_wip_retention_86_36.py'",
+            "success_criteria": [
+              "the gap is REPRODUCED before it is fixed: mutate _RUN_STAMP_RE to a permissive pattern and show BOTH checkers still pass, with their exit codes, so the missing-assertion claim is demonstrated rather than inherited from this step text",
+              "an assertion pins the traversal defence on run_stamp specifically: hostile inputs including at least a ../ traversal, a shell-metacharacter payload and a plain non-matching string must each raise BadStepId, asserted by name and not merely observed",
+              "the new assertion is MUTATION-TESTED: loosening _RUN_STAMP_RE must drive a NAMED assertion red, with a green control captured first. A guard that has not been observed failing does not count",
+              "_STEP_ID_RE's existing refusal is not weakened and its assertions still pass -- show the phase-86.31 checker green, and state its assertion count is non-deterministic by construction (section [9] emits one per live artifact) so a changed total is not read as a regression",
+              "F3 and F4 are each either fixed or explicitly declined with a reason. If F4 is declined, say plainly that the immutable command can be driven red by a concurrent session's malformed artifact and that this is a known coupling, so a future red is diagnosed rather than mistaken for a regression",
+              "no production behaviour changes: scripts/qa/qa_wip.py's resolve_wip_path must accept exactly the same stamps it accepts today. Prove it with a before/after comparison over a fixed input set including valid stamps, not only by reading the regex"
+            ],
+            "live_check": "live_check_86.42.md with: the pre-fix mutation showing both checkers green under a permissive regex; the post-fix mutation showing a NAMED assertion red with its green control; the hostile-input table with BadStepId raised for each; and the before/after accept-set comparison proving no valid stamp was rejected."
+          }
         }
       ]
     }
