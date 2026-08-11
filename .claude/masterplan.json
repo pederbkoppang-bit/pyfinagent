@@ -23910,6 +23910,7 @@
         },
         {
           "id": "86.48",
+          "audit_basis": "Derived by the 86.5 triage on 2026-08-11 from a full live-tree run (`python -m pytest backend/tests/ -q -p no:randomly`, reproduced twice with a byte-identical failure set). You need no memory of that triage. THE FOUR NODE IDS: test_phase_60_3_data_integrity.py::test_60_3_flag_defaults_off, and test_phase_57_1_reject_binding.py::{test_reject_binding_main_path_off_emits_on_blocks, test_reject_binding_swap_path_off_emits_on_blocks, test_off_identity_prompts_are_verbatim_constants}. MEASURED SIGNATURES: 'assert True is False' on the first two; 'flag-OFF must preserve the (vulnerable) swap BUY' on the third; an AssertionError comparing _build_* prompt constants on the fourth. WHY THEY FAIL: the tests name a CODE DEFAULT but construct Settings() with no isolation, and Settings resolves backend/.env. Verified 2026-08-11: settings.py:46 paper_data_integrity_enabled=False and :342 paper_risk_judge_reject_binding=False, but .env:83 PAPER_DATA_INTEGRITY_ENABLED=true and .env:84 PAPER_RISK_JUDGE_REJECT_BINDING=true, and a live Settings() returns True for both. Fowler calls this class 'lack of isolation'. START HERE: reproduce those two Settings() values yourself before changing anything -- if they are no longer True the operator has changed the flags and this step's premise needs re-checking.",
           "status": "pending",
           "priority": "P2",
           "harness_required": true,
@@ -23929,6 +23930,7 @@
         },
         {
           "id": "86.49",
+          "audit_basis": "Derived by the 86.5 triage on 2026-08-11. THE NODE ID: backend/tests/test_phase_75_sre_ops.py::test_c6_no_launchctl_bootstrap_executed_in_ops_scripts. MEASURED SIGNATURE: AssertionError naming reissue_cc_oauth_token.sh and the string RELOAD_HINT_2='launchctl bootstrap gui/$(id -u) ...'. WHY IT FAILS: the scanner at test_phase_75_sre_ops.py:360-368 walks OPS_DIR.glob('*.sh') line by line, skips only lines whose strip() starts with '#', and asserts 'launchctl bootstrap' not in the line -- it cannot see heredocs. In scripts/ops/reissue_cc_oauth_token.sh the match at :17 is a VARIABLE ASSIGNMENT and its sole expansion at :117 sits inside a `cat <<EOF` opened at :110, so it is PRINTED to the operator, never executed. The script explains itself at :107-109. RE-DERIVE THOSE LINE NUMBERS BEFORE CITING THEM -- line numbers in this repo move, and three separate steps have already shipped stale ones. START HERE: read the script's heredoc structure yourself, then decide what a correct scanner must distinguish.",
           "status": "pending",
           "priority": "P3",
           "harness_required": true,
@@ -23948,6 +23950,7 @@
         },
         {
           "id": "86.50",
+          "audit_basis": "Derived by the 86.5 triage on 2026-08-11 from a full live-tree run reproduced twice. NINE NODE IDS across seven files: test_phase_75_17_verification_paths.py (3: test_masterplan_diff_touches_only_the_ten_sibling_insertions, test_sweep_over_live_masterplan_is_clean, test_sweep_shape_census_matches_the_corrected_figures), test_phase_75_19_preflight_calibration.py::test_live_masterplan_is_currently_clean, test_phase_75_prompt_contracts.py::test_operator_decision_note_exists_with_token (FileNotFoundError), test_phase_75_sre_ops.py::test_c1_runbook_and_operator_token_drafted (FileNotFoundError), test_phase_40_2_...::test_phase_40_2_settings_json_still_valid_json_after_edit, test_phase_23_2_6_sector_cap_emit.py::test_..._backend_log_has_skipping_buy_evidence, test_phase_82_39_outcome_rebuild_query.py::test_the_sweeps_recall_limit_is_recorded_not_assumed. COMMON SHAPE: each compares a LIVE, MOVING artifact against a value frozen at authoring time. THEY DO NOT SHARE A VERDICT. Adjudicate each separately; the triage deliberately did not, because the deliverable was the steps. START HERE: for each, ask whether the artifact moved legitimately or the subject is genuinely wrong.",
           "status": "pending",
           "priority": "P3",
           "harness_required": true,
@@ -23968,6 +23971,7 @@
         },
         {
           "id": "86.51",
+          "audit_basis": "Derived by the 86.5 triage on 2026-08-11 as the ONLY one of 17 failures that is unambiguously a production-behaviour claim. THE NODE ID: backend/tests/test_portfolio_swap.py::test_swap_framework_fills_zero_buy_gap. MEASURED SIGNATURE: 'Expected 2 swap SELLs, got 1; orders=[TradeOrder(ticker=...)]'. The test imports decide_trades from backend.services.portfolio_manager (test file :18). NOTE backend/services/paper_trading.py DOES NOT EXIST -- an earlier draft of this step cited it and would have frozen a criterion on a missing file, making the step structurally uncloseable. All 16 other failures in the triage were test-side or artifact-side; this one is about what the system does with money, which is why it was filed alone. START HERE: establish whether the framework under-fills or the expectation is stale, BEFORE touching either.",
           "status": "pending",
           "priority": "P2",
           "harness_required": true,
@@ -23988,6 +23992,7 @@
         },
         {
           "id": "86.52",
+          "audit_basis": "Derived by the 86.5 triage on 2026-08-11. TWO NODE IDS: backend/tests/test_phase_82_48_outcome_write_schema.py::test_write_really_persists_into_bigquery (signature: assert 'UNKNOWN' == 'BUY') and ::test_the_fetch_supplies_every_field_the_write_REQUIRES (signature: 'with no recommendation source the outcome must be skipped' -- a row was written that should have been skipped). THE ASSUMPTION TO AVOID, and the triage nearly made it: these look like duplicates of step 86.25 and are NOT to be closed as such. 86.25 is status=done, owns exactly this defect (a risk-approval vocabulary passed where a BUY/SELL recommendation is expected), and carries three commits against backend/services/autonomous_loop.py -- one titled 'phase-86.25 cycle 3: finish the remediation I claimed but did not do (PARKED)'. 86.25's own citation of autonomous_loop.py:3412 is ALREADY STALE: :3412 now sits inside an unrelated _degraded block. Locate the current site by SYMBOL. START HERE: decide whether 86.25's remediation is incomplete or these tests assert behaviour that was never shipped.",
           "status": "pending",
           "priority": "P2",
           "harness_required": true,
