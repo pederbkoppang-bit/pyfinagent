@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-11 | `f0cb4ea4` | docs: disambiguate the colliding ask numbers across two sessions |
 | 2026-08-11 | `61d16d25` | phase-86.9: the pid's start time exposed a hole in my own criterion-2 evidence |
 | 2026-08-11 | `ca78e00a` | phase-86.9: cycle-1 CONDITIONAL remediated -- I omitted my own strongest counter-evidence |
 | 2026-08-11 | `d13b78de` | phase-86.53: file the cycle-budget config drift found while verifying 86.9 |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-11 | `9a7bf5e5` | phase-86.33: resolve my own open question -- the filter was wrong, not the field |
 | 2026-08-11 | `8aa2f622` | phase-86.33: measure that agent_type is CALLER-CHOSEN, not platform-assigned |
 | 2026-08-11 | `e614948f` | phase-86.5: PARKED after 3 cycles -- ASK #5, the step's own command is frozen RED |
-| 2026-08-11 | `b4cb7938` | phase-86.5: cycle-2 FAIL remediated -- criterion 4 was INVERTED, and I had it right first |
 
 ---
 
