@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-11 | `1092700d` | phase-86.41 follow-up: cite the FUNCTION get_cik, never a line number |
 | 2026-08-11 | `21269f42` | phase-86.41: [P2 -- THE QuantAgent NoneType CRASH IS A BIGGER SOURCE OF DEGRADED ANALYSES THAN TH... |
 | 2026-08-11 | `1806bb56` | chore: commit agent-memory + Q/A WIP records under their OWN description |
 | 2026-08-11 | `85aeea6c` | phase-86.41: cycle-3 PASS -- verdict persisted verbatim + harness_log append |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-11 | `8879d662` | phase-86.39: establish the root cause from source (pre-contract measurement) |
 | 2026-08-11 | `73dcf2c8` | phase-86.41: isolate the quant sub-agent at the DEPENDENCY, not the ticker |
 | 2026-08-11 | `031d059c` | docs: day report 2026-08-11 + regenerated goal for the next session |
-| 2026-08-11 | `b4b7008b` | phase-86.5: record measured triage input -- the title says 26, I measure 17 |
 
 ---
 
+### v6.93.167 — phase-86.41 follow-up: cite the FUNCTION get_cik, never a line number (2026-08-11)
+
+- **phase-86.41 follow-up: cite the FUNCTION get_cik, never a line number**
 ### v6.93.166 — phase-86.41: [P2 -- THE QuantAgent NoneType CRASH IS A BIGGER SOURCE... (2026-08-11)
 
 - **phase-86.41: [P2 -- THE QuantAgent NoneType CRASH IS A BIGGER SOURCE OF DEGRADED ANALYSES THAN TH...**
