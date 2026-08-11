@@ -1,5 +1,7 @@
 # Researcher Agent Memory Index
 
+- [Timeout-raise 86.9](project_timeout_raise_86_9.md) — a deadline-terminated run is RIGHT-CENSORED (max = budget, not work); per-ITEM raise endorsed, per-BATCH rejected; grep the API before believing "no endpoint exposes it"
+
 - [Failing-test triage 86.5](project_failing_test_triage_86_5.md) — 17 not 26 (denominator moved +400); NONE flaky; 3 groups where the TEST is wrong and the code is right
 
 - [Retry-loop bounding 86.32](project_retry_loop_bounding_86_32.md) — reset-on-success is a HEALTH-CHECK idiom on a WORK-ACCOUNTING problem; CONDITIONAL resets too; max_retries read by NOTHING
