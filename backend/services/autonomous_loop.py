@@ -1328,9 +1328,28 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
                 _fb_fire, _n_fb, _n_fb_total, _fb_reasons = _fallback_rate_check(
                     candidate_analyses + holding_analyses, _fb_threshold,
                 )
-                if _fb_fire:
+                # phase-86.38: RECORD ALWAYS, PAGE ONLY ABOVE THRESHOLD.
+                # Before this, these fields were set ONLY inside the `if
+                # _fb_fire` branch, so a cycle that degraded BELOW the threshold
+                # left no trace anywhere an operator looks. MEASURED on the
+                # 2026-08-10 cycle: 3 of 6 analyses fell back to the lite
+                # analyser after the 28-agent orchestrator hit 429
+                # RESOURCE_EXHAUSTED, `3/6 = 0.500` did not strictly exceed
+                # 0.500, the alarm correctly stayed quiet -- and the degradation
+                # was therefore invisible outside a grep of backend.log.
+                #
+                # The THRESHOLD AND THE PREDICATE ARE UNCHANGED. This adds
+                # observability, it does not re-tune an alarm: paging behaviour
+                # is byte-identical, and `_fallback_rate_check` is not touched
+                # (its strict `>` is pinned by
+                # test_phase_60_1_deep_pipeline.py::test_fallback_alarm_threshold_is_strictly_greater_than
+                # and changing it is an operator decision, not this step's).
+                if _n_fb_total:
                     summary["fallback_rate"] = f"{_n_fb}/{_n_fb_total}"
-                    summary["fallback_reasons"] = _fb_reasons
+                    summary["fallback_alarm_fired"] = bool(_fb_fire)
+                    if _fb_reasons:
+                        summary["fallback_reasons"] = _fb_reasons
+                if _fb_fire:
                     logger.warning(
                         "Fallback-rate alarm fired: %d/%d analyses fell back full->lite (threshold %.0f%%)",
                         _n_fb, _n_fb_total, _fb_threshold * 100,
@@ -1937,6 +1956,21 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
                 )
                 if summary.get(k) is not None
             }
+            # phase-86.38: persist the DEGRADATION facts alongside the funnel.
+            # Kept as its own dict rather than folded into `_funnel` because the
+            # funnel answers "how many candidates survived each stage" and this
+            # answers "was the pipeline that judged them the real one" -- two
+            # questions, and conflating them is how the fallback rate ended up
+            # with no home. Populated on every cycle, not only when the alarm
+            # pages, so a sub-threshold degradation is still durable.
+            _degradation = {
+                k: summary.get(k)
+                for k in (
+                    "fallback_rate", "fallback_alarm_fired", "fallback_reasons",
+                    "degraded", "degraded_analyses", "meta_scorer_degraded",
+                )
+                if summary.get(k) is not None
+            }
             _cycle_log().record_cycle_end(
                 cycle_id=_cycle_id,
                 started_at=_cycle_started_at,
@@ -1949,6 +1983,7 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
                 rail_skipped=_rail_skipped,
                 breaker_tripped=_breaker_tripped,
                 funnel=_funnel,
+                degradation=_degradation,
             )
         except Exception as _e:
             logger.warning(f"cycle_health record_cycle_end failed: {_e}")
@@ -2184,9 +2219,22 @@ async def _run_single_analysis(
         # phase-60.1 (AW-4): tag the INTENDED-full-but-landed-lite analyses.
         # Deliberate lite_mode runs (the branch above) carry NO tag, so the
         # fallback-rate alarm never fires on an operator's lite choice.
+        #
+        # phase-86.38: `_intended_path = "full"` was REMOVED from here, not
+        # wired up. It was WRITE-ONLY -- one write at this site, ZERO reads
+        # repo-wide (measured with a search whose recall was validated by
+        # returning 13 hits for the sibling `_fallback_reason`), and it was
+        # never copied into the persisted `full_report` by `_persist_analysis`,
+        # so it reached neither BQ nor any API nor the UI.
+        #
+        # REMOVED RATHER THAN CONSUMED, deliberately: it is REDUNDANT. The set
+        # it marked -- intended-full, landed-lite -- is exactly the set carrying
+        # `_fallback_reason`, which `_fallback_rate_check` already keys on and
+        # which IS persisted. Wiring a second field for one fact creates two
+        # sources of truth that can disagree; the cheaper correctness is one
+        # field with a consumer.
         if isinstance(_lite, dict):
             _lite["_fallback_reason"] = _fb_reason[:500]
-            _lite["_intended_path"] = "full"
         return _lite
     except Exception as e:
         logger.error("Both full and lite paths failed for %s: %s", ticker, e)

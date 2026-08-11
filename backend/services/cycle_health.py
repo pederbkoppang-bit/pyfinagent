@@ -439,6 +439,7 @@ class CycleHealthLog:
         rail_skipped: bool = False,
         breaker_tripped: bool = False,
         funnel: Optional[dict] = None,
+        degradation: Optional[dict] = None,
     ) -> None:
         completed_at = _now_iso()
         dur_ms: Optional[int] = None
@@ -468,6 +469,17 @@ class CycleHealthLog:
             # new_to_analyze/reeval) -- previously summary-only (log-parse to
             # recover); persisting them makes criterion-b diagnosis durable.
             "funnel": funnel or {},
+            # phase-86.38: per-cycle DEGRADATION record, kept separate from the
+            # 66.2 funnel because they answer different questions -- the funnel
+            # is "how many candidates survived each stage", this is "was the
+            # pipeline that judged them the real one". Populated on EVERY cycle,
+            # including cycles whose fallback rate is below the paging
+            # threshold: a degraded cycle that does not page is exactly the case
+            # that previously left no durable trace (measured 2026-08-10,
+            # 3 of 6 analyses on the lite fallback, 3/6 = 0.500, no page).
+            # Additive free-form dict -- cycle_history is append-only JSONL, so
+            # readers that do not know the key simply ignore it.
+            "degradation": degradation or {},
         }
         with self._lock:
             try:
