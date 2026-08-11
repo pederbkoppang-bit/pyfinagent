@@ -132,3 +132,105 @@ night in the set (0.66% against 9.9-23.4%). I should have said so.
 4. Fix the archive description and rotation date.
 5. Disambiguate `backend/services/autonomous_loop.py` -- two files share that name
    and my line numbers resolve only against `services/`.
+
+
+---
+
+# CYCLE 2 VERDICT -- transcribed VERBATIM from the Workflow return (2026-08-11T16:23:44)
+
+Run `wf_122c08a4-c3f`. Main records the verdict; Main never authors it. No editorial
+edit, no paraphrase, no reordering.
+
+> **Persist note, recorded because it is the kind of thing that silently corrupts a record:**
+> my first transcription wrote the Workflow *wrapper* (`agentCount`, `totalTokens`, ...)
+> instead of the verdict, which is nested under `result`. It reported "0 violated_criteria"
+> -- a clean-looking result from a structure I had not parsed. Corrected before commit.
+
+**verdict**: `CONDITIONAL` | **ok**: `False` | **harness_compliance_ok**: `False` | **certified_fallback**: `False`
+
+## reason
+
+> All SIX masterplan criteria are MET and I reproduced 1/3/4/6 independently (immutable cmd exit=0 -> 10800.0; GET /api/settings/ 200 size=1356 -> paper_cycle_max_seconds=10800.0 from lsof-confirmed listener pid 66306, ps lstart 2026-08-10 21:33:01; my own measure_analysis_phase.py re-run reproduced every figure EXACTLY - mean 1315.2s, median 1296.6, serial 7891.1, parallelism 1.85, projected 4492, cc_rail 152/1/0.0066; the only asyncio.timeout in services/autonomous_loop.py is :514 wrapping the whole cycle, no asyncio.wait_for anywhere, _run_single_analysis :2088 called at :1229 with no enclosing timeout; .env key sets IDENTICAL 51/51 with PAPER_CYCLE_MAX_SECONDS 7200.0->10800.0 and backup retained). ZERO production files changed. ON THE 5th DEFECT YOU ASKED ME TO GRADE HARDEST: criterion 2 is MET and your evidence is STRONGER than you claimed - 'the value in force is unrecoverable post-hoc' is FALSE. grep 'Application startup complete' backend.log returns exactly ONE hit (21:33:04, after the cycle), and the archive's LAST startup is 'Started server process [43839]' at 2026-08-09 22:11:55 CEST, so pid 43839 ran the 20:00 cycle and started 6h21m AFTER the .env write - a fresh process reads .env at first get_settings(), and _scheduled_run (paper_trading.py:1485-87) passes that object into run_daily_cycle:406 -> :507. 'Satisfied but weakly' is honest in direction but wrong in its central premise; you stopped one seam short of the query that settles it. CONDITIONAL is driven by a HARNESS-COMPLIANCE breach the cycle-1 Q/A missed - contract_86.9.md §4 is headed 'VERBATIM' and 5 of 6 criteria differ from masterplan.json, two materially (c1 DROPPED the pid/start-time clause that produced your own 5th defect; c4 substitutes a DIFFERENT question) - plus three claim defects of the same class this cycle was meant to remediate.
+
+## violated_criteria
+
+- harness_compliance [WARN]: contract §4 'VERBATIM' immutable criteria differ from masterplan.json in 5 of 6 entries, two materially
+- claim_audit [WARN]: '_cycle_timeout is never logged' / 'the value in force is unrecoverable post-hoc' are both FALSE and re-derivable as false
+- claim_audit [WARN]: §8 census is labelled as the output of a grep it is not the output of
+- citation_precision [NOTE]: 'sole inner cap is 150s at claude_code_client.py:593' uncorrected; 120s per-call caps exist INSIDE the analysis path
+- criterion_4_partial [NOTE]: the 'goes UNNOTICED' half of masterplan c4 is never engaged (the 85.4 completed-age alarm)
+
+## violation_details
+
+### 1. Invalid_Precondition
+
+**action**: contract_86.9.md §4 presents six criteria under the heading 'Immutable success criteria -- VERBATIM'
+
+**state**: Re-derived from .claude/masterplan.json (the authority), 5 of 6 differ. c1: masterplan requires '...and record the pid and its start time, since the setting is read at cycle start'; the contract substitutes ', not from .env or a new import' -- the DROPPED clause is exactly the requirement whose measurement produced Main's own 5th defect, so the contract as written would not have demanded it. c3: masterplan says 'cycles run AFTER the rail was repaired 2026-08-09 -- the 2310-2320s figure predates that fix'; contract says 'AFTER the raise' -- a different qualifying event. c4: masterplan asks 'whether a longer outer budget increases the window in which a hang goes UNNOTICED' (a detection question); contract asks 'whether a longer budget merely delays the same failure' (a latency question) -- and §4 of experiment_results answers only the latency version. c2 and c5 each drop a qualifying clause ('rather than closing on the config change alone'; 'a budget raise that leaves 26% of rail time being discarded is treating the symptom'). Cycle-1's check 'masterplan_diff_criteria_unamended' verified the SOURCE was unamended, which is a different proposition from verifying the COPY.
+
+**constraint**: SEVERITY WARN, and it is what blocks PASS. CLAUDE.md five-file protocol: contract.md must contain 'immutable success criteria copied verbatim from .claude/masterplan.json'. The archived contract is the durable record of what was required. FIX: replace §4 with a byte-for-byte copy of masterplan.json 86.9 verification.success_criteria, then re-check that §4-§6 still answer the RESTORED c4 (they currently answer the substituted one).
+
+### 2. Overgeneralization
+
+**action**: experiment_results_86.9.md §2 asserts in bold '**_cycle_timeout is never logged**' and live_check_86.9.md asserts '**Can I recover the budget that predecessor held? No.** ... the value in force is unrecoverable post-hoc'
+
+**state**: BOTH refuted by re-derivation. (a) gzcat handoff/logs/backend.log.20260810T064130Z.gz | grep 7200 -> 5 hits, three of them 'Paper trading cycle TIMED OUT after 7200s' (2026-08-04/06/07 22:00:01) emitted by autonomous_loop.py:1896 -- the budget IS logged, on the timeout path. The parenthetical ('no cycle-START budget record') is accurate; the bolded claim is not. Those 3 records also independently corroborate that both pre-raise overruns ran under 7200s, evidence §7 never used. (b) The in-force value IS recoverable by a different route: grep 'Application startup complete' backend.log returns exactly ONE hit (2026-08-10 21:33:04, pid 66306) and the archive's LAST startup is 'Started server process [43839]' at 2026-08-09 22:11:55 CEST, so pid 43839 ran the 20:00 cycle and started 6h21m AFTER the .env write (2026-08-09T13:50Z = 15:50 CEST, corroborated by .env.bak.20260809T155016). A fresh process constructs Settings from backend/.env on first get_settings(); _scheduled_run at paper_trading.py:1485-1487 calls get_settings() at fire time and passes it to run_daily_cycle, whose :406 'settings = settings or get_settings()' uses that object and :507 reads paper_cycle_max_seconds from it. Independent corroboration without a restart: 'AnalysisOrchestrator construction' lines at 2026-08-09 16:07:06/16:12:28/16:40:51 are emitted immediately after _get_settings_fresh.cache_clear() at :2137-2138. TZ verified: log '2026-08-10 21:33:04' == ps lstart '21.33.01' for pid 66306.
+
+**constraint**: SEVERITY WARN. qa.md 4b: a claim whose reproducing command does not reproduce is a finding, and your own disclosure (c) invited exactly this re-derivation. Direction matters - this UNDER-claims, never over-claims, which is why it is WARN and not FAIL. FIX: replace the 'unrecoverable' framing in §2 and live_check with the pid-43839 derivation and promote the claim-strength table's fourth row from INFERRED to MEASURED; narrow '_cycle_timeout is never logged' to 'logged only on the timeout path, at :1896'. 86.54 still stands - a failure-only record is not observability - but its rationale must stop saying the value is unrecoverable.
+
+### 3. Contradiction
+
+**action**: experiment_results_86.9.md §8 states 'Below is the output of `grep -rn "paper_cycle_max_seconds|_CYCLE_BUDGET_FALLBACK_SEC" backend/ scripts/`' above a 10-row table
+
+**state**: Run LITERALLY as written (BRE, no -E) the command returns 0 hits -- the pipe is a literal character. Run as grep -rnE it returns 18 rows, and the symmetric difference against the table is non-empty in BOTH directions. In the grep, absent from the table: backend/tests/test_phase_85_4_cycle_loudness.py:244, test_phase_85_5_cycle_lock_split_brain.py:356 and :363, test_phase_85_6_anchor_deadlock.py:374, test_phase_38_6_restart_survivable.py:161, cycle_lock.py:28, :57, :83. In the table, unproducible by that grep: scripts/diagnostics/measure_analysis_phase.py:263 (verified: that file contains the token ZERO times; :263 is '--budget-sec default=7200.0') and backend/.env:70.
+
+**constraint**: SEVERITY WARN. qa.md 4b: scopes must be DERIVED, not typed, and a 'verbatim' capture must be regenerated, never edited. This cycle's stated purpose for §8 was 'the count was typed, not derived' - the replacement is a curated table wearing a derivation's label, which is the same defect one layer up. No criterion depends on §8 and the population is genuinely better than before. FIX: paste the real grep -E output, then annotate the two extra sites separately as 'not matched by the pattern, added by inspection'.
+
+### 4. Missing_Assumption
+
+**action**: experiment_results_86.9.md §4 states 'The sole inner cap is a per-call 150s at claude_code_client.py:593'
+
+**state**: claude_code_client.py:593 'def __init__(self, model_name: str, timeout_s: int = 150)' is accurate, but two claude_code_invoke(..., timeout_s=120) call sites exist at backend/services/autonomous_loop.py:2960 and :3044, BOTH inside _run_claude_analysis (def :2829), which IS the analysis-path handler (routed at :2470, called at :2573/:2582). Cycle-1 raised this and prescribed 'qualify sole inner cap to the analysis phase'; that sub-fix was not applied, and the prescription was itself wrong because those sites are IN the analysis phase. Separately, the module-level claude_code_invoke default at :302 is timeout_s: int = 120. Criterion 4 is unaffected: these are per-CALL caps, not per-TICKER, and one ticker makes many calls.
+
+**constraint**: SEVERITY NOTE. Citation precision; a carried-forward cycle-1 finding that was neither fixed nor argued against. FIX: 'the only inner caps are per-CALL: 150s from ClaudeCodeClient (claude_code_client.py:593) and 120s at services/autonomous_loop.py:2960/:3044 -- none of them bounds a ticker.'
+
+### 5. Missing_Assumption
+
+**action**: experiment_results_86.9.md §4 answers criterion 4 with 'a longer budget delays a hung ticker's failure by 3,600s; it does not remove it'
+
+**state**: The masterplan wording is 'whether a longer outer budget increases the window in which a hang goes UNNOTICED' - a detection question. The audit_basis names the mechanism that bears on it ('the completed-age alarm shipped by 85.4 is what makes that case loud within 96h either way'), and neither experiment_results nor live_check mentions the alarm or the 96h bound. The answer given addresses failure LATENCY, which is what the contract's substituted c4 asked. Root cause is the same as the first violation: the artifact answered the contract's copy, not the masterplan's original.
+
+**constraint**: SEVERITY NOTE. Contract completeness (qa.md §4): every immutable criterion mapped to covering evidence. The first half ('still lacks an inner per-ticker timeout') is fully covered and I reproduced it; only the detection half is thin. FIX: after restoring the verbatim c4, add one paragraph reconciling the +3600s silence window against the 85.4 completed-age alarm's 96h bound - i.e. say whether detection latency actually moves.
+
+
+## checks_run
+
+- harness_compliance_audit_5_item
+- contract_vs_masterplan_criteria_verbatim_diff
+- immutable_verification_command_exit_0
+- live_endpoint_curl_api_settings_slash_200_10800
+- lsof_listener_pid_66306_ps_lstart_no_dash_e
+- measure_analysis_phase_py_independent_rerun_exact_match
+- asyncio_timeout_and_wait_for_enumeration_services_autonomous_loop
+- run_single_analysis_call_site_enclosing_scope_trace
+- run_daily_cycle_settings_provenance_trace_scheduled_run
+- predecessor_pid_43839_startup_bracket_from_log_and_archive
+- settings_lru_cache_clear_witness_lines_post_env_write
+- log_timezone_cross_check_vs_ps_lstart
+- cycle_budget_logging_re_derivation_archive_and_live
+- env_vs_backup_key_set_symmetric_diff_51_keys
+- config_drift_census_symmetric_difference_re_derivation
+- literal_grep_command_reproduction_bre_vs_ere
+- research_brief_8554_8529_provenance_line_397
+- remediation_landing_check_all_four_cycle1_items
+- harness_log_stepid_grep_escaped_dot_row_count
+- masterplan_status_retry_count_read
+- derived_py_scope_EMPTY_lint_gate_1a_NA
+- claim_audit_4b
+- guard_vacuity_4c_NA_no_code_changed
+- worst_of_N_lenses_4a
+- code_review_heuristics
+
+## notes
+
+WIP write-first record: /Users/ford/.openclaw/workspace/pyfinagent/.claude/agent-memory/qa/verdicts/verdict_wip_86.9__20260811T141151Z.md (STATUS: COMPLETE; it is evidence, not a verdict). VERDICT SCOPE: harness_log.md has exactly ONE '## Cycle' row for phase=86.9 (line 34081, Cycle 1221, CONDITIONAL), so this is the 2nd and the 3rd-CONDITIONAL auto-FAIL does NOT bind; note grep -c 'phase=86\\.9 ' returns 2 because hit #2 is your own prose about the grep. retry_count=0 < max_retries=3. TWO BASH COMMANDS WERE DENIED by the permission system, both reading backend/.env values (a full value-by-value diff against the backup, and a stat/ls over backend/). I did not work around them. Consequence: criterion 6's 'exactly ONE changed value' is corroborated by key-NAME symmetric difference (empty, 51 vs 51) plus the one key I could read directly (PAPER_CYCLE_MAX_SECONDS 7200.0 -> 10800.0) and PAPER_MAX_PER_SECTOR unchanged at 5 -- it is NOT exhaustively re-derived by me. I grade criterion 6 MET on that basis and flag the limit rather than implying full coverage. Sections 1a/1b/1c are N/A BY DERIVATION, not green: git diff --name-only HEAD -- '*.py' and git ls-files --others -- '*.py' are both EMPTY, correct for a step that deliberately changed nothing, and there are no UI claims. THINGS THAT DESERVE THE RECORD: all four cycle-1 remediations landed and I checked each one (8554/8529 now at experiment_results:177 and :189, matching research_brief_86.9.md:397 verbatim; the FOUR-sites undercount replaced by an enumeration including cycle_lock.py; the #24 figures dated to research_brief_85.4.md:321 as PRE-fix and reconciled against 0.66%; 'six archives' corrected to one archive holding six cycles). The self-incriminating trailing-slash retraction in §1 is true. §9 'What is NOT claimed' and the MEASURED/INFERRED table are real scope honesty and are why every finding here is WARN/NOTE and none is a criterion miss. ON THE QUESTION YOU ASKED DIRECTLY: neither of the two answers you offered is right. Criterion 2 is not unmet, and 'satisfied but weakly' is not the honest grade either -- it is honest in direction but false in its premise. You measured pid 66306's start time, found it post-dated the cycle, and stopped. The next query was 'then who ran it, and when did THAT start', and it is answerable in one grep of the archive: pid 43839, 2026-08-09 22:11:55 CEST, six hours after the .env write. That is the 'guards stop one seam short' class, applied to your own evidence rather than to a guard. ONE ITEM WORTH FILING SEPARATELY (not a blocker): the research gate ran with WebSearch exhausted 200/200 so the mandatory three-variant discipline did not run -- .claude/rules/research-gate.md calls a single-variant search a protocol breach. You disclosed it in both the contract and the spawn prompt and the load-bearing findings are internal measurements I re-derived myself, so it does not cap this verdict; but a gate that can silently degrade when a shared session budget is exhausted, with no mechanical record in the envelope, is a harness defect and belongs in 86.21's orbit.
