@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-11 | `8e95fb88` | phase-86.38: my classifier read the WRAPPER -- all 9 fallbacks are rate limits |
 | 2026-08-11 | `b8d2ea96` | phase-86.41: PLAN -- the gate REFUTED the step's premise; the crash is not ours |
 | 2026-08-11 | `debbc932` | phase-86.32: record a SECOND measured instance -- today reproduced it on five steps |
 | 2026-08-11 | `30cacbf1` | docs(goal): ASK #2 -- correct the exposure timeline; ~3 days on origin, not 48h |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-11 | `31e6c0db` | phase-86.38: CORRECT a protocol breach -- my contract's criteria were not the criteria |
 | 2026-08-11 | `b9b76eab` | phase-86.38 cycle 2: fix a SELF-REFERENTIAL assertion and a false claim I propagated |
 | 2026-08-11 | `52c3c209` | docs(goal): the 8.1M/8.7M token figures are NOT re-derivable -- mark the provenance |
-| 2026-08-11 | `c2e5f140` | phase-86.45/86.46: correct two of my own numbers, both quoted from memory |
 
 ---
 
+### v6.93.151 — phase-86.38: my classifier read the WRAPPER -- all 9 fallbacks are ra... (2026-08-11)
+
+- **phase-86.38: my classifier read the WRAPPER -- all 9 fallbacks are rate limits**
 ### v6.93.150 — phase-86.41: PLAN -- the gate REFUTED the step's premise; the crash i... (2026-08-11)
 
 - **phase-86.41: PLAN -- the gate REFUTED the step's premise; the crash is not ours**
