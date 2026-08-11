@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-11 | `28fc8663` | phase-86.33: [P2 -- THE qa-WRITE GUARD IS BLIND TO TWO agent_type VALUES THAT REAL SUBAGENTS RUN ... |
 | 2026-08-11 | `98b74e2d` | phase-86.33: cycle-3 PASS -- verdicts transcribed (all three, late), NOTEs fixed, log appended |
 | 2026-08-11 | `556389ac` | phase-86.33: cycle-2 CONDITIONAL remediated -- the census the record never carried |
 | 2026-08-11 | `f55a248d` | ops: ASK #7 -- a live Slack token is inlined in the crontab (NOT in git) |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-11 | `380e67c1` | phase-86.5: file the five steps -- the deliverable, each carrying its own trap |
 | 2026-08-11 | `32006221` | phase-86.5: PLAN -- 9 of 17 failures are the TEST being wrong, and two naive fixes are harmful |
 | 2026-08-11 | `aa043609` | phase-86.5: the failure census, MEASURED -- 17 not 26, and two failures that invert |
-| 2026-08-11 | `d11fda37` | phase-86.32: P2 THE EVALUATE LOOP HAS NO CEILING: F1 counts CONSECUTIVE failures, so an interveni... |
 
 ---
 
+### v6.93.197 — phase-86.33: [P2 -- THE qa-WRITE GUARD IS BLIND TO TWO agent_type VAL... (2026-08-11)
+
+- **phase-86.33: [P2 -- THE qa-WRITE GUARD IS BLIND TO TWO agent_type VALUES THAT REAL SUBAGENTS RUN ...**
 ### v6.93.196 — phase-86.33: cycle-3 PASS -- verdicts transcribed (all three, late),... (2026-08-11)
 
 - **phase-86.33: cycle-3 PASS -- verdicts transcribed (all three, late), NOTEs fixed, log appended**
