@@ -24992,6 +24992,27 @@
             "live_check": "live_check_86.54.md carrying the verbatim log line emitted by a real cycle start (not a synthetic call), with the pid and its start time, showing the budget value and its provenance"
           },
           "notes": "Filed by 86.9 cycle-2 remediation, 2026-08-11. NOTE for the executor: two files are named autonomous_loop.py -- this step means backend/services/autonomous_loop.py. Do not confuse the outer cycle budget with the per-call 150s rail cap at backend/agents/claude_code_client.py:593; they are different timeouts and 86.9 established there is NO per-ticker timeout between them. Related: 86.53 (config drift across the sites that define this value)."
+        },
+        {
+          "id": "86.55",
+          "name": "cycle-number assignment is a TOCTOU race, and it is the cause of the 141 duplicate integers",
+          "status": "pending",
+          "priority": "P3",
+          "harness_required": true,
+          "audit_basis": "DEMONSTRATED 2026-08-11 during 86.44, not inferred. scripts/smoketest/steps/finalize.py:70-72 computes `_next_cycle_number` as max()+1 over a read of the whole file, then appends at :83-85. The append itself is correct (open('a')), so NO DATA is lost -- this is distinct from 86.44's D1, which was a read-modify-write in run_harness.py and DID lose data. What races here is the IDENTIFIER. Measured by scripts/qa/prove_cycle_number_toctou_86_44.py: 16 concurrent appenders against a seed whose max was 100 were assigned only 6 DISTINCT numbers -- 10 collisions -- while all 17 rows survived. IMPORTANT METHOD NOTE for the executor: the FIRST run of that probe reported 0 collisions, because process-startup jitter serialised the workers so the TOCTOU window never overlapped; a multiprocessing Barrier immediately before the call exposed it. A run without the barrier is NOT evidence of safety. Corroborating evidence in history: 141 distinct integers are duplicated across 969 of 1,224 headers at tree 915d2cb0. WHY 86.44 DID NOT FIX IT: a correct fix needs an exclusive-lock primitive; macOS has no flock(1), and this project's own measurement found shlock does not break stale locks even with a dead pid, so the prescribed shape is atomic mkdir with BOTH dead-pid and age breaking, always failing open. That is a new concurrency primitive in a shared writer and was out of scope for a P3.",
+          "verification": {
+            "success_criteria": [
+              "the race is RE-DEMONSTRATED at a named tree with the barrier present, AND the same probe is run WITHOUT the barrier and its result reported -- a no-barrier run that shows 0 collisions must be reported as 'the window did not open', never as evidence of safety",
+              "every writer that assigns a cycle number is enumerated by grep across the repo and listed; the enumeration command is stated next to the count, and finalize.py must not be assumed to be the only one",
+              "if a lock is introduced it fails OPEN on any error -- a logging path must never block the caller it serves -- and that fail-open behaviour is proven by a test that makes the lock primitive itself raise",
+              "the fix is proven to assign N distinct numbers to N concurrent writers with the barrier in place, and the pre-fix probe is shown to collide on the same harness so the comparison is like-for-like",
+              "no historical header is rewritten; 86.44 decided deliberately to leave history wrong-but-honest, and that decision stands unless this step states a reason to overturn it",
+              "mutation-test the guard: revert the lock and show the check goes red, with the control observed GREEN first and a byte-identical restore"
+            ],
+            "command": "bash -c 'source .venv/bin/activate && python -c \"import ast; ast.parse(open(\\\"scripts/smoketest/steps/finalize.py\\\").read()); print(\\\"parses\\\")\"'",
+            "live_check": "live_check_86.55.md carrying the verbatim barrier-present and barrier-absent probe outputs at a named tree, before and after the fix"
+          },
+          "notes": "Filed by 86.44, 2026-08-11. Distinct from 86.44's D1 (data loss, FIXED) and from 86.46 (verdict_ledger.jsonl's cycle field, separate step). Read experiment_results_86.44.md section 5 first."
         }
       ]
     }

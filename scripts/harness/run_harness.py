@@ -971,13 +971,25 @@ def append_harness_log(cycle: int, plan: dict, generator_result: dict, grades: d
 **Total cycle time:** {elapsed:.0f}s
 """
 
-    # Create or append
-    if HARNESS_LOG.exists():
-        existing = HARNESS_LOG.read_text(encoding="utf-8")
-    else:
-        existing = "# Harness Log\n\nAutomated three-agent harness loop. Each cycle: Planner -> Generator -> Evaluator.\n"
-
-    HARNESS_LOG.write_text(existing + entry, encoding="utf-8")
+    # phase-86.44 (D1): TRUE APPEND, never read-modify-write.
+    #
+    # This used to `read_text()` the whole file and `write_text(existing + entry)`.
+    # Two Claude Code sessions work this repo concurrently, and anything the other
+    # one appended between our read and our write was silently destroyed -- not a
+    # garbled line, the entire block. write(2) specifies that for O_APPEND "the file
+    # offset shall be set to the end of the file prior to each write" and that the
+    # seek and write happen as one atomic step; the old code opted out of that.
+    #
+    # The header is written only when we create the file, so it cannot be duplicated
+    # by a racing writer that finds the file already present.
+    _new_file = not HARNESS_LOG.exists()
+    with open(HARNESS_LOG, "a", encoding="utf-8") as fh:
+        if _new_file:
+            fh.write(
+                "# Harness Log\n\nAutomated three-agent harness loop. "
+                "Each cycle: Planner -> Generator -> Evaluator.\n"
+            )
+        fh.write(entry)
     logger.info("Appended cycle %d to harness_log.md", cycle)
 
 

@@ -328,10 +328,20 @@ step-id (which is a structurally distinct problem and starts fresh).
 
 ### 5. LOG
 
-Append to `handoff/harness_log.md` using the Cycle format:
+Append to `handoff/harness_log.md` using the Cycle format.
+
+**Substitute `<N>` with the next integer** -- read it from the last `## Cycle`
+header in the file. This block is copied verbatim often enough that **59 headers in
+`harness_log.md` literally read `Cycle N`, `Cycle N+1` … `Cycle N+58`** (measured
+phase-86.44 at tree `915d2cb0`), which is why the placeholder now uses the same
+`<...>` form as `<id>` below rather than a bare `N`.
+
+**Append, never rewrite.** Use `cat >>` or an `O_APPEND` open. A read-modify-write
+destroys whatever a concurrent session appended in between -- two Claude Code
+sessions work this repo, and that is a real loss, not a theoretical one.
 
 ```
-## Cycle N -- YYYY-MM-DD -- phase=X.Y result=PASS/CONDITIONAL/FAIL
+## Cycle <N> -- YYYY-MM-DD -- phase=X.Y result=PASS/CONDITIONAL/FAIL
 
 **Step**: <id> <name>
 **Research**: tier, N URLs, M full reads, I internal files.

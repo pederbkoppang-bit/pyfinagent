@@ -1411,8 +1411,20 @@ def get_harness_log():
         return {"cycles": []}
 
     cycles: list[dict] = []
-    # Split on cycle headers: ## Cycle N -- timestamp
-    parts = re.split(r"^## (Cycle \d+)\s*--\s*(.+)$", content, flags=re.MULTILINE)
+    # phase-86.44 (D2): accept ANY cycle token, not just `\d+`.
+    #
+    # This used to split on `^## (Cycle \d+)\s*--\s*(.+)$`. A header whose token is
+    # not a bare integer -- and 160 of 1,224 were not, 13.1%, measured at tree
+    # 915d2cb0 -- did not match, so it was not a split point and its ENTIRE BODY was
+    # glued onto the preceding cycle. The tab did not merely omit those cycles; it
+    # displayed their text attributed to a different cycle, which is worse than a gap
+    # because it looks complete.
+    #
+    # Real tokens in the log include "1", "30 (continued)", "4.15.3", "N", "N+1" and
+    # "-- 2026-04-20 NOOP". `[^\n]+?` accepts all of them; the non-greedy bound plus
+    # the required `--` keeps the split at the first separator, so a body containing
+    # "--" cannot swallow the timestamp.
+    parts = re.split(r"^## (Cycle [^\n]+?)\s*--\s*(.+)$", content, flags=re.MULTILINE)
     i = 1
     while i + 2 < len(parts):
         cycle_name = parts[i].strip()
