@@ -389,6 +389,29 @@ def self_test() -> int:
         print(f"   (vi-c) corrupt ledger refuses to print a zero -> {_refusal}")
         ok &= _refusal
 
+        # (vi-e) THE "auto-FAIL armed" LINE MUST BE ASSERTED IN BOTH BRANCHES.
+        # phase-86.21 cycle 5. The cycle-4 Q/A built ten mutants against
+        # `_report`'s printed output and NINE survived; the two that matter both
+        # attack this line. A1 hardcodes `auto-FAIL armed : False` on the
+        # knowable branch -- so a step sitting on two CONDITIONALs would print
+        # "not armed" while the counter itself says armed=True. A2 makes the
+        # UNKNOWABLE branch print `False` instead of the refusal, which is the
+        # fail-OPEN direction on the one branch whose whole purpose is to fail
+        # closed. Cycle 4 asserted the consecutive COUNT and left the ARMED line
+        # -- the line an operator actually acts on -- unguarded.
+        _armed_ok = f"auto-FAIL armed : {_h_ok.would_auto_fail}" in outs["ok"]
+        print(f"   (vi-e) knowable branch prints the real armed flag "
+              f"({_h_ok.would_auto_fail}) -> {_armed_ok}")
+        ok &= _armed_ok
+
+        # (vi-f) the unknowable branch must print the REFUSAL, never a boolean.
+        _unk = outs["corrupt"]
+        _unk_ok = ("auto-FAIL armed : UNKNOWN" in _unk
+                   and "auto-FAIL armed : False" not in _unk
+                   and "auto-FAIL armed : True" not in _unk)
+        print(f"   (vi-f) unknowable branch refuses a boolean armed flag -> {_unk_ok}")
+        ok &= _unk_ok
+
         # (vi-d) BOTH cause branches must be reachable, and each must print its
         # OWN explanation. Cycle 3's survivor swapped them and nothing noticed,
         # so the tool would attribute log-close blindness to a predicate

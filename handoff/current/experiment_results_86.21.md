@@ -26,17 +26,49 @@ The step text builds its reproduction on 36.17. **That no longer reproduces** --
 phase-86.20's real mid-flight state, replayable by anyone:
 
 ```
-$ git show "688ac349:.claude/masterplan.json"            -> 86.20 status = pending
-$ git show "688ac349:handoff/current/evaluator_critique_86.20.md" | grep -c '^## Cycle'
-1
-$ git show "688ac349:handoff/harness_log.md" | grep -c 'phase=86.20 result='
-0
+phase-86.21 criterion 6 -- mutation matrix (in-memory; repo never written)
+target : verdict_history_86_21.py
+md5    : 142f6befbd7fc96689f568cb16b98820
 
-$ git show "7145f566:.claude/masterplan.json"            -> 86.20 status = pending
-$ git show "7145f566:handoff/current/evaluator_critique_86.20.md" | grep -c '^## Cycle'
-2
-$ git show "7145f566:handoff/harness_log.md" | grep -c 'phase=86.20 result='
-0
+[control] un-mutated self-test rc=0 (0 = PASSED)
+  [broken-scoring self-check] uncompilable mutant -> 'broken' (correct)
+  [broken-scoring self-check] real behavioural mutant -> 'killed' (correct)
+  KILLED  | S1: the CLI prints a hard zero for every step forever (the silent zero returns, in the OUTPUT)
+            self-test rc=1
+  KILLED  | S2: the two CAUSE explanations swap -- blindness attributed to a predicate mismatch and vice versa
+            self-test rc=1
+  KILLED  | A1: the knowable branch hardcodes 'auto-FAIL armed : False' (armed step reads as unarmed)
+            self-test rc=1
+  KILLED  | A2: the UNKNOWABLE branch prints a boolean instead of refusing (fail-OPEN)
+            self-test rc=1
+  KILLED  | S3: the whole DISAGREEMENT block disappears silently
+            self-test rc=1
+  KILLED  | M1: unparseable/empty report 0 instead of None (the silent zero returns)
+            self-test rc=1
+  KILLED  | M2: reset becomes == 'PASS' (misses PASS_WITH_FINDINGS / PASS_AFTER_RETRY)
+            self-test rc=1
+  KILLED  | M3: corrupt rows are ignored instead of counted (fail-open restored)
+            self-test rc=1
+  KILLED  | M4: arming threshold drops to one CONDITIONAL (one-sided guard, Q/A's Q1)
+            self-test rc=1
+  KILLED  | M5: a present-but-EMPTY ledger reports a silent zero again (Q/A's finding 1)
+            self-test rc=1
+  KILLED  | M6: step matching becomes a PREFIX match (86.2 would swallow 86.20/86.21)
+            self-test rc=1
+  KILLED  | M7: verdict tokens stop being case-normalised (Q/A's Q3)
+            self-test rc=1
+  KILLED  | M8: a row with NO step_id is silently skipped again (fail-OPEN under-count)
+            self_test() raised AttributeError: 'NoneType' object has no attribute 'strip'
+  KILLED  | M9: prescribed_grep_count always returns 0 (Q/A's N1 -- contrast half unguarded)
+            self-test rc=1
+  KILLED  | M10: _report always exits 0 (Q/A's N2 -- the fail-CLOSED signal goes dark)
+            self-test rc=1
+  KILLED  | M11: would_auto_fail returns False instead of None when unknowable (Q/A's N4)
+            self-test rc=1
+
+[integrity] target md5 unchanged: True
+ALL 16 MUTANTS KILLED -- every guard IN THIS MATRIX can fail.
+EXIT=0
 ```
 
 **Two recorded verdicts, status still `pending`, and the grep the rule prescribes
@@ -163,9 +195,21 @@ not a guard.
 ```
 phase-86.21 criterion 6 -- mutation matrix (in-memory; repo never written)
 target : verdict_history_86_21.py
-md5    : 9ece5e79b6568feaaced32628fbfb144
+md5    : 142f6befbd7fc96689f568cb16b98820
 
 [control] un-mutated self-test rc=0 (0 = PASSED)
+  [broken-scoring self-check] uncompilable mutant -> 'broken' (correct)
+  [broken-scoring self-check] real behavioural mutant -> 'killed' (correct)
+  KILLED  | S1: the CLI prints a hard zero for every step forever (the silent zero returns, in the OUTPUT)
+            self-test rc=1
+  KILLED  | S2: the two CAUSE explanations swap -- blindness attributed to a predicate mismatch and vice versa
+            self-test rc=1
+  KILLED  | A1: the knowable branch hardcodes 'auto-FAIL armed : False' (armed step reads as unarmed)
+            self-test rc=1
+  KILLED  | A2: the UNKNOWABLE branch prints a boolean instead of refusing (fail-OPEN)
+            self-test rc=1
+  KILLED  | S3: the whole DISAGREEMENT block disappears silently
+            self-test rc=1
   KILLED  | M1: unparseable/empty report 0 instead of None (the silent zero returns)
             self-test rc=1
   KILLED  | M2: reset becomes == 'PASS' (misses PASS_WITH_FINDINGS / PASS_AFTER_RETRY)
@@ -181,7 +225,7 @@ md5    : 9ece5e79b6568feaaced32628fbfb144
   KILLED  | M7: verdict tokens stop being case-normalised (Q/A's Q3)
             self-test rc=1
   KILLED  | M8: a row with NO step_id is silently skipped again (fail-OPEN under-count)
-            raised AttributeError: 'NoneType' object has no attribute 'strip'
+            self_test() raised AttributeError: 'NoneType' object has no attribute 'strip'
   KILLED  | M9: prescribed_grep_count always returns 0 (Q/A's N1 -- contrast half unguarded)
             self-test rc=1
   KILLED  | M10: _report always exits 0 (Q/A's N2 -- the fail-CLOSED signal goes dark)
@@ -190,7 +234,8 @@ md5    : 9ece5e79b6568feaaced32628fbfb144
             self-test rc=1
 
 [integrity] target md5 unchanged: True
-ALL 11 MUTANTS KILLED -- every guard IN THIS MATRIX can fail.
+ALL 16 MUTANTS KILLED -- every guard IN THIS MATRIX can fail.
+EXIT=0
 ```
 
 M2 is the one worth reading twice: rewriting the reset as `== 'PASS'` looks
@@ -358,8 +403,15 @@ $ python scripts/qa/verdict_history_86_21.py --self-test | grep -cE '^   \('
 ```
 
 THE MATRIX RULE: a *cell* is one tuple literal in `MUTANTS`. Under that rule the
-matrix now carries **14 cells, all killed** -- the three cycle-3 survivors
-(S1/S2/S3) plus the eleven that existed before.
+matrix carries **16 cells, all killed** as of cycle 5 -- the eleven that existed
+before, the three cycle-3 survivors (S1/S2/S3), and the two cycle-4 survivors
+(A1/A2) the cycle-4 Q/A found against `_report`'s printed output.
+
+**These two numbers move every cycle, and that is the point of stating the rule
+rather than the number.** Cycle 4 published 18 cases / 14 cells; cycle 5 measures
+**20 cases / 16 cells**. Anyone re-running the two commands above gets whatever
+is true then. A figure quoted without its rule and its tree is not checkable, and
+this step exists because of one that was not.
 
 No historical figure is restated here, because none of them can be reproduced.
 

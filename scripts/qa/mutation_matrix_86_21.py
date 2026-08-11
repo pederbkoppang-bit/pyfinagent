@@ -35,6 +35,14 @@ MUTANTS = [
     ("S2", "the two CAUSE explanations swap -- blindness attributed to a predicate mismatch and vice versa",
      "        if g == 0 and c > 0:",
      "        if not (g == 0 and c > 0):"),
+    # ---- cycle-5 cells: the cycle-4 Q/A's surviving A1/A2, the two that carry
+    # ---- a real fail-open differential on the line an operator acts on.
+    ("A1", "the knowable branch hardcodes 'auto-FAIL armed : False' (armed step reads as unarmed)",
+     'print(f"auto-FAIL armed : {h.would_auto_fail}  "',
+     'print(f"auto-FAIL armed : False  "'),
+    ("A2", "the UNKNOWABLE branch prints a boolean instead of refusing (fail-OPEN)",
+     'print("auto-FAIL armed : UNKNOWN -- treat as ARMED until the source is fixed")',
+     'print("auto-FAIL armed : False")'),
     ("S3", "the whole DISAGREEMENT block disappears silently",
      "    if c is not None and g != c:",
      "    if False:"),
@@ -89,30 +97,74 @@ def _load(src_text: str, tag: str):
     return mod
 
 
-def verify_broken_scoring(text: str) -> bool:
-    """phase-86.21 cycle 4 -- prove the BROKEN path actually fires.
+def score_cell(text: str, old: str, new: str, mid: str):
+    """THE SCORING DECISION, in one place so it can be driven directly.
 
-    The cycle-3 Q/A showed this harness scoring guard-IRRELEVANT mutants as
-    KILLED and then printing "every guard IN THIS MATRIX can fail". The fix
-    separates load-time failure from self_test() failure -- but a fix that is
-    never observed working is exactly what this step is about. So: inject a
-    mutant that CANNOT COMPILE and require `_load` to raise, which is what the
-    BROKEN branch keys on. Run as part of every matrix run, not on request.
+    Returns ("killed" | "survived" | "broken", detail).
+
+    phase-86.21 cycle 5. This used to be inline in main(), and the "self-check"
+    that claimed to verify it only asserted that `importlib` raises on bad
+    syntax -- a LIBRARY FACT. The cycle-4 Q/A proved the gap by restoring the
+    cycle-3 defect (routing load-time exceptions back to `killed += 1`): the
+    self-check still printed "the BROKEN branch is reachable" and the matrix
+    still printed "ALL 14 MUTANTS KILLED" at rc=0. **The check could not fail
+    when its subject was broken, which is the exact thing this project keeps
+    filing findings about, committed by me inside the fix for it.**
+
+    Extracted so `verify_broken_scoring()` can call THIS -- the production path
+    -- and observe what it actually returns.
+
+    A mutant that fails to LOAD never reached a guard, so it licenses nothing
+    and is BROKEN, not killed. Only an exception raised INSIDE self_test() is a
+    kill.
     """
-    broken_src = text.replace("def self_test() -> int:", "def self_test(((", 1)
-    if broken_src == text:
-        print("  [broken-scoring self-check] ANCHOR MISSING -- cannot verify")
-        return False
     try:
-        _load(broken_src, "xcheck")
-    except Exception as exc:                                   # noqa: BLE001
-        print(f"  [broken-scoring self-check] _load raised {type(exc).__name__}"
-              " -> the BROKEN branch is reachable, guard-irrelevant mutants"
-              " cannot be scored as kills")
-        return True
-    print("  [broken-scoring self-check] an UNCOMPILABLE mutant LOADED -- the"
-          " BROKEN branch is unreachable and kills cannot be trusted")
-    return False
+        mod = _load(text.replace(old, new, 1), mid)
+    except Exception as exc:                                  # noqa: BLE001
+        return "broken", (f"mutant failed to LOAD ({type(exc).__name__}: {exc})"
+                          " -- it never reached a guard, so this cell scores NOTHING")
+    try:
+        b = io.StringIO()
+        with contextlib.redirect_stdout(b):
+            r = mod.self_test()
+    except Exception as exc:                                  # noqa: BLE001
+        return "killed", f"self_test() raised {type(exc).__name__}: {exc}"
+    return ("killed" if r != 0 else "survived"), f"self-test rc={r}"
+
+
+def verify_broken_scoring(text: str) -> bool:
+    """Drive the REAL scoring path with a guard-irrelevant mutant.
+
+    Cycle 4's version asserted that `_load` raises on bad syntax and inferred the
+    rest. That inference was false: with the cycle-3 defect restored it still
+    reported success. This version calls `score_cell` -- the same function main()
+    uses -- and requires the OUTCOME to be "broken". If the scoring is ever
+    routed back to a kill, this returns False and the matrix refuses to score.
+
+    Two cells, because one is not a discrimination test:
+      * an UNCOMPILABLE mutant must score "broken";
+      * a real behavioural mutant must still score "killed", so a version that
+        simply returns "broken" for everything cannot pass.
+    """
+    ok = True
+
+    outcome, detail = score_cell(text, "def self_test() -> int:", "def self_test(((", "xcheck")
+    good = outcome == "broken"
+    ok &= good
+    print(f"  [broken-scoring self-check] uncompilable mutant -> {outcome!r} "
+          f"({'correct' if good else 'WRONG: a mutant that never ran was scored as a result'})")
+
+    outcome2, _d2 = score_cell(text, 'print(f"consecutive     : {c}")',
+                               'print(f"consecutive     : 0")', "xcheck2")
+    good2 = outcome2 == "killed"
+    ok &= good2
+    print(f"  [broken-scoring self-check] real behavioural mutant -> {outcome2!r} "
+          f"({'correct' if good2 else 'WRONG: scoring no longer distinguishes'})")
+
+    if not ok:
+        print("  [broken-scoring self-check] the SCORING PATH is wrong -- kills"
+              " from this matrix cannot be trusted.")
+    return ok
 
 
 def main() -> int:
@@ -162,28 +214,16 @@ def main() -> int:
         # exceptions raised INSIDE self_test() are kills -- and those are real
         # ones, e.g. removing the step_id guard leaves `sid` None and the next
         # line raises AttributeError, which IS the guard's subject failing.
-        try:
-            mod = _load(text.replace(old, new, 1), mid)
-        except Exception as exc:  # noqa: BLE001 -- did not reach any guard
+        outcome, detail = score_cell(text, old, new, mid)
+        if outcome == "broken":
             broken.append(mid)
-            print(f"  BROKEN  | {mid}: {desc}")
-            print(f"            mutant failed to LOAD ({type(exc).__name__}: {exc})")
-            print("            -- it never reached a guard, so this cell scores NOTHING")
-            continue
-        try:
-            b = io.StringIO()
-            with contextlib.redirect_stdout(b):
-                r = mod.self_test()
-        except Exception as exc:  # noqa: BLE001 -- raised INSIDE the guard: a kill
+            print(f"  BROKEN  | {mid}: {desc}\n            {detail}")
+        elif outcome == "killed":
             killed += 1
-            print(f"  KILLED  | {mid}: {desc}\n            self_test() raised {type(exc).__name__}: {exc}")
-            continue
-        if r != 0:
-            killed += 1
-            print(f"  KILLED  | {mid}: {desc}\n            self-test rc={r}")
+            print(f"  KILLED  | {mid}: {desc}\n            {detail}")
         else:
             survived.append(mid)
-            print(f"  SURVIVED| {mid}: {desc}\n            self-test rc={r}")
+            print(f"  SURVIVED| {mid}: {desc}\n            {detail}")
 
     after = hashlib.md5(TARGET.read_bytes()).hexdigest()
     same = before == after
