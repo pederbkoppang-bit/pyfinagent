@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-11 | `21269f42` | phase-86.41: [P2 -- THE QuantAgent NoneType CRASH IS A BIGGER SOURCE OF DEGRADED ANALYSES THAN TH... |
 | 2026-08-11 | `1806bb56` | chore: commit agent-memory + Q/A WIP records under their OWN description |
 | 2026-08-11 | `85aeea6c` | phase-86.41: cycle-3 PASS -- verdict persisted verbatim + harness_log append |
 | 2026-08-11 | `fb21682b` | phase-86.41: cycle-2 CONDITIONAL remediated -- lint blocker + all four notes |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-11 | `73dcf2c8` | phase-86.41: isolate the quant sub-agent at the DEPENDENCY, not the ticker |
 | 2026-08-11 | `031d059c` | docs: day report 2026-08-11 + regenerated goal for the next session |
 | 2026-08-11 | `b4b7008b` | phase-86.5: record measured triage input -- the title says 26, I measure 17 |
-| 2026-08-11 | `48741e44` | phase-86.41: REFUTE my own step's premise before anyone executes it |
 
 ---
 
+### v6.93.166 — phase-86.41: [P2 -- THE QuantAgent NoneType CRASH IS A BIGGER SOURCE... (2026-08-11)
+
+- **phase-86.41: [P2 -- THE QuantAgent NoneType CRASH IS A BIGGER SOURCE OF DEGRADED ANALYSES THAN TH...**
 ### v6.93.165 — phase-86.41: cycle-3 PASS -- verdict persisted verbatim + harness_log... (2026-08-11)
 
 - **phase-86.41: cycle-3 PASS -- verdict persisted verbatim + harness_log append**
