@@ -1,119 +1,112 @@
 # Researcher Agent Memory Index
 
-- [Dead telemetry + 429 86.38](project_dead_telemetry_429_86_38.md) — Vertex has NO per-day quota (DSQ removes the number entirely); `>` vs `>=` is a provable NO-OP at n=5; the alarm PAYLOAD fields are the real dead ones, dropped at 3 whitelists
+- [Absent upstream data 86.41](project_absent_upstream_data_86_41.md) — the NoneType frame is a CLOUD FUNCTION not this repo; retry-then-return-None erases the 429; a coverage assertion proves counting, never attribution
 
-- [WIP clobber 86.36](project_wip_clobber_86_36.md) — born-inert makes the clobber EARLIER (the retry's first stub lands on the prior attempt); MEASURED live 4,921→796 bytes mid-session; write-guard misses Bash `mv`; HEAD already held the post-destruction state
-
-- [Id-collision resolver 86.19](project_id_collision_resolver_86_19.md) — JSON key order decides the winner so the ARCHIVE wins 5.1; `phase-6.5` is cross-type (phase vs step) and no archive exclusion closes it; defect is LATENT (no colliding id has a live_check)
-- [Claims-correctness 86.34](project_claims_correctness_86_34.md) — a TZ shift holds for only |offset|/24 hours so it can NEVER be hour-independent; `.venv.py313.bak` defeats exact-match filters (95.5% of scanned .py is vendored); a "verbatim" digest went stale on a legit edit
-- [Silent glob + archive provenance 86.29](project_silent_glob_archive_86_29.md) — the glob NEVER had a domain (0/5 sids, 896 suffix vs 169 all-historical prefix); zsh NOMATCH gives a false loud-failure; OAIS+17a-4 both PERMIT documented repair
-- [WebFetch PDF summaries fabricate quotes](reference_webfetch_pdf_summaries_fabricate_quotes.md) — measured TWICE (83.1.1, 86.29); re-extract with pypdf and regex-verify every quoted string before it enters a brief
-- [Degraded-branch direction 86.30](project_degraded_branch_direction_86_30.md) — `is_global` = ROUTABILITY not OWNERSHIP (6 of this Mac's 17 own addrs are is_global=True); the defect was already Q/A note N1; psutil in ZERO requirements files
-- [Clock-dependent tests 86.24](project_clock_dependent_tests_86_24.md) — three midnight tests = TWO bugs 2h apart (local-vs-UTC window vs a true time bomb); staleness is correct-by-design; only a shifted-clock differential run has validatable recall
-- [Unknown direction 86.25](project_unknown_direction_86_25.md) — live symptom is 100% HOLD not APPROVE/BUY; `.get` default never fires on a present-but-EMPTY value; attribute writer-less rows by NULL-constant columns + identical-MICROSECOND timestamps; `is_directional` already built, uncalled
-- [Silent tier downgrade 86.28](project_silent_tier_downgrade_86_28.md) — ABSENT vs UNSUPPORTED is the whole question; `enum` is NOT stripped so it can make an honest report unrepresentable; coverage.dry unverifiable in principle
-- [Dead imports 86.26](project_dead_imports_86_26.md) — `X as X` is type-checker-only (mypy implicit_reexport defaults TRUE); compute_benchmark_return NOT a re-export; repo has NO ruff config
-- [CONDITIONAL counter 86.21](project_conditional_counter_86_21.md) — source written at step CLOSE so it reads 0 mid-flight; THREE rule copies, TWO predicates
-- [Test state channels 86.6](project_test_state_channels_86_6.md) — a RuntimeError guard is SWALLOWED by kill_switch's `except Exception`; addaudithook is the only 4-channel seam
-- [Rec-vocab CLASS 86.22](project_rec_vocab_class_86_22.md) — canonicaliser DARK behind a MONEY-path flag; `agent_memories` is the poisoned table; similarity AUROC 0.59
-- [Rec-vocabulary 86.20](project_rec_vocabulary_86_20.md) — `.upper()` folds CASE not SEPARATOR so STRONG_* dies at BUY *and* SELL gates; unnormalised WRITE path
-- [Args-boundary 86.17](project_args_boundary_86_17.md) — the empty catch is LOAD-BEARING for the checker's own import; double-encoded JSON defeats try/catch
-- [NAV asof kill-switch 86.12](project_nav_asof_killswitch_86_12.md) — `current_nav` is STORED on all 5 paths; `updated_at` already read and DISCARDED; error direction is FIRE LATE
-- [Halt freezes stops 36.17](project_halt_freezes_stops_36_17.md) — execute_sell DELIBERATELY ungated (flatten uses it); backfill synthesizes a stop = a NEW risk decision
-- [Replay-abort disarm 86.2](project_replay_abort_total_disarm_86_2.md) — the verification command EXITS 0 with the defect present; OverflowError window BOUNDED 310..4300 digits
-- [Flag-accident landmine 86.1](project_flag_accident_landmine_86_1.md) — flag-ON arm isolated, OFF arm wasn't; `get_state()` patch vacuous BY IDENTITY; 24666 peak only in ARCHIVES
+- [Headless keychain auth 86.7](project_headless_keychain_auth_86_7.md) — dead token COMMITTED in 5 tracked files; all jobs are AGENTS not daemons; keychain is `no-timeout` so screen lock does NOT lock it
+- [Shared-identity authz 86.33](project_shared_identity_authz_86_33.md) — `agent_id` documented but UNREAD; `general-purpose` really wrote 15 critique
+- [WebSearch budget is session-shared](reference_websearch_budget_is_session_shared.md) — 200/200 can be spent BEFORE you spawn; WebFetch still works; probe with your
+- [Dead telemetry + 429 86.38](project_dead_telemetry_429_86_38.md) — Vertex has NO per-day quota; `>` vs `>=` a provable NO-OP at n=5; alarm PAYLOAD
+- [WIP clobber 86.36](project_wip_clobber_86_36.md) — born-inert makes the clobber EARLIER; MEASURED 4,921→796 bytes live
+- [Id-collision resolver 86.19](project_id_collision_resolver_86_19.md) — JSON key order picks the winner so the ARCHIVE wins 5.1; `phase-6.5`
+- [Claims-correctness 86.34](project_claims_correctness_86_34.md) — a TZ shift holds only |offset|/24 hours so never hour-independent
+- [Silent glob + archive provenance 86.29](project_silent_glob_archive_86_29.md) — the glob NEVER had a domain (0/5 sids); zsh NOMATCH gives a false loud-failure
+- [WebFetch PDF summaries fabricate quotes](reference_webfetch_pdf_summaries_fabricate_quotes.md) — measured TWICE; re-extract with pypdf and regex-verify every quote
+- [Degraded-branch direction 86.30](project_degraded_branch_direction_86_30.md) — `is_global` = ROUTABILITY not OWNERSHIP; already Q/A note N1; psutil in ZERO
+- [Clock-dependent tests 86.24](project_clock_dependent_tests_86_24.md) — three midnight tests = TWO bugs 2h apart; only a shifted-clock differential run
+- [Unknown direction 86.25](project_unknown_direction_86_25.md) — live symptom is 100% HOLD; `.get` default never fires on present-but-EMPTY
+- [Silent tier downgrade 86.28](project_silent_tier_downgrade_86_28.md) — ABSENT vs UNSUPPORTED is the whole question; `enum` is NOT stripped
+- [Dead imports 86.26](project_dead_imports_86_26.md) — `X as X` is type-checker-only (mypy implicit_reexport defaults TRUE); repo has
+- [CONDITIONAL counter 86.21](project_conditional_counter_86_21.md) — source written at step CLOSE so it reads 0 mid-flight; THREE rule copies, TWO
+- [Test state channels 86.6](project_test_state_channels_86_6.md) — a RuntimeError guard is SWALLOWED by kill_switch's `except Exception`
+- Rec-vocabulary [86.20](project_rec_vocabulary_86_20.md)/[CLASS 86.22](project_rec_vocab_class_86_22.md) — `.upper()` folds CASE not SEPARATOR so STRONG_* dies at BUY *and* SELL
+- [Args-boundary 86.17](project_args_boundary_86_17.md) — the empty catch is LOAD-BEARING for the checker's own import; double-encoded
+- [NAV asof kill-switch 86.12](project_nav_asof_killswitch_86_12.md) — `current_nav` STORED on all 5 paths; `updated_at` read and DISCARDED; error
+- Kill-switch gates: [traps 36.12](project_kill_switch_36_12_traps.md) pause-on-disarmed wedges vs /resume 409, execute_buy UNGATED; [alt path 36.13](project_kill_switch_36_13_alternate_path.md) pause IS restart-durable, inject state not a bypass; [halt/stops 36.17](project_halt_freezes_stops_36_17.md) execute_sell deliberately ungated
+- [Replay-abort disarm 86.2](project_replay_abort_total_disarm_86_2.md) — the verification command EXITS 0 with the defect present; OverflowError window
+- [Flag-accident landmine 86.1](project_flag_accident_landmine_86_1.md) — flag-ON arm isolated, OFF arm wasn't; `get_state()` patch vacuous BY IDENTITY
 - [Stale-anchor disarm 85.5.1](project_stale_anchor_disarm_85_5_1.md) — the GUARD was already right (per-leg); "disarmed" meant ONE leg; missing≠stale
-- [Kill-switch deadlock 85.6](project_kill_switch_deadlock_85_6.md) — TWO `autonomous_loop.py` files; SOD roll had ONE trigger behind the analysis phase
-- [Circuit-breaker recovery](reference_circuit_breaker_recovery_prior_art.md) — resilience4j ships "latch clears only if a call is made" as a DEFAULT; Azure mandates manual reset
+- [Kill-switch deadlock 85.6](project_kill_switch_deadlock_85_6.md) — TWO `autonomous_loop.py` files; SOD roll had ONE trigger behind the analysis
+- [Circuit-breaker recovery](reference_circuit_breaker_recovery_prior_art.md) — resilience4j ships "latch clears only if a call is made" as a DEFAULT; Azure
 - [Cycle never completes 85.4](project_cycle_never_completes_85_4.md) — both premises refuted; heartbeat alarm skips only `started`; 145s vs a 150s cap
-- [cycle_lock split-brain 85.5](project_cycle_lock_split_brain_85_5.md) — unlink BEFORE LOCK_UN double-acquires on the NORMAL release path; macOS spawn hits the REAL lockfile
+- [cycle_lock split-brain 85.5](project_cycle_lock_split_brain_85_5.md) — unlink BEFORE LOCK_UN double-acquires on the NORMAL release path; macOS spawn
 - [EXECUTION_BACKEND 68.1](project_execution_backend_wiring_68_1.md) — PKLIVE is FOLKLORE (Alpaca splits by DOMAIN); `kickstart -k` ignores plist edits
-- [Auth latch 85.3](project_auth_latch_85_3.md) — clear path unreachable via if/elif ordering; recovery probe gated on `rc==0` while a HEALTHY credential exits 1/124
-- [Credential-free CI 85.2](project_credential_free_ci_lane_85_2.md) — slack-bolt 1.30.0 dropped `[async]` (pip WARNS, exits 0); pydantic defaults are LOWEST precedence
-- [Rail fail-forward 72.0.2](project_rail_failforward_72_0_2.md) — both premises refuted; the lite path emitting the HOLD bypasses make_client entirely
-- [Decision-input integrity 61.2](project_decision_input_integrity_61_2.md) — step blamed the CRITIC, BQ refutes it (153/153 rows SYNTHESIS parse error); 2 ungated fabrication sites
-- [Gate feasibility 83.1.1](project_gate_feasibility_83_1_1.md) — required-SR swings 0.69→2.07 on V; PBO not DSR is binding; a WebFetch PDF summary FABRICATED the paper
-- [Phase-83 design pack 83.1](project_phase83_design_pack_83_1.md) — a naive `*83*` glob is a criteria-killer (71 of 438 match); mtime guards have ZERO prior art
-- [PBO MCP proof 83.0.3](project_pbo_mcp_proof_83_0_3.md) — fix ALREADY shipped; FastMCP 3.2.4 tools are closures (`get_tool().fn`); payload `isError` != `is_error`
-- [News timestamp PIT 83.0.1](project_news_timestamp_pit_83_0_1.md) — BQ DOES allow a NULLABLE partition column; fetcher.py's fallback is DEAD on the live path
-- [News corpus 83.0](project_news_corpus_persistence_83_0.md) — BQ cannot add a REQUIRED column to an existing table; insert_rows_json STRICT, one bad column kills the batch
-- [Registry->live bridge 82.6](project_registry_live_bridge_82_6.md) — both premises REFUTED; headline was in an unnamed file, inert only because the COLUMN is NULL
-- [Slack handler binding 82.59](project_slack_handler_binding_82_59.md) — Bolt SWALLOWS listener exceptions so every handler defect is SILENT; status==200 is vacuous
-- [Dead cost alert 82.58](project_dead_alert_82_58.md) — THREE stacked blockers (deduper fires FIRST); "15 call sites" is really 33; the fix ARMS a live Slack POST
-- [Autoresearch Max-rail 85.1](project_autoresearch_max_rail_85_1.md) — migration already shipped (default ON); rail never ran under launchd; `--bare` flip is a scheduled kill
-- [CC-rail live window 4000.3](project_cc_rail_live_window_4000_3.md) — flag ALREADY True; rail forces supports_grounding=False so 4 "grounded" steps run ungrounded
-- [CC-rail smoke 4000.2](project_cc_rail_e2e_smoke_4000_2.md) — CLAUDE_CODE_BINARY loses to PATH + captured at import; llm_call_log BUFFERED so a zero is not evidence
-- [CC-rail E2E 4000.1](project_cc_rail_e2e_4000_1.md) — flat-fee `claude -p` is a PAUSED policy not a fact; `--bare` as the -p default is rail-fatal
-- [Outcome write 82.48](project_outcome_write_82_48.md) — return_pct mapping ALREADY decided + a correct writer exists; 5 consumers not 0; insertAll rejects the WHOLE batch
-- [Trial-pool composition 82.46](project_trial_pool_composition_82_46.md) — PREMISE FALSE: DSR's N is the iteration count not pool size ⇒ +3 strategies moves DSR by ZERO
-- [Macro feature drop 82.43](project_macro_feature_drop_82_43.md) — the empty dict is the LOUD case; PARTIAL macro passes `if macro:` and median-imputes silently
-- [Fundamentals coverage 82.21](project_fundamentals_coverage_82_21.md) — "evaluable from 2024-07" is FALSE (MinBTL ~2 trials); ~66d filing lag; total_debt has NO EDGAR tag
-- [Autoresearch paging 82.11](project_autoresearch_paging_82_11.md) — the bash seam FIRES but is unobservable (Slack 200s on `ok:false`); gate on an ARTIFACT
-- [DSR trial-count reset 82.25](project_dsr_trial_count_reset_82_25.md) — N is META-RESEARCH scope so a warm-start reset is the failure mode; `max(N,2)` makes N=1==N=2
-- [Phantom columns 82.54](project_phantom_columns_82_54.md) — TWO premises REFUTED; `ts` is TIMESTAMP not STRING; dry run beat regex 10:1
-- [Phantom columns 82.39](project_phantom_columns_82_39.md) — closing it turns TWO green 82.12 tests RED; a 2nd identical defect is INVISIBLE to derive_scope
-- [Non-forward labels 82.16](project_non_forward_labels_82_16.md) — "0/880 changed" is VACUOUS unless n_labelled>0; empty parametrize = 0 tests = green
-- [Macro preload refusal 82.13](project_macro_preload_refusal_82_13.md) — preload_macro has FIVE return paths and already-warm is POSITIVE ⇒ `if not preload_macro()` is a trap
-- [Vacuous BQ guards 82.12](project_vacuous_bq_guards_82_12.md) — literal sweep EMPTY; real find = _production_fns selects columns that don't exist; `dry_run` is the $0 oracle
-- [Freshness alarm 82.10](project_freshness_alarm_browser_driven_82_10.md) — the EMITTER existed, only the TRIGGER was missing; AlertDeduper does NOT suppress steady state
-- [Exit-quality blowup 82.5](project_exit_quality_ratio_blowup_82_5.md) — mfe==0 is a CLAMP artefact; the mean of a near-zero-denominator ratio DOESN'T EXIST (Cauchy)
-- [PBO level + dead gate 82.27](project_pbo_level_and_dead_gate_82_27.md) — `min_pbo_trials=10` UNREACHABLE (producer whitelists 5 keys); Bailey bans guided-search intermediates
-- [Macro ingestion dead 82.0](project_macro_ingestion_dead_82_0.md) — NEVER scheduled; a bare re-ingest returns 200 + ZERO rows; MACRO_MAX_AGE_DAYS takes a GLOBAL max
-- [Kill-switch UI 36.20](project_kill_switch_ui_36_20.md) — 2 FE files read `armed`, ZERO read daily_baseline_stale; any "benign?" predicate MUST exclude nav_invalid
-- [Kill-switch archives 36.8](project_kill_switch_archive_merge_36_8.md) — archives are the SOLE source of live baselines; the true peak sits in the OLDEST file
-- [Kill-switch armed 36.9](project_kill_switch_36_9_armed_semantics.md) — `armed` asserts coverage never exercised (IEC 61508 DU); 5 fixtures set a PAST _sod_date
-- [Kill-switch alt path 36.13](project_kill_switch_36_13_alternate_path.md) — pause IS restart-durable so a naive gate breaks the drills; inject state, don't build a bypass
-- [Kill-switch traps 36.12](project_kill_switch_36_12_traps.md) — pause-on-disarmed wedges against /resume 409; execute_buy has NO kill-switch gate
-- [Session stampede 80.11](project_session_stampede_donut_80_11.md) — getAuthToken never rejects; a 401 must bump an EPOCH or an in-flight probe re-caches the dead token
-- [MAS SSE facts 80.4](project_mas_sse_80_4.md) — bus idle BY DESIGN; onopen fires on HEADERS; SIGTERM does NOT close an established SSE stream; jsdom 29 has no EventSource
-- [NaN trading verdict 80.27](project_nan_trading_verdict_80_27.md) — the yfinance NaN tail row is PERMANENT + universal, not a forming-session artifact
-- [CC rail vs ClaudeClient 78.1](project_cc_rail_vs_claudeclient_78_1.md) — `--json-schema` is POST-HOC validated + re-prompted, NOT constrained decoding; cwd=repo
-- [CC runtime adoption 67.5](project_cc_runtime_adoption_67_5.md) — MCP approvals live in ~/.claude.json; fallbackModel NEVER fires on rate-limit/auth
-- [Fable/Sonnet-5 shapes 67.6](project_fable_sonnet5_request_shapes_67_6.md) — fable OMITs thinking (disabled 400s); sonnet-5 tokenizer +30%; pin-downgrade time bomb
-- [Funnel zero-trade 66.2](project_funnel_zero_trade_66_2.md) — cash-BUY needs NO swap; rail death = structural all-HOLD; short_market_value SIGNED
-- [Cost-truth 66.3](project_cost_truth_66_3.md) — session_cost_usd is a CUMULATIVE per-cycle gauge stamped on ALL rows; never SUM it; read = MAX per cycle_id
-- [Credential expiry 66.4](project_credential_expiry_66_4.md) — keychain expiresAt = 8h ACCESS token (refresh expiry invisible); auth status is a LOCAL presence check
-- [cc_rail guard audit 66.1](project_cc_rail_guard_66_1.md) — zero-pages root cause = 4 broken `backend.services.alerting` imports; cc failures = EMPTY LLMResponse
-- [Slack Bolt tokens 62.2](project_slack_bolt_token_handler.md) — Bolt 1.27.0 = first-match + fall-through; Socket Mode drops retry headers ⇒ dedupe on event_id
-- [Backend restart safety 61.1](project_backend_restart_safety.md) — restart can NEVER double-fire paper_trading_daily; researcher sandbox is DENIED backend/.env
-- [Blinded stress-test 59.3](project_stress_test_blinded_rerun.md) — recurring per model release; worktree pin + rm handoff (chore commits capture partial briefs)
-- [Fable 5 adoption 59.1](project_fable5_adoption.md) — alias `fable`, 1M ctx, $10/$50; model_tiers tables miss claude-fable-5; `-k` filter gives a FALSE GREEN
+- [Auth latch 85.3](project_auth_latch_85_3.md) — clear path unreachable via if/elif ordering; recovery probe gated on `rc==0`
+- [Credential-free CI 85.2](project_credential_free_ci_lane_85_2.md) — slack-bolt 1.30.0 dropped `[async]` (pip WARNS, exits 0); pydantic defaults are
+- [Rail fail-forward 72.0.2](project_rail_failforward_72_0_2.md) — both premises refuted; the lite path emitting the HOLD bypasses make_client
+- [Decision-input integrity 61.2](project_decision_input_integrity_61_2.md) — step blamed the CRITIC, BQ refutes it (153/153 SYNTHESIS parse error); 2 ungated
+- [Gate feasibility 83.1.1](project_gate_feasibility_83_1_1.md) — required-SR swings 0.69→2.07 on V; PBO not DSR is binding; a WebFetch PDF
+- [Phase-83 design pack 83.1](project_phase83_design_pack_83_1.md) — a naive `*83*` glob is a criteria-killer (71 of 438); mtime guards have ZERO
+- [PBO MCP proof 83.0.3](project_pbo_mcp_proof_83_0_3.md) — fix ALREADY shipped; FastMCP 3.2.4 tools are closures (`get_tool().fn`); payload
+- [News timestamp PIT 83.0.1](project_news_timestamp_pit_83_0_1.md) — BQ DOES allow a NULLABLE partition column; fetcher.py's fallback is DEAD on the
+- [News corpus 83.0](project_news_corpus_persistence_83_0.md) — BQ cannot add a REQUIRED column to an existing table; insert_rows_json STRICT
+- [Registry->live bridge 82.6](project_registry_live_bridge_82_6.md) — both premises REFUTED; headline was in an unnamed file, inert only because the
+- [Slack handler binding 82.59](project_slack_handler_binding_82_59.md) — Bolt SWALLOWS listener exceptions so every handler defect is SILENT
+- [Dead cost alert 82.58](project_dead_alert_82_58.md) — THREE stacked blockers (deduper fires FIRST); "15 call sites" is really 33; the
+- [Autoresearch Max-rail 85.1](project_autoresearch_max_rail_85_1.md) — migration already shipped (default ON); rail never ran under launchd; `--bare`
+- CC-rail E2E [4000.1](project_cc_rail_e2e_4000_1.md)/[4000.2](project_cc_rail_e2e_smoke_4000_2.md)/[4000.3](project_cc_rail_live_window_4000_3.md) — flat-fee `claude -p` is a PAUSED policy; CLAUDE_CODE_BINARY loses to PATH
+- [Outcome write 82.48](project_outcome_write_82_48.md) — return_pct mapping ALREADY decided + a correct writer exists; 5 consumers not 0
+- [Trial-pool composition 82.46](project_trial_pool_composition_82_46.md) — PREMISE FALSE: DSR's N is the iteration count not pool size ⇒ +3 strategies
+- [Macro feature drop 82.43](project_macro_feature_drop_82_43.md) — the empty dict is the LOUD case; PARTIAL macro passes `if macro:` and
+- [Fundamentals coverage 82.21](project_fundamentals_coverage_82_21.md) — "evaluable from 2024-07" is FALSE (MinBTL ~2 trials); ~66d filing lag
+- [Autoresearch paging 82.11](project_autoresearch_paging_82_11.md) — the bash seam FIRES but is unobservable (Slack 200s on `ok:false`); gate on an
+- [DSR trial-count reset 82.25](project_dsr_trial_count_reset_82_25.md) — N is META-RESEARCH scope so a warm-start reset is the failure mode; `max(N,2)`
+- Phantom columns [82.39](project_phantom_columns_82_39.md)/[82.54](project_phantom_columns_82_54.md) — closing 82.39 turns TWO green 82.12 tests RED; `ts` is TIMESTAMP not STRING
+- [Non-forward labels 82.16](project_non_forward_labels_82_16.md) — "0/880 changed" is VACUOUS unless n_labelled>0; empty parametrize = 0 tests =
+- [Macro preload refusal 82.13](project_macro_preload_refusal_82_13.md) — preload_macro has FIVE return paths and already-warm is POSITIVE ⇒
+- [Vacuous BQ guards 82.12](project_vacuous_bq_guards_82_12.md) — literal sweep EMPTY; real find = _production_fns selects columns that don't
+- [Freshness alarm 82.10](project_freshness_alarm_browser_driven_82_10.md) — the EMITTER existed, only the TRIGGER was missing; AlertDeduper does NOT
+- [Exit-quality blowup 82.5](project_exit_quality_ratio_blowup_82_5.md) — mfe==0 is a CLAMP artefact; the mean of a near-zero-denominator ratio DOESN'T
+- [PBO level + dead gate 82.27](project_pbo_level_and_dead_gate_82_27.md) — `min_pbo_trials=10` UNREACHABLE (producer whitelists 5 keys); Bailey bans
+- [Macro ingestion dead 82.0](project_macro_ingestion_dead_82_0.md) — NEVER scheduled; a bare re-ingest returns 200 + ZERO rows; MACRO_MAX_AGE_DAYS
+- Kill-switch semantics: [armed 36.9](project_kill_switch_36_9_armed_semantics.md) IEC-61508 DU, 5 fixtures set a PAST _sod_date; [archives 36.8](project_kill_switch_archive_merge_36_8.md) sole source of live baselines, true peak in the OLDEST file; [UI 36.20](project_kill_switch_ui_36_20.md) ZERO FE files read daily_baseline_stale
+- [Session stampede 80.11](project_session_stampede_donut_80_11.md) — getAuthToken never rejects; a 401 must bump an EPOCH or an in-flight probe
+- [MAS SSE facts 80.4](project_mas_sse_80_4.md) — bus idle BY DESIGN; onopen fires on HEADERS; SIGTERM does NOT close an
+- [NaN trading verdict 80.27](project_nan_trading_verdict_80_27.md) — the yfinance NaN tail row is PERMANENT + universal, not a forming-session
+- [CC rail vs ClaudeClient 78.1](project_cc_rail_vs_claudeclient_78_1.md) — `--json-schema` is POST-HOC validated + re-prompted, NOT constrained decoding
+- [CC runtime adoption 67.5](project_cc_runtime_adoption_67_5.md) — MCP approvals live in ~/.claude.json; fallbackModel NEVER fires on
+- [Fable/Sonnet-5 shapes 67.6](project_fable_sonnet5_request_shapes_67_6.md) — fable OMITs thinking (disabled 400s); sonnet-5 tokenizer +30%; pin-downgrade
+- [Funnel zero-trade 66.2](project_funnel_zero_trade_66_2.md) — cash-BUY needs NO swap; rail death = structural all-HOLD; short_market_value
+- [Cost-truth 66.3](project_cost_truth_66_3.md) — session_cost_usd is a CUMULATIVE per-cycle gauge on ALL rows; never SUM it
+- [Credential expiry 66.4](project_credential_expiry_66_4.md) — keychain expiresAt = 8h ACCESS token (refresh expiry invisible); auth status is
+- [cc_rail guard audit 66.1](project_cc_rail_guard_66_1.md) — zero-pages root cause = 4 broken `backend.services.alerting` imports; cc
+- [Slack Bolt tokens 62.2](project_slack_bolt_token_handler.md) — Bolt 1.27.0 = first-match + fall-through; Socket Mode drops retry headers ⇒
+- [Backend restart safety 61.1](project_backend_restart_safety.md) — restart can NEVER double-fire paper_trading_daily; researcher sandbox is DENIED
+- [Blinded stress-test 59.3](project_stress_test_blinded_rerun.md) — recurring per model release; worktree pin + rm handoff (chore commits capture
+- [Fable 5 adoption 59.1](project_fable5_adoption.md) — alias `fable`, 1M ctx, $10/$50; model_tiers tables miss claude-fable-5; `-k`
 - [DoD / PRODUCTION_READY 43.0](project_dod_production_ready_gate.md) — 26-criterion gate; CAN'T auto-close; 16 env-coupled failures = watermelon risk
-- [PSR/DSR formulas](project_psr_dsr_formulas.md) — Bailey & Lopez de Prado exact formulas, kurtosis convention, anti-patterns for paper_metrics_v2.py
+- [PSR/DSR formulas](project_psr_dsr_formulas.md) — Bailey & Lopez de Prado exact formulas, kurtosis convention, anti-patterns for
 - [Sharpe-DIFFERENCE test 52.3](project_sharpe_difference_test_methodology.md) — a Sharpe DELTA needs paired Ledoit-Wolf 2008 + stationary bootstrap, NOT DSR
-- [Anthropic agent patterns](project_anthropic_agent_patterns.md) — evaluator→generator retry loop + lead-spawns-researcher, mapped to run_harness.py names
-- [Alpaca paper execution 3.7.5](project_alpaca_paper_execution.md) — SDK choice, ops-toggle flag shape, shadow-mode drift threshold, paper gotchas, rollback
+- [Anthropic agent patterns](project_anthropic_agent_patterns.md) — evaluator→generator retry loop + lead-spawns-researcher, mapped to
+- [Alpaca paper execution 3.7.5](project_alpaca_paper_execution.md) — SDK choice, ops-toggle flag shape, shadow-mode drift threshold, paper gotchas
 - [vitest + leaderboard 4.7.4](project_474_vitest_leaderboard.md) — vitest Next.js 15 setup, --filter positional-arg fix, DSR/PBO colour thresholds
-- [Research gate discipline](project_research_gate_discipline.md) — 4.16.1 raised the floor to >=5; stale context/research-gate.md + mas-architecture.md
-- [BigQuery dataset locations](project_bq_dataset_locations.md) — financial_reports is us-central1 (NOT US) and holds the paper_* tables; pyfinagent_data/_pms are US
-- [LLM cost/pricing tables](project_cost_pricing_tables_inventory.md) — 3+ independent pricing tables (cost_tracker MODEL_PRICING canonical); patch ALL on model add
-- [Metric paths + DESC trap](project_metric_source_paths.md) — THREE distinct Sharpe/maxDD paths; get_paper_snapshots returns DESC ⇒ re-sort or Sharpe flips sign
-- [Strategy-rotation infra](project_strategy_rotation_infra.md) — promoter/friday_promotion/promoted_strategies all BUILT; per-strategy DSR NOT in existing artifacts
-- [Strategy-rotation SEED SET](project_strategy_rotation_seed_set.md) — diversify along TYPE/market/horizon; deflate by N_eff not raw N
-- [Per-strategy PBO](project_pbo_single_strategy_cpcv.md) — CSCV columns MUST be competing configs not time windows (N<2 ⇒ PBO=0.0 FALSE PASS)
+- [Research gate discipline](project_research_gate_discipline.md) — 4.16.1 raised the floor to >=5; stale context/research-gate.md +
+- [BigQuery dataset locations](project_bq_dataset_locations.md) — financial_reports is us-central1 (NOT US) and holds the paper_* tables
+- [LLM cost/pricing tables](project_cost_pricing_tables_inventory.md) — 3+ independent pricing tables (cost_tracker MODEL_PRICING canonical); patch ALL
+- [Metric paths + DESC trap](project_metric_source_paths.md) — THREE distinct Sharpe/maxDD paths; get_paper_snapshots returns DESC ⇒ re-sort
+- Strategy rotation: [infra](project_strategy_rotation_infra.md) all BUILT but per-strategy DSR absent; [seed set](project_strategy_rotation_seed_set.md) diversify by TYPE/market/horizon, deflate by N_eff; [per-strategy PBO](project_pbo_single_strategy_cpcv.md) CSCV columns must be competing configs (N<2 ⇒ FALSE PASS)
 - [Cron/scheduler topology 49.2](project_cron_scheduler_control_topology.md) — backend APScheduler IS reachable via cron_dashboard_api registry; reuse /run-now
-- [Multi-market disconnected](project_multimarket_scaffolding_disconnected.md) — EU/KR built but the live loop is hard US-only via screener.py; paper_trader currency-blind
-- [Multi-market wiring 50.3](project_multimarket_universe_wiring.md) — byte-identical plug-in at autonomous_loop:321; the ONE gap = _StagedBuy.market
-- [Market-calendar gating 50.4](project_market_calendar_gating.md) — LATENT BUG is_trading_day:149 uses cal.days (gone in xcals 4.13.2) ⇒ always True; use cal.is_session
-- [Benchmark/FX change site 50.5](project_multimarket_benchmark_fx_changesite.md) — benchmark return + alpha live in analytics.py + api/backtest.py, NOT backtest_engine.py
-- [Sector-neutral wiring 51.2](project_sector_neutral_wiring.md) — wired but NO-OP: screen_universe omits sector_lookup ⇒ all _UNKNOWN_ ⇒ identity; prefer a SOFT tilt
-- [Slack digest calendar 51.3](project_slack_digest_calendar_guard.md) — half-day is_session=True; digest_test.py POSTS (not a dry run); pkill is hook-BLOCKED
-- [Cron maintenance 51.4/62.6](project_cron_maintenance_jobs.md) — autoresearch preflight-skip LIVE; ablation exit=1 is STALE; scripts/ != backend/autoresearch
-- [52wh-tilt wiring 52.2](project_52wh_tilt_live_wiring.md) — insert the gated post-pass at screener.py:473; byte-identity = flag-absent==flag-False
-- [Data-quality gate 50.5](project_multimarket_dataquality_gate.md) — yfinance intl 11%-dev/identical-OHLC defect; NO shared cleaning point ⇒ guard 3 doors
-- [UX foundation UNADOPTED 53.2](project_ux_foundation_unadopted.md) — tokens + ui/* BUILT but ~0 page imports; the work is ADOPTION; WCAG 2.4.13 is AAA-not-AA
-- [Slack bot supervision](project_slack_bot_supervision_topology.md) — bot NOW launchd-supervised (KeepAlive); crontab monitor REMOVED; double-instance hazard still real
-- [Away-watchdog P1 62.5](project_away_watchdog_p1_path.md) — one-shot P1 silently no-ops (deduper threshold 3); naive <26h is false-stale every weekend
-- [Gemini lifecycle 60.1](project_gemini_lifecycle_pipeline_restoration.md) — 2.5 family dies 2026-10-16; silent fallback is logger-only; no Vertex smoke script
-- [Swap churn engine 60.2](project_swap_churn_engine_60_2.md) — sentinel :476-483 + stamp/re-eval mismatch + [0,1]-premise delta bug; NO swap-path replay exists
+- Multi-market: [disconnected](project_multimarket_scaffolding_disconnected.md) live loop hard US-only via screener.py; [wiring 50.3](project_multimarket_universe_wiring.md) ONE gap = _StagedBuy.market; [calendar 50.4](project_market_calendar_gating.md) is_trading_day:149 cal.days gone in xcals 4.13.2 ⇒ always True
+- Multi-market II: [benchmark/FX 50.5](project_multimarket_benchmark_fx_changesite.md) alpha lives in analytics.py + api/backtest.py NOT backtest_engine.py; [data-quality 50.5](project_multimarket_dataquality_gate.md) NO shared cleaning point ⇒ guard 3 doors
+- [Sector-neutral wiring 51.2](project_sector_neutral_wiring.md) — wired but NO-OP: screen_universe omits sector_lookup ⇒ all _UNKNOWN_ ⇒
+- [Slack digest calendar 51.3](project_slack_digest_calendar_guard.md) — half-day is_session=True; digest_test.py POSTS (not a dry run); pkill is
+- [Cron maintenance 51.4/62.6](project_cron_maintenance_jobs.md) — autoresearch preflight-skip LIVE; ablation exit=1 is STALE; scripts/ !=
+- [52wh-tilt wiring 52.2](project_52wh_tilt_live_wiring.md) — insert the gated post-pass at screener.py:473; byte-identity =
+- [UX foundation UNADOPTED 53.2](project_ux_foundation_unadopted.md) — tokens + ui/* BUILT but ~0 page imports; the work is ADOPTION; WCAG 2.4.13 is
+- [Slack bot supervision](project_slack_bot_supervision_topology.md) — bot NOW launchd-supervised (KeepAlive); crontab monitor REMOVED
+- [Away-watchdog P1 62.5](project_away_watchdog_p1_path.md) — one-shot P1 silently no-ops (deduper threshold 3); naive <26h is false-stale
+- [Gemini lifecycle 60.1](project_gemini_lifecycle_pipeline_restoration.md) — 2.5 family dies 2026-10-16; silent fallback is logger-only; no Vertex smoke
+- [Swap churn engine 60.2](project_swap_churn_engine_60_2.md) — sentinel :476-483 + stamp/re-eval mismatch + [0,1]-premise delta bug; NO
 - [Observability residuals 60.4](project_observability_ops_residuals_60_4.md) — CC orchestrator rail unmetered; httpx leaks the FRED key ⇒ HANDLER-level filter
-- [Fee table + turnover 61.5](project_fee_table_61_5.md) — TAF in the criterion is STALE (steps annually); dated-config mandate; plug points :189/:388
-- [Pre-pay audit 61.4](project_learnings_61_4.md) — STRING-column-never-coerces root cause; 2nd broken swallowed reader; ARRAY_AGG IGNORE NULLS
-- [GCloud docs nav-only](feedback_gcloud_docs_fetch.md) — cloud.google.com reference pages are JS-rendered; use curl + tag-strip (counts as read-in-full)
-- [Currency-display 61.3](project_currency_display_61_3.md) — crit-1 HALF built (18 -k tests assert avg_entry ONLY); `npm run build` shares the operator's .next
-- [Real-Fill Runway 68.0](project_real_fill_runway_68_0.md) — the AMD/MU "defect" is FALSE (real 2026-07 prices; stale-knowledge anchor); 422 dup client_order_id
-- [NaN/JSON leak 80.1](project_nan_json_leak_80_1.md) — starlette allow_nan=False + jsonable_encoder passes np.float64; response_model does NOT fix it
-- [Frontend test env 80.5](project_frontend_test_env_and_ui_specs_80_5.md) — jsdom 29: all rects 0, no elementFromPoint, but getComputedStyle resolves injected `<style>`
-- [Fabricated SAFE 80.36](project_fabricated_safe_80_36.md) — FOUR instances (`?? 0` x3 + a `!== "not_initialized"` TRUE-when-null); discriminate on PRESENCE
-- [Test-suite live egress 86.3](project_test_suite_live_egress_86_3.md) — urlopen guard seam ALREADY exists; `skipif` runs at COLLECTION; live-host list was 4/8 false positives
-- [Schema floors NOT enforceable](reference_structured_output_schema_floors_not_enforceable.md) — Anthropic STRIPS minimum/maxLength, caps minItems at 1; `const:true` on a gate flag is a trap
+- [Fee table + turnover 61.5](project_fee_table_61_5.md) — TAF in the criterion is STALE (steps annually); dated-config mandate; plug
+- [Pre-pay audit 61.4](project_learnings_61_4.md) — STRING-column-never-coerces root cause; 2nd broken swallowed reader; ARRAY_AGG
+- [GCloud docs nav-only](feedback_gcloud_docs_fetch.md) — cloud.google.com reference pages are JS-rendered; use curl + tag-strip (counts
+- [Currency-display 61.3](project_currency_display_61_3.md) — crit-1 HALF built (18 -k tests assert avg_entry ONLY); `npm run build` shares
+- [Real-Fill Runway 68.0](project_real_fill_runway_68_0.md) — the AMD/MU "defect" is FALSE (real 2026-07 prices; stale-knowledge anchor); 422
+- [NaN/JSON leak 80.1](project_nan_json_leak_80_1.md) — starlette allow_nan=False + jsonable_encoder passes np.float64; response_model
+- [Frontend test env 80.5](project_frontend_test_env_and_ui_specs_80_5.md) — jsdom 29: all rects 0, no elementFromPoint, but getComputedStyle resolves
+- [Fabricated SAFE 80.36](project_fabricated_safe_80_36.md) — FOUR instances (`?? 0` x3 + a `!== "not_initialized"` TRUE-when-null)
+- [Test-suite live egress 86.3](project_test_suite_live_egress_86_3.md) — urlopen guard seam ALREADY exists; `skipif` runs at COLLECTION; live-host list
+- [Schema floors NOT enforceable](reference_structured_output_schema_floors_not_enforceable.md) — Anthropic STRIPS minimum/maxLength, caps minItems at 1; `const:true` on a gate
+- [Learn-loop state](project_learn_loop_state.md) — phase-47.7 learn-loop root cause — outcome_tracking + agent_memories empty
+- [Residual-momentum spec](project_residual_momentum_spec.md) — phase-52.4 residual/idiosyncratic momentum (Blitz-Huij-Martens) exact
+- [Multi-agent harness guidance](project_multi_agent_harness_guidance.md) — Protocol consensus, subagent orchestration patterns, anti-patterns, and new
