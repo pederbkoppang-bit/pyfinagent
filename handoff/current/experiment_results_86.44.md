@@ -71,8 +71,27 @@ total headers            : 1224
 > I measure **481**. Two defensible extraction rules disagree by one. Mine is stated
 > above; I am not silently adopting either number.
 
-The 481 have one mechanical cause: `run_harness.py:953` passes the **loop index** as
-`cycle`, so every `--cycles 1` invocation writes `Cycle 1`.
+**The 481 have at least TWO mechanical causes, derived by splitting the log into
+blocks and testing each against the producer's own template:**
+
+| | count | share |
+|---|---|---|
+| blocks whose token is `1` | **481** | 100% |
+| contain `**Planner hypothesis:**` (emitted **unconditionally** by `run_harness`) | **418** | 86.9% |
+| do **not** | **63** | 13.1% |
+| of those 63, carry `phase=` **in the header line** | **62** | |
+
+**`run_harness`'s header template cannot emit `phase=`** -- it is
+`## Cycle {cycle} -- {timestamp}`, and `grep -c phase=` over the whole entry
+f-string returns **0**. So those 62 are **manual protocol-format entries** that
+restart per-step numbering at 1, a different mechanism entirely.
+
+> **CORRECTED. This line used to say "The 481 have ONE mechanical cause".** That was
+> asserted, not derived, and it is false for **≥63 of 481 (13.1%)**. Worse, §5's
+> correction block -- written to fix exactly this class of error -- **cited this
+> sentence approvingly** (*"which my own §1 already attributed correctly"*) and so
+> inherited it. **A correction that leans on an underived claim propagates the
+> defect it was written to remove.**
 
 ## 2. Criterion 2 -- ANSWERED: something DOES read it, and it is not display-only
 
@@ -192,9 +211,9 @@ correctly); the **number** is what races.
 > | remaining | **488 across 140 integers** |
 > | times `finalize.py` has written this file | **3** |
 >
-> **Half the duplicates come from `run_harness.py`'s loop index** -- every
-> `--cycles 1` invocation writes `Cycle 1` -- which my own §1 already attributed
-> correctly. A producer that has run **3 times** cannot account for 969 headers.
+> **Roughly half the duplicates come from `run_harness.py`'s loop index** -- but
+> not all of the `1`s do: §1 now derives the split as **418 run_harness-shaped, ≥62
+> manual**. A producer that has run **3 times** cannot account for 969 headers.
 > At least three mechanisms are in play: the loop index, this TOCTOU, and two
 > sessions hand-numbering.
 >
@@ -223,7 +242,15 @@ its own research-gated step** per the standing queue-discovered-defects rule.
    historical entries to tidy a field is exactly the "wrong while implying right"
    outcome criterion 4 warns against.
 3. **The numbers were never unique and the history should say so.** 141 duplicated
-   integers are evidence of D4, and normalising them destroys that evidence.
+   integers are evidence that **at least three mechanisms** wrote this file --
+   `run_harness.py`'s loop index, manual protocol-format entries, and D4's TOCTOU --
+   and normalising them destroys that evidence.
+
+   > **SUPERSEDED, not annotated.** This clause used to read *"141 duplicated
+   > integers are evidence of D4"*. The cycle-1 Q/A retracted that and I corrected
+   > §5 but **left this sentence standing** -- in the very section carrying the
+   > criterion-4 decision a future reader acts on. A correction that sits beside the
+   > claim it retracts has not corrected anything.
 
 **Leaving history wrong-but-honest, with the cause documented and the producer's
 race filed.**
@@ -247,19 +274,19 @@ CONTROL -- every check must be GREEN before any cell is scored
 ==========================================================================
   GREEN  d1_concurrent_append       72/72 new entries survived 12 concurrent writers against a 1064-cycle seed
   GREEN  d2_parser_lossless         parser returned 1224 of 1224 headers
-  GREEN  d3_runbook_placeholder     0 bare `## Cycle N` template literals across 2 pinned sources
+  GREEN  d3_runbook_placeholder     0 unallowed live file(s) carry the bare template (derived from 2 git-grep hits, 2 allowlisted)
 
   KILLED       M1_revert_d1_to_read_modify_write
-               -> d1_concurrent_append: 45/72 new entries survived 12 concurrent writers against a 1064-cycle seed
+               -> d1_concurrent_append: 49/72 new entries survived 12 concurrent writers against a 1064-cycle seed
                restore byte-identical: True
   KILLED       M2_revert_d2_to_digits_only
                -> d2_parser_lossless: parser returned 1064 of 1224 headers
                restore byte-identical: True
   KILLED       M3_restore_the_trap_in_the_RUNBOOK
-               -> d3_runbook_placeholder: 1 bare `## Cycle N` template literals across 2 pinned sources {'per-step-protocol.md': 1}
+               -> d3_runbook_placeholder: 1 unallowed live file(s) carry the bare template (derived from 3 git-grep hits, 2 allowlisted) ['docs/runbooks/per-step-protocol.md']
                restore byte-identical: True
   KILLED       M4_restore_the_trap_in_CLAUDE_md
-               -> d3_runbook_placeholder: 1 bare `## Cycle N` template literals across 2 pinned sources {'CLAUDE.md': 1}
+               -> d3_runbook_placeholder: 1 unallowed live file(s) carry the bare template (derived from 3 git-grep hits, 2 allowlisted) ['CLAUDE.md']
                restore byte-identical: True
 
 POST-RESTORE control: {'d1_concurrent_append': True, 'd2_parser_lossless': True, 'd3_runbook_placeholder': True}
@@ -269,6 +296,20 @@ ALL CELLS KILLED: True
 
 Control observed **GREEN before any cell was scored**; every restore
 **byte-identical**; post-restore control green.
+
+> **THE GUARD'S POPULATION IS NOW DERIVED, AFTER I GOT THE CLASS WRONG TWICE.**
+> Cycle 1 found the check scanning **one** file when the class had two. I "fixed"
+> that by pinning a **two-file list** -- and cycle 2 then derived **five** live
+> occurrences, including `.claude/hooks/lib/harness_log_gate.py` (a live hook
+> docstring carrying the identical bare-`N`-beside-`<step_id>` inconsistency D3 was
+> filed for) and `tests/_phase_24_helpers.py`, **whose comment literally reads
+> "format from CLAUDE.md"** -- direct evidence the literal propagates.
+>
+> **A pinned list can only ever be as complete as the last person who edited it, and
+> it can never fail on a NEW file that acquires the literal.** The check now derives
+> its population by `git grep` and subtracts a **named allowlist** whose two members
+> each carry their reason. My own edit missed one of the five; **the derived guard
+> caught it** and named the file.
 
 > **M4 EXISTS BECAUSE THE CYCLE-1 Q/A FOUND MY GUARD COULD NOT FAIL.** D3 was fixed
 > in the runbook only, while **`CLAUDE.md` -- auto-loaded into every session, so the
@@ -281,7 +322,7 @@ Control observed **GREEN before any cell was scored**; every restore
 > **THE M1 MAGNITUDE IS TIMING-DEPENDENT AND I QUOTED IT AS IF IT WERE STABLE.** My
 > commit message said the mutant "loses 1,033 of the 1,064 seeded cycles". That was
 > **one observation**. A second run of the same cell lost a different amount
-> (**45/72 new entries survived**, seed intact). Both are losses and the cell is
+> (**45/72**, then **49/72**, seed intact). Both are losses and the cell is
 > KILLED either way, but **the honest claim is "the read-modify-write loses entries,
 > in an amount that varies with interleaving", not a specific figure.** A race's
 > damage is not a constant.
@@ -293,8 +334,22 @@ Control observed **GREEN before any cell was scored**; every restore
 | `scripts/harness/run_harness.py` | D1: `O_APPEND` instead of read-modify-write |
 | `backend/api/backtest.py` | D2: parser accepts any cycle token |
 | `docs/runbooks/per-step-protocol.md` | D3: `<N>` placeholder + append-never-rewrite note |
-| `scripts/qa/mutation_matrix_86_44.py` | NEW -- 3 cells, control-gated |
+| `CLAUDE.md` | D3: same literal, in the file auto-loaded EVERY session |
+| `.claude/hooks/lib/harness_log_gate.py` | D3: same literal in a live hook docstring |
+| `tests/_phase_24_helpers.py` | D3: comment + assertion message (its comment says "from CLAUDE.md" -- direct evidence the literal propagates) |
+| `scripts/qa/mutation_matrix_86_44.py` | NEW -- **4 cells**, control-gated; D3 population **derived by git grep**, not pinned |
 | `scripts/qa/prove_cycle_number_toctou_86_44.py` | NEW -- D4 demonstration |
+| `handoff/current/pending_restart_2026-08-11.md` | NEW -- D2 is committed but NOT in force |
+
+> **This table said "3 cells" when there were 4, and OMITTED `CLAUDE.md` -- the file
+> whose omission was cycle-1's sharpest finding.** A files-changed table that does
+> not list the files changed is the same defect the step is about, one level up.
+
+**NOT changed, deliberately**: `docs/audits/phase-24-2026-05-12/24.0-charter-findings.md`
+carries the literal too, but it is a **dated audit record**. Editing a 2026-05-12
+audit to tidy a template is the same category error as renumbering history, which
+criterion 4 declined to do. It is **named in the guard's allowlist with that reason**,
+so the exclusion is visible rather than silent.
 
 ## 10. What is NOT claimed
 

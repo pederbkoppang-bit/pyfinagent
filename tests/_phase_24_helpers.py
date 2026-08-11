@@ -194,7 +194,7 @@ class Phase24Verifier:
             )
             return False
         log_text = HARNESS_LOG.read_text(encoding="utf-8")
-        # Cycle entry format from CLAUDE.md: "## Cycle N -- YYYY-MM-DD -- phase=X.Y result=PASS"
+        # Cycle entry format from CLAUDE.md: "## Cycle <N> -- YYYY-MM-DD -- phase=X.Y result=PASS"
         # Bucket-id appears in the header line.
         pat = re.compile(
             rf"^\s*##\s*cycle\s*\d+\s*--.*phase={re.escape(self.bucket_id)}\s+result=",
@@ -204,7 +204,7 @@ class Phase24Verifier:
         self.check(
             f"harness_log_has_phase_24_{self.bucket_id.replace('.', '_')}_cycle_entry",
             ok,
-            f"harness_log.md must contain `## Cycle N -- ... phase={self.bucket_id} result=...` header",
+            f"harness_log.md must contain `## Cycle <N> -- ... phase={self.bucket_id} result=...` header",
         )
         return ok
 

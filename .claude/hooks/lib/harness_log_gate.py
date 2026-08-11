@@ -19,7 +19,7 @@ once they're satisfied the doctrine is sound. This matches the operator-
 approval criterion in masterplan 38.4.verification.
 
 Detection: looks for the step-id in a Cycle-block header line of the form
-`## Cycle N -- YYYY-MM-DD -- phase=<step_id> result=...` OR a less-strict
+`## Cycle <N> -- YYYY-MM-DD -- phase=<step_id> result=...` OR a less-strict
 `phase=<step_id>` token anywhere in the tail of the log. Tail of last
 ~200 lines is sufficient -- avoids reading multi-MB log files.
 

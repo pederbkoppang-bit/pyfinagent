@@ -99,24 +99,46 @@ def check_d2_parser_lossless() -> tuple[bool, str]:
     return len(parsed) == on_disk, f"parser returned {len(parsed)} of {on_disk} headers"
 
 
-# Pinned FILE LIST, not a directory glob: the cycle-1 Q/A found D3 fixed in the
-# runbook only, while CLAUDE.md -- auto-loaded into EVERY session, so the more
-# likely copy-paste source -- still carried the literal. A guard whose population
-# is one file cannot fail on the second member of the class.
-D3_SOURCES = [RUNBOOK, ROOT / "CLAUDE.md"]
+# The D3 population is DERIVED by git grep, not pinned.
+#
+# Cycle 1 found the guard scanning one file while the class had two. I "fixed" that
+# by pinning a two-file list -- and cycle 2 then derived FIVE live occurrences. A
+# pinned list can only ever be as complete as the last person who edited it, and it
+# cannot fail on a NEW file that acquires the literal. So the population is now the
+# git-grep result minus a NAMED allowlist, and every exclusion carries its reason.
+#
+# The allowlist is deliberately tiny and explicit:
+#   - this file: it carries the literal as mutation PAYLOADS, by construction.
+#   - the dated audit record: editing a 2026-05-12 audit to tidy a template is the
+#     same category error as renumbering history, which criterion 4 declined to do.
+D3_ALLOWED = {
+    "scripts/qa/mutation_matrix_86_44.py",
+    "docs/audits/phase-24-2026-05-12/24.0-charter-findings.md",
+}
+D3_EXCLUDE_PATHSPECS = [
+    ":!handoff/harness_log.md", ":!handoff/archive/", ":!handoff/current/",
+    ":!.claude/agent-memory/", ":!.claude/masterplan.json",
+]
 
 
 def check_d3_runbook_placeholder() -> tuple[bool, str]:
-    hits = {}
-    for f in D3_SOURCES:
-        if not f.exists():
-            return False, f"D3 source missing: {f} -- population unverifiable"
-        n = len(re.findall(r"## Cycle N -- YYYY-MM-DD", f.read_text()))
-        if n:
-            hits[f.name] = n
-    total = sum(hits.values())
-    return total == 0, (f"{total} bare `## Cycle N` template literals across "
-                        f"{len(D3_SOURCES)} pinned sources" + (f" {hits}" if hits else ""))
+    """Derive every live tracked file carrying the bare `## Cycle N` template."""
+    import subprocess as sp
+    r = sp.run(["git", "grep", "-l", "--", "## Cycle N -- YYYY-MM-DD", "."] + D3_EXCLUDE_PATHSPECS,
+               capture_output=True, text=True, cwd=ROOT)
+    # git grep exits 1 on no-match, which is the healthy state -- not an error.
+    if r.returncode not in (0, 1):
+        return False, f"git grep failed rc={r.returncode}: {r.stderr.strip()[:120]}"
+    found = {ln.strip() for ln in r.stdout.splitlines() if ln.strip()}
+    offenders = sorted(found - D3_ALLOWED)
+    # Anti-vacuity: the allowlist must actually be present, or the derivation is
+    # silently scanning nothing (a rename would make this guard pass on an empty set).
+    missing_allowed = sorted(a for a in D3_ALLOWED if not (ROOT / a).exists())
+    if missing_allowed:
+        return False, f"allowlisted path(s) missing -- population unverifiable: {missing_allowed}"
+    return not offenders, (f"{len(offenders)} unallowed live file(s) carry the bare template "
+                           f"(derived from {len(found)} git-grep hits, {len(D3_ALLOWED)} allowlisted)"
+                           + (f" {offenders}" if offenders else ""))
 
 
 CHECKS = {
@@ -180,6 +202,7 @@ def main() -> int:
 
     print()
     results = {}
+    restore_failed: list[str] = []
     for name, (path, present, replacement, target) in MUTANTS.items():
         original = path.read_text()
         if present not in original:
@@ -211,12 +234,18 @@ def main() -> int:
             identical = path.read_text() == original
             print(f"               restore byte-identical: {identical}")
             if not identical:
+                # NOT `return` here: a return inside `finally` swallows any exception
+                # propagating out of the try, which would hide the very failure that
+                # left the tree dirty. Flag it and let the loop end normally.
                 print("               !! RESTORE FAILED -- tree is dirty, fix before committing")
-                return 3
+                restore_failed.append(path.name)
 
     print()
     post = run_all()
     print("POST-RESTORE control:", {k: v[0] for k, v in post.items()})
+    if restore_failed:
+        print(f"\nRESTORE FAILED on {restore_failed} -- tree is dirty")
+        return 3
     all_killed = all(str(v).startswith("KILLED") for v in results.values())
     print(f"\nALL CELLS KILLED: {all_killed}")
     return 0 if all_killed and all(ok for ok, _ in post.values()) else 1
