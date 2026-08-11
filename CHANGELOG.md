@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-11 | `d921643c` | phase-86.21: record the cycle-4 remediation in the critique (Main's note, not a verdict) |
 | 2026-08-11 | `8074e371` | phase-86.21 cycle 4: fix the three FAIL blockers |
 | 2026-08-11 | `cf94ef76` | docs(goal): RETRACT my drought framing -- 86.38's gate refuted it, and I confirmed it |
 | 2026-08-11 | `6e8f3169` | phase-86.36 cycle 2: fix both CONDITIONAL blockers -- the OTHER copy of the directive |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-11 | `c116e63a` | phase-86.38: PRE-CONTRACT measurement -- lite-fallback census with a coverage assertion |
 | 2026-08-11 | `a18ab6c7` | phase-86.40: queue the stale comment blessing the defect 86.25 removed |
 | 2026-08-11 | `630fa95b` | phase-86.25: [P2 -- A RISK-APPROVAL VOCABULARY IS PASSED WHERE A BUY/SELL RECOMMENDATION IS EXPEC... |
-| 2026-08-11 | `a33640a4` | phase-86.31: sync the machine-readable verdict -- it still held cycle 1's CONDITIONAL |
 
 ---
 
+### v6.93.110 — phase-86.21: record the cycle-4 remediation in the critique (Main's n... (2026-08-11)
+
+- **phase-86.21: record the cycle-4 remediation in the critique (Main's note, not a verdict)**
 ### v6.93.109 — phase-86.21 cycle 4: fix the three FAIL blockers (2026-08-11)
 
 - **phase-86.21 cycle 4: fix the three FAIL blockers**
