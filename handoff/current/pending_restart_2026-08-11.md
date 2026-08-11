@@ -1,4 +1,24 @@
-# Pending restart -- 2026-08-11 (session `pyfinagent-06`)
+# ~~Pending~~ COMPLETED restart -- 2026-08-11 (session `pyfinagent-06`)
+
+> **DONE 2026-08-11 22:26:48 CEST, after the book cycle completed at 21:21.**
+>
+> ```
+> launchctl kickstart -k gui/$(id -u)/com.pyfinagent.backend
+> listener pid 66306 -> 99231      (PID CHANGED, so the restart took)
+> ps lstart: tir. 11 aug. 22.26.48 2026
+> launchctl list: 99231  com.pyfinagent.backend
+> health: {"status":"ok", version 6.93.216, mcp data/backtest/signals all ok}
+> paper_cycle_max_seconds = 10800.0   paper_analyze_top_n = 5   (both unchanged)
+> ```
+>
+> **D2 VERIFIED IN FORCE, measured on the running process:**
+> `GET /api/backtest/harness/log` returns **1226** cycles; `grep -c "^## Cycle "` on
+> disk returns **1226**. **Match -- the parser is lossless in the running process.**
+>
+> **One correction from doing it**: the pre-restart reading was **1066**, not the
+> 1064 this file predicted. My own two log appends during the evening added headers,
+> so the pre-fix number was a moving target. The right invariant is
+> **endpoint == on-disk**, not a frozen integer -- and that is what was checked.
 
 **NOT YET IN FORCE.** Recorded per the standing rule that backend restarts batch to
 session end and never run near the 20:00 CEST book cycle.
