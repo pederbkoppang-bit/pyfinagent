@@ -24412,7 +24412,8 @@
               "MUTATION-TEST the counter: corrupt or empty the source and assert it NOTICES rather than silently reporting zero -- silently reporting zero is the defect being fixed"
             ],
             "live_check": "Verbatim counter output against 36.17's real verdict history showing 5 verdicts and the correct consecutive-CONDITIONAL count, side by side with the verbatim zero-row output of the log-grep the rule currently prescribes."
-          }
+          },
+          "audit_basis": " SECOND FAILURE MODE, OPPOSITE DIRECTION, measured 2026-08-11 on step 86.9. The filed defect is that the counter UNDER-counts (an in-flight step's CONDITIONALs are invisible because the row is written after a PASS). It also OVER-counts: `grep -c \"phase=86.9 \" handoff/harness_log.md` returns 3 where exactly 2 graded verdicts exist, because a log entry that QUOTES the search string is itself matched -- in this case a row whose body explains that the count had been 0. So the same file can report a count that is too low and too high for the same step, and the 3rd-CONDITIONAL rule (which forces a FAIL at 3) is driven by that number. The fix is a header-anchored pattern: `grep -cE '^## Cycle [0-9]+ -- .* -- phase=<id> result='` returns 2, the correct figure. Any acceptance test for this step must include a log entry that mentions the pattern in prose and assert it is NOT counted -- otherwise the guard is untested against the case that actually occurred."
         },
         {
           "id": "86.22",
