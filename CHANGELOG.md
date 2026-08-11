@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-11 | `9a33594a` | phase-86.29 cycle 3: fix all five CONDITIONAL findings, plus one I made fixing them |
 | 2026-08-11 | `6b20b8fe` | phase-86.36: record cycle-1 Q/A verdict VERBATIM -- CONDITIONAL |
 | 2026-08-11 | `6adbb722` | phase-86.36: record cycle-1 Q/A verdict VERBATIM -- CONDITIONAL |
 | 2026-08-11 | `5e97ca27` | phase-86.38: extract a seam the guard can EXECUTE -- mutation cell M1 survived |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-11 | `de195df1` | phase-86.31: CLOSED -- status done after a PASS on cycle 5 |
 | 2026-08-11 | `11aa663b` | phase-86.31: harness_log cycle 1210 -- PASS after five cycles |
 | 2026-08-11 | `1d4323e8` | phase-86.31: record cycle-5 Q/A verdict VERBATIM -- PASS |
-| 2026-08-11 | `1a9e75af` | docs(goal): fix a wrong escalation claim -- 86.34 is NOT at 3rd-CONDITIONAL risk |
 
 ---
 
+### v6.93.105 — phase-86.29 cycle 3: fix all five CONDITIONAL findings, plus one I ma... (2026-08-11)
+
+- **phase-86.29 cycle 3: fix all five CONDITIONAL findings, plus one I made fixing them**
 ### v6.93.104 — phase-86.36: record cycle-1 Q/A verdict VERBATIM -- CONDITIONAL (2026-08-11)
 
 - **phase-86.36: record cycle-1 Q/A verdict VERBATIM -- CONDITIONAL**
