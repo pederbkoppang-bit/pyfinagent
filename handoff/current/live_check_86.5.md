@@ -9,39 +9,38 @@ tables below are GENERATED from the audit_basis and the captured run, not typed.
 
 ---
 
-## A. FILE-LEVEL DISPOSITION -- all 26 baseline failures accounted for
+## A. FILE-LEVEL DISPOSITION -- all 26 accounted for (CORRECTED after the cycle-2 FAIL)
 
-**A literal 26-node-id table is NOT derivable**: the 2026-08-08 baseline was
-recorded at FILE granularity (`GROUPING BY FILE` in the step's `audit_basis`),
-so the individual node ids of the 26 were never written down. This table
-accounts for all 26 at the granularity they exist at; section B gives node-level
-signatures for today's 17.
+**A literal 26-node-id table is NOT derivable**: the 2026-08-08 baseline was recorded
+at FILE granularity (`GROUPING BY FILE` in the step's `audit_basis`), so those node
+ids were never written down. The cycle-2 Q/A confirmed this argument SOUND.
 
-| # | file | baseline | now | disposition | filed step |
+| # | file | baseline | now | disposition | owner |
 |---|---|---|---|---|---|
-| 1 | `test_64_3_currency_path.py` | 3 | 0 | **already fixed** -- absent from today's run | -- |
-| 2 | `test_64_4_multi_market_e2e.py` | 1 | 0 | **already fixed** -- absent from today's run | -- |
-| 3 | `test_book_safety_69.py` | 1 | 0 | **already fixed** -- absent from today's run | -- |
-| 4 | `test_dod4_tier1_coverage_investment.py` | 1 | 0 | **already fixed** -- absent from today's run | -- |
-| 5 | `test_phase_23_2_15_verify_23_1_smoke.py` | 1 | 0 | **already fixed** -- absent from today's run | -- |
-| 6 | `test_phase_23_2_4_pause_resume_no_deadlock_live.py` | 1 | 0 | **already fixed** -- absent from today's run | -- |
+| 1 | `test_64_3_currency_path.py` | 3 | 0 | **ENVIRONMENT ARTIFACT** -- green only because the book is UNPAUSED; RED under paused | **36.28** (still pending) |
+| 2 | `test_64_4_multi_market_e2e.py` | 1 | 0 | **ENVIRONMENT ARTIFACT** -- green only because the book is UNPAUSED; RED under paused | **36.28** (still pending) |
+| 3 | `test_book_safety_69.py` | 1 | 0 | already fixed -- absent, and NOT pause-coupled | -- |
+| 4 | `test_dod4_tier1_coverage_investment.py` | 1 | 0 | **ENVIRONMENT ARTIFACT** -- green only because the book is UNPAUSED; RED under paused | **36.28** (still pending) |
+| 5 | `test_phase_23_2_15_verify_23_1_smoke.py` | 1 | 0 | already fixed -- absent, and NOT pause-coupled | -- |
+| 6 | `test_phase_23_2_4_pause_resume_no_deadlock_live.py` | 1 | 0 | already fixed -- absent, and NOT pause-coupled | -- |
 | 7 | `test_phase_23_2_6_sector_cap_emit.py` | 1 | 1 | unchanged | 86.50 |
 | 8 | `test_phase_40_2_claude_code_v2_1_140_features.py` | 1 | 1 | unchanged | 86.50 |
 | 9 | `test_phase_57_1_reject_binding.py` | 3 | 3 | unchanged | 86.48 |
 | 10 | `test_phase_60_3_data_integrity.py` | 1 | 1 | unchanged | 86.48 |
-| 11 | `test_phase_70_3_atomic_swap.py` | 1 | 0 | **already fixed** -- absent from today's run | -- |
-| 12 | `test_phase_70_4_gate_observability.py` | 2 | 0 | **already fixed** -- absent from today's run | -- |
+| 11 | `test_phase_70_3_atomic_swap.py` | 1 | 0 | **ENVIRONMENT ARTIFACT** -- green only because the book is UNPAUSED; RED under paused | **36.28** (still pending) |
+| 12 | `test_phase_70_4_gate_observability.py` | 2 | 0 | **ENVIRONMENT ARTIFACT** -- green only because the book is UNPAUSED; RED under paused | **36.28** (still pending) |
 | 13 | `test_phase_75_17_verification_paths.py` | 2 | 3 | GREW +1 | 86.50 |
 | 14 | `test_phase_75_prompt_contracts.py` | 1 | 1 | unchanged | 86.50 |
 | 15 | `test_phase_75_sre_ops.py` | 1 | 2 | GREW +1 | 86.49/86.50 |
 | 16 | `test_phase_82_39_outcome_rebuild_query.py` | 1 | 1 | unchanged | 86.50 |
 | 17 | `test_portfolio_swap.py` | 1 | 1 | unchanged | 86.51 |
-| 18 | `test_price_tolerance_gate.py` | 3 | 0 | **already fixed** -- absent from today's run | -- |
+| 18 | `test_price_tolerance_gate.py` | 3 | 0 | **ENVIRONMENT ARTIFACT** -- green only because the book is UNPAUSED; RED under paused | **36.28** (still pending) |
 | 19 | `test_phase_75_19_preflight_calibration.py` | 0 | 1 | **NEW since baseline** | 86.50 |
 | 20 | `test_phase_82_48_outcome_write_schema.py` | 0 | 2 | **NEW since baseline** | 86.52 |
 | | **TOTAL** | **26** | **17** | | |
 
-`26 - 14 + 2 + 3 = 17`  -- every baseline failure has a disposition; none unclassified.
+**11 of the 26 are ENVIRONMENT ARTIFACTS owned by 36.28** -- corrected from
+'already fixed'. The remaining 15 are dispositioned above.
 
 ## B. NODE-LEVEL MEASURED SIGNATURES -- today's 17
 
@@ -67,41 +66,72 @@ signatures for today's 17.
 
 17 rows.
 
-## C. CRITERION 4 -- REDONE, and my original claim was reached by luck
+## C. CRITERION 4 -- ANSWER REVERSED. ALL SIX ARE COUPLED (11 of the 26)
 
-The cycle-1 Q/A found I had **hand-narrowed the scope and asserted a proxy**.
-Corrected: the six files are DERIVED from 86.5's own `audit_basis`, and the
-test is the COUPLING PROPERTY (does the test reach the operator's live
-kill-switch state?) rather than a grep count.
+**The cycle-2 Q/A FAILED this step because my answer here was INVERTED, and it was
+right to.** Two prior revisions of this section said "ONE, not six" and then "ZERO
+of the six". **The measured answer is ALL SIX.**
+
+### The measurement I should have made: flip the state
+
+Control = plain per-file pytest, no patching. Mutant = the kill_switch singleton
+forced `paused`, with the real audit COPIED so baselines replay identically:
 
 ```
-file                                            refs  property
-test_64_3_currency_path                            0  no live reach
-test_64_4_multi_market_e2e                         0  no live reach
-test_dod4_tier1_coverage_investment               68  tmp-isolated
-test_phase_70_3_atomic_swap                        0  no live reach
-test_price_tolerance_gate                          0  no live reach
-test_phase_70_4_gate_observability                 0  no live reach
+control (today, book UNPAUSED):  all six GREEN
+mutant  (paused=True):           ALL SIX RED
+  test_64_3_currency_path              3
+  test_64_4_multi_market_e2e           1
+  test_dod4_tier1_coverage_investment  1
+  test_phase_70_3_atomic_swap          1
+  test_price_tolerance_gate            3
+  test_phase_70_4_gate_observability   2
+                                    = 11, matching the 2026-08-08 baseline EXACTLY
 ```
 
-**ZERO of the six are LIVE-COUPLED** -- five have no live reach at all, and
-`dod4` monkeypatches `kill_switch._AUDIT_PATH` to `tmp_path`, so it is
-tmp-isolated. That is a **stronger** result than my original "ONE, not six".
+### Why every grep-shaped probe was blind to it
 
-**MY ORIGINAL CLAIM WAS RIGHT BY LUCK.** I measured four files, only THREE of
-which are among the six, and certified "the one" using
-`test_phase_23_2_4` -- which **is not one of the six**. The member I never
-measured, `dod4`, carries **68 references, more than the 43** I used to certify
-coupling. Under my own stated proxy it would have read as COUPLED and my
-conclusion would have been wrong. The proxy was wrong in a way that happened
-not to matter.
+`backend/services/paper_trader.py:202` (and `:1273`):
 
-Ref-count note: I measure 68 with a case-insensitive pattern; the Q/A measured
-63. Different regex, same conclusion -- recorded rather than reconciled away.
+```python
+state = self._injected_ks_state or get_state()
+```
 
-`test_phase_23_2_4_pause_resume_no_deadlock_live` (43 refs) IS genuinely
-live-coupled but is **not among the six**, and was already fixed by 86.3
-(`4f10b024`). So no duplicate step is owed for the 36.28 class.
+It falls back to the module singleton, which replays the on-disk audit. **Any test
+constructing `PaperTrader` without injecting `kill_switch_state` is coupled while
+containing ZERO textual "kill_switch" references.** Verified by me -- all five
+construct it uninjected:
+
+```
+test_64_3_currency_path:59             trader = pt.PaperTrader(s, bq)              injected=0
+test_64_4_multi_market_e2e:144         trader = pt.PaperTrader(s, bq)              injected=0
+test_phase_70_3_atomic_swap:207        trader = pt.PaperTrader(s, bq)              injected=0
+test_price_tolerance_gate:63           return PaperTrader(settings=..., bq_client=bq)  injected=0
+test_phase_70_4_gate_observability:68  trader = pt.PaperTrader(get_settings(), bq)  injected=0
+```
+
+### The failure was mine twice, and the second time was worse
+
+Cycle 1 rejected my ref-count proxy. My remediation **read the same refs column,
+relabelled it "the coupling PROPERTY", and re-derived the same wrong answer with
+more confidence.** Renaming a proxy does not make it a property.
+
+**And my very first hypothesis was correct.** The pre-gate census raised "H1: the
+36.28 kill-switch-coupled cluster", and I refuted it with the bad instrument and
+moved on. I had the right answer and argued myself out of it.
+
+The rule that would have saved all three passes: **measure the thing that CHANGES
+if the hypothesis is true.** Flip the state and see what breaks. A grep cannot do
+that; a mutation can.
+
+### What follows
+
+**No duplicate step is owed for these 11 -- but NOT because they are uncoupled.**
+They are owned by **36.28, which is still `status: pending`**. Nothing fixed the
+coupling; the book is simply unpaused today. They return the moment it pauses.
+
+`test_phase_23_2_4_pause_resume_no_deadlock_live` is separately coupled, is **not**
+among the six, and was fixed by 86.3 (`4f10b024`).
 
 ## D. CRITERION 5 -- kill-switch audit non-touch, before/after pair
 

@@ -67,6 +67,15 @@ state-dependence.
 
 **ALSO REFUTED.** Those files carry **0-1** live references and **no skip markers**.
 
+> **SUPERSEDED BY THE CYCLE-2 FAIL -- READ THIS FIRST.** The paragraph below
+> attributes the greening to `autonomous_loop.py`'s 12 commits. **A flag-flip
+> mutation matrix refutes it with the tree unchanged:** forcing the kill_switch
+> singleton `paused` turns all six 36.28-named files RED, 11 failures matching the
+> 2026-08-08 baseline exactly. So 11 of the 14 are **environment artifacts** --
+> green only because the operator's book is unpaused today -- not "already fixed".
+> H1, which I raised and then refuted with a grep, was CORRECT. See
+> `live_check_86.5.md` §C and `evaluator_critique_86.5.md` cycle 2.
+
 **WHAT THE EVIDENCE SUPPORTS:** `autonomous_loop.py` has **12 commits** since
 2026-08-08 and `orchestrator.py` **3**. The tests were untouched; the production
 they exercise changed substantially; they now pass. That is criterion 1's
@@ -76,14 +85,37 @@ they exercise changed substantially; they now pass. That is criterion 1's
 > is a larger job than this step needs. I am recording the correlation and marking
 > the attribution **unestablished** rather than asserting a cause I did not trace.
 
-## 3. Criterion 4 -- the 36.28 / 86.3 overlap, RESOLVED and much smaller than assumed
+## 3. Criterion 4 -- ALL SIX ARE COUPLED (11 of the 26). My answer was INVERTED.
 
-**The step assumed up to six files share one root cause with 36.28. Measured: ONE**
-(`test_phase_23_2_4_pause_resume_no_deadlock_live`, 43 references, and it was
-already fixed by 86.3's commit `4f10b024`).
+**This section previously read "Measured: ONE", and a later revision made it "ZERO".
+Both were wrong. The measured answer is ALL SIX.** Corrected after the cycle-2 FAIL;
+full evidence in `live_check_86.5.md` §C.
 
-Filing six duplicate steps on the inherited coupling theory would have been waste
-built on an assumption nobody had measured.
+A flag-flip mutation matrix -- control unpatched, mutant with the kill_switch
+singleton forced `paused` and the real audit copied -- turns **all six 36.28-named
+files RED, 11 failures matching the 2026-08-08 baseline exactly**:
+
+```
+64_3=3  64_4=1  dod4=1  70_3=1  price_tolerance=3  70_4=2  = 11
+```
+
+**Why every grep-shaped probe was blind:** `paper_trader.py:202` does
+`state = self._injected_ks_state or get_state()`, falling back to the module
+singleton. A test constructing `PaperTrader` uninjected is coupled with **zero**
+textual `kill_switch` references -- and all five do exactly that (verified at
+`64_3:59`, `64_4:144`, `70_3:207`, `price_tolerance:63`, `70_4:68`).
+
+**The process failure matters more than the wrong number.** Cycle 1 rejected my
+ref-count proxy; my remediation read the same column, called it "the coupling
+PROPERTY", and re-derived the same wrong answer with more confidence. **Renaming a
+proxy does not make it a property.** And H1 above -- which I raised and refuted with
+that grep -- was correct all along.
+
+**No duplicate step is owed for the 11, but NOT because they are uncoupled:** they
+are owned by **36.28, still `status: pending`**. Nothing fixed the coupling; the
+book is unpaused today, and they return when it pauses.
+`test_phase_23_2_4_pause_resume_no_deadlock_live` is separately coupled, is **not**
+among the six, and was fixed by 86.3 (`4f10b024`).
 
 ## 4. Criterion 3 -- grouping by MEASURED signature
 
