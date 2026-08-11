@@ -23,11 +23,15 @@ already has its own file, that file is the detail and this is the index.
 
 ## 06-#2 -- CREDENTIAL PUBLISHED ON `origin/main`. The only time-sensitive item here.
 
+> **`06-#2` AND `51-#4` ARE ONE ASK, NOT TWO -- ANSWER THIS ONE.** The peer session
+> raised the point and it is a real hazard: presented as two numbered items, you
+> could reasonably answer one and believe the other still open. **Same credential.**
+> `51-#4` is not a second decision; it is *evidence bearing on this one*.
+
 A 92-char `sk-ant-*` token (`sha256[:16] = 32fd305146379e49`) sits in five TRACKED
-`handoff/away_ops/session_*.json` files. `pyfinagent-51`'s ASK #4 establishes the
-timing fact that matters: the last affected file reached the remote **2026-08-11 at
-08:42 local, through a step-closure push**, not on 2026-08-10 as the filenames
-suggest.
+`handoff/away_ops/session_*.json` files. `51-#4` supplies the timing fact that
+matters: the last affected file reached the remote **2026-08-11 at 06:42Z, through a
+step-closure push**, not on 2026-08-10 as the filenames suggest.
 
 **I have not opened, printed or copied those files**, and I have not rewritten
 history — rewriting published history is yours.
