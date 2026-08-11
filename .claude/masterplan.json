@@ -24741,6 +24741,27 @@
           }
         },
         {
+          "id": "86.45",
+          "status": "pending",
+          "priority": "P2",
+          "harness_required": true,
+          "retry_count": 0,
+          "max_retries": 3,
+          "name": "[P2 -- A RAIL DROP RECORDED IN THE VERDICT LEDGER SILENTLY CLEARS A REAL ESCALATION] FOUND 2026-08-11, immediately after two sessions independently began backfilling the verdict ledger (the gap the phase-86.21 cycle-5 Q/A exposed). REPRODUCE BEFORE FIXING. MEASURED, driving the shipped `read_ledger`/`consecutive_conditionals` from scripts/qa/verdict_history_86_21.py against a synthetic ledger: a step whose graded history is CONDITIONAL then CONDITIONAL, with a rail-drop row spelled NO_VERDICT recorded between them, reports `consecutive = 1` and `auto-FAIL armed = False`. The control without the drop row reports `consecutive = 2, armed = True`. TRUTH: two cycles were GRADED and both were CONDITIONAL, so the next CONDITIONAL is the third and the 3rd-CONDITIONAL rule must fire. MECHANISM, read at source: the reset is written as `if v == CONDITIONAL: n += 1 else: break` -- ANY non-CONDITIONAL token resets, and that generality is deliberate and correct for PASS/FAIL/PASS_WITH_FINDINGS, all of which are real gradings. A rail drop is NOT a grading. `.claude/rules/research-gate.md` and CLAUDE.md both say an errored/empty return is NO VERDICT -- it is the ABSENCE of a cycle's judgment, not a judgment -- so it must be neither counted NOR treated as a reset; it must be SKIPPED. WHY THIS IS P2 AND NOT COSMETIC: it fails OPEN on an escalation rule, which is the dangerous direction, and the drop rate makes it likely rather than theoretical -- 5 of 11 Q/A spawns dropped on 2026-08-11 (~45%). A drop landing between two CONDITIONALs is an ordinary Tuesday, and the result is that a step which has earned an auto-FAIL is graded CONDITIONAL again. WHAT IS NOT CLAIMED: no step is known to have been mis-graded by this yet. The NO_VERDICT rows only entered the ledger on 2026-08-11 and the four steps carrying them (86.29, 86.34, 86.38, 86.31) each read correctly today -- verified individually. This is a defect armed for the future, not a discovered mis-grading, and a step that claims otherwise has inflated it. DO NOT fix this by removing the NO_VERDICT rows: recording a drop is CORRECT and is the more honest audit trail (an empty return is not an absence of a cycle, and omitting it misstates the sequence). The producer is right; the CONSUMER's reset rule is wrong. DO NOT narrow the reset to `== PASS` -- phase-86.21 measured 12+ distinct result tokens including PASS_WITH_FINDINGS and PASS_AFTER_RETRY, and an equality test silently extends a run across a real pass, which is the defect 86.21 removed. The fix is a NON-GRADING set that is skipped, not a narrower grading set. NON-SCOPE: phase-86.21 is PARKED at its escalation boundary; do not re-open its verdict or amend its immutable criteria. Touching `verdict_history_86_21.py` is permitted -- it is the subject -- but the parked step's criteria are not re-graded by this work.",
+          "verification": {
+            "command": "bash -c 'source .venv/bin/activate && python scripts/qa/verdict_history_86_21.py --self-test'",
+            "success_criteria": [
+              "The defect is REPRODUCED FIRST against the shipped code and recorded verbatim: a synthetic ledger of CONDITIONAL / NO_VERDICT / CONDITIONAL reports consecutive=1 armed=False, alongside the control without the drop row reporting 2 and True.",
+              "The NON-GRADING token set is DERIVED from the corpus and stated, not guessed -- enumerate what actually appears in handoff/verdict_ledger.jsonl and in harness_log result= tokens, and say which are gradings and which are not. A hardcoded pair chosen by intuition is the failure this step is about.",
+              "A non-grading row is SKIPPED, not counted and not treated as a reset: prove COND / NO_VERDICT / COND reports consecutive=2 and armed=True after the fix.",
+              "The reset still fires on every REAL grading -- PASS, FAIL, PASS_WITH_FINDINGS, PASS_AFTER_RETRY -- proven by driving each, not by reading the code. Narrowing the reset to `== PASS` is an explicitly rejected outcome.",
+              "Fail-safe direction is stated and TESTED: an UNRECOGNISED token must not be silently skipped (that would re-open the same fail-open door under a new spelling); say plainly what it does and why.",
+              "Mutation-test every new guard, including reverting the skip at the call site, with the control observed GREEN first -- a cell scored against an already-red check proves nothing."
+            ],
+            "live_check": "live_check_86.45.md with: the verbatim reproduction and its control; the derived non-grading token set with the command that enumerated it; the after-fix output for the same three-row ledger; the per-token reset demonstration; the unrecognised-token behaviour; and the mutation output."
+          }
+        },
+        {
           "id": "86.42",
           "status": "pending",
           "priority": "P3",
