@@ -68,27 +68,72 @@ TOTAL            67      9   11.8%      (10 days)
 ```
 
 **A PASSING COVERAGE ASSERTION PROVES LINE COUNTING, NOT ATTRIBUTION.** This
-distinction is the whole finding of the step and must not be lost: the instrument
-counted all 442 events correctly *while* classifying an entire family into the
-wrong bucket. The 416-event assertion protects against a parser that drops rows.
-It cannot protect against a parser that files rows under the wrong cause. A green
-coverage line is **not** evidence the classification is right.
+distinction is the whole finding of the step: the instrument counted all 442
+events correctly *while* classifying an entire family into the wrong bucket. A
+green coverage line is **not** evidence the classification is right.
+
+> **CORRECTION (cycle 1 Q/A finding C1, verified independently by Main).** An
+> earlier revision of this section said *"The 416-event assertion protects
+> against a parser that drops rows."* **That is MEASURED FALSE and is
+> withdrawn.**
+>
+> `raw += 1` (`derive_lite_fallback_census_86_38.py:274`) and
+> `per_file_parsed[...] += 1` (`:289`) sit in the **same `if FALLBACK_MARK`
+> branch**, with the intervening `if day: / else:` at `:284-288` rejoining
+> before `:289`. **No path increments one without the other**, so `parsed ==
+> raw` is structurally guaranteed, not verified.
+>
+> The Q/A demonstrated this by reproducing the historical defect shape — a
+> read-level JSON-only filter, which is what actually dropped the 416 — and the
+> assertion **stayed green while 433 of 442 events vanished**, exit 0, census
+> still printed.
+>
+> So the assertion protects against a drop occurring *between the two counters*
+> (structurally impossible today) and is **blind to the read-level filter that
+> caused the very incident it was written for**. The criterion-2 requirements are
+> still met and the population is independently corroborated by two greps, so
+> **the numbers stand** — what was wrong was my claim about the guard. This is
+> the "assert the property, not a proxy" defect, in my own artifact, in a
+> paragraph warning about exactly that.
 
 The classifier has since been corrected (by the session that filed the step); the
 run above shows the corrected labels -- `remote QuantAgent crash after SEC.gov
 429 on the CIK map (upstream)`.
 
-**DENOMINATOR, stated with its rule as the step demands.** Two sessions measured
-this differently and both are defensible:
+**DENOMINATOR -- THE WHOLE DISPUTE WAS A CATEGORY ERROR, AND IT IS NOW RESOLVED.**
 
-| quantity | value | rule |
-|---|---|---|
-| raw wrapper events, all 42 retained logs | **34** | no dedup |
-| ...of which preceded by a SEC 429 within a measured 25-line window | **17** | -- |
-| deduped events | **18**, of which **17** correlated | dedup rule not reproduced by me |
+> **CORRECTION (cycle 1 Q/A finding D1, re-measured independently by Main).** An
+> earlier revision presented "34 raw events" against a deduped 18 and called both
+> defensible. **34 is a count of LINES, not events**, and the residual "17 with
+> no 429 in window" was `34 - 17` — an arithmetic leftover describing **no real
+> population at all**.
+>
+> **Every occurrence emits exactly TWO log lines, 17 lines apart** (one
+> `orchestrator` INFO, one `autonomous_loop` WARNING). Measured across all 42
+> retained logs: per-file line counts `12,4,4,2,6,6` — **every one even**, and
+> **every** consecutive same-ticker gap exactly **17**.
 
-**"94%" and "50%" are the same numerator over different denominators. Neither is
-quoted anywhere in this artifact without the rule beside it.**
+Re-measured at the EVENT level, collapsing the pairs:
+
+| quantity | value |
+|---|---|
+| matching LINES, all 42 retained logs | 34 |
+| **distinct EVENTS** (pairs collapsed) | **17** |
+| events preceded by a SEC 429 within a 25-line window | **17** |
+| events with **no** 429 cue | **0** |
+| cue split | `Failed to fetch CIK map: 429` = **10**, `SEC 429 rate-limit ... retrying` = **7** (10+7=17) |
+| distinct tickers | **13** (AAPL COHR CRWD DDOG DELL DVA INTC MU NTAP PANW SNDK STX WDC) |
+
+**Attribution is 17 of 17 — 100%.** Neither "94%" nor "50%" was correct: 94%
+(17/18) was close but carried one phantom event; 50% (17/34) double-counted every
+event as two. **The correct statement is that every distinct occurrence carries an
+upstream SEC 429 cue.**
+
+This **strengthens** criterion 3 rather than weakening it. It is recorded as a
+correction rather than quietly fixed because the step's own title says RE-DERIVE
+EVERY NUMBER, and I carried the 10/7/17 split from a peer session without
+re-deriving it — the precise failure the step was written to prevent, committed by
+the session re-deriving it.
 
 ### Criterion 3 -- ABSENT UPSTREAM FIELD, not a logic error
 
@@ -106,9 +151,16 @@ this exact upstream at class level: *"Cloud Function ... fetches
 https://www.sec.gov/files/company_tickers.json ... observed returning 429 under 8
 concurrent calls (cycle d73f5129)"*.
 
-Provider split, verified independently by the filing session: of 34 raw events,
-**0 are Vertex**; 10 carry `Failed to fetch CIK map: 429 ... www.sec.gov`, 7
-carry `Quant: SEC 429 rate-limit on CIK map, retrying`, 17 have no 429 in window.
+Provider split, **re-derived by me at the event level** (not inherited): of **17
+distinct events**, **0 are Vertex**; **10** carry `Failed to fetch CIK map: 429
+... www.sec.gov`, **7** carry `Quant: SEC 429 rate-limit on CIK map, retrying`,
+and **0 have no 429 cue**. 10 + 7 = 17, so the split is exhaustive with no
+residual.
+
+The earlier revision of this line read *"of 34 raw events ... 17 have no 429 in
+window"*, inherited from the filing session. That residual was `34 - 17` over a
+LINE count and described no real population — **every event is attributed**. See
+the denominator correction under criterion 2.
 
 ### Criterion 4 -- mutation-tested
 

@@ -53,6 +53,19 @@ TOTAL            67      9   11.8%
 entire family under the wrong cause -- that misclassification is the finding of
 this step. A green coverage line is not evidence the classification is right.
 
+**STRONGER LIMIT, found by the cycle-1 Q/A and verified here.** The assertion is
+**vacuous even against dropped rows** -- the thing it was written for.
+`raw += 1` (`:274`) and `per_file_parsed += 1` (`:289`) are in the same
+`if FALLBACK_MARK` branch with no path incrementing one without the other, so
+`parsed == raw` is **structurally guaranteed**. Reproducing the historical
+read-level JSON-only filter (the defect that actually dropped the 416) leaves the
+assertion **GREEN at exit 0 while 433 of 442 events vanish**. It cannot see a
+filter applied before the counting loop.
+
+Criterion 2's literal requirements are still met and the population is
+corroborated by two independent greps, so **the numbers stand**. What was wrong
+was the artifact's claim about what the guard protects.
+
 ## 2. Call site -- IDENTIFIED
 
 **`/workspace/main.py:89`, in `get_cik`, inside the REMOTE Quant Agent Cloud
@@ -69,10 +82,12 @@ change available here.
 
 Evidence that distinguishes them:
 
-1. **Correlation with an upstream rate limit.** 17 of 34 raw events are preceded
-   within a measured 25-line window by a SEC 429 on
-   `www.sec.gov/files/company_tickers.json`. A logic error does not correlate
-   with a third party's rate limiter.
+1. **Correlation with an upstream rate limit -- TOTAL, not partial.** **17 of 17
+   distinct events** are preceded within a measured 25-line window by a SEC 429
+   on `www.sec.gov/files/company_tickers.json`; **zero are not**. A logic error
+   does not correlate with a third party's rate limiter, and certainly not at
+   100%. (Corrected from "17 of 34 raw events" — 34 was a LINE count; see the
+   denominator correction below.)
 2. **Provider split, 0 Vertex.** 10 events carry `Failed to fetch CIK map: 429
    ... www.sec.gov`; 7 carry `Quant: SEC 429 rate-limit on CIK map, retrying`;
    **0 are Vertex**. Two providers, two remedies.
@@ -83,10 +98,29 @@ Evidence that distinguishes them:
    https://www.sec.gov/files/company_tickers.json ... observed returning 429
    under 8 concurrent calls (cycle d73f5129)"*.
 
-**DENOMINATOR RULE, stated as the step demands:** 34 = raw wrapper events, no
-dedup, across all 42 retained logs. 18 = the deduped count from the filing
-session, whose dedup rule I did not reproduce. Same numerator (17). **"94%" and
-"50%" are both defensible and neither may be quoted without its rule.**
+**DENOMINATOR -- CORRECTED. The dispute was a CATEGORY ERROR and is resolved.**
+
+An earlier revision of this file called 34 and 18 "both defensible". **34 is a
+count of LINES, not events.** Every occurrence emits exactly two log lines 17
+lines apart (one `orchestrator` INFO, one `autonomous_loop` WARNING) — measured
+across all 42 retained logs, per-file counts `12,4,4,2,6,6`, **every one even**,
+every consecutive same-ticker gap exactly **17**.
+
+Collapsing the pairs:
+
+```
+DISTINCT EVENTS (2-line pairs collapsed): 17
+distinct tickers: 13  ['AAPL','COHR','CRWD','DDOG','DELL','DVA','INTC','MU',
+                       'NTAP','PANW','SNDK','STX','WDC']
+cue split: {'failed_to_fetch_cik_429': 10, 'sec429_retrying': 7}
+events with NO 429 cue in a 25-line window: 0
+=> attribution: 17 of 17 events carry a SEC 429 cue (100%)
+```
+
+**Neither "94%" nor "50%" was correct.** 94% (17/18) carried one phantom event;
+50% (17/34) counted every event twice. **The correct figure is 100% — every
+distinct occurrence carries an upstream SEC 429 cue**, which strengthens the
+criterion-3 verdict rather than weakening it.
 
 ## 4. Mutation output
 
