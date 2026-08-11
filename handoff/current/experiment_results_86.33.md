@@ -10,8 +10,22 @@ the reason is criterion 5 -- see §6.
 
 ## 1. Criterion 1 -- population DERIVED by a committed script
 
-`scripts/qa/derive_agent_type_population_86_33.py`, re-runnable, reads
-`handoff/logs/qa_write_guard.log`.
+**TWO scripts cover this criterion, and pointing at only one was the cycle-2
+blocker.**
+
+* `scripts/qa/census_qa_write_guard_log_86_31.py --before <cutoff>` -- supplies the
+  parts criterion 1 explicitly names: the **--before cutoff with its excluded-row
+  count**, the **per-identity Write/Edit counts targeting paths outside
+  `.claude/agent-memory/qa/`**, and the **breach recall validated against the
+  derived class** (20 events across 10 identities). Output transcribed verbatim in
+  `live_check_86.33.md` §0.
+* `scripts/qa/derive_agent_type_population_86_33.py` -- the full distribution and
+  the guard-predicate partition. It produces **none** of the four elements above.
+
+**I wrote the second without checking that the first already existed.** The
+covering evidence was in the repo the whole time and my handoff record cited the
+wrong script -- the same shape as the cycle-1 finding, where criterion 2's answer
+lived only in the log and the verdict.
 
 **AS OF 2026-08-11T18:1x CEST: 78 distinct `agent_type` values**, partitioned by
 the guard's own predicate:
@@ -94,8 +108,10 @@ subagent TYPE from the spawn NAME. The four keys my synthetic probe lacked --
 attributes**.
 
 This corroborates the documentary finding by measurement: the docs say `agent_type`
-**is** the definition's `name`, and **2 definitions exist against 78 logged values**,
-so invocation labels occupy the same field.
+**is** the definition's `name`, and **2 definitions exist against 65 distinct values in the clean
+pre-contamination slice** (the unfiltered figure is 78, but 76 of those include
+prover-fabricated identities -- see §1), so invocation labels occupy the same
+field.
 
 > **Recorded because it matters procedurally:** the instrument that answered this
 > criterion is the Q/A's own write-first record -- the mechanism phase-86.31 shipped
