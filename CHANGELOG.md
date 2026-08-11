@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-11 | `4b526b61` | phase-86.29 cycle 2: supersede the cycle-1 figures in sections 1/3/5/6 |
 | 2026-08-11 | `eceb3a3b` | phase-86.29 cycle 2: fix five findings a DROPPED Q/A surfaced, all re-measured first |
 | 2026-08-11 | `58f6d372` | phase-86.34: [P3 -- THREE NOTE-LEVEL DEFECTS THE 86.24 PASS SURFACED AND DELIBERATELY DID NOT FIX... |
 | 2026-08-11 | `7602e3e2` | phase-86.36: PLAN -- contract written after a PASSED research gate |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-10 | `c806cad6` | phase-86.29: PLAN -- contract written, mechanism demonstrated before planning |
 | 2026-08-10 | `5f2a7caa` | phase-86.31: harness_log cycle 1209 -- NO VERDICT (rail drop); the step proved itself |
 | 2026-08-10 | `b1427909` | phase-86.31: the mechanism proved itself on a REAL rail drop |
-| 2026-08-10 | `b96b5551` | docs: goal -- parked steps are NOT equivalent; 86.25 closeable, 86.30 never closeable |
 
 ---
 
+### v6.93.98 — phase-86.29 cycle 2: supersede the cycle-1 figures in sections 1/3/5/6 (2026-08-11)
+
+- **phase-86.29 cycle 2: supersede the cycle-1 figures in sections 1/3/5/6**
 ### v6.93.97 — phase-86.29 cycle 2: fix five findings a DROPPED Q/A surfaced, all re... (2026-08-11)
 
 - **phase-86.29 cycle 2: fix five findings a DROPPED Q/A surfaced, all re-measured first**
