@@ -44,6 +44,15 @@ except Exception:
     sys.exit(0)
 
 agent_type = d.get("agent_type") or ""
+# phase-86.33 P0 -- MEASURE BEFORE REDESIGNING. The hooks doc documents
+# agent_id as a second PreToolUse identity field; this guard has never read
+# or logged it, so every identity conclusion in 86.31 and 86.33 rests on
+# agent_type ALONE. agent_type is chosen by the SPAWNER (RFC 9700 s4.15: a
+# server SHOULD NOT let clients influence their client_id), so a field the
+# spawner does not choose may discriminate cases agent_type cannot.
+# LOG-ONLY: recorded, and used in NO decision below. Changing policy on an
+# unmeasured field would be the same mistake one level down.
+agent_id = d.get("agent_id") or ""
 tool_name = d.get("tool_name") or ""
 tool_input = d.get("tool_input") or {}
 file_path = ""
@@ -55,6 +64,7 @@ if isinstance(tool_input, dict):
 try:
     ts = datetime.datetime.now(datetime.timezone.utc).isoformat()
     line = json.dumps({"ts": ts, "agent_type": agent_type,
+                       "agent_id": agent_id,
                        "tool_name": tool_name, "file_path": file_path})
     print("LOG " + line, file=sys.stderr)
 except Exception:
