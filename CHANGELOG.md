@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-11 | `08a078c2` | docs(86.49): a second instance -- the safety scanner matches text a command CARRIES |
 | 2026-08-11 | `e5c61b46` | docs: narrow the ask-collision claim -- only #2 collides, and say what my scan cannot see |
 | 2026-08-11 | `417b120a` | docs: 06-2 and 51-4 are ONE ask about ONE credential, not two |
 | 2026-08-11 | `12568e85` | docs: index this session's operator asks, and name the "ASK #2" collision |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-11 | `a6d4c42f` | phase-86.33 criterion 2: log the payload KEY SET so the question becomes answerable |
 | 2026-08-11 | `9a0a55bb` | phase-86.33 criterion 1: the log cannot certify its own population, and that IS the finding |
 | 2026-08-11 | `10a703db` | phase-86.33: PLAN -- the payload cannot distinguish TYPE from NAME, and I proved it on myself |
-| 2026-08-11 | `575e0509` | phase-86.33: the 70% was mine too -- correct BOTH files, not just the one I noticed |
 
 ---
 
