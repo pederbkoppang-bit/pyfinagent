@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-11 | `c88484be` | phase-86.33: GENERATE -- criteria 1/3/4/6 met, criterion 5 is ASK #6, criterion 2 pending a real spa |
 | 2026-08-11 | `7fd1c131` | phase-86.33 criteria 3+4+6: the researcher rail holds, and one apostrophe kills everything |
 | 2026-08-11 | `a6d4c42f` | phase-86.33 criterion 2: log the payload KEY SET so the question becomes answerable |
 | 2026-08-11 | `9a0a55bb` | phase-86.33 criterion 1: the log cannot certify its own population, and that IS the finding |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-11 | `2615667b` | phase-86.32: R1 -- correct my own overclaim; pin provenance to SHAs, not HEAD |
 | 2026-08-11 | `a062c674` | phase-86.32: cycle-3 CONDITIONAL remediated -- the provenance line is now GENERATED |
 | 2026-08-11 | `bce22a74` | phase-86.32: cycle-2 findings remediated -- W1 ordering, W2 stale capture, W3 arithmetic |
-| 2026-08-11 | `96870e44` | phase-86.32: cycle-1 FAIL remediated -- the fixture was not the 86.28 series |
 
 ---
 
+### v6.93.192 — phase-86.33: GENERATE -- criteria 1/3/4/6 met, criterion 5 is ASK #6,... (2026-08-11)
+
+- **phase-86.33: GENERATE -- criteria 1/3/4/6 met, criterion 5 is ASK #6, criterion 2 pending a real spa**
 ### v6.93.191 — phase-86.33 criteria 3+4+6: the researcher rail holds, and one apostr... (2026-08-11)
 
 - **phase-86.33 criteria 3+4+6: the researcher rail holds, and one apostrophe kills everything**
