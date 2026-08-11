@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-11 | `1a9e75af` | docs(goal): fix a wrong escalation claim -- 86.34 is NOT at 3rd-CONDITIONAL risk |
 | 2026-08-11 | `3ed23ae7` | docs: today's goal (2026-08-11) -- three steps are one Q/A from closing |
 | 2026-08-10 | `a271ad1e` | phase-86.21: record the measured counter-blindness in the step text |
 | 2026-08-10 | `54f9eb0f` | docs: day report -- late-session append (86.31 proof, 86.29 started, rail drop) |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-10 | `9bc80454` | phase-86.34: PARK after 2 Q/A cycles with a disposition -- remediated but ungraded |
 | 2026-08-10 | `82e3e55d` | phase-86.34 cycle 3: fix all three CONDITIONAL findings |
 | 2026-08-10 | `ea7eb194` | phase-86.34: record cycle-2 Q/A verdict VERBATIM -- CONDITIONAL |
-| 2026-08-10 | `34302f05` | phase-86.34: harness_log cycle 1206 -- FAIL on a vacuous oracle I published as proof |
 
 ---
 
