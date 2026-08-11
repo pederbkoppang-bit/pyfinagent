@@ -2686,7 +2686,9 @@ def _degradation_summary_fields(
     Returns `{}` only when the cycle analysed nothing. Otherwise the rate is
     ALWAYS reported, together with whether it paged -- a reader must be able to
     tell "quiet because fine" from "quiet because below threshold", which is the
-    distinction the 2026-08-10 cycle (3/6 = 0.500, no page) had no way to record.
+    distinction the 2026-08-10 cycle -- 3 of its 6 tickers on the lite
+    fallback, no page -- had no way to record. (The alarm's own denominator
+    was not measured; see the call site.)
 
     Reporting is not paging: this function never decides whether to alert.
     `_fallback_rate_check` owns that and is untouched.
