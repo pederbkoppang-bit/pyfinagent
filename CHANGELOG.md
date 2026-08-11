@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-11 | `512d08a1` | chore(86.5): record the gate's verification pass appended to the brief |
 | 2026-08-11 | `380e67c1` | phase-86.5: file the five steps -- the deliverable, each carrying its own trap |
 | 2026-08-11 | `32006221` | phase-86.5: PLAN -- 9 of 17 failures are the TEST being wrong, and two naive fixes are harmful |
 | 2026-08-11 | `aa043609` | phase-86.5: the failure census, MEASURED -- 17 not 26, and two failures that invert |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-11 | `21269f42` | phase-86.41: [P2 -- THE QuantAgent NoneType CRASH IS A BIGGER SOURCE OF DEGRADED ANALYSES THAN TH... |
 | 2026-08-11 | `1806bb56` | chore: commit agent-memory + Q/A WIP records under their OWN description |
 | 2026-08-11 | `85aeea6c` | phase-86.41: cycle-3 PASS -- verdict persisted verbatim + harness_log append |
-| 2026-08-11 | `fb21682b` | phase-86.41: cycle-2 CONDITIONAL remediated -- lint blocker + all four notes |
 
 ---
 
