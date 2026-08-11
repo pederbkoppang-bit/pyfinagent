@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-11 | `68c35835` | phase-86.44: a naive phase= grep over-counts -- 642 headers vs 33 body matches |
 | 2026-08-11 | `0e866751` | phase-86.11: bounded pre-contract UI sweep -- 2 real defects, 2 refuted against my own instrument |
 | 2026-08-11 | `503a7fa8` | phase-86.7: backfill the missing harness_log row (five-file protocol debt) |
 | 2026-08-11 | `e748f67e` | docs: record 86.7's true state -- my summary omitted it |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-11 | `30cacbf1` | docs(goal): ASK #2 -- correct the exposure timeline; ~3 days on origin, not 48h |
 | 2026-08-11 | `2aff9afc` | operator ASK #4: an affected away_ops file reached origin via MY push today |
 | 2026-08-11 | `9d7628ce` | operator asks: correct ASK #3's figures -- 13 runs, 5 dropped (38.5%), ~887k wasted |
-| 2026-08-11 | `7f173592` | phase-86.38: PARK after four spawns -- remediated, verified, ungraded |
 
 ---
 
+### v6.93.161 — phase-86.44: a naive phase= grep over-counts -- 642 headers vs 33 bod... (2026-08-11)
+
+- **phase-86.44: a naive phase= grep over-counts -- 642 headers vs 33 body matches**
 ### v6.93.160 — phase-86.11: bounded pre-contract UI sweep -- 2 real defects, 2 refut... (2026-08-11)
 
 - **phase-86.11: bounded pre-contract UI sweep -- 2 real defects, 2 refuted against my own instrument**
