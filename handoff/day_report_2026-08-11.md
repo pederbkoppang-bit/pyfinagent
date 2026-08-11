@@ -507,7 +507,36 @@ not one.**
 part worth carrying. 86.25 was "a risk-approval vocabulary passed where a
 BUY/SELL recommendation is expected". 86.58 is "an order REASON (`new_buy_signal`)
 sitting in a RECOMMENDATION field" -- caught in production by the guard that
-shipped this morning. **Third instance of one defect class: a field receiving a
-value from the wrong vocabulary.** 86.40, which I queued today, is the fourth (a
-comment asserting that mapping is correct). A future step should treat the class,
-not the instances.
+shipped this morning. **CORRECTED: the class has FIVE members, not three.** I counted three; the peer
+measured it against the masterplan and found five, and I verified the two I had
+missed rather than taking them:
+
+| step | state | shape |
+|---|---|---|
+| 86.22 | done | the vocabulary split is CROSS-MODULE, poisons the learn loop |
+| 86.25 | done | a risk-approval vocabulary where BUY/SELL is expected |
+| 86.40 | open | a COMMENT blessing the mapping 86.25 removed |
+| 86.52 | open | did 86.25's fix land? two tests say not fully |
+| 86.58 | open | an order REASON in a recommendation field |
+
+One invariant: **a field receives a value from a different vocabulary than its
+readers assume, with no type or guard at the boundary.** Every instance so far was
+fixed AT ITS OWN SITE, which is why a fifth appeared.
+
+**And the uncomfortable part is mine.** 86.52 is a residual of 86.25 -- the step I
+closed on a PASS today. I measured why it stayed invisible: 86.25's immutable
+command (`-k "outcome_tracker or autonomous_loop or learn_loop"`) collects **108
+tests and ZERO** from `test_phase_82_48_outcome_write_schema.py`, where two tests
+fail today with `assert UNKNOWN == BUY`. Recall control confirms the 108, so the
+zero is the filter's property, not a broken probe.
+
+**Not a false verdict** -- the six criteria were met, and the Q/A's own cycle-1
+finding W2 had already flagged this filter shape, remedied by RENAMING the new
+module so the filter matched it. **The rename fixed the instance; the filter's
+blind spot remained.** Guard-the-instance-not-the-class, occurring inside the
+remedy for that very class.
+
+Method note now recorded in 86.52: **derive the collected set with
+`--collect-only` before trusting any `-k` filter as a verification scope.** A
+green run under a filter that cannot reach the changed code is the same thing as
+a guard that cannot fail -- which is what this whole day was about.
