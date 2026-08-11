@@ -60,3 +60,33 @@ $ diff (backup) (current), values compared key-by-key
   keys changed       : 1
     PAPER_CYCLE_MAX_SECONDS: '7200.0' -> '10800.0'
 ```
+
+## Criterion 1's OTHER half: the pid's START TIME -- and what it exposes
+
+```
+$ ps -o pid=,lstart=,etime= -p 66306        # -o without -e; `ps -e` overrides -p
+  66306   man. 10 aug. 21.33.01 2026   18:35:23
+$ lsof -nP -iTCP:8000 -sTCP:LISTEN  ->  listener pid: 66306
+$ curl -s http://127.0.0.1:8000/api/settings/  ->  paper_cycle_max_seconds = 10800.0
+```
+
+**pid 66306 started 2026-08-10 21:33:01 CEST.** The criterion asks for the start
+time *"since the setting is read at cycle start"*, and the reason is now concrete:
+
+| event | time | source |
+|---|---|---|
+| qualifying cycle START | 2026-08-10 20:00:02 | cycle line below |
+| qualifying cycle END | 2026-08-10 21:15:34 | start + 4532.113s |
+| **pid 66306 START** | **2026-08-10 21:33:01** | `ps -o lstart=` |
+
+**The process now serving 10800.0 came up 1,046s AFTER the qualifying cycle
+finished. A PREDECESSOR process ran that cycle, and it is gone.**
+
+The restart was **not** the watchdog: `backend-watchdog.log` never reaches 3/3 and
+its last entry is 2026-08-10T18:07:04Z. I do not know what caused it and am not
+guessing.
+
+**Can I recover the budget that predecessor held? No.** `_cycle_timeout` is read at
+`autonomous_loop.py:507` and **never logged**; grep for `cycle_timeout|budget|10800|
+7200` over `backend.log` and the archive holding that cycle returns no cycle-start
+budget record. So the value in force is unrecoverable post-hoc.

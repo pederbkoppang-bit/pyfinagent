@@ -29,7 +29,7 @@ Separately, `get_settings()` is `lru_cache`d but `autonomous_loop.py:2136-2138`
 clears it **per ticker**, so `.env` is live for this key **without a restart** --
 unusual in this codebase and not to be generalised.
 
-## 2. Criterion 2 -- MET by an ALREADY-COMPLETED post-raise cycle
+## 2. Criterion 2 -- a cycle COMPLETED. It does NOT prove the new budget was in force.
 
 The raise landed **2026-08-09T13:50Z**. The cycle below started **2026-08-10
 20:00:02**, more than a day later, and **completed**:
@@ -41,11 +41,47 @@ CYCLE  started=2026-08-10 20:00:02.593000  terminal=completed  wall=4532.113s
   tickers        : planned=6 dispatched=6 finished=6 unfinished=[]
 ```
 
-**Wall-clock 4,532.113s.** It did **not** time out.
+**Wall-clock 4,532.113s. It did not time out.**
 
-> I had assumed criterion 2 required waiting for tonight's 20:00 cycle and said so.
-> It did not -- a qualifying cycle already existed. Tonight's run adds a **second**
-> sample, recorded in the day report, not the only one.
+> **I FOUND A HOLE IN MY OWN EVIDENCE WHILE MEASURING WHAT CRITERION 1 ASKED FOR,
+> AND IT IS THE MORE IMPORTANT FINDING OF THE TWO.** Criterion 1 demands the pid's
+> **start time** *"since the setting is read at cycle start"*. Measured: **pid 66306
+> started 2026-08-10 21:33:01** -- **1,046s AFTER this cycle ended at 21:15:34**. So
+> **the process I read 10800.0 from is NOT the process that ran the cycle.** A
+> predecessor ran it and is gone. (Not the watchdog: it never reaches 3/3.)
+>
+> **And a 4,532s cycle would have completed under the OLD 7,200s budget too.** So
+> this cycle is consistent with either value and **discriminates between them not at
+> all.** My earlier framing -- "MET by an already-completed post-raise cycle" -- read
+> as though completion demonstrated the new ceiling was operative. It does not. That
+> is the same error this project keeps making: **asserting a property when only a
+> proxy was measured.**
+
+**What I can actually establish, and how strongly:**
+
+| claim | strength |
+|---|---|
+| a cycle completed end-to-end, wall 4,532.113s | **MEASURED** |
+| it did not time out | **MEASURED** |
+| the running process serves 10800.0 (pid 66306, up 21:33:01) | **MEASURED** |
+| the *predecessor* also held 10800.0 during the cycle | **INFERRED, not measured** |
+
+The inference: `get_settings()` is `lru_cache`d but `autonomous_loop.py:2136-2138`
+clears it **per ticker**, and the cycle began >30h after the `.env` write, so the
+predecessor almost certainly re-read 10800.0. **`_cycle_timeout` is never logged**
+(grep over `backend.log` and the archive holding the cycle finds no cycle-start
+budget record), so this cannot be raised from inference to measurement after the
+fact.
+
+**Criterion 2 as worded is satisfied** -- a cycle completed and its wall-clock is
+recorded, and it did not time out, so the "reports it was INSUFFICIENT" branch does
+not apply. **But it is satisfied weakly**, and the weakness is now stated rather
+than buried. **Tonight's 20:00 cycle runs under pid 66306, whose value I have read
+directly** -- that is the sample that would close the gap, and it is recorded in the
+day report whatever it shows.
+
+**Filed as 86.54: log the effective cycle budget at cycle start.** One line at
+`autonomous_loop.py:507` would have made this measurable instead of inferable.
 
 ## 3. Criterion 3 -- RE-DERIVED by me with the named script
 

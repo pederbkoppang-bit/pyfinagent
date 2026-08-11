@@ -34077,3 +34077,53 @@ twice mis-counted its rows as real runtime traffic.
 
 **PASS MEANS THE STEP CORRECTLY DID NOT SHIP A FAIL-CLOSED CHANGE. IT DOES NOT MEAN
 THE GUARD IS A BOUNDARY.** It is still keyed on a field the caller chooses.
+
+## Cycle 1221 -- 2026-08-11 -- phase=86.9 result=CONDITIONAL (cycle 1; remediated, cycle 2 pending)
+
+**Logged at the time of remediation, not after a PASS, and deliberately.** The
+3rd-CONDITIONAL rule requires Q/A to count prior CONDITIONALs for a step-id **from
+this file** -- so a CONDITIONAL that is never written here is invisible to the very
+mechanism meant to catch a step that logs instead of correcting. `grep -c
+"phase=86.9 "` returned **0** before this row while a graded CONDITIONAL existed.
+That gap is filed as **86.21**; this row is the local fix for one step.
+
+**All six criteria were MET and independently reproduced by the Q/A.** The
+CONDITIONAL is entirely about four claim-level defects in my prose, all mine:
+
+1. **Section 7 concluded flatly "it is NOT the right fix" while omitting the arithmetic
+   that most directly rebuts it.** The two overrun cycles project to **8,554s and
+   8,529s** -- BOTH inside the new 10,800s budget with ~2,250s to spare, so the raise
+   would have converted both observed failures into completions. The figures sit at
+   `research_brief_86.9.md:397`, in the brief I commissioned; grep over my own
+   artifacts returned zero hits. **I had the counter-evidence and did not carry it**,
+   in the one section whose stated purpose was to answer that question. The flat form
+   was also the dangerous one -- "the raise was the WRONG fix" is the single framing
+   that could invite reverting an operator-authorised value.
+2. **"config drift across FOUR sites" was typed, not derived**, above a table with
+   five rows, and `backend/services/cycle_lock.py` was missing entirely -- though its
+   own comment at `:57` already documents the drift. The undercount had propagated
+   into 86.53's `audit_basis`; corrected there too.
+3. **The #24 figures (p90 134s, longest success 145s) are UNDATED PRE-FIX**, tracing
+   to `research_brief_85.4.md:321`, and cannot be re-derived post-fix -- both my run
+   and the Q/A's print `agent latency : None`. #24 still recommended, but on variance
+   across cycles (9.9-23.4% vs 0.66%), not on the last one. #25 restated
+   unambiguously: NOT recommended now, NOT withdrawn.
+4. **"n=7 spans 6 rotated archives"** -- wrong: ONE archive holding six cycles.
+
+**A FIFTH DEFECT I FOUND MYSELF WHILE REMEDIATING, AND IT IS THE WORST OF THE SET.**
+Criterion 1 demands the pid's **start time**. Measured: **pid 66306 started
+2026-08-10 21:33:01**, which is **1,046s AFTER the qualifying cycle ended at
+21:15:34**. The process I read `10800.0` from is **not** the process that ran the
+cycle. And a **4,532s** cycle would have completed under the old **7,200s** budget
+too -- so it discriminates between the two values **not at all**. My "MET by an
+already-completed post-raise cycle" framing read as though completion proved the new
+ceiling was operative. It does not. `_cycle_timeout` is never logged, so the value in
+force is unrecoverable post-hoc. Criterion 2 is satisfied **as worded** but
+**weakly**, and section 2 now says so with a claim-strength table separating MEASURED
+from INFERRED.
+
+**Filed 86.54**: log the effective cycle budget at cycle start. One line at
+`autonomous_loop.py:507` is the whole distance between "inferred" and "measured".
+
+**Nothing was changed by this step.** Every finding is a measurement; #24/#25 are
+asks. Cycle 2 spawns on the corrected artifacts.

@@ -24969,6 +24969,26 @@
             ],
             "live_check": "live_check_86.43.md with: the reproduced before/after byte counts; the enumerated exposed-artifact list and the command that derived it; proof write-first still survives a drop; and the mutation output."
           }
+        },
+        {
+          "id": "86.54",
+          "name": "log the effective cycle budget at cycle start",
+          "status": "pending",
+          "priority": "P2",
+          "harness_required": true,
+          "audit_basis": "MEASURED during 86.9. backend/services/autonomous_loop.py:507 reads `_cycle_timeout = float(getattr(settings, 'paper_cycle_max_seconds', 1800.0))` and NEVER logs it; `grep -c 'cycle_timeout|effective cycle budget' backend.log` returns 0. CONSEQUENCE, measured not hypothesised: 86.9 could not establish which budget the 2026-08-10 20:00 cycle ran under, because the process that ran it (started before 21:33:01) had exited by the time anyone read /api/settings/, and the value it held was never written down. A 4532s completion is consistent with BOTH the old 7200.0 and the new 10800.0, so the cycle discriminates between them not at all. The same blindness applies to the 1800.0 fallback: if the attribute were ever missing, the cycle would silently run a 30-minute budget with no record. This is one log line standing between 'inferred' and 'measured'.",
+          "verification": {
+            "success_criteria": [
+              "backend/services/autonomous_loop.py logs the effective _cycle_timeout at cycle start, at INFO, on the same code path that reads it (:507) -- not in a helper that could be skipped",
+              "the log record states WHERE the value came from: the settings attribute, or the 1800.0 fallback if the attribute is absent. A cycle running the fallback must be distinguishable from one running a configured value by reading the log alone",
+              "a mutation test proves the line is reachable and load-bearing: with the log call removed, a check over a driven cycle's output goes RED; with it present, GREEN. The control must be green first or the cell is UNSCORABLE",
+              "the change is log-only -- no timeout, setting or control-flow change. Proved by a diff review stating that _cycle_timeout's VALUE and its use at the asyncio.timeout call are byte-identical",
+              "no secret or credential is written to the log by the new line"
+            ],
+            "command": "bash -c 'source .venv/bin/activate && python -c \"import ast; ast.parse(open(\\\"backend/services/autonomous_loop.py\\\").read()); print(\\\"parses\\\")\"'",
+            "live_check": "live_check_86.54.md carrying the verbatim log line emitted by a real cycle start (not a synthetic call), with the pid and its start time, showing the budget value and its provenance"
+          },
+          "notes": "Filed by 86.9 cycle-2 remediation, 2026-08-11. NOTE for the executor: two files are named autonomous_loop.py -- this step means backend/services/autonomous_loop.py. Do not confuse the outer cycle budget with the per-call 150s rail cap at backend/agents/claude_code_client.py:593; they are different timeouts and 86.9 established there is NO per-ticker timeout between them. Related: 86.53 (config drift across the sites that define this value)."
         }
       ]
     }
