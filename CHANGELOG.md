@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-11 | `48741e44` | phase-86.41: REFUTE my own step's premise before anyone executes it |
 | 2026-08-11 | `8e95fb88` | phase-86.38: my classifier read the WRAPPER -- all 9 fallbacks are rate limits |
 | 2026-08-11 | `b8d2ea96` | phase-86.41: PLAN -- the gate REFUTED the step's premise; the crash is not ours |
 | 2026-08-11 | `debbc932` | phase-86.32: record a SECOND measured instance -- today reproduced it on five steps |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-11 | `4600f98f` | phase-86.38 cycle 2: derive PER-CYCLE, which is what criterion 2 asked for |
 | 2026-08-11 | `31e6c0db` | phase-86.38: CORRECT a protocol breach -- my contract's criteria were not the criteria |
 | 2026-08-11 | `b9b76eab` | phase-86.38 cycle 2: fix a SELF-REFERENTIAL assertion and a false claim I propagated |
-| 2026-08-11 | `52c3c209` | docs(goal): the 8.1M/8.7M token figures are NOT re-derivable -- mark the provenance |
 
 ---
 
+### v6.93.152 — phase-86.41: REFUTE my own step's premise before anyone executes it (2026-08-11)
+
+- **phase-86.41: REFUTE my own step's premise before anyone executes it**
 ### v6.93.151 — phase-86.38: my classifier read the WRAPPER -- all 9 fallbacks are ra... (2026-08-11)
 
 - **phase-86.38: my classifier read the WRAPPER -- all 9 fallbacks are rate limits**
