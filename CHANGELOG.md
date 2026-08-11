@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-11 | `58fbc9bd` | phase-86.52 + day report: the vocabulary class is FIVE, and 86.25's filter could not see two of them |
 | 2026-08-11 | `d98f2b0f` | docs(86.58): the vocabulary-boundary class has FIVE members, three open -- take the class, not the i |
 | 2026-08-11 | `4393da80` | phase-86.38 + day report: the drought moved to the risk gate; 86.58 is the same class as 86.25 |
 | 2026-08-11 | `301d9df1` | phase-86.38: supersede the NOT-IN-FORCE claim -- the restart happened |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-11 | `f2d7ff09` | phase-86.44: cycle-2 verdict CONDITIONAL, persisted verbatim |
 | 2026-08-11 | `431401dc` | phase-86.44: cycle-1 remediated -- my D3 guard could not fail on half its own class |
 | 2026-08-11 | `bc96eb48` | phase-86.44: cycle-1 verdict CONDITIONAL, persisted verbatim before remediation |
-| 2026-08-11 | `fe9a6dad` | phase-86.44: the harness log's own writer was destroying concurrent entries |
 
 ---
 
+### v6.93.219 — phase-86.52 + day report: the vocabulary class is FIVE, and 86.25's f... (2026-08-11)
+
+- **phase-86.52 + day report: the vocabulary class is FIVE, and 86.25's filter could not see two of them**
 ### v6.93.218 — phase-86.38 + day report: the drought moved to the risk gate; 86.58 i... (2026-08-11)
 
 - **phase-86.38 + day report: the drought moved to the risk gate; 86.58 is the same class as 86.25**
