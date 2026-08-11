@@ -49,11 +49,20 @@ measure, this session only:
 
 | | |
 |---|---|
-| Workflow runs launched | 12 |
-| completed | 11 |
-| **dropped, returning nothing** | **4 (36%)** |
-| tokens in dropped runs | ~700k |
-| cumulative subagent tokens | ~2.9M |
+| Workflow runs launched | **13** (all terminal) |
+| returned a verdict/envelope | 8 |
+| **dropped, returning nothing** | **5 (38.5%)** |
+| tokens in dropped runs | **~887k** |
+| cumulative subagent tokens | **~3.1M** |
+
+*(These figures were re-derived from the per-run `journal.jsonl` files. Two
+earlier drafts of this table were wrong -- "5 of 11 / 45%" quoted from memory,
+then "4 of 12 / 36%" from a tally whose age heuristic mis-classified a run that
+had just dropped as still running. The figures above enumerate every run by
+whether its journal contains a `result` line, which is the only reliable test.)*
+
+**One step alone accounts for four of the thirteen**: 86.38 took 4 spawns and
+~702k tokens for ONE completed verdict, and was parked rather than given a fifth.
 
 The peer session reports >8.7M for 2026-08-10 alone. The standing rule is that
 **50% of the weekly Max allowance is a hard ceiling**, past which usage moves to
