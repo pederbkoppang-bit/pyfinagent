@@ -24762,6 +24762,27 @@
           }
         },
         {
+          "id": "86.46",
+          "status": "pending",
+          "priority": "P3",
+          "harness_required": true,
+          "retry_count": 0,
+          "max_retries": 3,
+          "name": "[P3 -- THE VERDICT LEDGER'S `cycle` FIELD CARRIES THREE INCOMPATIBLE CONVENTIONS, AND SORTING ON IT SCRAMBLES HISTORY] FOUND 2026-08-11 when a concurrent session sorted `handoff/verdict_ledger.jsonl` by `cycle`, got a reordered sequence, and on that basis told me the phase-86.21 escalation rule 'had never fired' and 'was bypassed twice'. It had fired, once, correctly; the sort moved the FAIL from third position to last. The peer caught and retracted it themselves. REPRODUCE BEFORE FIXING. MEASURED at tree 02309248 over 35 rows: 14 carry a GLOBAL harness_log-style cycle number (>=50, e.g. 199), 18 carry a PER-STEP ordinal (1..5), and 3 carry a NON-INTEGER STRING ('1-aborted', '2-aborted', '3-aborted'). Step 86.21 mixes global and ordinal; step 86.34 mixes ordinal and string. I CONTRIBUTED TWO OF THE THREE CONVENTIONS MYSELF in the same-day backfill and the non-integer strings are entirely mine, so this step is not an audit of someone else's work. WHY IT MATTERS: append order is the only meaningful order in an append-only file and the shipped counter in scripts/qa/verdict_history_86_21.py correctly uses it -- so NOTHING IS CURRENTLY MIS-COUNTED, and a step that claims otherwise has inflated it. The defect is a TRAP IN THE DATA: a field named `cycle` invites a consumer to sort or index on it, and the first reader who did got a scrambled sequence and drew a confident wrong conclusion about which cycles the escalation rule had fired on. A non-integer value additionally breaks any numeric comparison outright. WHAT TO ESTABLISH BEFORE CHANGING ANYTHING: (a) whether any code reads `cycle` at all -- grep the repo and state the answer plainly even if it is 'nothing does', because that determines whether this is a documentation fix or a data fix; (b) what the field is FOR -- a global harness_log cross-reference and a per-step ordinal are both defensible and they are not the same field, so the right outcome may be TWO fields rather than one canonical convention; (c) whether the 3 non-integer rows should carry the drop information somewhere typed instead (the `verdict` field already says NO_VERDICT, so the '-aborted' suffix may be redundant). DO NOT rewrite historical rows to normalise them unless (a) and (b) conclude it is safe AND the mapping is derived rather than guessed -- phase-86.29's precedent applies directly: leaving a record wrong-but-honest beats making it wrong-and-plausible, and this is an append-only audit trail. NON-SCOPE: do not change the counter's use of append order (that is correct and is what protects it today); do not touch the reset semantics (that is 86.45); do not re-open phase-86.21, which is PARKED.",
+          "verification": {
+            "command": "bash -c 'source .venv/bin/activate && python -c \"import json,pathlib;rows=[json.loads(l) for l in pathlib.Path(chr(104)+chr(97)+chr(110)+chr(100)+chr(111)+chr(102)+chr(102)+chr(47)+chr(118)+chr(101)+chr(114)+chr(100)+chr(105)+chr(99)+chr(116)+chr(95)+chr(108)+chr(101)+chr(100)+chr(103)+chr(101)+chr(114)+chr(46)+chr(106)+chr(115)+chr(111)+chr(110)+chr(108)).read_text().splitlines() if l.strip()];print(len(rows))\"'",
+            "success_criteria": [
+              "The three-convention split is RE-DERIVED at a named tree with the command that produced it, and reported as counts per convention -- the file grows, so a bare figure is stale on arrival.",
+              "Whether ANY code reads the `cycle` field is DETERMINED by grep across the repo and stated plainly, including if the answer is that nothing does. That answer decides whether this is a data fix or a documentation fix and must not be skipped.",
+              "What the field is FOR is decided explicitly: one canonical convention, or TWO separate fields (global cross-reference vs per-step ordinal). A choice made without stating which question the field answers is rejected.",
+              "The decision on normalising the 35 existing rows is STATED with its reason. Leaving them mixed-but-honest is acceptable; leaving them mixed while implying they are canonical is not, and any normalisation must derive each value rather than guess it.",
+              "The counter's reliance on APPEND ORDER is proven still intact after any change -- drive verdict_history_86_21.py on a ledger whose `cycle` values are deliberately out of order and show the reported sequence is unchanged.",
+              "Mutation-test any new guard: revert it and show the check goes red, with the control observed GREEN first."
+            ],
+            "live_check": "live_check_86.46.md with: the re-derived per-convention counts and their command at a named tree; the grep result for readers of the field; the stated decision on one-field-versus-two; the normalisation decision; and the append-order-still-governs demonstration."
+          }
+        },
+        {
           "id": "86.42",
           "status": "pending",
           "priority": "P3",
