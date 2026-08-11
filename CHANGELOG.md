@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-11 | `542d4ee1` | phase-86.29 cycle 4: adjudicate ALL 16 opaque dirs, not just the 2 the Q/A named |
 | 2026-08-11 | `30c1ceba` | phase-86.42: queue the 86.36 Q/A's F2 -- I claimed 'queued' in a commit and had not done it |
 | 2026-08-11 | `5f5a2697` | phase-86.36: [P2 -- THE Q/A WRITE-FIRST RECORD IS DESTROYED BY THE NEXT CYCLE'S SPAWN, SO ONLY TH... |
 | 2026-08-11 | `0be43e06` | phase-86.36: harness_log cycle 1211 -- PASS |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-11 | `cef76c3b` | phase-86.38: PLAN -- contract written, and the gate REFUTED two of the step's premises |
 | 2026-08-11 | `5595055c` | phase-86.36: GENERATE -- run-stamped WIP records so a retry stops erasing the last one |
 | 2026-08-11 | `4b526b61` | phase-86.29 cycle 2: supersede the cycle-1 figures in sections 1/3/5/6 |
-| 2026-08-11 | `eceb3a3b` | phase-86.29 cycle 2: fix five findings a DROPPED Q/A surfaced, all re-measured first |
 
 ---
 
+### v6.93.116 — phase-86.29 cycle 4: adjudicate ALL 16 opaque dirs, not just the 2 th... (2026-08-11)
+
+- **phase-86.29 cycle 4: adjudicate ALL 16 opaque dirs, not just the 2 the Q/A named**
 ### v6.93.115 — phase-86.42: queue the 86.36 Q/A's F2 -- I claimed 'queued' in a comm... (2026-08-11)
 
 - **phase-86.42: queue the 86.36 Q/A's F2 -- I claimed 'queued' in a commit and had not done it**
