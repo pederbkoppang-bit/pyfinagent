@@ -30,7 +30,7 @@ mixture: 82.54's contract, 82.6's results and critique, 80.2's brief.
 |---|---|
 | `.claude/hooks/archive-handoff.sh` | the fix: derived names, guarded rolling fallback, loud empty-archive failure, `PROVENANCE.md` |
 | `scripts/qa/derive_archive_misattribution_86_29.py` | **modified** -- synthetic controls, a precision measurement with its own controls, and (cycle 2) en/em-dash separators plus the corrected mention-vs-declare reporting |
-| `scripts/qa/prove_archive_provenance_86_29.py` | **new** -- scratch-tree before/after driver; **5 behavioural checks and a 6-cell mutation matrix** as of cycle 2 |
+| `scripts/qa/prove_archive_provenance_86_29.py` | **new** -- scratch-tree before/after driver; **6 behavioural checks and a 7-cell mutation matrix** as of cycle 3, with control-gating so a cell cannot score against an already-red check |
 | `handoff/current/live_check_86.29.md` | **new**; **REGENERATED IN FULL at cycle 2** rather than edited in place |
 | `handoff/current/evaluator_critique_86.29.md` | **new** at cycle 2 -- records the cycle-1 rail drop and the rescued write-first record |
 | `handoff/current/experiment_results_86.29.md` | this file |
@@ -58,10 +58,22 @@ broke."*
 only if the derived branch did not already supply that artifact AND the rolling
 file **declares this step**. Blind substitution IS the defect, so "unsure" now
 means "do not copy". The declaration grammar is implemented in `python3` (not
-sed/grep) for identical behaviour under BSD and GNU userland, and is
-deliberately the SAME pattern set the census script uses -- one grammar, two
-consumers, so the hook and the audit tool cannot drift into disagreeing about
-what "declares a step" means.
+sed/grep) for identical behaviour under BSD and GNU userland.
+
+**This paragraph used to claim the hook and the census "cannot drift into
+disagreeing" because they carry the SAME pattern set. That claim was false and
+it was falsified within one cycle.** Cycle 2 widened the census separator to
+accept en/em-dashes and did not touch the hook, so an identical declaration
+written `# Contract - step 99.6` (em-dash) was ACCEPTED by the census and
+REFUSED by the hook -- proven behaviourally by the cycle-2 Q/A, not inferred.
+Two copies of a grammar kept in step by convention is precisely the failure
+mode this whole step exists to remove, reproduced inside the fix for it.
+Cycle 3 shares the separator as a single named alternation in both files,
+**states the drift as a residual RISK rather than denying it is possible**, and
+adds the `dash_grammar_parity` check plus mutation cell M7 so a future
+divergence is caught by a test instead of by a reader. The drift direction is
+fail-closed -- an unrecognised header means "do not copy", which surfaces as
+the loud empty-archive failure rather than a silently misattributed archive.
 
 **DECISION 1 -- COPY, not move, and why that is not laziness.** The original
 step-specific branch used `git mv`. Making a never-firing `git mv` branch
@@ -116,7 +128,8 @@ read against a stale figure. Section references are to the REGENERATED live_chec
 
 ## 4. What I did NOT do, and what remains open
 
-- **Not backfilled** the 153 dirs (criterion 5, decision stated above).
+- **Not backfilled** the mismatched dirs -- **156 at tree `eceb3a3b`**, not the
+  cycle-1 figure of 153 (criterion 5, decision stated above).
 - **Not touched** `phase-phase-*` directory naming. That is 86.19's Class A root
   cause -- the same file interpolating a raw `$sid` that already carries the
   `phase-` prefix -- and 4 such dirs exist. Same file, different defect; the
@@ -124,7 +137,8 @@ read against a stale figure. Section references are to the REGENERATED live_chec
 - **Not changed** the legacy front-hyphen glob branch. It matches zero files
   today and will continue to; changing it adds risk with no benefit, and its
   `${sid}` vs `${short_sid}` inconsistency is part of the 86.19 defect above.
-- **49 archive dirs remain genuinely unclassified.** Not clean -- unclassified.
+- **16 archive dirs remain genuinely unclassified** (was 49 before the cycle-2
+  grammar fix). Not clean -- unclassified.
 - **Population grows if steps close before this lands.** Any step flipped to
   `done` with the pre-fix hook active mints another poisoned dir. If 86.25 /
   86.34 close before this commit, the count moves again; the census must be
@@ -296,9 +310,14 @@ did**, e.g. `phase-10.5.0/contract.md` heading `step: phase-10.5-batch (covers
 10.5.0, 10.5.1, ...)`. The tabular line above it stated the correct narrower
 property; the summary claimed the broader one.
 
-**Fixed**: the code now prints both numbers and names the distinction between
-*mentioning* and *declaring*, plus the corollary that batch contracts mean the
-census can also over-flag.
+**Fixed at cycle 2, AND THE FIX WAS DEAD CODE -- corrected at cycle 3.** The
+cycle-2 remediation printed the mention-vs-declare numbers from inside an
+`if not suspect:` branch, and the cycle-2 grammar fix had itself produced a
+suspect (`phase-69`), so the corrected output **never printed once** while this
+document asserted "the code now prints both numbers". A remediation gated
+behind a condition its own tree falsifies is not a remediation. It is
+unconditional now, and the figure re-derives to **43 of 156** under the cycle-2
+grammar -- the "47 of 153" quoted below was measured under the old one.
 
 ### F5 -- a figure with no command next to it
 

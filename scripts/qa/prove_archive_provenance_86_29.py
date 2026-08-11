@@ -138,8 +138,14 @@ def declared(path: pathlib.Path) -> str | None:
     import re
     head = path.read_text(errors="replace")[:4000]
     SID = r"[0-9]+(?:\.[0-9A-Za-z]+)*"
-    for p in (rf"^#\s*Contract\s*--\s*step\s*`?({SID})`?",
-              rf"^#\s*Contract\s*--\s*(?:.*?)phase-({SID})"):
+    # phase-86.29 cycle 3: this parser used to accept ASCII `--` only, so when
+    # the dash-parity check was added it reported the HOOK as broken on em/en
+    # dashes while the hook was in fact copying those files correctly. The
+    # probe was the defective instrument, not the subject. Suspect the probe
+    # first: a check that goes red must be shown to be red ABOUT ITS SUBJECT.
+    DASH = r"(?:--|—|–)"
+    for p in (rf"^#\s*Contract\s*{DASH}\s*step\s*`?({SID})`?",
+              rf"^#\s*Contract\s*{DASH}\s*(?:.*?)phase-({SID})"):
         m = re.search(p, head, re.M | re.I)
         if m:
             return m.group(1)
@@ -254,12 +260,40 @@ def check_undeclared_rolling_refused(hook: pathlib.Path) -> str | None:
         shutil.rmtree(root, ignore_errors=True)
 
 
+def check_dash_grammar_parity(hook: pathlib.Path) -> str | None:
+    """The hook and the census must recognise the SAME declaration separators.
+
+    Cycle-2 widened the census to accept en/em-dashes and left the hook on ASCII
+    `--`. Measured behaviourally at the time: an identical declaration written
+    `# Contract - step 99.6` (em-dash) was REFUSED by the hook while the census
+    accepted it. The drift was fail-closed, so it under-copied rather than
+    misattributing -- but the shipped comment asserted the two "cannot drift",
+    which was false. This check makes the parity observable instead of asserted.
+    """
+    problems = []
+    for label, dash in (("ascii", "--"), ("emdash", "—"), ("endash", "–")):
+        sid = "99.6"
+        root = make_scratch(sid, with_per_step=False, alien=False)
+        try:
+            cur = root / "handoff" / "current"
+            for name in ROLLING:
+                (cur / name).write_text(f"# Contract {dash} step `{sid}`\n\nrolling.\n")
+            drive(hook, root)
+            got = declared(root / "handoff" / "archive" / f"phase-{sid}" / "contract.md")
+            if got != sid:
+                problems.append(f"{label} separator not recognised (declared={got!r})")
+        finally:
+            shutil.rmtree(root, ignore_errors=True)
+    return "; ".join(problems) or None
+
+
 CHECKS = [
     ("right_step", check_right_step),
     ("no_poison_substitution", check_no_poison_substitution),
     ("loud_on_empty", check_loud_on_empty),
     ("no_alien_files", check_no_alien_files),
     ("undeclared_rolling_refused", check_undeclared_rolling_refused),
+    ("dash_grammar_parity", check_dash_grammar_parity),
 ]
 
 #: (cell, description, old, new, which check MUST go red)
@@ -289,6 +323,11 @@ MUTANTS = [
      "sys.exit(1)\nPYEOF",
      "sys.exit(0)\nPYEOF",
      "undeclared_rolling_refused"),
+    # phase-86.29 cycle 3 -- the drift the Q/A proved behaviourally.
+    ("M7", "revert the hook's separator to ASCII-only, re-creating the drift",
+     'DASH = r"(?:--|—|–)"',
+     'DASH = r"(?:--)"',
+     "dash_grammar_parity"),
 ]
 
 
@@ -368,6 +407,17 @@ def main() -> int:
         mutated = src.replace(old_s, new_s, 1)
         if mutated == src:
             print(f"  {cell} MUTATION DID NOT CHANGE THE TEXT -- refusing to score")
+            failures += 1
+            continue
+        # phase-86.29 cycle 3 -- A CELL MAY NOT SCORE AGAINST AN ALREADY-RED
+        # CHECK. Cell M7 was briefly credited a KILL while its target check was
+        # red in the control run for an unrelated reason (a defective probe), so
+        # the "kill" carried no information at all: the check could not have gone
+        # green whatever the mutation did. A mutation result is only meaningful
+        # as a TRANSITION from green to red.
+        if control.get(target) is not None:
+            print(f"  {cell} UNSCORABLE -- target check '{target}' is RED in the control")
+            print(f"      ({control[target]}); a kill here would prove nothing.")
             failures += 1
             continue
         tmp = pathlib.Path(tempfile.mkdtemp(prefix=f"arch86_29_{cell}_"))

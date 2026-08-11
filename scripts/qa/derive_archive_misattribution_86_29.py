@@ -339,6 +339,24 @@ def main() -> int:
         print(f"  precision                    {len(confirmed) / total_wrong:.4f}")
     for name, got in suspect[:10]:
         print(f"      SUSPECT {name:22s} census said it declares {got!r}")
+
+    # phase-86.29 cycle 3 -- THIS BLOCK USED TO SIT INSIDE `if not suspect:`
+    # AND WAS THEREFORE DEAD. The cycle-2 grammar fix produced a suspect
+    # (phase-69), so the "corrected" mention-vs-declare reporting -- added in
+    # cycle 2 precisely to stop a claim overstating itself -- never printed a
+    # single time, while the artifact asserted "the code now prints both
+    # numbers". A remediation gated behind a condition its own tree falsifies is
+    # not a remediation. It is unconditional now.
+    mentions = sum(
+        1 for name, _g in wrong
+        if _mentions_sid_anywhere(ARCHIVE / name, name[len("phase-"):])
+    )
+    print(f"  MENTION vs DECLARE: {mentions} of {total_wrong} mismatched dirs DO")
+    print("  mention their own sid somewhere in the head (batch contracts such as")
+    print("  'phase-10.5-batch (covers 10.5.0, ...)'). Mentioning is NOT declaring;")
+    print("  only the narrow declaration property is claimed above. The corollary")
+    print("  is that a batch contract lets the census OVER-flag, so this total has")
+    print("  contestable positives as well as any remaining false negatives.")
     if not suspect:
         # phase-86.29 cycle 2 -- THIS SENTENCE USED TO OVERSTATE ITS OWN RESULT.
         # It read "no mismatched dir mentions its own step id anywhere in its
@@ -356,12 +374,6 @@ def main() -> int:
         print("  no suspects: no mismatched dir's own step id appears in any")
         print("  DECLARATION the grammar finds in its contract head, so none of")
         print("  them is the 86.19 truncation shape.")
-        print(f"  STATED AT TRUE SIZE: {mentions} of {total_wrong} DO mention their own")
-        print("  sid somewhere in the head (batch contracts such as")
-        print("  'phase-10.5-batch (covers 10.5.0, ...)'). Mentioning is not")
-        print("  declaring; only the narrow property is claimed. Note a batch")
-        print("  contract also means the census can over-flag: 153 has")
-        print("  contestable positives as well as the known false negatives above.")
     print()
 
     by_declared = collections.Counter(g for _n, g in wrong)

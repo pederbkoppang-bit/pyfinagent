@@ -127,11 +127,22 @@ PYEOF
 # so "unsure" must mean "do not copy", never "copy anyway".
 #
 # Implemented in python3 rather than sed/grep because this hook must behave
-# identically under BSD (macOS, the only deployment) and GNU userland, and the
-# patterns below are deliberately the SAME set used by
-# scripts/qa/derive_archive_misattribution_86_29.py -- one declaration grammar,
-# two consumers, so the census and the hook cannot drift into disagreeing about
-# what "declares a step" means.
+# identically under BSD (macOS, the only deployment) and GNU userland.
+#
+# THE GRAMMAR IS SHARED WITH scripts/qa/derive_archive_misattribution_86_29.py
+# BY CONVENTION, AND CONVENTION IS EXACTLY WHAT BROKE THIS FILE ONCE ALREADY.
+# An earlier version of this comment claimed the two "cannot drift into
+# disagreeing". They drifted within one cycle: the census widened its separator
+# to accept en/em-dashes and this function did not, so an identical declaration
+# written `# Contract - step 99.6` (em-dash) was REFUSED here while the census
+# accepted it -- measured behaviourally, not inferred. The claim is withdrawn;
+# the separator is now shared as a single alternation below and the drift is
+# stated as a RISK rather than denied as impossible.
+#
+# The drift direction here is FAIL-CLOSED: an unrecognised header means "do not
+# copy", which surfaces as the loud empty-archive failure rather than as a
+# silently misattributed archive. That is why the drift was a WARN and not a
+# re-poisoning.
 rolling_declares_step() {
     python3 - "$1" "$2" << 'PYEOF'
 import re, sys
@@ -142,9 +153,11 @@ try:
 except OSError:
     sys.exit(1)
 SID = r"[0-9]+(?:\.[0-9A-Za-z]+)*"
+# Keep in sync with _DASH in scripts/qa/derive_archive_misattribution_86_29.py.
+DASH = r"(?:--|—|–)"
 for pattern in (
-    rf"^#\s*Contract\s*--\s*step\s*`?({SID})`?",
-    rf"^#\s*(?:Sprint\s+)?Contract\s*--\s*(?:.*?)phase-({SID})",
+    rf"^#\s*Contract\s*{DASH}\s*step\s*`?({SID})`?",
+    rf"^#\s*(?:Sprint\s+)?Contract\s*{DASH}\s*(?:.*?)phase-({SID})",
     rf"^\*\*Step(?:\s+ID)?\*\*:\s*`?(?:phase-)?({SID})`?",
     rf"^#.*?\bphase-({SID})\b",
 ):
