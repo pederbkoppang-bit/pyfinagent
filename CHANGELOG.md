@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-11 | `4358683c` | phase-86.32: GENERATE -- a cumulative attempt budget that no verdict resets |
 | 2026-08-11 | `4a3c0262` | docs: disposition of the goal's prescribed work list, every item measured |
 | 2026-08-11 | `cf50bde2` | phase-86.32: PLAN -- the counter resets on CONDITIONAL, and max_retries is decorative |
 | 2026-08-11 | `a15833eb` | phase-86.33: unblock P1 -- the runtime DOES populate agent_id, measured on real traffic |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-11 | `99522571` | docs: record the 86.10 live-verification refutation in the report and goal |
 | 2026-08-11 | `a9fee776` | phase-86.10: live Playwright verification -- the defect as stated did NOT reproduce |
 | 2026-08-11 | `c9314945` | phase-86.41: GENERATE artifacts -- experiment_results + live_check |
-| 2026-08-11 | `678d979f` | phase-86.41: behavioural proof of the quant guard -- and it caught two defects in it |
 
 ---
 
+### v6.93.171 — phase-86.32: GENERATE -- a cumulative attempt budget that no verdict... (2026-08-11)
+
+- **phase-86.32: GENERATE -- a cumulative attempt budget that no verdict resets**
 ### v6.93.170 — phase-86.32: PLAN -- the counter resets on CONDITIONAL, and max_retri... (2026-08-11)
 
 - **phase-86.32: PLAN -- the counter resets on CONDITIONAL, and max_retries is decorative**
