@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-11 | `a33640a4` | phase-86.31: sync the machine-readable verdict -- it still held cycle 1's CONDITIONAL |
 | 2026-08-11 | `f3a3a4bb` | phase-86.34: rescue the dropped cycle-3 Q/A record; fix two stale line pointers |
 | 2026-08-11 | `974297ce` | phase-86.29: GENERATE -- derive archive names from the step id, guard the rolling fallback |
 | 2026-08-11 | `de195df1` | phase-86.31: CLOSED -- status done after a PASS on cycle 5 |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-10 | `9bf5e78b` | phase-86.31: add the execution-based separation proof + corrected production figures to the live_che |
 | 2026-08-10 | `d4638584` | fix(86.31): drop unused import -- I committed an F401 because my '&&' guarded only the echo, not the |
 | 2026-08-10 | `fceac931` | phase-86.31: PROVE the write separation by driving the real hook -- 15/15 |
-| 2026-08-10 | `74dddc43` | docs: goal to     3898 chars, verified under 4000 before committing this time |
 
 ---
 
+### v6.93.91 — phase-86.31: sync the machine-readable verdict -- it still held cycle... (2026-08-11)
+
+- **phase-86.31: sync the machine-readable verdict -- it still held cycle 1's CONDITIONAL**
 ### v6.93.90 — phase-86.34: rescue the dropped cycle-3 Q/A record; fix two stale lin... (2026-08-11)
 
 - **phase-86.34: rescue the dropped cycle-3 Q/A record; fix two stale line pointers**
