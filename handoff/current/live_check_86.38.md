@@ -142,7 +142,8 @@ RECORDED: the lite analysers stamp `_path: "lite"`, the fallback site stamps
 
 NOT PAGED: `_fallback_rate_check` fires only when the fraction **strictly
 exceeds** its threshold. The 2026-08-10 cycle produced 3 full-pipeline Critic
-verdicts and 3 fallbacks; `3/6 = 0.500` does not exceed `0.500`.
+verdicts and 3 fallbacks; that TICKER ratio, `3/6 = 0.500`, does not exceed
+`0.500` -- but see the HONEST LIMIT below before reading it as the cause.
 
 ```
 grep -c "Fallback-rate alarm fired"   backend.log   -> 0

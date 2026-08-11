@@ -128,3 +128,49 @@ Also pinned, because absence must not be ambiguous: a **healthy** cycle records
   research-gated step per the standing rule.
 - **Did not restart the backend.** This is committed but **NOT IN FORCE**; the
   running process still holds the pre-change module. Next book cycle 20:00 CEST.
+
+---
+
+## 7. CYCLE 2 -- two findings from a dropped Q/A, both confirmed
+
+The cycle-1 Q/A dropped at 162,182 tokens without returning, then a second run
+dropped at 180,539. Neither is a verdict. But the second got far enough to find
+two real defects, and **its write-first record survived both times** -- the
+durability change shipped by the peer's 86.36 earlier the same day.
+
+**F1 -- THE WIRING HAD NO GUARD, and it is the half that reaches storage.**
+Deleting `degradation=_degradation,` from the `record_cycle_end(...)` call left
+the entire suite GREEN (7 passed). I reproduced it. Under that mutant every
+future cycle persists `degradation: {}` -- the exact defect this step exists to
+remove, returning silently behind a green suite. I had guarded
+`summary -> _degradation_summary_fields` and left `_degradation ->
+record_cycle_end` uncovered. **Guarding one end of a two-ended wire is not
+guarding the wire.**
+
+Fixed by extracting `_degradation_record()` + `DEGRADATION_RECORD_KEYS` so the
+persisted key SET is behaviourally testable, plus a call-site pin and cells
+MX/MY. Matrix now **9 cells, 9 killed**.
+
+**And the first version of that call-site pin was itself defeated -- by my own
+prose.** It asserted `"degradation=_degradation," in inspect.getsource(al)`, and
+MX still passed, because the docstring of `_degradation_record` QUOTES that
+literal while explaining the defect. A grep cannot distinguish a call site from a
+sentence about a call site. The guard is now an **AST walk** for the
+`record_cycle_end` Call requiring a `degradation` keyword fed by `_degradation`;
+docstrings are not Call nodes, so prose cannot satisfy it.
+
+**F2 -- THE HONEST LIMIT LIVED ONLY IN THE HANDOFF ARTIFACT.** `live_check`
+section D correctly states that the alarm's denominator
+(`len(candidate_analyses)+len(holding_analyses)`) was NOT measured and that
+"missed by exactly one ticker" is NOT claimed. But four other places asserted the
+boundary as measured cause: the `autonomous_loop` call-site comment, the
+`cycle_health` comment, the test module docstring, and a test docstring reading
+"this is the measured case". **The version that survives in production source is
+the one a future reader finds; a disclosure that lives only in a handoff artifact
+is not a disclosure.** All corrected.
+
+A fifth site survived my own first sweep, and the sweep was wrong in both
+directions at once: it missed the seam docstring's `(3/6 = 0.500, no page)` and
+simultaneously reported `autonomous_loop.py` as having zero qualifiers, because
+my corrected text spans a comment line break that a flat grep cannot see. Fixed
+with a wrap-normalising sweep that now reports every file clean.
