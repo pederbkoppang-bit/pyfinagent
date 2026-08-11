@@ -475,8 +475,10 @@ class CycleHealthLog:
             # pipeline that judged them the real one". Populated on EVERY cycle,
             # including cycles whose fallback rate is below the paging
             # threshold: a degraded cycle that does not page is exactly the case
-            # that previously left no durable trace (measured 2026-08-10,
-            # 3 of 6 analyses on the lite fallback, 3/6 = 0.500, no page).
+            # that previously left no durable trace (measured 2026-08-10:
+            # 3 of the 6 TICKERS analysed landed on the lite fallback and no
+            # page fired; the alarm's own denominator was NOT measured, so the
+            # exact ratio it saw is unestablished).
             # Additive free-form dict -- cycle_history is append-only JSONL, so
             # readers that do not know the key simply ignore it.
             "degradation": degradation or {},

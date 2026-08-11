@@ -3,8 +3,10 @@
 THE DEFECT, measured on the 2026-08-10 book cycle. Three of six analyses fell
 back from the 28-agent orchestrator to the lite Claude analyser after Vertex
 returned `429 RESOURCE_EXHAUSTED`. `_fallback_rate_check` fires only when the
-fallback fraction STRICTLY exceeds its threshold, and `3/6 = 0.500` does not
-exceed `0.500`, so the alarm correctly stayed quiet. But every degradation field
+fallback fraction STRICTLY exceeds its threshold, and the alarm did not fire.
+(The alarm's own denominator is `len(candidate_analyses)+len(holding_analyses)`
+and was NOT measured; `3/6` below is the TICKER ratio, and it is NOT claimed
+that the alarm missed by exactly one ticker.) But every degradation field
 was set INSIDE the `if _fb_fire:` branch -- so the cycle left no durable trace at
 all, and the only evidence the book had traded off the thin fallback was a
 `grep` of `backend.log`.
@@ -46,7 +48,12 @@ def _mk(ticker: str, reason: str | None = None) -> dict:
 # ---------------------------------------------------------------------------
 
 def test_the_2026_08_10_boundary_does_not_page():
-    """3 of 6 is EXACTLY 0.5 and must not fire -- this is the measured case."""
+    """3 of 6 is EXACTLY 0.5 and must not fire.
+
+    The SIX TICKERS are measured (3 full-pipeline Critic verdicts, 3 fallbacks).
+    The alarm's real denominator was NOT measured, so this pins the PREDICATE at
+    the boundary -- it does not assert that the live alarm saw exactly 3/6.
+    """
     analyses = [
         _mk("HPE", "ClientError: 429 RESOURCE_EXHAUSTED"),
         _mk("CRWD", "ClientError: 429 RESOURCE_EXHAUSTED"),

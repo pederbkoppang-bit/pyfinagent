@@ -1332,11 +1332,18 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
                 # Before this, these fields were set ONLY inside the `if
                 # _fb_fire` branch, so a cycle that degraded BELOW the threshold
                 # left no trace anywhere an operator looks. MEASURED on the
-                # 2026-08-10 cycle: 3 of 6 analyses fell back to the lite
-                # analyser after the 28-agent orchestrator hit 429
-                # RESOURCE_EXHAUSTED, `3/6 = 0.500` did not strictly exceed
-                # 0.500, the alarm correctly stayed quiet -- and the degradation
-                # was therefore invisible outside a grep of backend.log.
+                # 2026-08-10 cycle: 3 of the 6 TICKERS analysed fell back to
+                # the lite analyser after the 28-agent orchestrator hit 429
+                # RESOURCE_EXHAUSTED, the alarm did not fire, and the
+                # degradation was therefore invisible outside a grep of
+                # backend.log.
+                #
+                # STATED AT ITS TRUE SIZE: the alarm's own denominator is
+                # len(candidate_analyses)+len(holding_analyses), which was NOT
+                # measured. `3/6` is the TICKER ratio. The non-firing is
+                # consistent with n_total>=6; it is NOT established that the
+                # alarm missed by exactly one ticker, and this comment must not
+                # be read as saying so.
                 #
                 # The THRESHOLD AND THE PREDICATE ARE UNCHANGED. This adds
                 # observability, it does not re-tune an alarm: paging behaviour
