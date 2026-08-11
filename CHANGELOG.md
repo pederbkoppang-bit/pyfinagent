@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-11 | `b3d7fe92` | phase-86.29 cycle 3: qualify every surviving figure with its grammar |
 | 2026-08-11 | `9a33594a` | phase-86.29 cycle 3: fix all five CONDITIONAL findings, plus one I made fixing them |
 | 2026-08-11 | `6b20b8fe` | phase-86.36: record cycle-1 Q/A verdict VERBATIM -- CONDITIONAL |
 | 2026-08-11 | `6adbb722` | phase-86.36: record cycle-1 Q/A verdict VERBATIM -- CONDITIONAL |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-11 | `974297ce` | phase-86.29: GENERATE -- derive archive names from the step id, guard the rolling fallback |
 | 2026-08-11 | `de195df1` | phase-86.31: CLOSED -- status done after a PASS on cycle 5 |
 | 2026-08-11 | `11aa663b` | phase-86.31: harness_log cycle 1210 -- PASS after five cycles |
-| 2026-08-11 | `1d4323e8` | phase-86.31: record cycle-5 Q/A verdict VERBATIM -- PASS |
 
 ---
 
+### v6.93.106 — phase-86.29 cycle 3: qualify every surviving figure with its grammar (2026-08-11)
+
+- **phase-86.29 cycle 3: qualify every surviving figure with its grammar**
 ### v6.93.105 — phase-86.29 cycle 3: fix all five CONDITIONAL findings, plus one I ma... (2026-08-11)
 
 - **phase-86.29 cycle 3: fix all five CONDITIONAL findings, plus one I made fixing them**
