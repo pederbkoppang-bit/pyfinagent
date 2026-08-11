@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-11 | `575e0509` | phase-86.33: the 70% was mine too -- correct BOTH files, not just the one I noticed |
 | 2026-08-11 | `9a7bf5e5` | phase-86.33: resolve my own open question -- the filter was wrong, not the field |
 | 2026-08-11 | `8aa2f622` | phase-86.33: measure that agent_type is CALLER-CHOSEN, not platform-assigned |
 | 2026-08-11 | `e614948f` | phase-86.5: PARKED after 3 cycles -- ASK #5, the step's own command is frozen RED |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-11 | `4358683c` | phase-86.32: GENERATE -- a cumulative attempt budget that no verdict resets |
 | 2026-08-11 | `4a3c0262` | docs: disposition of the goal's prescribed work list, every item measured |
 | 2026-08-11 | `cf50bde2` | phase-86.32: PLAN -- the counter resets on CONDITIONAL, and max_retries is decorative |
-| 2026-08-11 | `a15833eb` | phase-86.33: unblock P1 -- the runtime DOES populate agent_id, measured on real traffic |
 
 ---
 
+### v6.93.187 — phase-86.33: the 70% was mine too -- correct BOTH files, not just the... (2026-08-11)
+
+- **phase-86.33: the 70% was mine too -- correct BOTH files, not just the one I noticed**
 ### v6.93.186 — phase-86.33: resolve my own open question -- the filter was wrong, no... (2026-08-11)
 
 - **phase-86.33: resolve my own open question -- the filter was wrong, not the field**
