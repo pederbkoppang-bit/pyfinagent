@@ -22,7 +22,6 @@ from __future__ import annotations
 import hashlib
 import os
 import pathlib
-import re
 import shutil
 import subprocess
 import sys

@@ -174,6 +174,22 @@ $ python scripts/qa/qa_wip.py 86.34   ->  status=COMPLETE bytes=10346 retained=1
 $ python scripts/qa/qa_wip.py 86.29   ->  status=COMPLETE bytes=11479 retained=1 is_verdict=False
 ```
 
+## F2. THE SECTION-F NUMBERS HAVE ALREADY MOVED -- and that is the feature
+
+Section F's 86.29 row (`COMPLETE / 11,479 B / retained=1`) now reads
+`INCOMPLETE / 528 B / retained=2`, because the peer's Q/A wrote a **stamped**
+record after this capture. Pre-fix that write would have TRUNCATED the 11,479-byte
+record; post-fix both coexist and `report()` lists the older one under
+`prior_records`. The capture is not stale evidence of a defect -- it is a
+before/after pair taken by accident on the live system.
+
+**Also refuted in the step's favour since capture:** section G below says the
+stamped path has never been written by a real Q/A. That was true when written and
+false two minutes later -- the peer's Q/A at 06:59:22Z and this step's own at
+06:59:57Z both wrote stamped records. G is left standing rather than edited,
+because a live_check that quietly rewrites its own limitations is worth less than
+one that shows when they were overtaken.
+
 ## G. What this capture does NOT establish
 
 - **No Q/A has run. No verdict is claimed.**

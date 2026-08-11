@@ -46,7 +46,7 @@ live: all three report `COMPLETE`, `is_verdict=False`.
 |---|---|---|---|
 | 1 | REPRODUCE first, with byte counts; state simulation vs real | driven: **4,386 -> 124 bytes**, same path, analysis gone. Corroborated by two REAL instances (86.31 cycle-4 6,239->stub; peer's 86.34 4,921->796) | MET |
 | 2 | second cycle does not destroy the first; both readable with own stamps; `audit_memory.py` unchanged | 965B + 110B coexisting, distinct paths, own WRITTEN/COMPLETED; auditor output **byte-identical**, exit 1 both sides | MET |
-| 3 | resolves per cycle; STALE + IDENTITY_UNKNOWN still fire; 86.31's assertions still pass | spawn1->cycle1, spawn2->cycle2, future spawn->STALE, junk->IDENTITY_UNKNOWN; **195/195** of `verify_qa_write_first_86_31.py` green | MET |
+| 3 | resolves per cycle; STALE + IDENTITY_UNKNOWN still fire; 86.31's assertions still pass | spawn1->cycle1, spawn2->cycle2, future spawn->STALE, junk->IDENTITY_UNKNOWN; **201/201** of `verify_qa_write_first_86_31.py` green (the count is non-deterministic -- see 5b note 1) | MET |
 | 4 | no record readable as a verdict, asserted over every record | `verdict` key absent + `is_verdict is False` over 3 reports, with a `>=3` cardinality floor | MET |
 | 5 | guard unchanged or strictly tightened | `git diff` on the hook is **EMPTY**; 86.31 checker green | MET |
 | 6 | mutation-tested, both named cells | **5/5 KILLED** on named assertions, green control first, subject digest unchanged | MET |
@@ -85,6 +85,7 @@ as intended. **Third probe error in this step**, same family as the six on
 ## 5. Verbatim
 
 ```
+$ source .venv/bin/activate
 $ python scripts/qa/reproduce_wip_destruction_86_36.py
   bytes before / after      : 4386 -> 124   (LOST 4262)
   spawn 1's analysis still recoverable : False
@@ -102,11 +103,60 @@ $ python scripts/qa/mutation_matrix_86_36.py
 tracked subject UNCHANGED: True                                     exit=0
 
 $ bash -c 'source .venv/bin/activate && python scripts/qa/verify_qa_write_first_86_31.py'
-ALL GREEN -- 195 passed, 0 failed                                   exit=0   (immutable command)
+ALL GREEN -- 201 passed, 0 failed                                   exit=0   (immutable command)
 
 $ git diff --stat -- .claude/hooks/qa-write-guard.sh
 (empty)
 ```
+
+## 5b. CYCLE 2 -- the Q/A's findings, and three corrections to THIS file
+
+**Verdict was CONDITIONAL** (`wf_54b86608-cec`): all 6 criteria MET, two fixable
+blockers. Both fixed; the evidence above is re-run at the post-fix tree.
+
+**B1 (BLOCK) -- I CHANGED ONE OF THE TWO PLACES THAT INSTRUCT THE Q/A.** `qa.md`
+got the stamped path; `.claude/workflows/qa-verdict.js` STEP 0b -- the **primary**
+launch path -- did not, and kept injecting the destructive fixed filename plus the
+premise *"the path is FIXED per step"* that this step falsifies. **Zero** stamp
+references in that file. And the 86.31 checker's section [6] anchors all PASSED on
+the stale text, so nothing guarded it. Fixed: STEP 0b rewritten, and the anchors
+extended with `__<STAMP>` + `%Y%m%dT%H%M%SZ` needles for BOTH copies.
+**Mutation-proven**: reverting STEP 0b to the fixed filename now drives exit 1 on
+two named needles; restoring returns 201/201.
+
+*While extending those anchors I broke them.* The section locator pinned the
+literal `phase-86.31)` **including the closing paren**, so my revised heading
+`phase-86.31, path revised by phase-86.36)` made the section unlocatable and
+every check under it failed for a reason unrelated to its subject. Loosened to a
+revision-tolerant prefix.
+
+**B2 (WARN)** -- ruff F401, dead `re` import: a fossil of the two wrong regex
+matchers. Removed; ruff now exits 0 on the git-derived 4-file scope.
+
+**THREE CORRECTIONS TO THIS DOCUMENT, from the evaluator's notes:**
+
+1. **"195 passed" does not reproduce, and the count is non-deterministic BY
+   CONSTRUCTION.** Section [9] of the 86.31 checker emits one PASS per live WIP
+   artifact. There were 7 when I captured it and 9 minutes later (the peer's
+   record + mine), hence 197; the 4 new needles make it 201 now. A future reader
+   should expect this number to move and should not treat a change as a
+   regression.
+2. **Two limitations I disclosed are now REFUTED IN THE STEP'S FAVOUR.** "The
+   stamped path has never been written by a REAL Q/A / every record on disk is
+   legacy-named" was true when written and **false two minutes later**: the
+   peer's 86.29 Q/A wrote a stamped record at 06:59:22Z and this step's own Q/A
+   at 06:59:57Z. The `qa.md` runtime read works, and the evaluator's own file is
+   first-party proof.
+3. **3 of the 5 "Verbatim" commands did not run as written** -- bare `python` is
+   not on PATH (exit 127); only the immutable line carried the venv activation.
+   Fixed above.
+
+**One note I am NOT fixing, and why.** The evaluator's own extra mutant
+`DEFAULT_KEEP 3 -> 1` **SURVIVES**: no assertion pins the default, because every
+call passes `keep=` explicitly. It is doubly dead -- `prune_wip_records()` has no
+production caller either -- so this confirms disclosed residual (3) below rather
+than contradicting it. Pinning a default that nothing reads would be a guard
+without a subject.
 
 ## 6. Scope, and what I cannot verify
 

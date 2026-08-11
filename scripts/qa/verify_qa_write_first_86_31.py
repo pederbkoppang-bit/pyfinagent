@@ -293,14 +293,25 @@ def main() -> int:
                  "## Verification order (deterministic FIRST)"),
          1200,
          ["verdict_wip_", ".claude/agent-memory/qa/verdicts/", "STATUS: INCOMPLETE",
-          "STATUS: COMPLETE", "Append findings", "final act"],
+          "STATUS: COMPLETE", "Append findings", "final act",
+          # phase-86.36: the RUN STAMP. Without this needle the directive can
+          # revert to the fixed per-step filename and every anchor still passes
+          # -- which is exactly what happened to the qa-verdict.js copy below
+          # and was caught by a Q/A, not by this checker.
+          "__<STAMP>", "%Y%m%dT%H%M%SZ"],
          [r"\*\*Create\*\*|^\s*1\.\s+\*\*Create\*\*"]),
         (".claude/workflows/qa-verdict.js :: STEP 0b",
-         section(js, "'STEP 0b (binding, phase-86.31)", "  'You are INDEPENDENT of the author"),
+         section(js, "'STEP 0b (binding, phase-86.31", "  'You are INDEPENDENT of the author"),
          900,
          ["verdict_wip_", ".claude/agent-memory/qa/verdicts/", "STATUS: INCOMPLETE",
-          "STATUS: COMPLETE", "FINAL act"],
-         [r"create \.claude/agent-memory/qa/verdicts/"]),
+          "STATUS: COMPLETE", "FINAL act",
+          # phase-86.36 blocker B1: THIS copy drifted. qa.md was updated to the
+          # stamped path and this one was not, so the PRIMARY launch path kept
+          # injecting the destructive fixed filename plus the falsified premise
+          # "the path is FIXED per step". Every anchor above passed on that
+          # stale text. These two needles are the guard that was missing.
+          "__<STAMP>", "%Y%m%dT%H%M%SZ"],
+         [r"create\s*$|verdict_wip_'"]),
         ("docs/runbooks/per-step-protocol.md :: recovery contract",
          section(runbook, "**RECOVERY AFTER A DROPPED Q/A", "\n### "),
          900,
