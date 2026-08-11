@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-11 | `10a703db` | phase-86.33: PLAN -- the payload cannot distinguish TYPE from NAME, and I proved it on myself |
 | 2026-08-11 | `575e0509` | phase-86.33: the 70% was mine too -- correct BOTH files, not just the one I noticed |
 | 2026-08-11 | `9a7bf5e5` | phase-86.33: resolve my own open question -- the filter was wrong, not the field |
 | 2026-08-11 | `8aa2f622` | phase-86.33: measure that agent_type is CALLER-CHOSEN, not platform-assigned |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-11 | `069908c7` | phase-86.32: correct a count I asserted instead of measured |
 | 2026-08-11 | `4358683c` | phase-86.32: GENERATE -- a cumulative attempt budget that no verdict resets |
 | 2026-08-11 | `4a3c0262` | docs: disposition of the goal's prescribed work list, every item measured |
-| 2026-08-11 | `cf50bde2` | phase-86.32: PLAN -- the counter resets on CONDITIONAL, and max_retries is decorative |
 
 ---
 
+### v6.93.188 — phase-86.33: PLAN -- the payload cannot distinguish TYPE from NAME, a... (2026-08-11)
+
+- **phase-86.33: PLAN -- the payload cannot distinguish TYPE from NAME, and I proved it on myself**
 ### v6.93.187 — phase-86.33: the 70% was mine too -- correct BOTH files, not just the... (2026-08-11)
 
 - **phase-86.33: the 70% was mine too -- correct BOTH files, not just the one I noticed**
