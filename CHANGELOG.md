@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-11 | `bbc09871` | docs(86.57): the session-stop gate demands an unsatisfiable ordering condition and reads a stale goa |
 | 2026-08-11 | `62c84c45` | docs(86.56): a dead-man's-switch is being refreshed by something that is not a cycle |
 | 2026-08-11 | `0cc71504` | docs(day-report): derived disposition for the goal's sequenced backlog -- 4 done, 4 parked, 1 peer-o |
 | 2026-08-11 | `345fabae` | docs(day-report): append the pyfinagent-06 section -- six population errors, D1 data loss, D2 not in |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-11 | `1a207f02` | phase-86.9: log cycle-2 CONDITIONAL -- 3rd-CONDITIONAL rule armed for cycle 3 |
 | 2026-08-11 | `473f9b43` | phase-86.9: cycle-2 remediated -- my contract deleted the clause that found the bug |
 | 2026-08-11 | `d1a3f18b` | phase-86.9: cycle-2 verdict CONDITIONAL, persisted verbatim before remediation |
-| 2026-08-11 | `08a078c2` | docs(86.49): a second instance -- the safety scanner matches text a command CARRIES |
 
 ---
 
