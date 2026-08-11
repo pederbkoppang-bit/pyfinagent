@@ -4,8 +4,10 @@
 **Date**: 2026-08-11 | **Driver**: Main (`pyfinagent-06`)
 
 **STATUS: PARTIAL. Three of six criteria require an action reserved for the
-operator, and one criterion is already answered in the negative.** No verdict is
-claimed. Details in §5.
+operator.** No verdict is claimed. Details in §5.
+
+**§3 CONTAINS A CORRECTION OF MY OWN OVERSTATED FINDING** -- I claimed nothing
+alerts on a dead rail; a breaker does. Read §3 before §3b.
 
 ## 1. The immutable command is GREEN and it does NOT satisfy criterion 1
 
@@ -123,7 +125,7 @@ This is the structural finding of the step and it should shape whoever picks it 
 | criterion | what it needs | why I did not do it |
 |---|---|---|
 | 1 | the away-session launchd context | the real entrypoint writes session state, runs `git rebase`, and can POST to Slack (`run_away_session.sh:195`); the alternative is loading a LaunchAgent, and `bootstrap`/`bootout` are reserved by away-ops rail 9. `launchctl asuser` needs root. |
-| 2 | keychain unavailable | locking the login keychain risks the live rail ~8h before the 20:00 cycle. The criterion permits *"or run in a context without it"* — §2 is the start of that leg, and §3 already answers the alerting half in the negative. |
+| 2 | keychain unavailable | locking the login keychain risks the live rail ~8h before the 20:00 cycle. The criterion permits *"or run in a context without it"* — §2 is the start of that leg. The alerting half is NOT answered: a breaker pages at 20 consecutive failures (§3), so the open question is whether that threshold and its delivery were adequate on 08-08, which needs the away-ops alert records. |
 | 6 | a plist copy actually loaded | `bootout`/`bootstrap` (rail 9); `kickstart -k` does **not** re-read `EnvironmentVariables` (measured 2026-08-09). The cell can prove the CHECK reacts, never that launchd would. |
 
 **None of these is a reason to weaken a criterion.** They are reasons the step is
