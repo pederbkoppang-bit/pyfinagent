@@ -233,8 +233,30 @@ appear *only* in bodies, so a naive counter invents cycles for steps never
 logged. It corrupts the exact query the escalation rule was originally told to
 run. Added to 86.44; the fix is one header anchor.
 
-**Still not started: 86.14** (a feature build). It is now the only item on the
-goal's list with nothing recorded against it. 86.11 is audit-class (its deliverable is
+**86.14 scoped, and the scoping is the finding: it is NOT a frontend-only
+build.** Source reading only, no gate run, nothing written.
+
+- **Reusable off the shelf**: `cycle_lock.inspect_lock()` / `_is_pid_alive()` /
+  `cycle_budget_sec()` give criterion 2 directly (and `cron_dashboard_api`
+  already imports them), and `useEventSource.ts` exists *with a test*, so
+  criterion 7 is satisfied by reuse.
+- **Missing, and it is the whole problem**: the lock payload carries exactly
+  `pid` / `cycle_id` / `released_at` / `state`. **Zero endpoints expose in-flight
+  progress** (recall control: the same grep shape returns 6 files for `cycle`,
+  so the zero is real). `/cycles/history` returns COMPLETED cycles — i.e.
+  `last_result`, the exact source criterion 2 forbids.
+
+So criterion 1's four required fields live **only in `backend.log`**, which is
+precisely what the step exists to stop the operator grepping. Criterion 1 is
+immutable, so a backend progress surface has to come first — a session that
+planned this as a page would discover that after writing it.
+
+And a sequencing trap: criteria 1 and 3 need a **running** cycle. The book runs
+20:00 CEST for ~76-99 minutes, so stub-vs-wait must be decided before building,
+not after.
+
+**Every item on the goal's ordered list now has measured work recorded against
+it.** Nothing was left blank. 86.11 is audit-class (its deliverable is
 a ranked defect list, so it wants a gate with `audit_class: true` and the
 loop-until-dry rule); 86.14 is a feature build. Neither fits the remaining
 budget.
