@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-11 | `a062c674` | phase-86.32: cycle-3 CONDITIONAL remediated -- the provenance line is now GENERATED |
 | 2026-08-11 | `bce22a74` | phase-86.32: cycle-2 findings remediated -- W1 ordering, W2 stale capture, W3 arithmetic |
 | 2026-08-11 | `96870e44` | phase-86.32: cycle-1 FAIL remediated -- the fixture was not the 86.28 series |
 | 2026-08-11 | `069908c7` | phase-86.32: correct a count I asserted instead of measured |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-11 | `68c35835` | phase-86.44: a naive phase= grep over-counts -- 642 headers vs 33 body matches |
 | 2026-08-11 | `0e866751` | phase-86.11: bounded pre-contract UI sweep -- 2 real defects, 2 refuted against my own instrument |
 | 2026-08-11 | `503a7fa8` | phase-86.7: backfill the missing harness_log row (five-file protocol debt) |
-| 2026-08-11 | `e748f67e` | docs: record 86.7's true state -- my summary omitted it |
 
 ---
 
+### v6.93.175 — phase-86.32: cycle-3 CONDITIONAL remediated -- the provenance line is... (2026-08-11)
+
+- **phase-86.32: cycle-3 CONDITIONAL remediated -- the provenance line is now GENERATED**
 ### v6.93.174 — phase-86.32: cycle-2 findings remediated -- W1 ordering, W2 stale cap... (2026-08-11)
 
 - **phase-86.32: cycle-2 findings remediated -- W1 ordering, W2 stale capture, W3 arithmetic**
