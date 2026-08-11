@@ -333,3 +333,34 @@ def test_the_degradation_record_is_actually_passed_to_record_cycle_end():
         "_degradation is no longer assigned from a call -- a literal here (e.g. "
         "`_degradation = {}`) restores the defect with the name intact"
     )
+
+    # THE BINDING IS NOT THE VALUE. The guard above pins how `_degradation` is
+    # BOUND; it cannot see the dict being emptied in place afterwards. The
+    # cycle-2 Q/A proved that with three survivors -- `_degradation.clear()`,
+    # `.pop("fallback_reasons")`, `.update({k: None ...})` -- of which the first
+    # FULLY RESTORES the pre-86.38 defect (`degradation={}` on every cycle)
+    # behind a completely green suite. An in-place mutation is a Call on an
+    # Attribute, not an Assign, so nothing above could ever fail on it.
+    mutators = [
+        n for n in ast.walk(tree)
+        if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)
+        and isinstance(n.func.value, ast.Name) and n.func.value.id == "_degradation"
+    ]
+    assert not mutators, (
+        "_degradation is mutated in place after it is built "
+        f"({[m.func.attr for m in mutators]}) -- `.clear()` alone restores the "
+        "exact defect this step removed, and the assignment guard above cannot "
+        "see it because a method call is not an Assign"
+    )
+
+    # AND WHICH CALL SITE. The cycle-1 Q/A's fourth survivor was a DEAD DECOY
+    # helper carrying a correct-looking `record_cycle_end(..., degradation=...)`
+    # while the real kwarg was deleted -- the AST walk found *a* qualifying call
+    # and passed. I claimed all four survivors were fixed and verified; that
+    # claim did not reproduce for this one, because I named three remedies for
+    # four findings. Pinning the COUNT closes it: a decoy adds a second call.
+    assert len(calls) == 1, (
+        f"expected exactly ONE record_cycle_end call site, found {len(calls)}. "
+        "A second call -- including an unreachable decoy -- lets the real one "
+        "lose its degradation argument while this guard still finds a match"
+    )

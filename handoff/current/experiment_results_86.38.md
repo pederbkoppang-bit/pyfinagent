@@ -76,19 +76,25 @@ persisted. Wiring it would have created two sources of truth for one fact.
 
 ---
 
-## 3. Criterion by criterion
+## 3. Criterion by criterion (the SIX immutable criteria, not the live_check)
 
-The step's criteria are its three `live_check` items.
+**This section previously mapped the three `live_check` items and called them
+"the step's criteria". That was the same breach section 3 of the contract
+carried**: the live_check is an ADDITIONAL obligation, not the criteria. The six
+below are `verification.success_criteria` from `.claude/masterplan.json`.
 
-| # | required | evidence | status |
+| # | criterion (abridged) | evidence | status |
 |---|---|---|---|
-| 1 | the verbatim 429 body, **or an explicit statement it could not be captured** | live_check A -- captured verbatim. And the premise corrected: the body was never truncated, and no per-day quota exists for this product | MET |
-| 2 | the per-cycle full-vs-lite table over >=10 cycles **with the command that produced it** | live_check B -- 10 days, 67 vs 9, command shown, instrument asserts its own coverage | MET |
-| 3 | the measured date of the last `paper_trades` row | live_check C -- **2026-07-31T18:47:37Z**, 65 rows, query shown | MET |
+| 1 | the 429 is CHARACTERISED from primary evidence, not guessed: capture the full error body (the lo... | live_check A. Body captured verbatim, 420 chars, complete JSON. **I decline to state WHICH quota and say why**: the body carries no discriminator by Google's design, and Vertex genAI has no per-day quota at all, so the criterion's own trichotomy is mis-stated. Criterion 1 permits 'say so and state what was done instead' -- done, and closed with ASK #2 rather than a guess. | MET |
+| 2 | the degradation RATE is derived over at least the last 10 completed cycles: for each, how many t... | live_check **B2**, derived PER-CYCLE from `cycle_history.jsonl` with the command shown. 10 attributable cycles (the floor, exactly). 88 of 98 terminal cycles are reported **UNATTRIBUTABLE**, never zero. NOT derived from llm_call_log. **Section B's per-DAY table is retained but is NOT the criterion's evidence** -- that substitution was the cycle-1 FAIL. | MET |
+| 3 | the correlation with the trade drought is either demonstrated or explicitly refuted: the last pa... | live_check B2. **REFUTED.** 9 of 10 attributable cycles zero-trade; 3 degraded, **6 completely clean**. The one trading cycle (`1326ca36`) was 43% degraded. NOTE, carried from the Q/A: 'the correlation runs the wrong way' is an **n=1 over-read** -- the refutation stands independently on the six clean cycles and is stated that way. | MET |
+| 4 | operator visibility is stated as a fact: does a 429 fallback surface anywhere the operator sees ... | live_check D + section 2. **LOG-AND-PAGE-ONLY, confirmed by grep over `backend/api`, `backend/slack_bot`, `frontend/src`: ZERO consumers.** That is the finding; the remedy makes it durable per cycle without changing when it pages. | MET |
+| 5 | any remedy is fail-safe and does not touch the risk judge, position sizing, or any gate threshol... | section 2 DECISION 1. `_fallback_rate_check` sha256 identical; the change is an additive kwarg + key. No risk threshold, position sizing or gate touched. Cell M6 pins the strict `>` by loosening it and watching the boundary test go red. Nothing makes the lite path more likely to trade. | MET |
+| 6 | if the conclusion is that the correct action is an operator decision (paid tier, quota increase,... | section 8 + `handoff/current/operator_asks_2026-08-11.md`. **ASK #2** filed with three options, costs, and a recommendation (read the free metric, then accept; explicitly NOT the paid tier). Criterion 6 blesses this as a valid close. | MET |
 
-Non-scope honoured: no risk threshold, no position sizing, no gate, no paid tier.
-
----
+**The `live_check` obligation is tracked separately** and is also met: the
+verbatim 429 body (A), the per-cycle table with its command (B2), and the
+measured last `paper_trades` date (C).
 
 ## 4. The mutation matrix caught MY test, and that is the story
 

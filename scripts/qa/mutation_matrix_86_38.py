@@ -185,7 +185,12 @@ def main() -> int:
     if not intact:
         print("SOURCES CHANGED DURING THE RUN -- investigate.")
         return 4
-    print(f"ALL {len(MUTANTS)} MUTANTS KILLED -- every guard in this matrix can fail.")
+    print(f"{len(MUTANTS)} of {len(MUTANTS)} MUTANTS KILLED. This licenses exactly "
+          f"that claim -- these {len(MUTANTS)} mutations were killed by the named "
+          "tests -- and NOT the global claim that every guard can fail. qa.md 4c "
+          "forbids the global form, and the cycle-2 Q/A falsified it here by "
+          "building survivors this matrix did not contain (in-place mutation of "
+          "_degradation, and a dead decoy call site).")
     return 0
 
 

@@ -118,7 +118,6 @@ was disclosed nowhere, and `handoff/cycle_history.jsonl` carries real cycle
 boundaries -- so the per-cycle derivation was available the whole time.
 
 ```
-$ python scripts/qa/derive_lite_fallback_census_86_38.py --per-cycle
 ============================================================================================
 PER-CYCLE full-vs-lite  (criterion 2: 'at least the last 10 completed cycles')
 ============================================================================================
@@ -243,11 +242,16 @@ EXIT=0
 ```
 
 ```
-$ python -m pytest backend/tests/test_phase_86_38_degradation_visibility.py \
-                   backend/tests/test_phase_60_1_deep_pipeline.py -q
+/Users/ford/.openclaw/workspace/pyfinagent/.venv/lib/python3.14/site-packages/requests/__init__.py:113: RequestsDependencyWarning: urllib3 (2.6.3) or chardet (7.4.3)/charset_normalizer (3.4.6) doesn't match a supported version!
+  warnings.warn(
+...............................                                          [100%]
+=============================== warnings summary ===============================
+.venv/lib/python3.14/site-packages/google/genai/types.py:42
+  /Users/ford/.openclaw/workspace/pyfinagent/.venv/lib/python3.14/site-packages/google/genai/types.py:42: DeprecationWarning: '_UnionGenericAlias' is deprecated and slated for removal in Python 3.17
+    VersionedUnionType = Union[builtin_types.UnionType, _UnionGenericAlias]
+
 -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
-29 passed, 1 warning in 5.47s
-EXIT=0
+31 passed, 1 warning in 6.44s
 ```
 
 **Changed**: the degradation fields are now recorded on EVERY cycle via the
@@ -269,12 +273,11 @@ boundary test go red.
 ## F. Mutation matrix -- and the cell that caught ME
 
 ```
-$ python scripts/qa/mutation_matrix_86_38.py
 ==============================================================================
 phase-86.38 mutation matrix
 ==============================================================================
-  backend/services/autonomous_loop.py  sha256=5b4d2680146f790c
-  backend/services/cycle_health.py  sha256=49367c4b3090ad99
+  backend/services/autonomous_loop.py  sha256=b1c38453bee0be23
+  backend/services/cycle_health.py  sha256=9ebf463382a17824
 
 CONTROL -- the whole module must be GREEN before any mutation
   control rc=0  GREEN
@@ -291,15 +294,18 @@ CONTROL -- the whole module must be GREEN before any mutation
           test_degradation_is_persisted_on_a_quiet_cycle went RED (rc=1)
   M5 KILLED  | fold degradation into the 66.2 funnel instead of keeping it separate
           test_degradation_defaults_empty_and_breaks_no_existing_caller went RED (rc=1)
+  MX KILLED  | delete the degradation kwarg -- every cycle would persist an empty record
+          test_the_degradation_record_is_actually_passed_to_record_cycle_end went RED (rc=1)
+  MY KILLED  | drop the fallback keys from the persisted record
+          test_the_degradation_record_carries_every_key_that_makes_a_cycle_legible went RED (rc=1)
   M6 KILLED  | loosen the alarm to >= (paging behaviour MUST be pinned)
           test_the_2026_08_10_boundary_does_not_page went RED (rc=1)
 
 [integrity] tracked sources unchanged: True
-    backend/services/autonomous_loop.py  5b4d2680146f790c
-    backend/services/cycle_health.py  49367c4b3090ad99
+    backend/services/autonomous_loop.py  b1c38453bee0be23
+    backend/services/cycle_health.py  9ebf463382a17824
 
-ALL 7 MUTANTS KILLED -- every guard in this matrix can fail.
-EXIT=0
+9 of 9 MUTANTS KILLED. This licenses exactly that claim -- these 9 mutations were killed by the named tests -- and NOT the global claim that every guard can fail. qa.md 4c forbids the global form, and the cycle-2 Q/A falsified it here by building survivors this matrix did not contain (in-place mutation of _degradation, and a dead decoy call site).
 ```
 
 **The first run of this matrix scored 5 of 6, and the survivor was my own test.**
@@ -352,3 +358,30 @@ $ git log -1 --format=%ad --date=iso fd419038  -> 2026-08-11 09:04:35 +0200
   queued as its own research-gated step.
 - **No UI claim is made**, and no frontend file is touched, so no Playwright
   capture was taken.
+
+---
+
+## H. Two numbers that do not reconcile, disclosed rather than left for a reader
+
+Section B (per-DAY) totals **67 full / 9 lite**. Section B2 (per-CYCLE) totals
+**66 full / 9 lite**. The one-event delta was undisclosed until the cycle-2 Q/A
+identified it, and it is a real event, not a parser artifact:
+
+```
+2026-08-04 22:01:50,288  FULL  "Critic verdict: PASS -- 0 major, 4 minor"
+= 20:01:50 UTC, AFTER cycle ab116cd1's recorded completed_at
+```
+
+A genuine full-pipeline completion that falls **outside every recorded cycle
+window**. It is conclusion-neutral -- that cycle's lite count is 0 either way,
+and no rate in either table changes materially -- but two adjacent tables
+disagreeing by one with no explanation is exactly the shape a reader should not
+have to chase.
+
+**What it implies and what it does not.** It does NOT mean the per-cycle
+attribution is broken: the offset was independently validated as a sharp maximum
+(75 of 76 dated events attributed at +2h; every other offset collapses
+attribution). It DOES mean a cycle's recorded `completed_at` can precede its last
+emitted event, so per-cycle attribution has a small tail loss. Not claimed:
+whether that is a logging lag or a cycle-record timing defect. I did not
+determine it.

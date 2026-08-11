@@ -114,6 +114,22 @@ def per_cycle_census() -> int:
     if cur.exists():
         files.append(cur)
 
+    # OFFSET SELF-CHECK. The +2h shift below is CEST and is hardcoded. The
+    # cycle-2 Q/A validated it as a sharp maximum (75 of 76 dated events
+    # attributed at +2h; every other offset collapses attribution), so it is
+    # measured-correct for THIS data -- but it would be silently wrong across a
+    # CET/CEST boundary. The whole JSON-log era (2026-07-24..08-10) is inside
+    # CEST, so no current number is affected; this asserts that precondition
+    # rather than leaving it as a comment nobody re-checks.
+    _era = [c for c in cycles if c["s"].year == 2026]
+    if _era:
+        _lo, _hi = min(c["s"] for c in _era), max(c["s"] for c in _era)
+        if not (_dt.datetime(2026, 3, 29, tzinfo=_dt.timezone.utc) <= _lo
+                and _hi <= _dt.datetime(2026, 10, 25, tzinfo=_dt.timezone.utc)):
+            print("  WARNING: cycle window crosses a CET/CEST boundary; the "
+                  "hardcoded +2h offset is NOT valid across it and this table "
+                  "must not be trusted until the offset is derived per-event.")
+
     dated = 0
     for p_ in files:
         for line in read_lines(p_):
