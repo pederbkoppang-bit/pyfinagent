@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-11 | `f2d7ff09` | phase-86.44: cycle-2 verdict CONDITIONAL, persisted verbatim |
 | 2026-08-11 | `431401dc` | phase-86.44: cycle-1 remediated -- my D3 guard could not fail on half its own class |
 | 2026-08-11 | `bc96eb48` | phase-86.44: cycle-1 verdict CONDITIONAL, persisted verbatim before remediation |
 | 2026-08-11 | `fe9a6dad` | phase-86.44: the harness log's own writer was destroying concurrent entries |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-11 | `61d16d25` | phase-86.9: the pid's start time exposed a hole in my own criterion-2 evidence |
 | 2026-08-11 | `ca78e00a` | phase-86.9: cycle-1 CONDITIONAL remediated -- I omitted my own strongest counter-evidence |
 | 2026-08-11 | `d13b78de` | phase-86.53: file the cycle-budget config drift found while verifying 86.9 |
-| 2026-08-11 | `38ae0f9c` | phase-86.9: GENERATE -- the raise was the wrong fix, and criterion 2 was already met |
 
 ---
 
+### v6.93.212 — phase-86.44: cycle-2 verdict CONDITIONAL, persisted verbatim (2026-08-11)
+
+- **phase-86.44: cycle-2 verdict CONDITIONAL, persisted verbatim**
 ### v6.93.211 — phase-86.44: cycle-1 remediated -- my D3 guard could not fail on half... (2026-08-11)
 
 - **phase-86.44: cycle-1 remediated -- my D3 guard could not fail on half its own class**
