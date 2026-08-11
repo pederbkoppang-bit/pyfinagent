@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-11 | `2615667b` | phase-86.32: R1 -- correct my own overclaim; pin provenance to SHAs, not HEAD |
 | 2026-08-11 | `a062c674` | phase-86.32: cycle-3 CONDITIONAL remediated -- the provenance line is now GENERATED |
 | 2026-08-11 | `bce22a74` | phase-86.32: cycle-2 findings remediated -- W1 ordering, W2 stale capture, W3 arithmetic |
 | 2026-08-11 | `96870e44` | phase-86.32: cycle-1 FAIL remediated -- the fixture was not the 86.28 series |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-11 | `7a72af4a` | phase-86.14: pre-contract scoping -- this is NOT a frontend-only build |
 | 2026-08-11 | `68c35835` | phase-86.44: a naive phase= grep over-counts -- 642 headers vs 33 body matches |
 | 2026-08-11 | `0e866751` | phase-86.11: bounded pre-contract UI sweep -- 2 real defects, 2 refuted against my own instrument |
-| 2026-08-11 | `503a7fa8` | phase-86.7: backfill the missing harness_log row (five-file protocol debt) |
 
 ---
 
+### v6.93.176 — phase-86.32: R1 -- correct my own overclaim; pin provenance to SHAs,... (2026-08-11)
+
+- **phase-86.32: R1 -- correct my own overclaim; pin provenance to SHAs, not HEAD**
 ### v6.93.175 — phase-86.32: cycle-3 CONDITIONAL remediated -- the provenance line is... (2026-08-11)
 
 - **phase-86.32: cycle-3 CONDITIONAL remediated -- the provenance line is now GENERATED**
