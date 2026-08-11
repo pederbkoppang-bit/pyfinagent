@@ -62,3 +62,5 @@
 {"ts": "2026-08-08T22:37:01.913470+00:00", "event": "resume", "trigger": "manual", "details": {}}
 {"ts": "2026-08-09T13:03:44.126943+00:00", "event": "sod_snapshot", "nav": 23833.94, "date": "2026-08-09", "provisional": true}
 {"ts": "2026-08-09T13:08:40.510286+00:00", "event": "sod_snapshot", "nav": 23833.94, "date": "2026-08-09", "provisional": false}
+{"ts": "2026-08-10T18:00:02.590180+00:00", "event": "sod_snapshot", "nav": 23833.94, "date": "2026-08-10", "provisional": true}
+{"ts": "2026-08-10T19:15:08.534749+00:00", "event": "sod_snapshot", "nav": 23897.88, "date": "2026-08-10", "provisional": false}

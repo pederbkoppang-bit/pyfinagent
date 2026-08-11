@@ -1,5 +1,9 @@
 # Researcher Agent Memory Index
 
+- [Id-collision resolver 86.19](project_id_collision_resolver_86_19.md) — JSON key order decides the winner so the ARCHIVE wins 5.1; `phase-6.5` is cross-type (phase vs step) and no archive exclusion closes it; defect is LATENT (no colliding id has a live_check)
+- [Claims-correctness 86.34](project_claims_correctness_86_34.md) — a TZ shift holds for only |offset|/24 hours so it can NEVER be hour-independent; `.venv.py313.bak` defeats exact-match filters (95.5% of scanned .py is vendored); a "verbatim" digest went stale on a legit edit
+- [Silent glob + archive provenance 86.29](project_silent_glob_archive_86_29.md) — the glob NEVER had a domain (0/5 sids, 896 suffix vs 169 all-historical prefix); zsh NOMATCH gives a false loud-failure; OAIS+17a-4 both PERMIT documented repair
+- [WebFetch PDF summaries fabricate quotes](reference_webfetch_pdf_summaries_fabricate_quotes.md) — measured TWICE (83.1.1, 86.29); re-extract with pypdf and regex-verify every quoted string before it enters a brief
 - [Degraded-branch direction 86.30](project_degraded_branch_direction_86_30.md) — `is_global` = ROUTABILITY not OWNERSHIP (6 of this Mac's 17 own addrs are is_global=True); the defect was already Q/A note N1; psutil in ZERO requirements files
 - [Clock-dependent tests 86.24](project_clock_dependent_tests_86_24.md) — three midnight tests = TWO bugs 2h apart (local-vs-UTC window vs a true time bomb); staleness is correct-by-design; only a shifted-clock differential run has validatable recall
 - [Unknown direction 86.25](project_unknown_direction_86_25.md) — live symptom is 100% HOLD not APPROVE/BUY; `.get` default never fires on a present-but-EMPTY value; attribute writer-less rows by NULL-constant columns + identical-MICROSECOND timestamps; `is_directional` already built, uncalled

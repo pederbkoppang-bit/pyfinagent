@@ -1,127 +1,129 @@
 STATUS: COMPLETE -- write-first record, still NOT a verdict
 STEP: 86.25
-WRITTEN: 2026-08-10T11:28:11Z
+WRITTEN: 2026-08-11T06:26:51Z
 
-CYCLE: 2 (cycle-1 returned CONDITIONAL with W1/W2/W3)
+CYCLE: 3 (cycle 1 = CONDITIONAL wf_dd580823-63b, cycle 2 = CONDITIONAL wf_a59e0a03-8c2)
+RULE IN FORCE: 3rd-CONDITIONAL auto-FAIL -- if my judgment would be CONDITIONAL, I must return FAIL.
+=> The decision is therefore BINARY: PASS or FAIL. My judgment is PASS.
 
-## Plan
-A. Harness-compliance audit (5 items)
-B. Deterministic: immutable verification command + exit code; git status scope
-C. Verify the three cycle-1 fixes (W1 attribution, W2 rename, W3 research numbers)
-D. Judge M5/M8 surviving mutants (Main's "dead by construction" position)
-E. Check for corrupted historical filename references (self-inflicted sed error)
-F. Criterion-by-criterion MET/NOT MET
+## Findings log
 
-## Log
+### B1. IMMUTABLE COMMAND -- reproduced by me
+`108 passed, 3313 deselected, 1 warning in 10.43s`; bare `EXIT=0` (measured separately,
+not through a pipe). experiment_results says "108 passed, 3303 deselected" -- the PASSED
+figure is exact; the DESELECTED denominator drifted 3303->3313 because steps 86.24/86.30
+added 10 tests to backend/tests after the measurement. NOTE, not a defect.
 
-### B. DETERMINISTIC
-- IMMUTABLE CMD `pytest backend/tests/ -q -k "outcome_tracker or autonomous_loop or learn_loop"`
-  => **108 passed, 3303 deselected, EXIT=0** (re-run by me 11:29Z). Reproduces
-  experiment_results cycle-2 block exactly.
-- `--collect-only | grep -c "test_phase_86_25_outcome_tracker_vocabulary_boundary.py::"` => **16**.
-  W2 REMEDY VERIFIED: the rename brings all 16 new tests inside the immutable filter. No
-  criterion amended (masterplan verification.command byte-identical).
-- git status --short: only audit jsonl / heartbeat / archive-baseline / untracked archive dir +
-  my own WIP file. NO unintended production change.
+### B2. SCOPE -- derived, not typed
+`git log --oneline f71030b8..HEAD -- <3 prod + 2 test files>` = exactly ONE commit
+(2e82220a). `git status --porcelain` over backend/ = EMPTY. No unintended production change.
 
-### W3 VERIFIED FIXED
-- brief envelope: external_sources_read_in_full 7, snippet_only 22, urls_collected 29,
-  recency_scan_performed true, gate_passed true. Tally line: "7 read in full + 22
-  snippet-only = 29 unique URLs collected".
-- contract_86.25.md sec 1 now: 7 / 22 / 29, with the correction disclosed in a blockquote.
-  REPRODUCES. MET.
+### B3. LINT GATE -- git-derived, non-empty asserted, instrument recall-tested
+`git diff --name-only f71030b8..2e82220a -- '*.py'` = 3 files (N=3 asserted >0), piped
+through `xargs uvx ruff check --select F821,F401,F811` -> "All checks passed!" exit=0.
+RECALL TEST: same invocation on a stdin probe with an unused import + undefined name
+returns F401 + F821, exit=1. The clean result is a real clean.
 
-### *** W1 RESIDUAL -- FINDING (cycle-2 fix INCOMPLETE) ***
-- Cycle-1 critique named FOUR artifacts carrying the mis-attribution, and its
-  TO-CLEAR-TO-PASS line said verbatim: "Correct the (A)-branch rationale in
-  autonomous_loop.py, **recommendation_vocab.py** and experiment_results".
-- MEASURED: `git diff 8baecb49 HEAD -- backend/services/recommendation_vocab.py` is EMPTY.
-  The file was NOT touched in cycle 2. `git log --oneline -- recommendation_vocab.py`
-  newest entry is 8baecb49 (cycle 1).
-- recommendation_vocab.py:162-169 STILL reads: "MEASURED 2026-08-10, and it is why this
-  resolver exists rather than a lookup: the analyst recommendation is reachable for 0 of 32
-  SELL rows. `analysis_id` is empty on 32/32 SELLs (BUYs carry it 33/33), and
-  `round_trip_id` is ONE-SIDED ... so a SELL cannot reach its BUY leg either."
-  => the exact anchor-based mechanism W1 ruled NOT the operative cause.
-- experiment_results cycle-2 W1 claims: "Corrected in `autonomous_loop.py`,
-  `nightly_outcome_rebuild.py` and here." -- SUBSTITUTES nightly_outcome_rebuild.py for
-  recommendation_vocab.py. Remediation-set substitution (cf.
-  feedback_recheck_prior_remediation_list).
-- SECOND residual, worse: `autonomous_loop.py:3417-3423` STILL carries the refuted causal
-  sentence VERBATIM, immediately ABOVE the cycle-2 correction block: "Nothing is what is
-  available -- MEASURED 2026-08-10: the anchor is reachable for 0 of 32 SELL rows ... So
-  this resolves to UNKNOWN today". The correction 7 lines below calls that text "An earlier
-  version of this comment" -- but it is not earlier, it is still present. Append-only fix.
-- THIRD (NOTE): the SAME block was pasted into nightly_outcome_rebuild.py:88-91 asserting
-  "An earlier version of this comment blamed the unreachable ANCHOR". MEASURED FALSE for
-  that file: `git show 8baecb49:...nightly_outcome_rebuild.py` shows its cycle-1 comment
-  never mentioned the anchor.
+### B4. RUNTIME SMOKE
+All three changed modules import in the venv. Live resolver probe:
+'' / APPROVE_REDUCED / REJECT / APPROVE_HEDGED / None -> UNKNOWN, is_directional False.
+'Strong Buy' -> STRONG_BUY (directional), 'Hold' -> HOLD (non-directional, != UNKNOWN).
 
-### W1's CORRECTED mechanism -- independently re-derived, TRUE
-- `_production_fns.py:229-231` LEDGER_FETCH_SQL selects exactly 10 named cols:
-  trade_id, ticker, action, price, quantity, created_at, analysis_id, risk_judge_decision,
-  holding_days, pnl. `analyst_recommendation` ABSENT.
-- repo-wide `grep -rn --include='*.py' analyst_recommendation backend scripts`: the ONLY
-  emitter of that key is the TEST fixture (test file :156). No production producer.
-  => dead BY CONSTRUCTION confirmed.
+### C. CYCLE-2 TO-CLEAR LIST -- RE-DERIVED BY ME (evaluator_critique_86.25.md:158)
+Four items: (1) recommendation_vocab.py:164-169, (2) autonomous_loop.py:3417-3423,
+(3) experiment_results W1 file list, (4) nightly_outcome_rebuild.py history clause.
+`git diff f71030b8..HEAD -- <file> | wc -l`: 38 / 24 / 28 / 129. NO zero-line diff.
+The cycle-2 blocking defect (W1_remediation_incomplete) does NOT recur.
+Content verified from the diff itself, not from the summary:
+ (1) vocab header now leads with "NO PRODUCER EMITS AN ANALYST RECOMMENDATION ONTO A
+     TRADE AT ALL" + absent column + LEDGER_FETCH_SQL; refuted anchor text now QUOTED
+     inside a "CORRECTED cycle 2" paragraph.
+ (2) the refuted sentence is DELETED from autonomous_loop.py's pre-block (7 lines).
+ (3) experiment_results W1 carries "[CORRECTED cycle 3 -- this sentence was itself wrong]".
+ (4) nightly's history claim rewritten to be true of its own file.
 
-### LINT
-6 git-derived .py files (non-empty), `xargs uvx ruff check --select F821,F401,F811`
-=> "All checks passed!" exit=0.
+### C2. MY OWN FIRST INSTRUMENT WAS DEFECTIVE -- caught before reporting
+My first wrap-aware grep joined lines but left the leading "# " in place, so
+"NO\n# PRODUCER EMITS" did not match and it returned a FALSE ZERO for 2 of 3 files.
+Corrected instrument strips the comment marker; recall-tested against a phrase that
+cannot exist (0) and each real phrase (1). Result: ALL THREE files carry both the
+"no producer emits" statement and the absent-column statement.
+Anchor-mechanism residue: every remaining hit in the 3 files is inside a correction
+narrative or is the separate, correct `risk_judge_decision` emptiness claim.
 
-### MUTATION (mine, in-process sys.modules injection, ZERO tree writes)
-- CONTROL rc=0, 108 passed.
-- S2-revert -> rc=1, **3 failed / 105 passed** KILLED (matches Main's claim EXACTLY)
-- V1-sentinel -> rc=1, **10 failed / 98 passed** KILLED (matches EXACTLY)
-  => W2 remedy VERIFIED: both die INSIDE the immutable command.
-- N1 S1 reads trade ACTION through resolver (FAIL-UNSAFE, would persist a fabricated SELL)
-  -> rc=1, 1 failed / 107 passed **KILLED**
-- N2 (= predecessor M8) S1 reads risk_judge_decision through resolver -> rc=0 **SURVIVED**
-- N3 S2 reads trade ACTION through resolver -> rc=1, 3 failed / 105 passed **KILLED**
-  => ADJUDICATION: M5/M8 are EQUIVALENT-ON-THE-SAFE-SIDE. The argument regressions that
-  can FABRICATE A DIRECTION (N1, N3) both DIE. M8 survives only because the approval
-  vocabulary cannot canonicalise -- which is the boundary property the step built.
-  Main's position is CORRECT and now has executed differential evidence. The S1 guard is
-  NOT too weak. Residual nuance (NOTE): M8-equivalence is contingent on risk_judge_decision
-  never overlapping the recommendation scale, not on construction.
+### C3. "No behaviour changed in cycle 3" -- MECHANICALLY VERIFIED
+Non-comment added/removed lines in `git diff f71030b8..2e82220a -- '*.py'` = 0.
+RECALL TEST: the same instrument on 64d20023..8baecb49 returns 257. Claim holds.
 
-### RUNTIME SMOKE (1d)
-All 3 changed backend modules import clean. Live resolver over the FULL measured value set:
-resolve(None)='UNKNOWN', resolve('')='UNKNOWN', resolve('APPROVE_REDUCED')='UNKNOWN',
-resolve('REJECT')='UNKNOWN', resolve('APPROVE_HEDGED')='UNKNOWN',
-resolve('Strong Buy')='STRONG_BUY', is_directional('UNKNOWN')=False.
-=> criterion 4 verified LIVE, not just by test.
+### D. INDEPENDENT MUTATION MATRIX (mine, control-first, sys.modules injection, no tree writes)
+CONTROL                                              108 passed rc=0
+M1 revert S1 call site (autonomous_loop)             KILLED  1 failed / 107 passed
+M2 revert S2 call site (nightly_outcome_rebuild)     KILLED  (fabricated 'SELL' reproduced verbatim)
+M3 sentinel -> "HOLD" (recommendation_vocab)         KILLED  10 failed / 98 passed
+M4 widen canonical so APPROVE_* -> BUY               KILLED  2 failed / 106 passed
+M6 S2 revert + FIXTURE NEUTERED via pytest plugin    KILLED  3 failed / 105 passed
+M5 add "UNKNOWN" to CANONICAL_RECOMMENDATIONS        SURVIVED 108 passed rc=0
+PROBE HYGIENE: a first batched run reported "1 error during collection" (rc=2) for
+M1-M5. That is NOT a kill. I re-ran each cell standalone and got real, named
+assertion failures. No collection-error cell was credited.
+M5 DIFFERENTIAL (measured, not reasoned): only canonical('UNKNOWN') None->'UNKNOWN'
+and is_recognised False->True change. is_directional / is_buy_intent / is_sell_intent /
+resolve('') / _compute_outcomes row label are IDENTICAL. Near-equivalent for every
+criterion of this step. NOTE with a named fix: `test_the_unknown_marker_is_outside_the_scale`
+docstring claims "provably not a member of the decision alphabet" but asserts only the
+three consequences; add `assert not is_recognised(UNKNOWN_RECOMMENDATION)`.
 
-### A. HARNESS COMPLIANCE -- CLEAN (5/5)
-- research gate: research_brief_86.25.md on disk, envelope gate_passed true, 7>=5 sources,
-  29>=10 URLs, recency scan performed. mtime 10:32 < contract.
-- contract-before-generate: cycle-1 contract 13:01:11 < .py 13:08 < experiment_results
-  13:09 (cycle-1 Q/A measured); commit order 64d20023 -> 8baecb49 agrees.
-- experiment_results + live_check present.
-- log-last: `grep -cF "86.25" handoff/harness_log.md` = 0; masterplan status = "pending".
-- no verdict-shopping: evidence CHANGED (f71030b8: 2 comment blocks, 1 rename, 1 contract
-  table, artifact appends). Legitimate cycle-2 respawn.
-- 3rd-CONDITIONAL counter: 0 logged CONDITIONALs for 86.25; this would be #2. Rule does
-  NOT fire.
-- 1c live UI gate does NOT bind (no frontend file touched, no UI claim).
-
-### CRITERIA
+### E. CRITERIA -- each verified BY ME
 1 MET  TestReproduceTheScoringDefect drives the REAL evaluate_recommendation (only the
-       price source stubbed), asserts precondition return_pct<0 then
-       directionally_correct is False. Reproduce-first satisfied.
-2 MET  distribution re-derived by measure_86_25_join_hitrate.py; cycle-1 Q/A re-derived
-       against live BQ (46/15/3/1, n=65). Unchanged in cycle 2.
-3 MET  producer = S2 nightly_outcome_rebuild; cycle-1 corroborated with live rows
-       (evaluated_at 04:00:02 cron, price_at_recommendation/beat_benchmark NULL).
-4 MET  verified live above + parametrised test over the measured set + M4 killed.
-5 MET  premise correction justified and evidenced; asserted at the write chokepoint.
-6 MET  both call sites reverted independently and KILLED; V1 killed; my N1/N3 add two
-       more kills; survivors adjudicated by executed differential.
+       price source stubbed); S1 false-negative and S2 false-positive both reproduced.
+       Inside the immutable filter (16/16 collected).
+2 MET  RE-DERIVED against LIVE BQ by me: '' 46, APPROVE_REDUCED 15, REJECT 3,
+       APPROVE_HEDGED 1, TOTAL 65; action='SELL' n=32 with 32/32 empty. Exact match.
+3 MET  DETERMINED by me from the live rows, not from a source grep: all three
+       outcome_tracking rows (AMD/PANW/MU) carry the identical
+       evaluated_at 2026-08-08T04:00:02.013552+00:00 with price_at_recommendation NULL
+       and beat_benchmark NULL. The ONLY writer emitting price_at_recommendation=None is
+       _production_fns.py:407 (build_outcome_row) = the S2 nightly pipeline. The other two
+       writers pass a real price. Producer = S2.
+4 MET  Live probe + M4 kill. No APPROVE_* value reaches a buy or sell intent.
+5 MET  Premise substitution verified independently: save_outcome (bigquery_client.py:400-414)
+       writes 9 columns and OUTCOME_COLUMNS lists the same 9; directionally_correct is
+       computed at outcome_tracker.py:66/77 and NEVER persisted. The persisted
+       `recommendation` distinguishes UNKNOWN from HOLD from SELL. M3 kills the collapse.
+6 MET  Both call sites reverted INDEPENDENTLY (M1, M2) and both die; fixture-side cell M6
+       also dies; the single survivor is behaviourally near-equivalent.
 
-### VERDICT: CONDITIONAL (ok=false)
-All 6 immutable criteria MET; harness compliance clean; no unintended production change;
-W2 and W3 fully fixed and reproduced EXACTLY. Capped on ONE finding: the W1 remediation is
-INCOMPLETE and the artifact claims it is complete.
+### F. HARNESS COMPLIANCE 5/5
+1 research_brief_86.25.md on disk; envelope gate_passed true, 7 sources >=5, 29 URLs >=10,
+  recency_scan_performed true. Contract table now reads 7/22/29 -- W3 remedy verified.
+2 contract-before-generate: contract committed 64d20023 13:01:31, production code
+  8baecb49 13:10:28. Later contract edit (f71030b8 13:27) is the disclosed W3 remediation.
+3 experiment_results_86.25.md present and current.
+4 log-last: masterplan status still "pending"; harness_log has ONE row for this step-id and
+  it reads result=PARKED (a disposition, not a verdict) with both CONDITIONALs disclosed
+  in its body. No PASS/CONDITIONAL/FAIL row, no status flip.
+5 no verdict-shopping: evidence CHANGED (2e82220a); every file on the prior list has a
+  non-empty diff.
 
-COMPLETED: 2026-08-10T11:47:05Z
+### G. NOTE-LEVEL, NOT DEGRADING (all out of the six criteria)
+N1 backend/slack_bot/jobs/_production_fns.py:404-405 still carries "The risk judge's
+   decision is the recommendation that was acted on; fall back to the trade action, never
+   to None" -- a comment blessing the exact defect this step removed, one file over in the
+   same S2 pipeline. Raised NOTE-level in BOTH prior cycles and still unfixed. File is not
+   in this step's diff. Worth its own queued follow-up.
+N2 M5 survivor / docstring-vs-assertion gap (above).
+N3 3303 vs 3313 deselected (above).
+N4 2e82220a swept my own cycle-2 WIP file and other steps' artifacts into the 86.25 commit
+   (git add -A cross-attribution). No production code involved.
+N5 Disclosed-open and queued: 86.35 (evaluate_recommendation raises TypeError on every real
+   row, making S1 unreachable independently of this fix) and the one-sided round_trip_id.
+N6 Committed but NOT in force: the backend has not been restarted. S2 is a cron job, so the
+   next 04:00 UTC run picks up the new code. Consistent with the batch-restart rule.
 
+### VERDICT FORMED: PASS
+All six immutable criteria MET on evidence I re-derived rather than read; harness
+compliance clean 5/5; no unintended production change; the sole cycle-2 blocker is
+measurably closed by the very check cycle 2 named. Reversal follows a real code change,
+so it is the documented cycle-2 flow, not sycophancy.
+
+COMPLETED: 2026-08-11T06:52:10Z

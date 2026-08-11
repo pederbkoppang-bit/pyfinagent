@@ -33511,3 +33511,56 @@ evaluator's own guard-log entry.
 
 **Step flips to `done` after this entry.** Concurrent session pyfinagent-51 owns
 86.25/86.34/86.29/86.38; I own and flip only this one.
+
+## Cycle 1211 -- 2026-08-11 -- phase=86.25 result=PASS
+
+Cycle-3 Q/A `wf_8a3969ee-ae0` (Workflow rail, `agents_empty_result: 0`),
+**195,141 subagent tokens / 36 tool uses / 838s**. Verdict **PASS**, `ok=true`,
+`harness_compliance_ok=true`, **`violated_criteria: []`**, all 6 immutable
+criteria MET. Transcribed verbatim into `evaluator_critique_86.25.md` and into
+`evaluator_critique_86.25.json` (the file the auto-push verdict gate actually
+reads -- the `.md` alone leaves the gate holding on a stale prior verdict).
+
+**THE ESCALATION WAS ARMED AND THE Q/A SAID SO.** Cycles 1 and 2 were both
+CONDITIONAL, so under the 3rd-CONDITIONAL auto-FAIL rule this cycle's decision
+was BINARY -- PASS or FAIL, with CONDITIONAL unavailable. The spawn prompt
+carried that count explicitly because `harness_log` could not supply it: exactly
+one row existed for this step-id and it read `result=PARKED`, so a naive
+CONDITIONAL grep returns 0. That is the phase-86.21 counter blindness, and the
+Q/A verified the blindness itself rather than taking my word. It returned
+**"PASS on the merits, not to avoid the escalation"**.
+
+**Not verdict-shopping, verified rather than asserted.** Cycle 2's sole blocker
+was `W1_remediation_incomplete` -- `recommendation_vocab.py` had a ZERO-line diff
+while the artifact claimed it corrected. The Q/A re-derived the cycle-2
+TO-CLEAR list from the critique itself and ran `git diff f71030b8..HEAD` per
+named file: 38 / 24 / 28 / 129 lines, no zero-line diff, exactly one commit
+(`2e82220a`) in range.
+
+**THE Q/A CAUGHT ITS OWN INSTRUMENT LYING, and that is the entry worth keeping.**
+Its first wrap-aware grep joined lines with `tr` but left the leading `"# "` in
+place, so a line-broken literal did not match and it reported a **FALSE ZERO for
+two of three files** -- it would have filed a fabricated remediation-incomplete
+finding. It corrected the instrument and recall-tested it both ways. Same
+discipline on the ruff gate, the producer grep, the comments-only check. It also
+refused to credit five mutation cells that reported `1 error during collection`
+(rc=2), re-running each standalone until they produced named assertion failures
+quoting the mutant's own wrong value. **A probe that cannot produce the finding
+it searches for is the failure class that cost this project a FAIL yesterday;
+this run is what catching it looks like.**
+
+Single survivor M5 (adding `UNKNOWN` to the canonical scale) adjudicated by
+measured differential, not argument: it flips only `canonical_recommendation` and
+`is_recognised`, leaving the persisted label, directionality, intents and row
+count byte-identical. Near-equivalent, NOTE-level, with a named one-line fix.
+
+**Five NOTE items, none blocking.** N1 is a real out-of-scope defect and is being
+queued as its own step per the standing rule: `_production_fns.py:404-405` still
+carries a comment blessing the exact defect this step removed, one file over in
+the same S2 pipeline, flagged NOTE-level by all three cycles and still unfixed.
+N2: `experiment_results` says "3303 deselected", measured 3313 -- the
+load-bearing 108 is exact, the denominator drifted as later steps added tests.
+
+**NOT IN FORCE.** The backend has not been restarted, so this is committed but
+not live in the running process. S2 is an ungated 04:00 UTC cron, so the next run
+picks up the new code without a restart.

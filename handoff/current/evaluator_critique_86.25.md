@@ -158,3 +158,77 @@ TWO ADDITIONAL NOTES FOR MAIN'S FOLLOW-UP, neither degrading the verdict. (N1) T
 TO CLEAR THIS TO PASS, no behaviour and no test needs to change. Amend the (A)-branch rationale in backend/services/recommendation_vocab.py:164-169 to name the absent column as the cause; in backend/services/autonomous_loop.py:3417-3423 delete or explicitly strike the superseded sentence rather than leaving it above its own correction; correct experiment_results W1's file list so it names the files actually corrected; and drop or fix the "an earlier version of this comment blamed the unreachable ANCHOR" clause in nightly_outcome_rebuild.py, where it was never true.
 
 WRITE-FIRST: my crash-survival record is at /Users/ford/.openclaw/workspace/pyfinagent/.claude/agent-memory/qa/verdicts/verdict_wip_86.25.md, marked COMPLETE. It is evidence, not a verdict -- this structured return is the deliverable. No write was blocked; I wrote nothing outside that one permitted path.
+
+
+---
+
+# CYCLE 3 VERDICT -- Q/A, Workflow rail run `wf_8a3969ee-ae0`
+
+**Transcribed VERBATIM from the captured return value.** Main records the
+verdict and never authors it. Nothing below is edited, paraphrased or softened.
+195,141 subagent tokens / 36 tool uses / 838s.
+
+**Escalation context**: two consecutive CONDITIONALs stood, so per the
+3rd-CONDITIONAL auto-FAIL rule this cycle's decision was BINARY -- PASS or FAIL,
+with CONDITIONAL unavailable. The Q/A states explicitly it returns PASS "on the
+merits, not to avoid the escalation".
+
+## VERDICT: PASS   (ok=true, harness_compliance_ok=true, certified_fallback=false)
+
+## violated_criteria
+
+[]  -- none.
+
+## reason
+
+All 6 immutable criteria are MET on evidence I re-derived rather than read (live BQ distribution '' 46 / APPROVE_REDUCED 15 / REJECT 3 / APPROVE_HEDGED 1 n=65 with SELL 32/32 empty; the three outcome_tracking rows read live and traced to the S2 cron by identical evaluated_at 2026-08-08T04:00:02.013552+00:00 plus price_at_recommendation/beat_benchmark NULL, whose only writer is _production_fns.py:407 build_outcome_row; paper_trades confirmed at 18 columns with analyst_recommendation absent; save_outcome's 9-column write proving directionally_correct is never persisted; immutable command 108 passed bare EXIT=0 with 16/16 new tests collected inside the unamended -k filter; ruff F821/F401/F811 clean over a git-derived non-empty 3-file scope with the instrument recall-tested; all three modules importing and the live resolver returning UNKNOWN for every measured approval token), harness compliance is clean 5/5, there is no unintended production change (exactly one commit 2e82220a touches this step's files and git status over backend/ is empty), and the sole cycle-2 blocker is measurably closed by the very check cycle 2 named -- every file on the cycle-2 TO-CLEAR list now has a non-empty diff (recommendation_vocab.py 38, autonomous_loop.py 24, nightly_outcome_rebuild.py 28, experiment_results 129 lines) with the refuted anchor mechanism deleted from autonomous_loop.py and surviving only inside explicit correction narratives; my own 6-cell mutation matrix run control-first via sys.modules injection killed both independent call-site reverts (M1 1 failed/107 passed, M2 reproducing the fabricated 'SELL' verbatim), the sentinel-to-HOLD cell (M3 10 failed/98 passed), the APPROVE_*-to-BUY widening (M4 2 failed/106 passed) and a fixture-neutered S2 revert (M6 3 failed/105 passed), with the single survivor (M5, adding UNKNOWN to the canonical scale) shown by measured differential to change only is_recognised and canonical_recommendation while leaving the persisted label, directionality, intents and row count identical -- near-equivalent and NOTE-level.
+
+## checks_run (31)
+
+- qa_md_read_in_full_at_runtime
+- write_first_wip_verdict_file
+- harness_compliance_audit_5_items
+- immutable_verification_command_108_passed_bare_exit_0
+- immutable_command_scope_collect_only_16_of_16
+- python_lint_gate_ruff_F821_F401_F811_git_derived_scope_xargs
+- lint_instrument_recall_test_known_positive_stdin
+- backend_runtime_import_smoke_3_modules
+- live_resolver_probe_over_full_measured_value_set
+- git_status_and_git_log_unintended_change_check
+- prior_remediation_list_rederived_per_file_git_diff
+- wrap_and_comment_marker_aware_grep_with_recall_test
+- comments_only_diff_verified_mechanically_with_recall_test
+- independent_mutation_matrix_6_cells_control_first_in_memory
+- mutation_probe_hygiene_collection_error_cells_rejected_and_rerun
+- fixture_side_mutation_via_pytest_plugin
+- survivor_behavioural_differential_adjudication_M5
+- bigquery_redistribution_rederivation_criterion_2
+- bigquery_outcome_row_provenance_criterion_3
+- bigquery_paper_trades_schema_18_columns
+- ledger_fetch_sql_column_enumeration
+- producer_grep_for_analyst_recommendation_with_recall_test
+- save_outcome_persisted_column_enumeration_criterion_5
+- research_brief_envelope_and_contract_table_cross_check
+- contract_before_generate_commit_order
+- contract_completeness_criterion_by_criterion_mapping
+- claim_audit_of_prose_and_verbatim_blocks
+- guard_vacuity_check_section_4c
+- code_review_heuristics
+- harness_log_and_masterplan_state_check
+- third_conditional_counter_using_caller_supplied_count
+
+## notes
+
+CYCLE 3. I used the caller-supplied prior-verdict count (cycle 1 CONDITIONAL wf_dd580823-63b, cycle 2 CONDITIONAL wf_a59e0a03-8c2) and verified the stated counter blindness myself: `grep -cE "phase=86.25" handoff/harness_log.md` = 1 and that single row reads result=PARKED, so a naive CONDITIONAL grep would return 0. Because two consecutive CONDITIONALs stand, my decision was BINARY -- PASS or FAIL, with no CONDITIONAL available. I return PASS on the merits, not to avoid the escalation.
+
+NOT VERDICT-SHOPPING, verified rather than assumed. The cycle-2 blocker was W1_remediation_incomplete: recommendation_vocab.py had a ZERO-line diff while the artifact claimed it corrected. I re-derived the cycle-2 TO-CLEAR list from evaluator_critique_86.25.md:158 myself and ran `git diff f71030b8..HEAD -- <each named file>`: 38 / 24 / 28 / 129 lines, no zero-line diff. `git log --oneline f71030b8..HEAD` over this step's five files returns exactly one commit (2e82220a), so the tree I graded is that commit's tree with no later drift and no uncommitted production change. Verdict reversal follows a real code change, which the code-review skill explicitly classifies as the documented cycle-2 flow rather than sycophancy.
+
+I CAUGHT MY OWN INSTRUMENT LYING, and it is worth recording because it is the exact trap the spawn prompt warned about. My first wrap-aware grep joined lines with `tr` but left the leading "# " in place, so the line-broken literal "NO\n# PRODUCER EMITS" did not match and it reported a FALSE ZERO for two of the three files -- I would have filed a fabricated remediation-incomplete finding. The corrected instrument strips the comment marker and is recall-tested both ways (0 for a phrase that cannot exist, 1 for each real phrase). Result: all three production files carry both the "no producer emits" statement and the absent-column statement. Same discipline applied elsewhere: the ruff gate was recall-tested against a stdin probe carrying a known F401 and F821 (exit 1), the producer grep against a known-present key (19 hits), the comments-only check against a diff known to contain 257 non-comment lines, and the nightly-history grep against the file that does carry the anchor claim.
+
+MUTATION PROBE HYGIENE. My first batched matrix reported "1 error during collection" (rc=2) for cells M1-M5. I did NOT credit those as kills. Re-running each cell standalone produced real, named assertion failures with the mutant's own wrong value quoted (M2 reproduced `recommendation='SELL'` verbatim -- the exact row that reached production). The one genuine survivor, M5, I adjudicated by measured differential rather than argument: adding "UNKNOWN" to CANONICAL_RECOMMENDATIONS flips only canonical_recommendation and is_recognised, leaving is_directional, is_buy_intent, is_sell_intent, resolve_outcome_recommendation('') and the _compute_outcomes row label byte-identical. Named fix, NOTE-level: `test_the_unknown_marker_is_outside_the_scale` claims in its docstring that the marker is "provably not a member of the decision alphabet" but asserts only the three consequences; one `assert not is_recognised(UNKNOWN_RECOMMENDATION)` closes the gap.
+
+FIVE NOTE-LEVEL ITEMS FOR MAIN, none violating an immutable criterion, harness compliance, or introducing an unintended production change. (N1) backend/slack_bot/jobs/_production_fns.py:404-405 STILL carries "The risk judge's decision is the recommendation that was acted on; fall back to the trade action, never to None" -- a comment blessing the exact defect this step removed, one file over in the same S2 pipeline, raised NOTE-level by both prior cycles and still unfixed. That file is not in this step's diff, so it is out of scope here, but it deserves its own queued step: this step's own narrative says "a comment blessing the defect is how it survived review". (N2) experiment_results states "108 passed, 3303 deselected"; I measure 108 passed, 3313 deselected -- the load-bearing figure is exact and the denominator drifted because steps 86.24/86.30 added ten tests after the measurement. (N3) commit 2e82220a swept my own cycle-2 WIP file and other steps' artifacts in under the 86.25 message (git add -A cross-attribution); no production code involved. (N4) 86.35 (evaluate_recommendation raising TypeError on every real row, which makes the S1 path unreachable independently of this fix) and the one-sided round_trip_id remain queued and disclosed. (N5) the harness_log result=PARKED row was appended before any verdict existed; it is honest -- it names both CONDITIONALs in its body and claims no PASS -- and the masterplan step is still status=pending, so log-last is satisfied in substance.
+
+Section 1c does not bind: no frontend file is touched and the step makes no UI claim, so I took no Playwright capture. The backend has not been restarted, so these changes are committed but NOT in force in the running process; S2 is an ungated 04:00 UTC cron, so the next run picks up the new code. Main disclosed this and it is consistent with the batch-restarts-to-session-end rule.
+
+WRITE-FIRST: my crash-survival record is at /Users/ford/.openclaw/workspace/pyfinagent/.claude/agent-memory/qa/verdicts/verdict_wip_86.25.md, marked COMPLETE with a COMPLETED stamp. It is evidence for a future spawn, never a verdict -- this structured return is the deliverable. No write was blocked; I wrote nothing outside that one permitted path.
