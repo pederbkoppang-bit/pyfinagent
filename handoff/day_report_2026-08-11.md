@@ -395,6 +395,34 @@ not a defect.
 
 > **CYCLE RESULT: _to be appended after completion._**
 
+## The goal file's sequenced backlog -- DERIVED disposition, not a reflex
+
+Recorded because a stop-hook kept re-nominating this list from a **superseded
+revision** of `goal_next_2026-08-11.md`. The file on disk (10:33 today) already says
+at line 18: *"CLOSED 2026-08-11: 86.31, 86.36 (mine), 86.25, 86.34 (peer).
+PEER-OWNED: 86.29, 86.38; 86.21 parked."* Every row below is from
+`.claude/masterplan.json` status plus header-anchored `harness_log` rows.
+
+| step | disposition | evidence |
+|---|---|---|
+| **86.31** ("FIX FIRST") | **done** | Cycle 1210 PASS. Its write-first is measurably live: **31 verdict records today**, and it saved a 174k-token drop. |
+| **86.24** | **done** | PARKED at Cycle 1198, then **PASS at Cycle 1200** -- the "one Q/A pass from closing" happened. |
+| **86.30** | **parked** | Cycle 1202 PARKED; `harness_compliance_ok: false` incl. an **un-repairable** contract-before-generate breach. |
+| **86.25** | **done** | Cycle 1211 PASS. |
+| **86.29** | **PEER-OWNED** | Named as such in the goal file itself. Not mine to take. |
+| **86.32** | **done** | Cycle 1218 PASS. |
+| **86.21** | **parked** | Cycle 1214 CONDITIONAL. Enriched today with a *second* failure mode: the counter **over**-counts as well as under-counts. |
+| **86.5** | **parked** | Cycle 1219 CONDITIONAL; blocked on **ask 06-5** (immutable command frozen already-red). |
+| **86.7** | **parked** | Cycle 1216 NO VERDICT; blocked on **ask 06-2** (credential). |
+| UI **86.10/86.11/86.14** | **pending, not started** | Deliberate: see below. |
+
+**The deliberate decision, stated rather than implied**: I did not start a fresh
+research-gated step after ~18:00. A full cycle (gate + contract + generate + Q/A) runs
+60-90 minutes, which **straddles the 19:30 freeze**, and the freeze forbids the
+masterplan flip that would close it -- so it would spend ~400k tokens on a budget the
+peer has already raised as an open ask (`51-3`) and still leave the step open. I
+parked two steps today partly on that reasoning; starting a third would contradict it.
+
 ## Operator asks owed from this session
 
 `06-2` credential rotation (**the only time-sensitive one**) · `06-5` 86.5's
