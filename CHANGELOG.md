@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-11 | `cf94ef76` | docs(goal): RETRACT my drought framing -- 86.38's gate refuted it, and I confirmed it |
 | 2026-08-11 | `6e8f3169` | phase-86.36 cycle 2: fix both CONDITIONAL blockers -- the OTHER copy of the directive |
 | 2026-08-11 | `07fd7c07` | phase-86.38: experiment_results + repair live_check section F; queue 86.41 |
 | 2026-08-11 | `b3d7fe92` | phase-86.29 cycle 3: qualify every surviving figure with its grammar |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-11 | `630fa95b` | phase-86.25: [P2 -- A RISK-APPROVAL VOCABULARY IS PASSED WHERE A BUY/SELL RECOMMENDATION IS EXPEC... |
 | 2026-08-11 | `a33640a4` | phase-86.31: sync the machine-readable verdict -- it still held cycle 1's CONDITIONAL |
 | 2026-08-11 | `f3a3a4bb` | phase-86.34: rescue the dropped cycle-3 Q/A record; fix two stale line pointers |
-| 2026-08-11 | `974297ce` | phase-86.29: GENERATE -- derive archive names from the step id, guard the rolling fallback |
 
 ---
 
