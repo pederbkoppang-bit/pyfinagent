@@ -385,3 +385,47 @@ counts and states that the rule is what is stable, not the number.
 
 **No number in this table is a constant.** Each is quoted with its tree, because
 the population grows every time a step closes.
+
+---
+
+## 8. DISPOSITION -- PARKED after two completed Q/A cycles, remediated but ungraded
+
+**Status: `pending`. Not closed. No verdict is claimed.**
+
+| cycle | run | verdict | outcome |
+|---|---|---|---|
+| 1 | `wf_d4e2e794-567` | **NO VERDICT** | rail drop at 197,098 tokens; WIP rescued |
+| 2 | `wf_2675058b-ab3` | **CONDITIONAL** | 5 findings, all real, all mine |
+| 3 | `wf_fdc81179-861` | **CONDITIONAL** | 1 finding: the opaque bucket's disclosure |
+| 4 | -- | **not run** | all findings fixed; **nobody has graded that** |
+
+**Why parked rather than pushed to a fourth cycle.** Two consecutive CONDITIONALs
+stand, so under the 3rd-CONDITIONAL rule a cycle-4 Q/A that found *anything* --
+however minor -- would be **required to return FAIL** rather than CONDITIONAL.
+Every cycle so far has found something real, so the likely outcome is a FAIL that
+converts a good-faith minor finding into an escalation, at ~170k tokens. The
+standing rule is to park after two cycles with a disposition, and the honest
+reading of the evidence is that this step is close but not demonstrably done.
+
+**What the next session inherits, precisely:**
+
+- The cycle-3 finding is FIXED and then some. It asked for one paragraph naming
+  two dirs; instead **all sixteen** formerly-opaque dirs were read and
+  adjudicated (section 4d): **2 real mismatches, 12 that actually agree, 2
+  genuinely undeterminable**. The corrected floor is **158**, and exactly two
+  directories in the whole archive remain unclassifiable.
+- Every criterion has been marked MET by two separate Q/As. The shipped hook has
+  been exercised on **four real step closures** (`phase-86.31`, `86.25`, `86.34`,
+  and the peer's `86.36`), each producing a directory containing its own step's
+  files -- the first correct ones since 2026-08-06.
+- **The one thing I would attack next**: two header shapes still defeat the census
+  grammar (`# Phase <sid> Contract:` and `# Contract -- <sid> ...`). I deliberately
+  did NOT widen it a third time -- both previous widenings fixed a real gap and
+  introduced a new defect in the same motion. Automating the adjudication is
+  follow-up work, not a blocker; the artifact states the true number today and
+  names what the script misses.
+- **Known open, disclosed rather than buried**: the precision oracle still shares
+  the classifier's grammar (disclosed, not fixed); `phase-69`'s SUSPECT is an
+  oracle false alarm adjudicated by two Q/As, so 0.9936 is a LOWER bound; and the
+  hook change ran live and ungraded for three step closures, graded NOTE by both
+  cycles and disclosed in section 4b.

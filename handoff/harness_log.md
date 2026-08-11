@@ -33672,3 +33672,38 @@ what the new annotation says. It measured 204.
 **Step flips to `done` after this entry.** Peer session pyfinagent-51 owns
 86.25/86.34 (both CLOSED on PASSes today), 86.29 and 86.38; I own and flip only
 this one.
+
+## Cycle 1213 -- 2026-08-11 -- phase=86.29 result=CONDITIONAL (step PARKED)
+
+Three Q/A runs, two completed verdicts. Cycle 1 `wf_d4e2e794-567` DROPPED at
+197,098 tokens (NO VERDICT, not counted). Cycle 2 `wf_2675058b-ab3` CONDITIONAL
+on five findings. Cycle 3 `wf_fdc81179-861` CONDITIONAL on one.
+
+**PARKED under the standing two-cycle rule.** Two consecutive CONDITIONALs stand,
+so a cycle-4 Q/A finding anything at all would be REQUIRED to return FAIL. Every
+cycle so far found something real; spending ~170k tokens to convert a likely
+minor finding into an escalation is the wrong trade.
+
+**The findings were all mine and all worth having.** Cycle 2: my cycle-1 fix was
+DEAD CODE (gated on `if not suspect:` on a tree that HAD a suspect) while the
+artifact claimed it worked; and `153 -> 156` was published as "+7 blind members"
+when the symmetric difference is **+8 / -5** -- five dirs the old grammar had been
+WRONGLY flagging. The arithmetic never closed: 153 + 7 != 156. **Comparing
+cardinalities is not comparing sets.** Cycle 3: I shipped a bucket labelled "needs
+a human read" while a human read of two of its members sat in my own critique
+file.
+
+**And one defect I introduced while fixing those, then caught**: the new
+dash-parity check went RED and the obvious reading was that the hook fix had
+failed. It had not -- `declared()`, the PROBE inside the prove script, still
+parsed ASCII `--` only. **Suspect the probe first.** That also exposed a matrix
+hole where a cell scored a KILL against an already-RED check -- a kill carrying
+zero information. The matrix now refuses to score those (`UNSCORABLE`).
+
+**The mechanism works on the live system.** Four real closures (86.31, 86.25,
+86.34, and the peer's 86.36) each produced an archive directory containing its
+own step's files -- the first correct ones since 2026-08-06 -- with
+`derived=5 rolling_copied=0` and a `PROVENANCE.md` recording every source.
+
+Final state: 6 behavioural checks, 7/7 mutants killed, 156 published / **158
+true** mismatches over 821 dirs, 16 formerly-opaque dirs fully adjudicated.
