@@ -107,6 +107,77 @@ census entirely on any shortfall**.
 
 ---
 
+## B2. PER-CYCLE, which is what criterion 2 actually asks for
+
+**The cycle-1 Q/A returned FAIL partly on this and it was right.** Section B is a
+PER-DAY table over 10 DAYS, printed under a header saying "per-cycle ... over
+>=10 cycles". Criterion 2 reads *"the degradation RATE is derived over at least
+the last 10 completed **cycles**: for each, how many tickers ran the full
+orchestrator versus fell back to lite."* Days are not cycles, the substitution
+was disclosed nowhere, and `handoff/cycle_history.jsonl` carries real cycle
+boundaries -- so the per-cycle derivation was available the whole time.
+
+```
+$ python scripts/qa/derive_lite_fallback_census_86_38.py --per-cycle
+============================================================================================
+PER-CYCLE full-vs-lite  (criterion 2: 'at least the last 10 completed cycles')
+============================================================================================
+  terminal cycles in cycle_history : 98
+  dated log events considered      : 76
+  cycles with ATTRIBUTABLE events  : 10
+  cycles UNATTRIBUTABLE (outside the timestamped log era): 88  <- NOT zero-degradation, unknown
+
+  cycle_id         started (UTC)         full  lite  lite%  trades  causes
+--------------------------------------------------------------------------------------------
+  120f6e51         2026-07-28 16:40:48      -     -      -       0  UNATTRIBUTABLE (no timestamped events in window)
+  04a3da92         2026-07-28 18:00:00      -     -      -       0  UNATTRIBUTABLE (no timestamped events in window)
+  1c294315         2026-07-29 18:00:00      -     -      -       0  UNATTRIBUTABLE (no timestamped events in window)
+  c4ed258c         2026-07-30 18:00:00      3     0     0%       0  
+  1326ca36         2026-07-31 18:00:00      4     3    43%       1  code defect: QuantAgent NoneType x3
+  08d6a623         2026-08-03 18:00:01      8     0     0%       0  
+  ab116cd1         2026-08-04 18:00:00     10     0     0%       0  
+  9aa5cb5d         2026-08-05 18:00:00      6     2    25%       0  code defect: QuantAgent NoneType x2
+  fdd19797         2026-08-06 18:00:00     11     0     0%       0  
+  0c2ffd64         2026-08-07 18:00:00     10     0     0%       0  
+  c67b3b15         2026-08-08 20:58:27      -     -      -       0  UNATTRIBUTABLE (no timestamped events in window)
+  40e87406         2026-08-09 13:03:42      -     -      -       0  UNATTRIBUTABLE (no timestamped events in window)
+  ae2284ba         2026-08-09 13:25:27      8     0     0%       0  
+  a5654ab9         2026-08-10 18:00:00      3     3    50%       0  429 RESOURCE_EXHAUSTED (quota) x3
+--------------------------------------------------------------------------------------------
+  attributed totals: 66 full, 9 lite over 10 cycle(s)
+
+  CRITERION 3 -- do degraded cycles and zero-trade cycles coincide?
+    attributable cycles with ZERO trades : 9 of 10
+    of those, cycles that DEGRADED       : 3
+    of those, cycles with NO degradation : 6
+    => a zero-trade cycle with ZERO fallbacks is a counter-example to
+       'degradation explains the drought'. Any such cycle refutes it.
+```
+
+**Cycles outside the timestamped-log era are reported UNATTRIBUTABLE, not zero.**
+Only the JSON-format logs carry per-event timestamps; 88 of the 98 terminal
+cycles predate that and are unknown, not clean. Reporting them as 0/0 would be
+the same false-zero the coverage assertion exists to prevent.
+
+### And the per-cycle view REFUTES the drought hypothesis far more sharply
+
+At day granularity I could only say "some clean days had no trades". Per cycle:
+
+- **9 of the 10 attributable cycles produced zero trades.**
+- Of those nine, **3 degraded and 6 had ZERO fallbacks.** Six completely clean
+  cycles, full pipeline throughout, no trades.
+- **The ONE cycle in the window that DID trade -- `1326ca36`, 2026-07-31 -- was
+  43% DEGRADED** (4 full, 3 lite, all QuantAgent NoneType). It produced the last
+  trade in the book.
+
+So the correlation does not merely fail; **it runs the wrong way.** The only
+trading cycle was among the most degraded, and the cleanest cycles traded
+nothing. Whatever stopped the book trading is upstream of the fallback and
+upstream of the 429, and this is the evidence that says so at the right
+granularity.
+
+---
+
 ## C. The measured date of the last paper_trades row (required item 3)
 
 ```

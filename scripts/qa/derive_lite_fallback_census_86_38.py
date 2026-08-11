@@ -59,7 +59,133 @@ def read_lines(p: pathlib.Path):
         yield from fh
 
 
+def per_cycle_census() -> int:
+    """phase-86.38 cycle 2 -- criterion 2 asks for PER-CYCLE, not per-day.
+
+    The cycle-1 Q/A returned FAIL partly on this: the original table was PER-DAY
+    over 10 DAYS, printed under a header that said "per-cycle ... over >=10
+    cycles", and the substitution was disclosed nowhere. Day-level aggregation is
+    lossy in the direction that matters -- 2026-08-04 shows 11 analyses, more
+    than one cycle's ticker count, so a day holding one fully-degraded cycle and
+    one clean cycle reports as partially degraded and neither cycle is visible.
+
+    `handoff/cycle_history.jsonl` carries real cycle boundaries, so the per-cycle
+    derivation was available all along and I substituted without saying so.
+
+    SCOPE LIMIT, stated rather than discovered later: only the JSON-format log era
+    carries per-event timestamps, so only cycles whose window overlaps that era
+    can be attributed. Cycles outside it are reported as UNATTRIBUTABLE, not as
+    zero -- the distinction the whole coverage assertion exists to preserve.
+    """
+    import datetime as _dt
+
+    hist = REPO / "handoff" / "cycle_history.jsonl"
+    if not hist.exists():
+        print("no cycle_history.jsonl -- cannot derive per-cycle")
+        return 1
+
+    def parse(ts):
+        if not ts:
+            return None
+        try:
+            return _dt.datetime.fromisoformat(str(ts).replace("Z", "+00:00"))
+        except ValueError:
+            return None
+
+    cycles = []
+    for line in hist.read_text().splitlines():
+        if not line.strip():
+            continue
+        try:
+            r = json.loads(line)
+        except Exception:                                          # noqa: BLE001
+            continue
+        if not r.get("status") or r.get("status") == "started":
+            continue
+        s, e = parse(r.get("started_at")), parse(r.get("completed_at"))
+        if s and e:
+            cycles.append({"id": r.get("cycle_id"), "s": s, "e": e,
+                           "trades": r.get("n_trades"), "full": 0, "lite": 0,
+                           "reasons": collections.Counter()})
+    cycles.sort(key=lambda c: c["s"])
+
+    files = sorted((REPO / "handoff" / "logs").glob("backend.log.*.gz"))
+    cur = REPO / "backend.log"
+    if cur.exists():
+        files.append(cur)
+
+    dated = 0
+    for p_ in files:
+        for line in read_lines(p_):
+            if FALLBACK_MARK not in line and FULL_MARK not in line:
+                continue
+            if not line.lstrip().startswith("{"):
+                continue                      # legacy format: no date on the line
+            try:
+                d = json.loads(line)
+            except Exception:                                      # noqa: BLE001
+                continue
+            ts = parse((d.get("timestamp") or "").replace(",", ".").replace(" ", "T"))
+            if not ts:
+                continue
+            if ts.tzinfo is None:
+                ts = ts.replace(tzinfo=_dt.timezone.utc)
+            dated += 1
+            for c in cycles:
+                # cycle_history timestamps are UTC; log timestamps are local CEST
+                # (+02:00) -- compare on the naive wall clock of each, shifted.
+                s = c["s"].astimezone(_dt.timezone.utc).replace(tzinfo=None)
+                e = c["e"].astimezone(_dt.timezone.utc).replace(tzinfo=None)
+                t_ = ts.replace(tzinfo=None) - _dt.timedelta(hours=2)
+                if s <= t_ <= e:
+                    if FALLBACK_MARK in line:
+                        c["lite"] += 1
+                        m = _REASON.search(d.get("message", ""))
+                        c["reasons"][classify(m.group(2) if m else "?")] += 1
+                    else:
+                        c["full"] += 1
+                    break
+
+    attributed = [c for c in cycles if c["full"] or c["lite"]]
+    print("=" * 92)
+    print("PER-CYCLE full-vs-lite  (criterion 2: 'at least the last 10 completed cycles')")
+    print("=" * 92)
+    print(f"  terminal cycles in cycle_history : {len(cycles)}")
+    print(f"  dated log events considered      : {dated}")
+    print(f"  cycles with ATTRIBUTABLE events  : {len(attributed)}")
+    print(f"  cycles UNATTRIBUTABLE (outside the timestamped log era): "
+          f"{len(cycles) - len(attributed)}  <- NOT zero-degradation, unknown")
+    print()
+    print(f"  {'cycle_id':16s} {'started (UTC)':20s} {'full':>5s} {'lite':>5s} {'lite%':>6s} {'trades':>7s}  causes")
+    print("-" * 92)
+    for c in cycles[-14:]:
+        tot = c["full"] + c["lite"]
+        if not tot:
+            print(f"  {str(c['id']):16s} {str(c['s'])[:19]:20s} {'-':>5s} {'-':>5s} {'-':>6s} "
+                  f"{str(c['trades']):>7s}  UNATTRIBUTABLE (no timestamped events in window)")
+            continue
+        pct = f"{100*c['lite']/tot:.0f}%"
+        causes = ", ".join(f"{k} x{v}" for k, v in c["reasons"].most_common(2))
+        print(f"  {str(c['id']):16s} {str(c['s'])[:19]:20s} {c['full']:5d} {c['lite']:5d} {pct:>6s} "
+              f"{str(c['trades']):>7s}  {causes}")
+    print("-" * 92)
+    tf = sum(c["full"] for c in attributed); tl = sum(c["lite"] for c in attributed)
+    print(f"  attributed totals: {tf} full, {tl} lite over {len(attributed)} cycle(s)")
+    print()
+    print("  CRITERION 3 -- do degraded cycles and zero-trade cycles coincide?")
+    zt = [c for c in attributed if c["trades"] == 0]
+    dz = [c for c in zt if c["lite"]]
+    print(f"    attributable cycles with ZERO trades : {len(zt)} of {len(attributed)}")
+    print(f"    of those, cycles that DEGRADED       : {len(dz)}")
+    print(f"    of those, cycles with NO degradation : {len(zt) - len(dz)}")
+    print("    => a zero-trade cycle with ZERO fallbacks is a counter-example to")
+    print("       'degradation explains the drought'. Any such cycle refutes it.")
+    return 0
+
+
 def main() -> int:
+    if "--per-cycle" in sys.argv:
+        return per_cycle_census()
     files = sorted((REPO / "handoff" / "logs").glob("backend.log.*.gz"))
     cur = REPO / "backend.log"
     if cur.exists():

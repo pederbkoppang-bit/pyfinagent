@@ -89,9 +89,14 @@ different defect entirely** -- `QuantAgent failed for X: 'NoneType' object has n
 attribute ...`, a code bug, not quota.
 
 **The drought does not correlate with degradation.** The last trade was
-2026-07-31; 2026-08-03 through 2026-08-09 ran 54 full-pipeline analyses with
-**zero** fallbacks and still produced no trades. Whatever stopped the book
-trading, it is not the fallback.
+2026-07-31. Across 2026-08-03..09 the window ran **54 full-pipeline analyses and
+2 lite fallbacks** (both on 08-05, both the QuantAgent defect); restricted to the
+**five genuinely fallback-free days** it is **48 full / 0 lite**, and still no
+trades. Whatever stopped the book trading, it is not the fallback.
+
+*(Corrected 2026-08-11: an earlier draft said the whole window had ZERO
+fallbacks. My own table on this page contradicted it. The conclusion survives on
+the clean-day subset; the stated evidence did not.)*
 
 ### (c) Is the lite fallback silent to the operator?
 
