@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-11 | `a477b74a` | phase-86.38: prove NOT-IN-FORCE against the running process, not the file |
 | 2026-08-11 | `d921643c` | phase-86.21: record the cycle-4 remediation in the critique (Main's note, not a verdict) |
 | 2026-08-11 | `8074e371` | phase-86.21 cycle 4: fix the three FAIL blockers |
 | 2026-08-11 | `cf94ef76` | docs(goal): RETRACT my drought framing -- 86.38's gate refuted it, and I confirmed it |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-11 | `7602e3e2` | phase-86.36: PLAN -- contract written after a PASSED research gate |
 | 2026-08-11 | `c116e63a` | phase-86.38: PRE-CONTRACT measurement -- lite-fallback census with a coverage assertion |
 | 2026-08-11 | `a18ab6c7` | phase-86.40: queue the stale comment blessing the defect 86.25 removed |
-| 2026-08-11 | `630fa95b` | phase-86.25: [P2 -- A RISK-APPROVAL VOCABULARY IS PASSED WHERE A BUY/SELL RECOMMENDATION IS EXPEC... |
 
 ---
 
+### v6.93.111 — phase-86.38: prove NOT-IN-FORCE against the running process, not the... (2026-08-11)
+
+- **phase-86.38: prove NOT-IN-FORCE against the running process, not the file**
 ### v6.93.110 — phase-86.21: record the cycle-4 remediation in the critique (Main's n... (2026-08-11)
 
 - **phase-86.21: record the cycle-4 remediation in the critique (Main's note, not a verdict)**
