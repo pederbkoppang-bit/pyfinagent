@@ -945,3 +945,48 @@ Soft checks:
 - [ ] **Residual gap, stated:** clock-independence was proven only against shifted *zones*, not a
       shifted *clock*; and the kill-switch non-touch is an after-hash + pre-run mtime, not a
       captured before/after pair (86.5 criterion 5 requires the pair).
+
+---
+
+## Envelope verification pass -- 2026-08-11 (append-only; brief NOT rewritten)
+
+The original run's envelope was lost when the Workflow rail dropped before returning.
+This pass re-derived every self-reported figure **from the file itself**, mechanically.
+No new research was performed; nothing above this line was modified.
+
+| Field | Claimed | Re-measured | Rule used | Verdict |
+|---|---|---|---|---|
+| `external_sources_read_in_full` | 37 | **37** | rows matching `^\| *[0-9]+ *\|` in the read-in-full table (L858-894); 37 unique URLs, zero dupes | **CONFIRMED** |
+| `snippet_only_sources` | 21 | **21** | rows matching `^\| *https?://` in the snippet table (L899-919); 21 unique URLs | **CONFIRMED** |
+| `urls_collected` | 58 | **58** | union of both tables, `sort -u`; overlap between the two tables measured = **0** rows | **CONFIRMED** |
+| `recency_scan_performed` | true | **true** | dedicated section present at L681, states method + result + 6 enumerated findings | **CONFIRMED** |
+| recency in-window share | "16 of 37" | **21 of 37** | arXiv ID `YYMM` prefix in {24xx,25xx,26xx} over the read-in-full URLs | **CORRECTED (undercount)** |
+| `coverage.rounds` | 18 | **18** | round headings L58/L198/L482/L548/L572/L581/L643/L651/L658 + round 16 named at L925 | **CONFIRMED** |
+| `coverage.dry_rounds` | 2 | **2 trailing consecutive** (4 total labelled DRY) | trailing-consecutive rule: rounds **17 and 18** are the terminal pair, both "Zero new findings" (L656, L670). Rounds 11 and 13 were also DRY but are non-terminal. | **CONFIRMED** |
+| `coverage.dry` | true | **true** | `dry_rounds(2) >= K_required(2)` on the terminal run | **CONFIRMED** |
+| `internal_files_inspected` | 19 | **>= 19** (24 under a generous rule) | 11 failing test modules + 8 non-test files carrying a file:line anchor or a measured property. Generous rule adds `backend.log`, `.claude/masterplan.json`, `.claude/hooks/lib/qa_write_guard.py`, and the 2 archived handoff artifacts = 24. | **CONFIRMED as a floor** |
+| `brief_status` | COMPLETE | **COMPLETE** | exactly one occurrence (L16); exactly one ```json fence (L14-35); parses under `json.load` | **CONFIRMED** |
+
+**The one correction: "16 of 37" understates the recency window.** Under the arXiv `YYMM`
+rule the in-window set is 21 of 37 -- `2401.06765, 2407.03625, 2410.13480, 2411.11033,
+2504.16777, 2511.18854, 2512.18088, 2601.08998, 2601.22264, 2602.02307, 2602.03556,
+2602.05465, 2602.09311, 2602.19098, 2602.23957, 2603.09029, 2603.23054, 2604.26674,
+2605.21677, 2607.09345, 2608.06535`. Three further sources are continuously-current docs
+(`docs.pytest.org`, `handbook.gitlab.com`, `docs.gitlab.com`) and are excluded from the 21
+because they carry no dated version. The error direction is **conservative** -- the brief
+under-claimed its own recency coverage, so no hard blocker is affected.
+
+**Hard blockers, re-checked against the measured figures:** 37 >= 5 read in full; 58 >= 10
+URLs; recency scan present and reported; the read-in-full set is papers/full pages (ar5iv or
+native arXiv HTML, or `curl` + `pypdf` full text for the 3 PDF-only items #17/#18/#19, and
+`curl` + tag-strip for #24) -- no abstract-only source is counted, and the one abstract-only
+candidate (Luo 2014, paywalled) is explicitly in the snippet table; internal claims carry
+file:line anchors. Source-quality hierarchy holds: 27 of 37 are papers, the rest are official
+docs/books (abseil, pytest, GitLab) and named-practitioner or vendor-engineering blogs
+(Fowler, Google Testing, Spotify, Meta) -- zero community-tier sources in the counted set.
+
+`gate_passed` stands at **true**, now on re-measured rather than self-reported figures.
+The residual gap recorded in the soft checks (clock-independence proven against shifted
+*zones* not a shifted *clock*; kill-switch non-touch is an after-hash + pre-run mtime rather
+than a captured before/after pair) is a **soft** item and remains open for the executor --
+86.5's criterion 5 wants the pair, so the "before" hash must be captured explicitly.

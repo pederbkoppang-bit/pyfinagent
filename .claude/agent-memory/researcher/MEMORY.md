@@ -1,5 +1,7 @@
 # Researcher Agent Memory Index
 
+- [Failing-test triage 86.5](project_failing_test_triage_86_5.md) — 17 not 26 (denominator moved +400); NONE flaky; 3 groups where the TEST is wrong and the code is right
+
 - [Retry-loop bounding 86.32](project_retry_loop_bounding_86_32.md) — reset-on-success is a HEALTH-CHECK idiom on a WORK-ACCOUNTING problem; CONDITIONAL resets too; max_retries read by NOTHING
 
 - [Absent upstream data 86.41](project_absent_upstream_data_86_41.md) — the NoneType frame is a CLOUD FUNCTION not this repo; retry-then-return-None erases the 429; a coverage assertion proves counting, never attribution
