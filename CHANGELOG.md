@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-11 | `dad42dda` | phase-86.7: criteria 4 and 3 -- shape-verified capture, and a justified accept-the-risk |
 | 2026-08-11 | `2dbb1606` | phase-86.7: sweep the retracted claim out of the header and section 5 |
 | 2026-08-11 | `798c50f2` | phase-86.7: CORRECT my own criterion-2 finding -- there IS an alerting path |
 | 2026-08-11 | `0dae31a3` | phase-86.7: PARTIAL GENERATE -- the 08-08 outage signature reproduced, and criterion 2 answered NO |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-11 | `6694f924` | phase-86.38 cycle 2: record both dropped-run findings and their fixes |
 | 2026-08-11 | `7a7184d2` | phase-86.38: correct the last unqualified boundary claim (seam docstring) |
 | 2026-08-11 | `e4d7f968` | phase-86.33: P0 shipped; P1 BLOCKED, and the reason is a contamination trap |
-| 2026-08-11 | `5483c23e` | phase-86.21: PARK at the escalation boundary; the counter caught ITSELF under-counting |
 
 ---
 
+### v6.93.143 — phase-86.7: criteria 4 and 3 -- shape-verified capture, and a justifi... (2026-08-11)
+
+- **phase-86.7: criteria 4 and 3 -- shape-verified capture, and a justified accept-the-risk**
 ### v6.93.142 — phase-86.7: sweep the retracted claim out of the header and section 5 (2026-08-11)
 
 - **phase-86.7: sweep the retracted claim out of the header and section 5**
