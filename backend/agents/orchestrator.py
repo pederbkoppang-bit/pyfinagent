@@ -1794,8 +1794,12 @@ class AnalysisOrchestrator:
         step("quant", "started", "Fetching financial data...")
         if _sec_covered:
             try:
+                # ONLY the sub-agent call belongs in the try. `step()` invokes a
+                # caller-supplied progress callback; with it inside, a raising
+                # SSE emitter was caught here, mislabelled a quant failure, and
+                # silently overwrote a GOOD quant report with the yfinance
+                # fallback. Caught by test_healthy_quant_is_untouched_by_the_guard.
                 report["quant"] = await self.run_quant_agent(ticker)
-                step("quant", "completed", "Financial data collected")
             except Exception as _quant_exc:
                 # phase-86.41: the quant sub-agent runs in a REMOTE Cloud
                 # Function. When SEC.gov 429s its CIK-map fetch, that fetch
@@ -1825,7 +1829,13 @@ class AnalysisOrchestrator:
                     _yf_degraded,
                     reason=f"quant agent failed: {type(_quant_exc).__name__}",
                 )
-                report["skipped_stages"].append({
+                # setdefault, NOT [...]: `report["skipped_stages"]` is created
+                # at :1761 ONLY under `if not _sec_covered`, and this guard runs
+                # in the _sec_covered branch -- so a plain append raised KeyError
+                # and aborted the ticker anyway, making the guard worse than
+                # useless in the exact case it exists for. Caught by
+                # test_quant_failure_does_not_abort_the_ticker.
+                report.setdefault("skipped_stages", []).append({
                     "stage": "quant_cf_sec",
                     "reason": f"quant agent failed ({type(_quant_exc).__name__}); fundamentals from yfinance only",
                 })
@@ -1834,6 +1844,8 @@ class AnalysisOrchestrator:
                     "completed",
                     f"Quant degraded -- yfinance fundamentals only ({type(_quant_exc).__name__})",
                 )
+            else:
+                step("quant", "completed", "Financial data collected")
         else:
             _yf_only = await asyncio.to_thread(
                 yfinance_tool.get_comprehensive_financials, ticker
