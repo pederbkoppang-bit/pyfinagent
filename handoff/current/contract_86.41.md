@@ -138,3 +138,31 @@ operator restarts.
   Fowler *TolerantReader*; RFC 9413; Pydantic validation rationale; arXiv 2503.13657v2
 - `scripts/qa/derive_lite_fallback_census_86_38.py:39-53`;
   `backend/agents/orchestrator.py:1792`; `backend/services/autonomous_loop.py:2201`
+
+---
+
+## ANNOTATION (appended 2026-08-11 after cycle-2 Q/A -- ORIGINAL TEXT ABOVE UNCHANGED)
+
+**Section 2's denominator paragraph is SUPERSEDED. Do not quote it.**
+
+Above, this contract says *"'17 of 18 (94%)' and '17 of 34 (50%)' are both
+defensible"*. **Both are wrong**, and the dispute was a category error:
+
+- **34 is a count of LINES, not events.** Every occurrence emits exactly two log
+  lines 17 apart. Per-file counts `12,4,4,2,6,6` are all even and group into
+  **17 groups of exactly 2**.
+- **The correct figure is 17 of 17 = 100%.** Every distinct event carries an
+  upstream SEC 429 cue; **zero** do not. Cue split `cik_map_429 = 10` +
+  `sec429_retry = 7` = 17. 13 distinct tickers.
+- 94% (17/18) carried one phantom event; 50% (17/34) double-counted every event.
+
+Also superseded: the call site is **`get_cik`** in the remote Cloud Function --
+the LINE NUMBER is deployment-version-dependent (`:79` appears 20x in pre-JSON
+logs, `:89` 14x in JSON-era logs), so `/workspace/main.py:89` must not be cited
+as a fixed address.
+
+Both corrections **strengthen** the contract's conclusion. Annotated rather than
+edited, per annotate-not-rewrite: a pre-GENERATE artifact is frozen evidence of
+what was believed when it was written. Full derivation:
+`handoff/current/experiment_results_86.41.md` (criteria 1 and 2) and
+`handoff/current/evaluator_critique_86.41.md`.

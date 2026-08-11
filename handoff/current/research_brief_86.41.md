@@ -488,3 +488,13 @@ Soft checks:
 - [ ] **GAP, disclosed:** the Cloud Function source (`/workspace/main.py`) is not
       in this repo and was not read. Every claim about it is derived from its
       streamed traceback, which is verbatim evidence but not source.
+
+---
+
+## ANNOTATION (appended 2026-08-11 -- ORIGINAL BRIEF UNCHANGED)
+
+**Any "17 of 18 (94%)" figure in this brief is SUPERSEDED.** Re-measured at the
+event level: every occurrence emits two log lines, so the raw 34 is a LINE count
+and the true population is **17 events, all 17 carrying an upstream SEC 429 cue
+(100%)**. The call site's stable identifier is the function `get_cik`, not a line
+number. See `handoff/current/experiment_results_86.41.md` criteria 1-2.

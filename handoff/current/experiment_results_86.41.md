@@ -41,9 +41,18 @@ criteria. Corrected before use.
 
 ### Criterion 1 -- call site IDENTIFIED (from a traceback, not inferred)
 
-`/workspace/main.py:89`, in `get_cik`, inside the **remote Quant Agent Cloud
-Function**. One frame after a SEC 429 exhausts its CIK-map retry ladder, the
+**`get_cik`, in `/workspace/main.py`, inside the remote Quant Agent Cloud
+Function.** One frame after a SEC 429 exhausts its CIK-map retry ladder, the
 fetcher returns `None` instead of raising.
+
+> **THE LINE NUMBER IS DEPLOYMENT-VERSION-DEPENDENT -- do not cite it as fixed.**
+> An earlier revision said `/workspace/main.py:89`. Measured across the retained
+> logs: `line 89, in get_cik` appears **14x** (JSON-era, 2026-07-24 onward) and
+> `line 79, in get_cik` appears **20x** (pre-JSON era) -- so the address I quoted
+> is not even the more common one. **The stable identifier is the FUNCTION
+> `get_cik`**, which is invariant across both deployments. Flagged by the cycle-2
+> Q/A; re-measured here. This is the same "re-derive the line number before citing
+> it again" trap CLAUDE.md warns about twice, committed anyway.
 
 **"Fix the NoneType" is not a change available in this repository.** The step's
 own instruction was to find the site rather than guess it; the finding is that
@@ -108,10 +117,19 @@ run above shows the corrected labels -- `remote QuantAgent crash after SEC.gov
 > no 429 in window" was `34 - 17` — an arithmetic leftover describing **no real
 > population at all**.
 >
-> **Every occurrence emits exactly TWO log lines, 17 lines apart** (one
-> `orchestrator` INFO, one `autonomous_loop` WARNING). Measured across all 42
-> retained logs: per-file line counts `12,4,4,2,6,6` — **every one even**, and
-> **every** consecutive same-ticker gap exactly **17**.
+> **Every occurrence emits exactly TWO log lines, 17 lines apart.** Measured
+> across all 42 retained logs: per-file line counts `12,4,4,2,6,6` — **every one
+> even**, grouped by file+ticker into **17 groups of exactly 2**, every
+> consecutive same-ticker gap exactly **17**.
+>
+> **Correction to my own description of the pair** (cycle-2 Q/A precision point,
+> re-measured here): I wrote that the pair is always "one `orchestrator` INFO,
+> one `autonomous_loop` WARNING". That holds for **16 of 17**. The exception is
+> AAPL on 2026-08-06, whose second line is `module: analysis` and reads
+> `Analysis failed for AAPL: [RuntimeError] Step 'quant'` — a **hard analysis
+> failure, not a lite fallback**. The pairing itself is proved by the group
+> structure and the uniform gap, so the count of 17 is unaffected; the module
+> names were asserted rather than measured.
 
 Re-measured at the EVENT level, collapsing the pairs:
 
@@ -193,14 +211,24 @@ indistinguishable from a surviving mutant.
 diff b8d2ea96..HEAD -- backend/services/autonomous_loop.py: (EMPTY)
   across 17 commits, including the peer session's
 
-sha256[:16] of the three protected regions, base -> HEAD:
-  _fallback_rate_check             fd034fae2f837117 -> fd034fae2f837117  IDENTICAL (23 lines)
-  _degradation_summary_fields      7e6de86233adedf9 -> 7e6de86233adedf9  IDENTICAL (31 lines)
-  record-always call site          c8b0daf5d7531713 -> c8b0daf5d7531713  IDENTICAL
-  ALL THREE BYTE-IDENTICAL: True
+WHOLE-FILE sha256[:16] of backend/services/autonomous_loop.py:
+  b8d2ea96 (base) : b1c38453bee0be23
+  HEAD            : b1c38453bee0be23   IDENTICAL, 0-byte diff
+  -> subsumes all three regions: if the whole file is byte-identical, every
+     region in it is, with no extraction rule to get wrong.
 
 backend/tests/test_phase_86_38_degradation_visibility.py: 9 passed
 ```
+
+> **WHY THE THREE REGION HASHES WERE REPLACED** (cycle-2 Q/A note 3). An earlier
+> revision quoted `fd034fae2f837117` / `7e6de86233adedf9` / `c8b0daf5d7531713`
+> for the three protected regions. Those values are **not independently
+> reproducible as quoted**, because I never stated the region-extraction rule --
+> the Q/A's own extractor returned different values for the same function names.
+> That is the "state the normalization rule with the ratio" defect applied to a
+> hash. The whole-file identity above needs **no** rule, and is strictly
+> stronger: byte-identity of the file implies byte-identity of every region in
+> it. The original claim was true; it was just unverifiable by anyone else.
 
 The empty whole-file diff is the stronger claim: across every commit in the
 window, from either session, nobody touched that file at all.
@@ -212,8 +240,23 @@ implied.** The contrary evidence is on record: 86.38 measured the 2026-08-03..09
 window at 48 full-pipeline analyses with zero trades, and I separately confirmed
 16 cycles / 0 trades in BigQuery since 2026-07-31. I withdrew an earlier 429-based
 drought claim of my own this morning on this same pipeline; I am not replacing it
-with a NoneType-based one. The drought's cause is **open** and belongs to its own
-step.
+with a NoneType-based one. The drought's cause is **open**.
+
+**FORWARD POINTER (cycle-2 Q/A precision point 2).** "Belongs to its own step" was
+a promise with no address a reader could follow. The step is **86.47**, to be
+filed at the close of this one (masterplan is not edited mid-EVALUATE: the
+auto-commit hook's `git add -A` would sweep this step's in-flight files under
+another step's name — the cross-attribution hazard that has fired three times in
+two days).
+
+The evidence 86.47 must start from, measured today and **deliberately not folded
+in here**: last trade **2026-07-31 (NTAP)**; 8 trades across 21 weekdays before
+it; over the 7 weekdays since, expected **2.67** trades at the measured rate of
+0.381/weekday, giving **P(zero) = 6.95%** under Poisson. That does **not** clear a
+5% bar, so the zero-trade run is **not decisive evidence** of a broken funnel — it
+removes the drought as *proof* of breakage without showing the funnel is healthy.
+The rule matters as much as the number: rate measured over **weekdays only**
+(the book runs mon-fri), first-to-last observed trade, projected forward.
 
 ## 4. What changed
 

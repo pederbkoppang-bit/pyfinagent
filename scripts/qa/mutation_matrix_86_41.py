@@ -24,7 +24,6 @@ Run:  python scripts/qa/mutation_matrix_86_41.py
 
 from __future__ import annotations
 
-import shutil
 import subprocess
 import sys
 import tempfile

@@ -23,8 +23,6 @@ thing standing between those two outcomes, so the cell discriminates.
 import asyncio
 import types
 
-import pytest
-
 from backend.agents import orchestrator as orch_mod
 from backend.agents.orchestrator import AnalysisOrchestrator
 
