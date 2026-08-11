@@ -1,5 +1,38 @@
 # Operator asks -- 2026-08-11 (session `pyfinagent-51`)
 
+> ## READ FIRST -- THE ASK NUMBERS COLLIDE ACROSS TWO SESSIONS
+>
+> Two sessions worked this repo today and numbered asks independently, so a bare
+> "ASK #2" is ambiguous. **The numbers below are NOT renumbered** -- they are
+> already cited in commit messages, step texts and
+> `handoff/current/goal_next_2026-08-12.md`, and silently renumbering them would
+> break those references. Disambiguate by SESSION:
+>
+> | qualified id | this file | the other session's file |
+> |---|---|---|
+> | **51-1** | ratify 86.37's reused gate | -- |
+> | **51-2** | classify the Vertex 429 | -- |
+> | **51-3** | subagent token budget | -- |
+> | **51-4** | credential EXPOSURE TIMING | **same issue as their `06-2`** |
+>
+> `pyfinagent-06` numbers its own asks **06-2** (credential rotation, in
+> `experiment_results_86.7.md`), **06-5** (86.5's frozen-red immutable command),
+> **06-6** (qa-write-guard fail-closed direction) and **06-7** (a live Slack bot
+> token inlined in the crontab, `ask_07_slack_token_in_crontab.md`). Their file is
+> `operator_asks_2026-08-11_pyfinagent-06.md`.
+>
+> **`51-4` IS NOT A SEPARATE ASK FROM `06-2`.** They are the same credential.
+> `06-2` asks whether to rotate; `51-4` supplies the exposure timing that bears on
+> that decision -- namely that the last affected file reached `origin/main`
+> **today at 06:42Z via my own step-closure commit**, not on 2026-08-10 as the file
+> dates suggest. Answer `06-2`; read `51-4` as evidence for it, not as a second
+> decision.
+>
+> **Separately, `06-7` is a DIFFERENT credential** (a Slack bot token in the
+> crontab, reportedly in zero git-tracked files). Do not conflate it with the
+> `away_ops` one.
+
+
 Three asks outstanding. None blocks work already committed; all three are
 decisions I cannot take under the standing constraints.
 
