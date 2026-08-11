@@ -59,13 +59,31 @@ file_path = ""
 if isinstance(tool_input, dict):
     file_path = tool_input.get("file_path") or ""
 
+# phase-86.33 criterion 2 -- MEASURE WHAT THE PLATFORM ACTUALLY SENDS.
+# This guard reads four fields and logged only those, so the log could never
+# answer whether the payload carries any OTHER identity field. Criterion 2
+# requires that be measured by driving the real hook rather than inferred from
+# documentation, so the top-level KEY SET is now recorded.
+# KEYS ONLY, never values: a value could carry file content or prompt text, and
+# this log is committed to the repo. Sorted for stable diffing.
+# LOG-ONLY, exactly like the agent_id leg above: it feeds NO decision below.
+# NOTE FOR ANY FUTURE EDITOR -- this whole python body lives inside a bash
+# single-quoted block. One apostrophe anywhere in it terminates that block and
+# the guard degrades to allow-everything, silently. That is criterion 6 of this
+# step and it is not hypothetical. Write comments without apostrophes.
+try:
+    payload_keys = sorted(d.keys()) if isinstance(d, dict) else []
+except Exception:
+    payload_keys = []
+
 # Always-on shape log: doubles as the empirical confirmation of which
 # fields the installed Claude Code actually populates (log-only leg).
 try:
     ts = datetime.datetime.now(datetime.timezone.utc).isoformat()
     line = json.dumps({"ts": ts, "agent_type": agent_type,
                        "agent_id": agent_id,
-                       "tool_name": tool_name, "file_path": file_path})
+                       "tool_name": tool_name, "file_path": file_path,
+                       "payload_keys": payload_keys})
     print("LOG " + line, file=sys.stderr)
 except Exception:
     pass
