@@ -273,3 +273,142 @@ findings from a crash record is not a substitute for a verdict.
 The run-stamped WIP path (the peer's 86.36, shipped mid-day) means a drop no
 longer destroys the prior record. Its resolver also caught me feeding it **local
 time labelled `Z`** -- the second time that exact slip has happened here.
+
+---
+
+# pyfinagent-06 (Main, afternoon/evening session)
+
+*Appended by agreement with `pyfinagent-52`, who authored this file at ~11:00 and
+asked for a section rather than a second day-report file. Nothing above this heading
+was touched.*
+
+## The honest headline
+
+**Two steps worked, both PARKED, neither closed.** `86.9` (four attempts:
+C, C, FAIL) and `86.44` (four attempts: C, C, NO-VERDICT rail drop, FAIL). Both
+FAILs came from the 3rd-CONDITIONAL rule converting an evidence-warranted
+CONDITIONAL, and in both cases the Q/A judged the **product** sound and the
+**artifact** wrong.
+
+**Six population errors across the two steps.** Every single one was a number or a
+set membership I asserted where I had not run the derivation. That is the pattern of
+the day and it is more useful to record than the closes:
+
+| # | claim | truth |
+|---|---|---|
+| 1 | "config drift across FOUR sites" | typed above a five-row table; `cycle_lock.py` missing entirely |
+| 2 | "overrun cycles ran 9.9%-23.4%" | the two that overran ran **14.9% / 18.1%**; the range's endpoints were cycles that did **not** overrun |
+| 3 | "five other measured cycles" | **four** -- and I adopted the figure from a reviewer's critique without re-deriving it |
+| 4 | "3.6x waste" | subprocess-seconds ÷ wall-seconds; unit-consistent it is **1.95x** |
+| 5 | "the runbook: 59 headers" | **58**; I read a count off range endpoints of a **non-contiguous** range (k=23 absent) |
+| 6 | "the 481 have ONE mechanical cause" | **418** run_harness-shaped, **≥62** manual -- and the correction block written to fix this class *cited the bad sentence approvingly* |
+
+**And two false absences, which is the same failure inverted.** I reported
+`GET /api/settings` as non-existent (I omitted the trailing slash) and
+`HarnessDashboard.tsx` as "absent entirely" (I grepped one directory too deep --
+**my own contract cited it correctly two files away**). A stated absence needs the
+same verification as a stated result.
+
+## What actually got fixed, and it was not what the steps were filed for
+
+**`86.44` was filed about cosmetic cycle numbers. It found live data loss.**
+
+- **D1 -- the harness's own audit-trail writer was destroying concurrent entries.**
+  `run_harness.py` appended via `read_text()` + `write_text(existing + entry)`.
+  Two Claude Code sessions work this repo, so a concurrent writer's **whole block**
+  vanished. Now `O_APPEND`. Measured: 12 concurrent processes against a
+  production-sized 1,064-cycle seed give **72/72**; the reverted mutant loses
+  entries in an amount that **varies with interleaving** (observed 1,033 seeded
+  cycles destroyed, then 45/72, then 49/72 -- **a race's damage is not a constant**,
+  and my commit had quoted one figure as if it were).
+- **D1 SECOND SEAM, and this is the one I am least proud of.** I declared D1 "FIXED"
+  while the identical read-modify-write survived **65 lines away** at
+  `run_harness.py:1051` -- the certified-fallback **HARNESS HALT** path, i.e. the
+  seam that fires when the harness stops and asks a human to read the log. **I fixed
+  the instance the census surfaced and never asked what the class was.** Found by
+  the attempt-4 Q/A, now fixed, census in the code comment. **Its mutation cell is
+  not written** and that is disclosed, not glossed.
+- **D2 -- the Harness tab was misattributing, not omitting.** A non-numeric header
+  was not a split point, so its body was glued onto the **preceding** cycle: 160 of
+  1,224 (**13.1%**). A gap is visible; misattributed text looks complete.
+  **COMMITTED BUT NOT IN FORCE** -- see below.
+- **D3 -- the copy-paste trap**, in five live files including `CLAUDE.md` (auto-loaded
+  every session, so the *more* likely source). I got this population wrong **twice**:
+  one file, then a pinned two, then a derived five. The guard now **derives** its
+  population by `git grep` minus a *named* allowlist -- and that change immediately
+  caught an instance my own edit had missed.
+- **D4 -- found and demonstrated, deliberately not fixed.** `finalize.py` computes
+  `max()+1` before appending with no lock: **16 concurrent appenders got 6 distinct
+  numbers, 10 collisions**, data intact. Filed as **86.55**. Its first probe returned
+  **0 collisions** because process-startup jitter serialised the workers -- **I did
+  not report that as safety.**
+
+## NOT IN FORCE -- please read before assuming the Harness tab is fixed
+
+`handoff/current/pending_restart_2026-08-11.md`. Backend **pid 66306** started
+**2026-08-10 21:33:01**, ~20h before the D2 fix. `GET /api/backtest/harness/log`
+returns **1064** right now; the fixed code returns **1224**. **The tab is still
+misattributing 160 cycle bodies.**
+
+**And the reason the restart is deferred is not just the standing rule.** I had been
+treating "the 20:00 cron" as a crontab entry all day. It is not -- `crontab -l` has
+**one** line (the Slack checker). The book cycle is an **APScheduler job registered
+inside the backend process** (`backend/api/paper_trading.py:1436`, `hour=14` ET,
+`mon-fri`). **The scheduler lives inside the process a restart would tear down**, so
+"no restart near the cycle" is a hard requirement, not a courtesy.
+
+## Steps filed today (9)
+
+`86.47` drought cause · `86.48` tests asserting a code default against an operator
+override · `86.49` heredoc-blind safety scanner (**a second, differently-shaped
+instance observed today**: it blocked a command because the *markdown being written*
+contained a tool name) · `86.50` tests frozen against moving artifacts · `86.51` swap
+sell-count · `86.52` did 86.25's fix land · `86.53` cycle-budget drift · `86.54` log
+the budget at cycle start · `86.55` the cycle-number TOCTOU.
+
+## Infrastructure notes
+
+- **86.31's write-first is earning its keep, measurably**: **31 verdict records
+  written today**, and it is the only reason the attempt-3 evaluation survived a
+  **174,009-token** rail drop that returned nothing. That record honestly declared
+  `STATUS: INCOMPLETE -- not a verdict`, so I knew it had stopped mid-flight rather
+  than having to guess.
+- **`MEMORY.md` was over its load limit** (26,048 bytes vs ~24,400) -- meaning tail
+  entries silently did not load. Trimmed to 23,540 with the recall hooks preserved.
+- **Ask numbering collided** across the two sessions ("ASK #2" meant two different
+  things). Published `operator_asks_2026-08-11_pyfinagent-06.md` with `06-` prefixes;
+  `pyfinagent-52` added the reciprocal mapping. **`06-2` and `51-4` are ONE ask about
+  ONE credential** -- answer `06-2`.
+- **The `harness_log.md` verdict counter over-counts as well as under-counts**:
+  `grep -c "phase=86.9 "` returns 3 where 2 verdicts exist, because a log body quotes
+  the search string. Filed onto `86.21`. *(This report's own verdict list is
+  header-anchored for that reason -- and it shows **duplicate cycle 1211**, which is
+  exactly the defect 86.44 was filed for.)*
+
+## THE BOOK -- 20:00 CEST cycle
+
+**PENDING at the time of writing (18:2x CEST).** Freeze in effect from 19:30: no
+restarts, no live-state tests, no masterplan flips. Both my steps are already parked,
+so no flip is pending regardless. **Outcome recorded below whatever it is**, including
+a timeout or zero trades -- the 90-day BUY rate is 21.1%, so zero trades is variance,
+not a defect.
+
+> **CYCLE RESULT: _to be appended after completion._**
+
+## Operator asks owed from this session
+
+`06-2` credential rotation (**the only time-sensitive one**) · `06-5` 86.5's
+frozen-red immutable command · `06-6` qa-write-guard direction · `06-7` Slack token
+inlined in crontab (local, **measured** untracked) · `06-24` rail timeout 150→210,
+recommended **with** the counterexample that weakens it · `06-25` merged dispatch,
+not-recommended-now and not-withdrawn.
+
+## What I could not verify
+
+- **That either parked step would pass.** Neither reached a PASS and I did not
+  manufacture one.
+- **That D2 is fixed in the running system.** It is not -- measured, disclosed above.
+- **That the `:1051` fix is guarded.** It is fixed but has no mutation cell.
+- **My own commit count.** `git log --since` returns **304** for today, but the git
+  author is `Ford` for both sessions *and* for the auto-changelog hook, so I cannot
+  attribute it and am not claiming it.
