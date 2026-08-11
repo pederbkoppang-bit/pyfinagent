@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-11 | `85790892` | docs(86.21): the CONDITIONAL counter over-counts as well as under-counts |
 | 2026-08-11 | `1a207f02` | phase-86.9: log cycle-2 CONDITIONAL -- 3rd-CONDITIONAL rule armed for cycle 3 |
 | 2026-08-11 | `473f9b43` | phase-86.9: cycle-2 remediated -- my contract deleted the clause that found the bug |
 | 2026-08-11 | `d1a3f18b` | phase-86.9: cycle-2 verdict CONDITIONAL, persisted verbatim before remediation |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-11 | `f55a248d` | ops: ASK #7 -- a live Slack token is inlined in the crontab (NOT in git) |
 | 2026-08-11 | `335257a8` | phase-86.33: cycle-1 CONDITIONAL remediated -- criterion 2 ANSWERED, partition fixed |
 | 2026-08-11 | `c88484be` | phase-86.33: GENERATE -- criteria 1/3/4/6 met, criterion 5 is ASK #6, criterion 2 pending a real spa |
-| 2026-08-11 | `7fd1c131` | phase-86.33 criteria 3+4+6: the researcher rail holds, and one apostrophe kills everything |
 
 ---
 
