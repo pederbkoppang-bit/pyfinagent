@@ -50,7 +50,43 @@ succeeds in my shell and fails under a minimal environment, with the 08-08
 signature.* Naming a cause would be the generalise-from-one-instance error I made
 on the drought this morning and had to retract.
 
-## 3. CRITERION 2 IS ALREADY ANSWERED, IN THE NEGATIVE -- A THREE-LAYER SILENT FAILURE
+## 3. CORRECTED -- I OVERSTATED THIS. THERE **IS** AN ALERTING PATH.
+
+**The section below originally concluded that nothing notices a dead rail and
+that this is "how the rail ran dark for a week". That conclusion is WRONG and I
+am correcting it rather than editing it away.**
+
+What I missed sits three lines below the code I was reading:
+`_rail_guard_record_failure()` (`claude_code_client.py:170-212`) counts
+consecutive failures, trips a breaker at a threshold (default **20**, settings key
+`claude_rail_breaker_threshold`), and on the closed->open **transition** pages via
+`raise_cron_alert_sync(source="claude_code_rail", severity="P1")`. It even names
+the operator action and the runbook. Alert-on-transition is the correct pattern
+(Fowler / PagerDuty), and the paging is fail-open so it can never break the rail.
+
+**How I got it wrong:** I enumerated consumers of `.degraded`, found none, and
+concluded nothing notices. But the detection does not go through `.degraded` at
+all — it goes through the breaker. **I enumerated the wrong set**, which is the
+same failure as the two sort-key errors earlier today: a correct query against
+the wrong subject.
+
+**WHAT SURVIVES, and it is narrower but still real:**
+
+- `LLMResponse.degraded` **defaults to `False`**, the failure path never sets it,
+  and **no consumer reads it**. So the field is dead weight that reads as a
+  health signal. A caller inspecting it is misled; it should be set or removed.
+- A caller of a single failed call still gets `text='', degraded=False` and
+  cannot distinguish a dead rail from an empty reply. The **breaker** notices at
+  20; an **individual caller** never does.
+- **NOT ESTABLISHED, and I will not assert it:** whether the breaker actually
+  paged during the 08-08 outage. 20/20 failures should have crossed the
+  threshold of 20 exactly. Whether the page fired, and whether it was delivered,
+  is a question for the away-ops alert records — not something to infer from the
+  code path.
+
+The original three-layer analysis is retained below for the audit trail.
+
+## 3b. ORIGINAL (OVERSTATED) ANALYSIS -- retained, superseded by 3
 
 Criterion 2 requires that *"an away session that cannot authenticate must ALERT,
 not silently produce degraded analyses as the rail did for a week."* **It does
