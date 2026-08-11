@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-11 | `268d376b` | chore: session-end backend restart done -- D2 verified in force (endpoint 1226 == on-disk 1226) |
 | 2026-08-11 | `373a1c17` | phase-observe: the 20:00 cycle completed in 4887s, zero trades at the risk gate; ask 06-8 raised |
 | 2026-08-11 | `810096c1` | docs(86.58): a SELL rule that cannot fire, caught live by today's own 86.20 guard |
 | 2026-08-11 | `16b2c7d4` | docs(day-report): the 20:00 cycle completed in 4887s with zero trades -- risk-gate REJECT, not an em |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-11 | `ae739417` | chore(researcher): persist the 86.9 timeout-raise research memory |
 | 2026-08-11 | `4b67c0c3` | phase-86.9: FAIL on the third cycle -- defects fixed, step PARKED, no flip |
 | 2026-08-11 | `f967f319` | phase-86.9: cycle-3 verdict FAIL, persisted verbatim -- 3rd-CONDITIONAL rule fired |
-| 2026-08-11 | `85790892` | docs(86.21): the CONDITIONAL counter over-counts as well as under-counts |
 
 ---
 
