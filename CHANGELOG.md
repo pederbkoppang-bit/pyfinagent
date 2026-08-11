@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-11 | `debbc932` | phase-86.32: record a SECOND measured instance -- today reproduced it on five steps |
 | 2026-08-11 | `30cacbf1` | docs(goal): ASK #2 -- correct the exposure timeline; ~3 days on origin, not 48h |
 | 2026-08-11 | `2aff9afc` | operator ASK #4: an affected away_ops file reached origin via MY push today |
 | 2026-08-11 | `9d7628ce` | operator asks: correct ASK #3's figures -- 13 runs, 5 dropped (38.5%), ~887k wasted |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-11 | `52c3c209` | docs(goal): the 8.1M/8.7M token figures are NOT re-derivable -- mark the provenance |
 | 2026-08-11 | `c2e5f140` | phase-86.45/86.46: correct two of my own numbers, both quoted from memory |
 | 2026-08-11 | `86595f0c` | phase-86.46: queue the ledger cycle-field ambiguity (I contributed two of the three conventions) |
-| 2026-08-11 | `02309248` | phase-86.45: queue the fail-open a recorded rail drop opens in the escalation rule |
 
 ---
 
+### v6.93.149 — phase-86.32: record a SECOND measured instance -- today reproduced it... (2026-08-11)
+
+- **phase-86.32: record a SECOND measured instance -- today reproduced it on five steps**
 ### v6.93.148 — operator ASK #4: an affected away_ops file reached origin via MY push... (2026-08-11)
 
 - **operator ASK #4: an affected away_ops file reached origin via MY push today**
