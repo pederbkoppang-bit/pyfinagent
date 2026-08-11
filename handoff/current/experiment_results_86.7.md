@@ -186,3 +186,47 @@ exists to correct.
 - **Criteria 3 and 4 are untouched** in this pass.
 - The research gate's **WebSearch budget was exhausted session-wide**, so the
   external survey's currency is weaker than tier `moderate` implies.
+
+---
+
+## 9. DISPOSITION -- PARKED, and NOT because it stalled
+
+**Status `pending`. No Q/A was spawned, deliberately.**
+
+**Four of six criteria are answered.** Criteria 3, 4 and 5 are complete above;
+criterion 2 is partly answered (a breaker exists and pages P1 at 20 consecutive
+failures — the open half is whether that threshold and its delivery were adequate
+on 08-08, which needs the away-ops alert records, not more code reading).
+
+**Two are blocked on verbs reserved for the operator**, and no amount of further
+work by me changes that:
+
+- **criterion 1** — needs the away-session launchd context. The real entrypoint
+  writes session state, runs `git rebase`, and can POST to Slack; the alternative
+  is loading a LaunchAgent, and `bootstrap`/`bootout` are away-ops rail 9.
+  `launchctl asuser` needs root.
+- **criterion 6** — needs a plist copy actually loaded, same rail-9 verb.
+  `kickstart -k` does not re-read `EnvironmentVariables`.
+
+**Why no Q/A**: with two criteria unmeetable by construction, a spawn returns a
+guaranteed CONDITIONAL at ~180k tokens and tells us nothing we do not already
+know. That is the same reasoning that keeps 86.30 parked, and spending the tokens
+to hear it again is the "logging instead of correcting" failure the escalation
+rule exists to prevent.
+
+**What the operator has to decide, in priority order:**
+
+1. **ASK #2 — rotation.** A 92-char token (`sha256[:16] 32fd305146379e49`) is in
+   5 tracked files, 08-08T20:00Z..08-10T20:00Z, bounded and stopped. 85.3.3's
+   git-history criterion resolves POSITIVE, so its own text mandates rotation.
+   Rotate y/n, and is history rewriting in scope?
+2. **Grant or decline the launchd measurement** that criteria 1 and 6 need.
+3. **A fourth defect, separate from this step:** `LLMResponse.degraded` defaults
+   `False`, is never set on the failure path, and is read by nothing. Dead weight
+   that reads like a health signal. Set it or remove it — either is defensible,
+   leaving it is not.
+
+**What a fresh session must NOT do:** re-run the immutable command and record it
+as criterion 1. It is green (`text='OK'`, exit 0) and it does not satisfy that
+criterion — my shell is attended and the `pop()` was a no-op. §1 says so at
+length precisely because the green is inviting.
