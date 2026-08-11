@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-11 | `cf50bde2` | phase-86.32: PLAN -- the counter resets on CONDITIONAL, and max_retries is decorative |
 | 2026-08-11 | `a15833eb` | phase-86.33: unblock P1 -- the runtime DOES populate agent_id, measured on real traffic |
 | 2026-08-11 | `282fb87e` | phase-86.47: file the drought step 86.41's criterion 6 promised |
 | 2026-08-11 | `1092700d` | phase-86.41 follow-up: cite the FUNCTION get_cik, never a line number |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-11 | `c9314945` | phase-86.41: GENERATE artifacts -- experiment_results + live_check |
 | 2026-08-11 | `678d979f` | phase-86.41: behavioural proof of the quant guard -- and it caught two defects in it |
 | 2026-08-11 | `4c321e5c` | docs: correct the day report -- 86.39 is no longer 'not started' |
-| 2026-08-11 | `8879d662` | phase-86.39: establish the root cause from source (pre-contract measurement) |
 
 ---
 
+### v6.93.170 — phase-86.32: PLAN -- the counter resets on CONDITIONAL, and max_retri... (2026-08-11)
+
+- **phase-86.32: PLAN -- the counter resets on CONDITIONAL, and max_retries is decorative**
 ### v6.93.169 — phase-86.33: unblock P1 -- the runtime DOES populate agent_id, measur... (2026-08-11)
 
 - **phase-86.33: unblock P1 -- the runtime DOES populate agent_id, measured on real traffic**
