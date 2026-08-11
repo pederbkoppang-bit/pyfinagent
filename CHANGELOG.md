@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-11 | `f3a3a4bb` | phase-86.34: rescue the dropped cycle-3 Q/A record; fix two stale line pointers |
 | 2026-08-11 | `974297ce` | phase-86.29: GENERATE -- derive archive names from the step id, guard the rolling fallback |
 | 2026-08-11 | `de195df1` | phase-86.31: CLOSED -- status done after a PASS on cycle 5 |
 | 2026-08-11 | `11aa663b` | phase-86.31: harness_log cycle 1210 -- PASS after five cycles |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-10 | `d4638584` | fix(86.31): drop unused import -- I committed an F401 because my '&&' guarded only the echo, not the |
 | 2026-08-10 | `fceac931` | phase-86.31: PROVE the write separation by driving the real hook -- 15/15 |
 | 2026-08-10 | `74dddc43` | docs: goal to     3898 chars, verified under 4000 before committing this time |
-| 2026-08-10 | `f3e721cc` | docs: goal -- 86.34 parked after 2 Q/A cycles, remediated but ungraded |
 
 ---
 
+### v6.93.90 — phase-86.34: rescue the dropped cycle-3 Q/A record; fix two stale lin... (2026-08-11)
+
+- **phase-86.34: rescue the dropped cycle-3 Q/A record; fix two stale line pointers**
 ### v6.93.89 — phase-86.29: GENERATE -- derive archive names from the step id, guard... (2026-08-11)
 
 - **phase-86.29: GENERATE -- derive archive names from the step id, guard the rolling fallback**
