@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-11 | `3f7ec682` | phase-86.44: attempt 3 dropped on the rail -- NO VERDICT, and write-first saved the work again |
 | 2026-08-11 | `010b2b07` | phase-86.44: cycle-2 remediated -- I got the D3 class wrong twice, so the guard now derives it |
 | 2026-08-11 | `f2d7ff09` | phase-86.44: cycle-2 verdict CONDITIONAL, persisted verbatim |
 | 2026-08-11 | `431401dc` | phase-86.44: cycle-1 remediated -- my D3 guard could not fail on half its own class |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-11 | `12568e85` | docs: index this session's operator asks, and name the "ASK #2" collision |
 | 2026-08-11 | `f0cb4ea4` | docs: disambiguate the colliding ask numbers across two sessions |
 | 2026-08-11 | `61d16d25` | phase-86.9: the pid's start time exposed a hole in my own criterion-2 evidence |
-| 2026-08-11 | `ca78e00a` | phase-86.9: cycle-1 CONDITIONAL remediated -- I omitted my own strongest counter-evidence |
 
 ---
 
+### v6.93.214 — phase-86.44: attempt 3 dropped on the rail -- NO VERDICT, and write-f... (2026-08-11)
+
+- **phase-86.44: attempt 3 dropped on the rail -- NO VERDICT, and write-first saved the work again**
 ### v6.93.213 — phase-86.44: cycle-2 remediated -- I got the D3 class wrong twice, so... (2026-08-11)
 
 - **phase-86.44: cycle-2 remediated -- I got the D3 class wrong twice, so the guard now derives it**
