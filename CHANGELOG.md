@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-11 | `f55a248d` | ops: ASK #7 -- a live Slack token is inlined in the crontab (NOT in git) |
 | 2026-08-11 | `335257a8` | phase-86.33: cycle-1 CONDITIONAL remediated -- criterion 2 ANSWERED, partition fixed |
 | 2026-08-11 | `c88484be` | phase-86.33: GENERATE -- criteria 1/3/4/6 met, criterion 5 is ASK #6, criterion 2 pending a real spa |
 | 2026-08-11 | `7fd1c131` | phase-86.33 criteria 3+4+6: the researcher rail holds, and one apostrophe kills everything |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-11 | `d11fda37` | phase-86.32: P2 THE EVALUATE LOOP HAS NO CEILING: F1 counts CONSECUTIVE failures, so an interveni... |
 | 2026-08-11 | `cff92516` | phase-86.32: cycle-5 PASS -- verdict verbatim, N1 fixed, harness_log appended |
 | 2026-08-11 | `2615667b` | phase-86.32: R1 -- correct my own overclaim; pin provenance to SHAs, not HEAD |
-| 2026-08-11 | `a062c674` | phase-86.32: cycle-3 CONDITIONAL remediated -- the provenance line is now GENERATED |
 
 ---
 
+### v6.93.194 — ASK #7 -- a live Slack token is inlined in the crontab (NOT in git) (2026-08-11)
+
+- **ASK #7 -- a live Slack token is inlined in the crontab (NOT in git)**
 ### v6.93.193 — phase-86.33: cycle-1 CONDITIONAL remediated -- criterion 2 ANSWERED,... (2026-08-11)
 
 - **phase-86.33: cycle-1 CONDITIONAL remediated -- criterion 2 ANSWERED, partition fixed**
