@@ -25139,6 +25139,48 @@
             "live_check": "live_check_86.61.md quoting each paper's own abstract beside the code comment that cites it"
           },
           "notes": "Filed 2026-08-12 from the 86.59 gate. P3: it misleads readers rather than mis-trading, but it sits on the exact mechanisms 86.59 would otherwise reach for."
+        },
+        {
+          "id": "86.62",
+          "name": "the 2026-08-11 cycle logged three distinct degradations and not one of them is triaged anywhere",
+          "status": "pending",
+          "priority": "P2",
+          "harness_required": true,
+          "audit_basis": "FOUND 2026-08-12 while auditing whether every finding from the 2026-08-11 session reached the masterplan. It had not. THREE degradations were emitted by the completed 20:00 cycle and NONE is owned by any step: (1) 'MetaCoordinator decision: perf_opt (reason=p95 latency 6267ms > 500ms threshold)' -- a p95 more than 12x its own stated threshold, logged at cycle end and acted on only by routing the meta-decision to perf_opt. (2) 'Promoted strategy BQ unavailable, falling back to optimizer_best: 404 Not Found' at cycle START -- so the cycle ran on fallback parameters rather than the promoted strategy, and the 404 means a BQ object the promotion path expects is absent. (3) 'Alpha Vantage rate limit in social_sentiment for HPE' and 'Failed to fetch social sentiment for PANW' -- an overlay signal silently degraded to nothing for at least two tickers. WHY THIS IS ITS OWN STEP RATHER THAN A NOTE: each is a subsystem announcing it did not do its job, and the cycle completed 'successfully' regardless. A degradation that is logged, routed around, and never triaged is indistinguishable from healthy operation in every artifact downstream. The trade drought (86.47) and the picker's blindness (86.60) are both plausibly downstream of (2) and (3) respectively, and neither link has been tested. RELATION TO 86.38 (peer-owned): that step shipped a record-always seam and a `degradation` key, and the peer has predicted the 2026-08-12 20:00 cycle is the first that should WRITE one -- if it does not, 86.38's central change did not work. This step is about TRIAGING the three specific breaches; 86.38 is about whether they are recorded at all. Check 86.38's outcome before starting so this does not duplicate it.",
+          "verification": {
+            "success_criteria": [
+              "each of the three degradations is traced to a cause and reported separately -- 'transient' is a permitted conclusion only when supported by a measured recurrence rate across cycles, not asserted",
+              "the p95 latency figure is RE-DERIVED from the source that produced it, and the population it is a p95 OF is stated -- a latency percentile with no stated population is not actionable",
+              "the promoted-strategy 404 is resolved to a specific missing BQ object or a specific permission, and whether the cycle SHOULD have run on fallback parameters is stated as a yes/no with its consequence for that cycle's decisions",
+              "whether the social-sentiment rate limit silently zeroes a signal versus omitting it is determined by reading the consumer, since a zeroed signal and an absent signal are different inputs to a score",
+              "the causal links to 86.47 (trade drought) and 86.60 (blind overlays) are either demonstrated or explicitly ruled out -- speculation in either direction is recorded as untested",
+              "no threshold is loosened to make a breach disappear; if 500ms is the wrong threshold that is a separate, argued change with its own evidence"
+            ],
+            "command": "bash -c 'test -f backend.log && grep -c \"Paper trading cycle complete\" backend.log'",
+            "live_check": "live_check_86.62.md quoting each degradation verbatim with its timestamp, plus the measured recurrence of each across the available cycles"
+          },
+          "notes": "Filed 2026-08-12 during a completeness audit of the session's own findings. All three came from ONE cycle; the recurrence rate across cycles is unmeasured and criterion 1 requires measuring it."
+        },
+        {
+          "id": "86.63",
+          "name": "put ONE guard at the recommendation-vocabulary boundary instead of a sixth patch at a sixth site",
+          "status": "pending",
+          "priority": "P2",
+          "harness_required": true,
+          "audit_basis": "CLASS-LEVEL STEP, filed 2026-08-12. The peer session (pyfinagent-52) observed that 86.58 is not an isolated bug and named three instances; measured against the masterplan the class has FIVE, three still open: 86.22 (DONE, P1 -- the recommendation-vocabulary split is CROSS-MODULE and poisons the learn loop); 86.25 (DONE, P2 -- a RISK-APPROVAL vocabulary passed where a BUY/SELL recommendation is expected); 86.40 (OPEN, P3 -- a comment blessing the mapping 86.25 removed, surviving one file over); 86.52 (OPEN, P2 -- did 86.25's fix actually land? two tests say not fully); 86.58 (OPEN, P1 -- an order REASON in a recommendation field, which makes a SELL rule structurally dead). THE INVARIANT: a field receives a value drawn from a DIFFERENT vocabulary than its readers assume, and there is no type or guard at the boundary to stop it. EVERY instance so far has been fixed AT ITS OWN SITE, which is exactly why a fifth appeared -- this is the guard-the-instance-not-the-class failure the project has written down repeatedly, including twice by me on 2026-08-11 within step 86.44 alone. This step exists because the class-level fix was previously recorded only in 86.58's NOTES, where nothing queues it as work. A note is not a step.",
+          "verification": {
+            "success_criteria": [
+              "the class membership is RE-DERIVED, not copied from this basis: enumerate every field that carries a recommendation-ish string across a module boundary, state the enumeration command, and report whether the count is five or something else",
+              "ONE boundary guard is proposed and its placement justified against the alternative of N site fixes; if a single boundary genuinely does not exist, say so and explain what the correct decomposition is",
+              "the guard FAILS LOUDLY on an unknown value and never silently coerces -- proven by driving an unknown token through it and observing the failure, with 86.20's UNRECOGNISED log line preserved or strengthened, never quieted",
+              "flag-OFF or pre-change parity is proven: with the guard inert, every existing call site produces byte-identical output, demonstrated against an oracle rather than two passing examples",
+              "the three open members (86.40, 86.52, 86.58) are each either subsumed by this guard or explicitly excluded with a reason -- a class fix that leaves members unaddressed must say which and why",
+              "mutation-test the guard: revert it and show the check goes red, with the control observed GREEN first and a byte-identical restore"
+            ],
+            "command": "bash -c 'source .venv/bin/activate && python -c \"import ast; ast.parse(open(\\\"backend/services/portfolio_manager.py\\\").read()); print(\\\"parses\\\")\"'",
+            "live_check": "live_check_86.63.md with the derived class enumeration and a driven demonstration that an unknown vocabulary value fails loudly at the boundary"
+          },
+          "notes": "Filed 2026-08-12. Credit to pyfinagent-52 for the class observation. DO NOT close 86.58 by adding 'new_buy_signal' to the vocabulary -- that is the sixth costume, not a fix."
         }
       ]
     }
