@@ -34343,3 +34343,45 @@ latency 6267ms > 500ms threshold)`.
 
 **The freeze is over** (cycle completed 21:21). The deferred D2 backend restart
 (`pending_restart_2026-08-11.md`) is now safe to perform.
+
+## Cycle 1226 -- 2026-08-12 -- phase=86.59 result=GATE-FAILED (research gate, no PLAN entered)
+
+**The research gate for 86.59 returned `gate_passed: false`, and it was right to.** The
+agent self-reported `true`; **the script recomputed `false`** on an over-claim --
+`urls_collected: 30` against **13 distinct URLs actually present in the brief**. The
+snippet-only set has to be recorded in the brief so an auditor can see what was
+evaluated versus read. Per `.claude/rules/research-gate.md`, **PLAN was not entered.**
+
+**This is the 36.27 enforcement mechanism working as designed** -- the script never
+trusts the agent's own `gate_passed`, and the enforced value governs. A self-report
+that disagrees with the artifact is exactly what it exists to catch.
+
+**The brief is on disk and substantive** (28,661 chars, `brief_status: COMPLETE`,
+6 sources read in full including three NBER working papers). The re-run needs only the
+snippet-only URL table added -- not new research.
+
+**Two findings I verified in source, because they change the fix:**
+
+1. **THE DECLARED WEIGHTS ARE NOT THE EFFECTIVE WEIGHTS.** There is no cross-sectional
+   standardisation on the live path: `_zscore` is defined at `screener.py:532` and
+   called **only** at `:607-610`, inside the dark multidim path. So `0.40/0.35/0.25`
+   are applied to **raw** trailing returns with different dispersions -- and 6-month
+   returns carry ~2.4x the dispersion of 1-month. **The term with the smallest declared
+   weight contributes the most ranking variance**, making the composite slower still.
+   Reweighting without standardising first would be tuning a disconnected knob.
+2. **THE REFRAME.** Gârleanu-Pedersen: a slow predictor *correctly* produces low
+   turnover -- low turnover is not itself the defect. **The defect is that there is no
+   fast signal at all**, which is precisely what 86.60 shows is structurally blocked.
+   Novy-Marx & Velikov bound the other end: under ~50% one-sided monthly turnover most
+   strategies survive costs. So the target is **a fast signal with bounded turnover**,
+   not churn. The gate also prefers slate-composition (min-K) over score mutation,
+   because mutating the score contaminates the DSR/PBO gates the change must clear.
+
+**Declared gap, carried forward honestly**: residual/idiosyncratic momentum was NOT
+researched -- no fetchable source found.
+
+**Also filed 86.61**: two production diversity mechanisms cite arXiv papers the gate
+reports are non-equity (an Amazon Music ranking paper; a synthetic energy-asset study).
+I have not read either paper myself and the step says so.
+
+**No code was changed. No flag was promoted. 86.59 and 86.60 remain `pending`.**
