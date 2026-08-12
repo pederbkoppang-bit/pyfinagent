@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-12 | `1208402e` | docs(86.60): alternative signals are fetched only for an UNRANKED head-of-universe slice, so they ca |
 | 2026-08-12 | `63b3d42c` | docs(86.59): the picker analysed 8 distinct tickers in 8 cycles out of 583 -- the score is only trai |
 | 2026-08-11 | `27cf76d5` | docs: day report -- the vocabulary class is FIVE, and 86.25's filter could not see two |
 | 2026-08-11 | `58fbc9bd` | phase-86.52 + day report: the vocabulary class is FIVE, and 86.25's filter could not see two of them |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-11 | `d153e4e9` | phase-86.44: FAIL on attempt 4 -- I declared D1 fixed with the same defect 65 lines away |
 | 2026-08-11 | `3f7ec682` | phase-86.44: attempt 3 dropped on the rail -- NO VERDICT, and write-first saved the work again |
 | 2026-08-11 | `010b2b07` | phase-86.44: cycle-2 remediated -- I got the D3 class wrong twice, so the guard now derives it |
-| 2026-08-11 | `f2d7ff09` | phase-86.44: cycle-2 verdict CONDITIONAL, persisted verbatim |
 
 ---
 
