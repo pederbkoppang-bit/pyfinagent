@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-12 | `63b3d42c` | docs(86.59): the picker analysed 8 distinct tickers in 8 cycles out of 583 -- the score is only trai |
 | 2026-08-11 | `27cf76d5` | docs: day report -- the vocabulary class is FIVE, and 86.25's filter could not see two |
 | 2026-08-11 | `58fbc9bd` | phase-86.52 + day report: the vocabulary class is FIVE, and 86.25's filter could not see two of them |
 | 2026-08-11 | `d98f2b0f` | docs(86.58): the vocabulary-boundary class has FIVE members, three open -- take the class, not the i |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-11 | `3f7ec682` | phase-86.44: attempt 3 dropped on the rail -- NO VERDICT, and write-first saved the work again |
 | 2026-08-11 | `010b2b07` | phase-86.44: cycle-2 remediated -- I got the D3 class wrong twice, so the guard now derives it |
 | 2026-08-11 | `f2d7ff09` | phase-86.44: cycle-2 verdict CONDITIONAL, persisted verbatim |
-| 2026-08-11 | `431401dc` | phase-86.44: cycle-1 remediated -- my D3 guard could not fail on half its own class |
 
 ---
 
