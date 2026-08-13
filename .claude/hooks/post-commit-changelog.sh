@@ -43,8 +43,12 @@ NEW_ROW="| ${DATE} | \`${HASH}\` | ${MSG} |"
 python3 - "$CHANGELOG" "$NEW_ROW" "$MAX_ROWS" "$DATE" "$MSG" "$BODY" << 'PYEOF'
 import sys
 import re
+import json
+from pathlib import Path
 
 changelog_path = sys.argv[1]
+# phase-86.68: the flip detector needs the repo root; CHANGELOG.md lives at it.
+repo_root = Path(changelog_path).resolve().parent
 new_row = sys.argv[2]
 max_rows = int(sys.argv[3])
 today = sys.argv[4]
@@ -89,6 +93,88 @@ def classify_commit(subject: str, body: str) -> str:
 
 
 bump_type = classify_commit(commit_subject, commit_body)
+
+
+def _flip_magnitude() -> str:
+    """phase-86.68: a version bump means SHIPPED WORK, not an attempt.
+
+    Returns 'major' / 'minor' / 'patch' when THIS commit flipped at least one
+    masterplan step to done, else 'none'.
+
+    Why this exists: `phase-X.Y:` -> patch made the version count COMMITS THAT
+    MENTION A STEP, i.e. one per remediation attempt. Measured 2026-08-13 over
+    348 commits from 08-11: steps 86.9 and 86.44 EACH ended PARKED with no PASS
+    and together moved the version 19 times while shipping nothing.
+
+    HOW IT DETECTS, and why not a text diff: the first implementation grepped the
+    unified diff for an added `"status": "done"` line. A scratch-repo test caught
+    that this silently returns 'none' whenever masterplan.json is written compact
+    rather than pretty-printed -- the whole file is then one line and no
+    line-anchored pattern matches. So it now PARSES the file at HEAD~1 and HEAD
+    and compares id->status maps. Formatting-independent, and it sees a genuine
+    state transition rather than a textual coincidence.
+
+      major -> this flip emptied a whole top-level phase (no pending steps left)
+      minor -> the flipped step is the phase kickoff (id X.0)
+      patch -> any other step closure
+
+    NEVER RAISES. On any error it returns 'none' and prints a visible marker on
+    stderr: this hook must never break a commit, and over-bumping is the defect
+    being fixed, so silence-on-error is the safe direction -- but a SILENT stop
+    would be its own bug, hence the marker.
+    """
+    try:
+        import subprocess as _sp
+
+        def _statuses(ref):
+            r = _sp.run(["git", "show", f"{ref}:.claude/masterplan.json"],
+                        capture_output=True, text=True, cwd=repo_root, timeout=20)
+            if r.returncode != 0 or not r.stdout.strip():
+                return None
+            out = {}
+
+            def _walk(o):
+                if isinstance(o, dict):
+                    if isinstance(o.get("id"), str) and isinstance(o.get("status"), str):
+                        out[o["id"]] = o["status"]
+                    for v in o.values():
+                        _walk(v)
+                elif isinstance(o, list):
+                    for v in o:
+                        _walk(v)
+
+            _walk(json.loads(r.stdout))
+            return out
+
+        after = _statuses("HEAD")
+        before = _statuses("HEAD~1")
+        if after is None:
+            return "none"
+        if before is None:          # first commit -- nothing to compare against
+            return "none"
+
+        newly_done = [sid for sid, st in after.items()
+                      if st == "done" and before.get(sid) not in (None, "done")]
+        if not newly_done:
+            return "none"
+
+        for sid in newly_done:
+            top = sid.split(".")[0]
+            siblings = [st for s2, st in after.items() if s2.split(".")[0] == top]
+            if siblings and all(st == "done" for st in siblings):
+                return "major"      # the whole phase shipped
+        for sid in newly_done:
+            if re.fullmatch(r"\d+\.0", sid):
+                return "minor"      # phase kickoff closed
+        return "patch"
+    except Exception as _e:                                    # noqa: BLE001
+        print(f"[changelog] flip-detect FAILED ({type(_e).__name__}: {_e}) -> no bump",
+              file=sys.stderr)
+        return "none"
+
+
+if bump_type != "major":
+    bump_type = _flip_magnitude()
 # Back-compat alias used by the bullet-injection block below: "none" means
 # no version row AND no bullet (same semantics as the old is_chore flag).
 is_chore = bump_type == "none"
