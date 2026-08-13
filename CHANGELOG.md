@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-13 | `a8ab0c7d` | phase-86.62: research gate PASSED -- all three degradations are CHRONIC, and the cycle reports itsel |
 | 2026-08-13 | `7d0cfb3f` | phase-86.59: research gate PASSED on attempt 3 -- verification, not a marker flip |
 | 2026-08-13 | `bc6471bf` | docs(goal): 86.9 and 86.44 are at the attempt ceiling -- the counter no longer resets on a FAIL |
 | 2026-08-13 | `0fd1c23e` | phase-86.63: contract written -- the guard cannot reach the root, and the contract says so |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-13 | `7389d663` | phase-86.74: queue the risk-gate bypass -- a REJECT at 0% was inverted into a 10%-of-NAV buy |
 | 2026-08-13 | `e5907631` | phase-86.73: research says do NOT build the deep tier -- raise floors on one researcher |
 | 2026-08-13 | `c4e0c10a` | phase-86.69: the 08-13 cycle traded, and it is the one cycle without degraded=True |
-| 2026-08-13 | `5fe813e0` | docs: day-report addendum -- 86.58 gate passed and measured, plus the three harness steps the operat |
 
 ---
 
