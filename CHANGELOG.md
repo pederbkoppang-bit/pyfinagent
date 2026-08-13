@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-13 | `0fd1c23e` | phase-86.63: contract written -- the guard cannot reach the root, and the contract says so |
 | 2026-08-13 | `03e448ea` | docs(goal): 86.63 gate PASSED -- record the prompt-authored root and the six-member class count |
 | 2026-08-13 | `9b44b67d` | phase-86.63: research gate PASSED -- the vocabulary split is authored in the PROMPTS, not in Python |
 | 2026-08-13 | `efae78b7` | docs: session close -- 86.58 PASS, goal regenerated with harness-correctness-first ordering |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-13 | `5fe813e0` | docs: day-report addendum -- 86.58 gate passed and measured, plus the three harness steps the operat |
 | 2026-08-13 | `58acf24f` | phase-86.73: research the harness's own depth/difficulty design instead of picking from my guesses |
 | 2026-08-13 | `9740c64f` | phase-86.72: the re-research leg never fires on the live rail + 86.58 contract and driven test |
-| 2026-08-13 | `0eceb3c6` | phase-86.71: the harness's own attempt budget has no caller and no persistence |
 
 ---
 
