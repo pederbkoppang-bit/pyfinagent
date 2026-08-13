@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-14 | `7f20b59a` | phase-86.9: criteria 3 and 5 measured -- and I did NOT claim to refute a number I never derived |
 | 2026-08-14 | `ef4df9bd` | phase-86.9: refresh the stale live_check -- criteria 1, 2, 4 measured; 3 and 5 explicitly NOT done |
 | 2026-08-14 | `f991c760` | docs(goal): 86.9 must NOT be spawned yet -- artifacts 3 days stale, pid two generations out |
 | 2026-08-14 | `dc822e2f` | docs(goal): 86.65 criterion 4 answered by measurement -- CLAUDE.md:205 points at a nonexistent path |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-13 | `efae78b7` | docs: session close -- 86.58 PASS, goal regenerated with harness-correctness-first ordering |
 | 2026-08-13 | `2b50904a` | phase-86.58: the signal_downgrade SELL rule is measurably dead -- PASS, step done |
 | 2026-08-13 | `5c7197d2` | phase-86.58: PASS on attempt 3 -- verdict persisted verbatim, harness_log appended before the flip |
-| 2026-08-13 | `e00773dc` | phase-86.58 cycle-3: fix both CONDITIONAL findings; the Q/A corrected me in my favour |
 
 ---
 
