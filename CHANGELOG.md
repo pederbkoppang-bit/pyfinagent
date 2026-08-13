@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-13 | `5c7197d2` | phase-86.58: PASS on attempt 3 -- verdict persisted verbatim, harness_log appended before the flip |
 | 2026-08-13 | `e00773dc` | phase-86.58 cycle-3: fix both CONDITIONAL findings; the Q/A corrected me in my favour |
 | 2026-08-13 | `73c8c2ce` | fix(settings): promote the Claude 5 flagships (and opus-4-8) in the model picker |
 | 2026-08-13 | `e21468d5` | fix(pricing): Claude Sonnet 5 is $2/$10, not $3/$15 -- the introductory rate became the standard pri |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-13 | `4642758e` | docs: day report 2026-08-13 + regenerated goal -- the picker work is blocked behind a P0 |
 | 2026-08-13 | `275585ce` | phase-86.59: research-gate re-run DROPPED on the rail -- brief preserved, gate NOT passed |
 | 2026-08-13 | `bb08ee00` | phase-86.69: queue the P0 that blocks the picker work -- 81% of analyses persist as an empty HOLD |
-| 2026-08-13 | `f6c2dbf4` | phase-86.59: Q1 answered -- the binding constraint is upstream analysis emptiness, not the ranking |
 
 ---
 
