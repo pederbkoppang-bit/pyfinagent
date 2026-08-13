@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-14 | `5a64981a` | docs(goal): overnight addendum -- 86.62 escalated at 4 attempts, 86.67 risk checked and NOT realised |
 | 2026-08-14 | `d5736cce` | phase-86.62: ESCALATING at 4 attempts -- criterion 5 failed 4x on my bookkeeping, not the analysis |
 | 2026-08-14 | `892983e9` | phase-86.62 cycle-4: three cycles of one class -- a correction that accompanied the error instead of |
 | 2026-08-14 | `c5ad55d8` | phase-86.62 cycle-3: a withdrawal I declared complete had a survivor, and "zeroes" was wrong twice |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-13 | `e21468d5` | fix(pricing): Claude Sonnet 5 is $2/$10, not $3/$15 -- the introductory rate became the standard pri |
 | 2026-08-13 | `cc0d2bff` | phase-86.58 cycle-2: fix all five blockers the Q/A raised |
 | 2026-08-13 | `56abdbde` | feat(settings): add the Claude 5 family to the model picker, with pricing and effort support |
-| 2026-08-13 | `cba26085` | phase-86.58: Q/A verdict FAIL -- persisted verbatim in the turn it returned |
 
 ---
 
