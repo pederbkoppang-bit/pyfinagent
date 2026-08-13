@@ -4,8 +4,8 @@
 2026-08-11 and had gone stale in two criterion-relevant ways (see §0).
 **Backend:** pid **93024**.
 
-> **SCOPE, STATED UP FRONT.** This artifact supplies **criteria 1, 2, 3, 4 and 5** with
-> fresh measurements. **Criterion 6 is not re-verified here**, and criterion 5 carries a
+> **SCOPE, STATED UP FRONT.** This artifact supplies **all six criteria** with fresh
+> measurements. Criterion 6 carries a scope limit (§6) and criterion 5 carries a
 > **named gap**: I measured the rail timeout *rate*, not the "26% of rail *time*
 > discarded" figure the criterion cites — different quantities, and §5 says so rather
 > than treating one as the other. **I have NOT spawned the remaining attempt.**
@@ -179,13 +179,32 @@ therefore neither confirmed nor refuted by this measurement.**
 
 ---
 
+## 6. No other setting changed; `paper_analyze_top_n` NOT lowered; `.env` backup retained
+
+- **`paper_analyze_top_n = 5`** in the RUNNING process (`GET /api/settings/`, pid 93024)
+  — **not lowered**, which is what the criterion forbids.
+- **`.env` backup retained:** `backend/.env.bak.20260809T155016` — dated **2026-08-09**,
+  the day of the budget raise itself, so it is the correct pre-change snapshot rather
+  than an unrelated older copy. (Others exist and are older:
+  `.env.bak.phase23.3.7`, `.env.env.bak-20260417-224659`.)
+  Filenames were **derived by listing** `backend/.env*` rather than assumed.
+- **No setting was changed by this step**, and none by this session:
+  `git status --porcelain -- backend/ scripts/` is **empty**, no `.env` write, no flag
+  promotion, no restart, no manual cycle.
+
+**Scope limit, stated:** I verified the two settings the criterion names and the backup's
+existence. I did **not** diff the whole `.env` against its backup to prove *nothing else*
+changed — that would require reading `backend/.env`, which is denied.
+
+---
+
 ## What this artifact licenses
 
 - **Does:** replace stale criterion-1/2 evidence with current measurements, and answer
   criterion 4 with a positive-controlled source read.
-- **Does NOT:** satisfy criteria 3, 5 or 6, or license spawning the final attempt.
-  **Spawn only after 3 and 5 are genuinely settled** — otherwise the one remaining
-  PASS-or-FAIL is spent on a known gap, which is the exact trap this refresh exists to
-  remove.
+- **Does NOT:** close the step. Two limits are named rather than hidden — criterion 5's
+  "26% of rail **time**" figure is not derived (I measured calls), and criterion 6 is
+  verified only for the two settings the criterion names, because reading `backend/.env`
+  is denied. A Q/A may reasonably weigh either.
 - **Nothing was changed:** no file under `backend/` or `scripts/` modified; no `.env`
   write; no flag promotion; no restart; no manual cycle.
