@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-14 | `c5ad55d8` | phase-86.62 cycle-3: a withdrawal I declared complete had a survivor, and "zeroes" was wrong twice |
 | 2026-08-13 | `15720934` | phase-86.62 cycle-2: fix both failed criteria and withdraw a refuted inference |
 | 2026-08-13 | `c6519b43` | phase-86.62: GENERATE -- all three degradations triaged, none transient, zero code changed |
 | 2026-08-13 | `a8ab0c7d` | phase-86.62: research gate PASSED -- all three degradations are CHRONIC, and the cycle reports itsel |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-13 | `cba26085` | phase-86.58: Q/A verdict FAIL -- persisted verbatim in the turn it returned |
 | 2026-08-13 | `9a59a4fa` | phase-86.75: harness audit -- the attempt counter was reading a file written AFTER it runs |
 | 2026-08-13 | `ab0659fe` | phase-86.75: harness audit -- the attempt counter was reading a file written AFTER it runs |
-| 2026-08-13 | `7389d663` | phase-86.74: queue the risk-gate bypass -- a REJECT at 0% was inverted into a 10%-of-NAV buy |
 
 ---
 
