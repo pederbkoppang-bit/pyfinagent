@@ -1,123 +1,137 @@
-# live_check -- step 86.9
+# Live check — step 86.9
 
-Captured 2026-08-11 by Main. All output verbatim from execution against the
-RUNNING system (backend pid 66306).
+**Date:** 2026-08-14 (~06:45 CEST) — **REFRESHED**. The prior version was written
+2026-08-11 and had gone stale in two criterion-relevant ways (see §0).
+**Backend:** pid **93024**.
 
-## 1. Criterion 1 -- the budget read from the RUNNING PROCESS
-```
-$ curl -s http://127.0.0.1:8000/api/settings/
-  paper_cycle_max_seconds = 10800.0
-  paper_analyze_top_n = 5
-  paper_screen_top_n = 10
-```
+> **SCOPE, STATED UP FRONT.** This artifact supplies **criteria 1, 2 and 4** with fresh
+> measurements. **Criteria 3 and 5 are NOT done** — see §5. It is a refresh so that the
+> step's remaining attempt is not spent on staleness; **it is not a claim the step is
+> ready to PASS**, and I have **not** spawned that attempt.
 
-Not from .env, not from a fresh interpreter. The endpoint is served by pid 66306.
+---
 
-## 2. Criteria 2 + 3 -- the post-raise cycle, re-derived
-```
-$ python scripts/diagnostics/measure_analysis_phase.py
-log=backend.log  lines_parsed=73231  cycles_with_analysis_phase=1
-budget_sec=7200
+## 0. What had gone stale, and why it mattered
 
-==============================================================================
-CYCLE  started=2026-08-10 20:00:02.593000  terminal=completed  wall=4532.113s
-  screening        : 224.153s
-  analysis phase   : 4267.658s  (end reason: reached_mark_to_market)
-  tickers          : planned=6 dispatched=6 finished=6 unfinished=[]
-  concurrency cap  : 3
-  per-ticker wall  : {'CRWD': 961.4, 'DELL': 1705.5, 'HPE': 958.1, 'HUM': 1067.7, 'NTAP': 1672.8, 'PANW': 1525.6}
-  per-ticker mean  : 1315.2s  median=1296.6s
-  serial ticker-s  : 7891.1s   effective parallelism=1.85
-  PROJECTED analysis if all dispatched tickers finished : 4268s
-  PROJECTED cycle   (screening + analysis)              : 4492s  vs budget 7200s
-  VERDICT          : within budget (delta -2708s)
-  cc_rail calls    : started=152 timed_out=1 rate=0.0066 subprocess_timeout_s=150
-  agent latency    : None
-```
+86.9 has **3 prior Q/A spawns**, so its next attempt is **PASS-or-FAIL** under the
+counter repointed in phase-86.75. Two criteria depended on facts that changed after
+2026-08-11:
 
-The raise landed 2026-08-09T13:50Z; this cycle started 2026-08-10 20:00:02 and
-COMPLETED. Note the script's own budget_sec=7200 is its stale default, not the
-live 10800.0 -- see section 8 of experiment_results.
-
-## 3. Criterion 4 -- the only asyncio.timeout wraps the WHOLE cycle
-```
-426:    # wrapped in `async with asyncio.timeout(...)` -- a timeout mid-cycle
-507:    _cycle_timeout = float(getattr(settings, "paper_cycle_max_seconds", 1800.0))
-509:        # phase-23.2.18: outer asyncio.timeout ceiling so a stuck
-514:        async with asyncio.timeout(_cycle_timeout):
-```
-
-No per-ticker cap exists. **CORRECTED: there is not one inner cap, there are
-several** -- my "sole" was a citation I had not derived:
-
-```
-claude_code_client.py:302   timeout_s: int = 120            <- this client's subprocess default
-claude_code_client.py:591   recommended_step_timeout = 150  <- deliberately ABOVE the 120s
-claude_code_client.py:593   def __init__(..., timeout_s: int = 150)
-orchestrator.py:398         timeout = 180
-orchestrator.py:1118/:1135  httpx timeout=900 / 300         <- HTTP client, not a step cap
-```
-
-**None of them is per-TICKER**, so criterion 4's answer is unchanged -- but the
-count was wrong.
-
-## 4. Criterion 6 -- exactly one setting changed
-```
-$ diff (backup) (current), values compared key-by-key
-  keys added/removed : 0
-  keys changed       : 1
-    PAPER_CYCLE_MAX_SECONDS: '7200.0' -> '10800.0'
-```
-
-## Criterion 1's OTHER half: the pid's START TIME -- and what it exposes
-
-```
-$ ps -o pid=,lstart=,etime= -p 66306        # -o without -e; `ps -e` overrides -p
-  66306   man. 10 aug. 21.33.01 2026   18:35:23
-$ lsof -nP -iTCP:8000 -sTCP:LISTEN  ->  listener pid: 66306
-$ curl -s http://127.0.0.1:8000/api/settings/  ->  paper_cycle_max_seconds = 10800.0
-```
-
-**pid 66306 started 2026-08-10 21:33:01 CEST.** The criterion asks for the start
-time *"since the setting is read at cycle start"*, and the reason is now concrete:
-
-| event | time | source |
+| | prior artifact (08-11) | actual now |
 |---|---|---|
-| qualifying cycle START | 2026-08-10 20:00:02 | cycle line below |
-| qualifying cycle END | 2026-08-10 21:15:34 | start + 4532.113s |
-| **pid 66306 START** | **2026-08-10 21:33:01** | `ps -o lstart=` |
+| **Criterion 1** — running pid | `pid 66306` | **pid 93024** |
+| **Criterion 2** — completed cycles under the new budget | one | **four** |
 
-**The process now serving 10800.0 came up 1,046s AFTER the qualifying cycle
-finished. A PREDECESSOR process ran that cycle, and it is gone.**
+The recorded pid was **two generations stale** (66306 → 99231 → 93024; the last restart
+was a peer session at 2026-08-13T20:30:59Z on the operator's session-end batching
+instruction). A criterion that explicitly asks for the pid would not have survived that
+— and the attempt would have been spent on bookkeeping while the evidence that answers
+the step sat uncollected.
 
-The restart was **not** the watchdog: `backend-watchdog.log` never reaches 3/3 and
-its last entry is 2026-08-10T18:07:04Z. I do not know what caused it and am not
-guessing.
+---
 
-**Can I recover the budget that predecessor held? YES -- and my first answer here
-was NO, which was wrong.**
+## 1. The effective value in the RUNNING process — **10800.0**
 
-The predecessor is identifiable. `grep -c "Application startup complete" backend.log`
-returns **exactly 1** (21:33:04, pid 66306), and the archive's **last** startup is
-`Started server process [43839]` at **2026-08-09 22:11:55**, with **no startup
-between it and the cycle**:
+The criterion is explicit that a fresh interpreter is **not** sufficient. Both are
+recorded so the distinction is visible:
 
 ```
-2026-08-09 17:08:08   Started server process [84494]
-2026-08-09 18:56:03   Started server process [6644]
-2026-08-09 22:11:55   Started server process [43839]   <- ran the 08-10 20:00 cycle
-2026-08-10 21:33:04   Started server process [66306]   <- current, started AFTER it
+RUNNING PROCESS (endpoint served by pid 93024):
+  GET /api/settings/  ->  paper_cycle_max_seconds = 10800.0
+
+fresh interpreter (NOT sufficient for this criterion, shown for contrast):
+  python -c "from backend.config.settings import get_settings as g; print(g().paper_cycle_max_seconds)"
+  -> 10800.0
 ```
 
-**pid 43839 started 6h21m AFTER the `.env` write** (15:50 CEST, corroborated by the
-backup stamp `.bak.20260809T155016`). A freshly-started process builds `Settings`
-from `backend/.env` on its first `get_settings()`; `_scheduled_run`
-(`paper_trading.py:1485-1487`) calls it at fire time and hands that object to
-`run_daily_cycle`, which uses it at `:406` and reads `paper_cycle_max_seconds` at
-`:507`. **So the cycle ran under 10800.0, as a measurement.**
+**pid 93024**, started **2026-08-13T20:30:59Z**. The two agree, but the criterion is
+satisfied by the **endpoint** reading, not the interpreter one.
 
-**What IS true**: there is no cycle-**START** budget record. The value is logged only
-on the **timeout** path (`autonomous_loop.py:1896`), which emitted three `Paper
-trading cycle TIMED OUT after 7200s` records on 2026-08-04/06/07. **My blanket
-"never logged" was wrong**; a failure-only record is poor observability, not absence.
-86.54 stands on the narrower ground.
+---
+
+## 2. Cycles completed end-to-end under the new budget — **four, verbatim**
+
+```
+2026-08-10 21:15:34,706  Paper trading cycle complete: NAV=$23897.88, P&L=19.49%, trades=0, cost=$0.3300
+2026-08-11 21:21:29,452  Paper trading cycle complete: NAV=$23881.12, P&L=19.41%, trades=0, cost=$0.5100
+2026-08-12 20:23:25,003  Paper trading cycle complete: NAV=$23900.18, P&L=19.50%, trades=0, cost=$0.6000
+2026-08-13 21:31:52,301  Paper trading cycle complete: NAV=$23920.63, P&L=19.60%, trades=1, cost=$0.6000
+```
+
+Wall-clocks from `handoff/cycle_history.jsonl` (`duration_ms`, `status=completed`):
+
+| Cycle | Duration | of 10,800 s | Trades |
+|---|---:|---:|---:|
+| 2026-08-11 `86667da7` | 4,889 s | 45.3% | 0 |
+| 2026-08-12 `2eab42d6` | 1,405 s | 13.0% | 0 |
+| 2026-08-13 `c7ac27f2` | **5,512 s** | **51.0%** | **1** |
+
+**The raise was SUFFICIENT on the evidence available.** Maximum observed wall-clock is
+**5,512 s against a 10,800 s budget — 51%**, with **no timeout** in any of these cycles,
+and the longest one both **completed and traded**. The criterion's alternative outcome
+("report that the raise was INSUFFICIENT rather than closing") does **not** apply.
+
+**Caveat that belongs with that claim:** four cycles is a small sample, and the 08-12
+cycle at 1,405 s ran with `degraded: True, degraded_analyses: 6/6` — a fast cycle
+because work was skipped, not because it was efficient. The honest reading is that the
+budget is not currently binding, **not** that headroom is proven under full load.
+
+---
+
+## 4. `_run_single_analysis` still has NO inner per-ticker timeout — confirmed
+
+```
+backend/services/autonomous_loop.py:2088-2305   (218-line body, ENTIRE body scanned)
+timeout-shaped lines (wait_for | asyncio.timeout | timeout=) in that body:  0
+```
+
+**Positive control — the probe is not blind:** the identical regex finds **3** matches
+elsewhere in the same file, including the **outer** ceiling it is being contrasted with:
+
+```
+:426  # wrapped in `async with asyncio.timeout(...)` -- a timeout mid-cycle
+:509  # phase-23.2.18: outer asyncio.timeout ceiling so a stuck
+:514  async with asyncio.timeout(_cycle_timeout)
+```
+
+So the outer cycle has a ceiling; **the per-ticker call does not.**
+
+**Answering the criterion's actual question — does a longer outer budget increase the
+window?** **Yes, and by exactly the raise.** With no inner timeout, a single hung ticker
+is bounded only by `_cycle_timeout`. Raising 7,200 → 10,800 s raises the maximum time
+one stuck analysis can consume before anything reclaims the cycle **by 3,600 s**. The
+budget raise is therefore *sufficient for throughput* (§2) **and simultaneously widens
+the hang-exposure window** — both are true, and the step should not report the first
+without the second.
+
+---
+
+## 5. NOT DONE — criteria 3 and 5. Do these BEFORE spawning.
+
+**Criterion 3 (per-ticker mean / projected total, re-derived with
+`scripts/diagnostics/measure_analysis_phase.py` against cycles run AFTER the 2026-08-09
+rail repair).** The tool **exists** (`13,820 b`, 2026-08-08) and there are **now more
+post-repair cycles than on 08-11** — so this is re-derivable and its inputs have
+improved. **I did not run it.**
+
+**Criterion 5 (asks #24 rail timeout 150→210 and #25 merged dispatch, each re-evaluated
+against post-fix data and explicitly recommended or withdrawn).** **Not evaluated.** The
+criterion's own wording — *"a budget raise that leaves 26% of rail calls timing out…"* —
+implies a rail-timeout rate must be re-measured post-fix. **I did not measure it.**
+
+**Criterion 6 (no other setting changed; `paper_analyze_top_n` NOT lowered; `.env`
+backup retained).** Not re-verified here. Note independently: `paper_analyze_top_n = 5`
+in the running process, unchanged.
+
+---
+
+## What this artifact licenses
+
+- **Does:** replace stale criterion-1/2 evidence with current measurements, and answer
+  criterion 4 with a positive-controlled source read.
+- **Does NOT:** satisfy criteria 3, 5 or 6, or license spawning the final attempt.
+  **Spawn only after 3 and 5 are genuinely settled** — otherwise the one remaining
+  PASS-or-FAIL is spent on a known gap, which is the exact trap this refresh exists to
+  remove.
+- **Nothing was changed:** no file under `backend/` or `scripts/` modified; no `.env`
+  write; no flag promotion; no restart; no manual cycle.
