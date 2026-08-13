@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-13 | `a4d14dbc` | phase-86.70: queue the research-gate drop-recovery step -- a COMPLETE brief is discarded, and the ob |
 | 2026-08-13 | `4642758e` | docs: day report 2026-08-13 + regenerated goal -- the picker work is blocked behind a P0 |
 | 2026-08-13 | `275585ce` | phase-86.59: research-gate re-run DROPPED on the rail -- brief preserved, gate NOT passed |
 | 2026-08-13 | `bb08ee00` | phase-86.69: queue the P0 that blocks the picker work -- 81% of analyses persist as an empty HOLD |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-11 | `4393da80` | phase-86.38 + day report: the drought moved to the risk gate; 86.58 is the same class as 86.25 |
 | 2026-08-11 | `301d9df1` | phase-86.38: supersede the NOT-IN-FORCE claim -- the restart happened |
 | 2026-08-11 | `d6873398` | docs(goal): addendum for 2026-08-12 -- 86.58 (P1) to the top, parks, restart state, measured cycle r |
-| 2026-08-11 | `268d376b` | chore: session-end backend restart done -- D2 verified in force (endpoint 1226 == on-disk 1226) |
 
 ---
 
