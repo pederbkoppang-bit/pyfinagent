@@ -208,17 +208,22 @@ So an Alpha Vantage rate limit can **fabricate a full-strength directional socia
 signal (±1.0)** from crude keyword matching over yfinance headlines — and the
 `yfinance_fallback` provenance that would reveal it is dropped at `save_report`.
 
-**And it is the COMMON case, not an equal-odds branch:** `orchestrator.py:2041` passes
-`articles or fallback_articles or None`, so the fallback is supplied whenever the
-primary feed is empty.
+**Structurally reachable whenever the primary feed is empty:** `orchestrator.py:2041`
+passes `articles or fallback_articles or None`. ~~And it is the COMMON case, not an
+equal-odds branch.~~ **STRUCK (cycle 5): NO FREQUENCY CLAIM IS MADE.** That line governs
+whether the fallback ARG is **supplied**, not whether the branch is **taken** — the AV
+feed's emptiness decides that — and I never counted `yfinance_fallback` vs `NO_DATA` in
+production.
 
 | Branch | Producer returns | Consumer `.get("avg_sentiment")` | Effect |
 |---|---|---|---|
-| `fallback_articles` present (**common**) | `avg_sentiment` anywhere in **[-1.0, +1.0]** | that value | **SUBSTITUTES** a fabricated directional signal |
+| `fallback_articles` present (structurally reachable; **frequency NOT measured**) | `avg_sentiment` anywhere in **[-1.0, +1.0]** | that value | **SUBSTITUTES** a fabricated directional signal |
 | `fallback_articles` absent | `NO_DATA` dict, no such key | `None` | **OMITS** — correct behaviour |
 
 My earlier "zeroes into the neutral band" **understated the defect**, and understated
-criterion 5's 86.60 mechanism with it: the perturbation range is **±1.0**, not a
+criterion 5's 86.60 mechanism with it: the perturbation is bounded by **[-1.0, +1.0]** (a RANGE BOUND, not a point magnitude:
+`_score_fallback_articles` returns the MEAN of per-article scores, so ±1.0 requires
+unanimity; the module's own signal thresholds are ±0.15 / ±0.25), not a
 neutral non-signal.
 
 **The defect class is now sharper than "an absence recorded as a value":** it is an
