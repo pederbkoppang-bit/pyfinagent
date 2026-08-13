@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-13 | `e0aaddb6` | docs(goal): next-session goal -- candidate picker as P1, plus every Q/A and Researcher finding from  |
 | 2026-08-12 | `c670421a` | docs: deep-research prompt for the candidate picker -- ordered to test the premise before optimising |
 | 2026-08-12 | `7427fd46` | docs(86.62,86.63): close the two real gaps found auditing whether the session's findings all reached |
 | 2026-08-12 | `08e0a3e3` | phase-86.59: research gate FAILED on a self-report over-claim -- no PLAN entered; two findings chang |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-11 | `62c84c45` | docs(86.56): a dead-man's-switch is being refreshed by something that is not a cycle |
 | 2026-08-11 | `0cc71504` | docs(day-report): derived disposition for the goal's sequenced backlog -- 4 done, 4 parked, 1 peer-o |
 | 2026-08-11 | `345fabae` | docs(day-report): append the pyfinagent-06 section -- six population errors, D1 data loss, D2 not in |
-| 2026-08-11 | `47f3409e` | docs: the 20:00 book cycle is an in-process APScheduler job, not a crontab entry |
 
 ---
 
