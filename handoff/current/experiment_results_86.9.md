@@ -1,5 +1,22 @@
 # Experiment results -- step 86.9
 
+> ## ⚠ SUPERSEDED IN PART — 2026-08-14
+>
+> **Every `pid 66306 [STALE 2026-08-14 -> now 93024]` reading in this file is STALE.** That process is gone; the backend
+> has been replaced **twice** since (66306 → 99231 → **93024**, last restart
+> 2026-08-13T20:30:59Z by a peer session). The *value* it reported —
+> `paper_cycle_max_seconds = 10800.0` — still holds and was re-read from **pid 93024**
+> today, but any sentence here asserting a live pid is no longer true in the present
+> tense.
+>
+> **Criteria 1, 2, 3, 4, 5 and 6 are superseded by
+> `handoff/current/live_check_86.9.md` (2026-08-14), which carries fresh measurements
+> and two named gaps.** Read that file first; treat this one as the 2026-08-11 record.
+>
+> *(Added because the cycle-4 Q/A found the correction sitting BESIDE the stale claims
+> instead of superseding them — the fifth appearance of that class in this session.)*
+
+
 **Step**: `86.9` (phase-86, **P1**) | **Phase**: GENERATE | **Date**: 2026-08-11
 **Driver**: Main (`pyfinagent-06`) | **Contract**: `26037c1e` (written BEFORE any code)
 
@@ -12,7 +29,7 @@ ask. No timeout, flag, `.env` value or setting was modified.
 
 ```
 $ curl -s http://127.0.0.1:8000/api/settings/
-  paper_cycle_max_seconds = 10800.0     <- live from pid 66306
+  paper_cycle_max_seconds = 10800.0     <- live from pid 66306 [STALE 2026-08-14 -> now 93024]
   paper_analyze_top_n     = 5
   paper_screen_top_n      = 10
 ```
@@ -48,7 +65,7 @@ CYCLE  started=2026-08-10 20:00:02.593000  terminal=completed  wall=4532.113s
 > it."** Re-derived by me:
 >
 > - `grep -c "Application startup complete" backend.log` -> **exactly 1**
->   (2026-08-10 21:33:04, pid 66306) -- so nothing in the live log covers the cycle.
+>   (2026-08-10 21:33:04, pid 66306 [STALE 2026-08-14 -> now 93024]) -- so nothing in the live log covers the cycle.
 > - The archive's **last** startup is `Started server process [43839]` at
 >   **2026-08-09 22:11:55**, with **no startup between it and the cycle**.
 >
@@ -67,7 +84,7 @@ CYCLE  started=2026-08-10 20:00:02.593000  terminal=completed  wall=4532.113s
 |---|---|
 | a cycle completed end-to-end, wall 4,532.113s | **MEASURED** |
 | it did not time out | **MEASURED** |
-| the running process serves 10800.0 (pid 66306, up 21:33:01) | **MEASURED** |
+| the running process serves 10800.0 (pid 66306 [STALE 2026-08-14 -> now 93024], up 21:33:01) | **MEASURED** |
 | **the process that RAN the cycle (pid 43839) held 10800.0** | **MEASURED** -- was INFERRED |
 
 **What remains true, and it is the narrower point 86.54 rests on:** the budget is

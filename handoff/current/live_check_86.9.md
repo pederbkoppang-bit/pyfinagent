@@ -100,8 +100,15 @@ Every cycle: `planned=6 dispatched=6 finished=6 unfinished=[]`, concurrency cap 
 end reason `reached_mark_to_market`. Tool verdict on each: **within budget**.
 
 **The criterion's own hypothesis is CONFIRMED: "the 2310-2320s figure predates that fix
-and may no longer hold."** It no longer holds — the post-fix per-ticker mean on full
-cycles is **~1,610–1,708 s**, roughly **26–30% below** the 2,310–2,320 s figure. The
+and may no longer hold."** It no longer holds.
+
+**CORRECTED (cycle 5): the table above shows 3 of the tool's 4 post-fix cycles.** The
+omitted 2026-08-10 cycle (`a5654ab9`) is **HEALTHY** (`degradation: null`) at per-ticker
+mean **1,315.2 s**, median 1,296.6, parallelism 1.85, projected 4,492 s. **The true
+healthy band is therefore 1,315–1,708 s, not "~1,610–1,708 s"** — my band excluded a
+healthy cycle and was narrower than the data. The conclusion is unchanged and the error
+ran in the conservative direction (a lower mean strengthens "within budget"), but the
+scope must be derived from the tool's output, not from the rows I chose to table. The
 08-12 outlier at 336 s is the degraded cycle (6/6 degraded) and should not be averaged in
 as though it were a healthy fast cycle.
 
@@ -112,7 +119,10 @@ as though it were a healthy fast cycle.
 ## 4. `_run_single_analysis` still has NO inner per-ticker timeout — confirmed
 
 ```
-backend/services/autonomous_loop.py:2088-2305   (218-line body, ENTIRE body scanned)
+backend/services/autonomous_loop.py:2088-2261   (174-line body per AST, ENTIRE body scanned)
+  [CORRECTED cycle 5: I wrote 2088-2305 / 218 lines. The AST puts the function end at
+   2261; 2262-2305 are module-level _LITE_RISK_JUDGE_* constants. A superset scan can
+   only over-establish a zero, so the finding stands -- but the range was wrong.]
 timeout-shaped lines (wait_for | asyncio.timeout | timeout=) in that body:  0
 ```
 
@@ -188,9 +198,36 @@ therefore neither confirmed nor refuted by this measurement.**
   than an unrelated older copy. (Others exist and are older:
   `.env.bak.phase23.3.7`, `.env.env.bak-20260417-224659`.)
   Filenames were **derived by listing** `backend/.env*` rather than assumed.
-- **No setting was changed by this step**, and none by this session:
-  `git status --porcelain -- backend/ scripts/` is **empty**, no `.env` write, no flag
-  promotion, no restart, no manual cycle.
+- **CORRECTED (cycle 5) — MY EVIDENCE FOR THIS LEG WAS A GUARD THAT COULD NOT FAIL.**
+  ~~`git status --porcelain -- backend/ scripts/` is empty, no `.env` write, no flag
+  promotion, no restart, no manual cycle.~~
+
+  **`backend/.env` is gitignored** (`.gitignore:5:.env`) **and untracked**
+  (`git ls-files backend/.env` → 0), so `git status --porcelain -- backend/` returns
+  **0 lines regardless of any `.env` write**. It was the *sole* cited coverage for this
+  leg, and it is vacuous by construction.
+
+  **The mutation had already happened in production and my check stayed green:**
+
+  ```
+  stat mtime backend/.env      = 2026-08-13T20:33:27Z
+  backend.log                  = 22:33:27 settings_api "Settings updated: ['gemini_model', 'deep_think_model']"
+  settings_api.py:453-465      = _update_env_var writes _ENV_FILE (backend/.env); :468 clears the cache
+  bytes                        = .env 6,121 B vs .env.bak.20260809T155016 6,128 B
+  ```
+
+  **`backend/.env` WAS written at 2026-08-13T20:33:27Z** — two minutes after the restart
+  this artifact records in §0/§1, and **2h08m before this artifact was authored**.
+
+  **That write is NOT this step's, and nothing should be reverted.** It is a peer
+  session's model-picker change (`gemini_model`, `deep_think_model`), unrelated to the
+  7200→10800 raise.
+
+  **Scoped correctly, criterion 6's leg reads:** *this step* changed no setting — it
+  wrote no file at all (`git status --porcelain -- scripts/` empty; no `.env` write by
+  me; no flag promotion; no manual cycle). **A restart DID occur** (2026-08-13T20:30:59Z,
+  a peer, per §0/§1) — the earlier "no restart" clause contradicted this artifact's own
+  sections and is struck above.
 
 **Scope limit, stated:** I verified the two settings the criterion names and the backup's
 existence. I did **not** diff the whole `.env` against its backup to prove *nothing else*

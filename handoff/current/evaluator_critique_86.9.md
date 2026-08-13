@@ -315,3 +315,155 @@ Run `wf_cd7339e2-5d9`. Main records the verdict; Main never authors it.
 ## notes
 
 WRITE-FIRST RECORD: .claude/agent-memory/qa/verdicts/verdict_wip_86.9__20260811T143220Z.md (STATUS: COMPLETE). It is a crash-survival record, NOT a verdict -- this structured return is the deliverable. GATE APPLICABILITY: ruff F821/F401/F811 is N/A (git diff --name-only HEAD -- '*.py' is empty because NO .py file changed at all, not because a scope resolved to nothing -- git status confirms only audit jsonl, a researcher memory file and my own WIP are dirty). Frontend lint/tsc N/A (no frontend/** in the diff). Live UI capture gate N/A (no UI claims). Backend runtime smoke satisfied via the live :8000 /api/settings/ read rather than an import, since no backend module changed. BLOCKED CHECK, disclosed: a direct read of backend/.env (to confirm criterion 6 key-by-key myself) was DENIED by the permission system; I corroborated instead via the live endpoint (analyze_top_n=5) plus the byte delta backend/.env 6129 b vs .env.bak.20260809T155016 6128 b (+1 byte, consistent with 7200.0 -> 10800.0) and .env mtime 9 aug 15:50 unchanged since the raise -- that last fact also independently strengthens criterion 2's chain. DISCLOSURE (a) ASSESSED: the research gate's three-variant search discipline did not run (WebSearch 200/200 exhausted). Main discloses it prominently in contract §1. The enforced floors did clear (8 sources >= 5, 21 URLs >= 10, recency scan present, brief_status COMPLETE, gate_passed true) and every load-bearing finding is an internal measurement I re-derived myself, so I record this as a NOTE, not a blocker -- honest disclosure of a narrowed external half is the correct behaviour. DISCLOSURE (b): tonight's 20:00 CEST cycle has not run; criterion 2 does not depend on it (the 08-10 cycle satisfies it), and holding the flip for a second sample is a reasonable independent choice. DISCLOSURE (c) ACTED ON: I re-derived every clean grep rather than accepting it -- the §8 census (18 rows on both /usr/bin/grep and this shell's grep once -I is present), the harness_log counter (2 vs the naive 3), and the 86.54 grep (0 under BOTH the published literal form and the correct -E form, with 'Application startup complete' = 1 as a positive control). WHAT IS NOT WRONG WITH THIS STEP: the config value, the criteria coverage, and the recommendation set are all sound; nothing should be reverted, and the FAIL is not an instruction to change any production state. The remediation path is narrow -- correct three sentences in experiment_results §5/§7 so they reproduce against research_brief_86.9.md:380-386, and state plainly that cycle #1 ran the set's highest rail-timeout rate (23.4%) WITHOUT overrunning, since that is the honest wrinkle in the 'rate, not batch size' story. FORWARD-LOOKING NOTE for whoever executes 86.54: its audit_basis still quotes grep -c 'cycle_timeout|effective cycle budget' without -E; the filed defect is real (I measured it), but that command cannot detect the fix either, so pin -E and /usr/bin/grep the way §8 now does.
+
+
+---
+
+# CYCLE 4 VERDICT — FAIL (2026-08-14)
+
+**Run:** `wf_78f62b9a-940` (attempt 4; CONDITIONAL unavailable)  |  `ok: False`
+**Criteria 1–5 MET, all independently re-derived. FAIL is driven by ONE blocking defect on criterion 6.**
+
+> Transcribed VERBATIM. Main records the verdict and never authors it.
+
+```json
+{
+  "ok": false,
+  "verdict": "FAIL",
+  "reason": "Attempt 4 (qa_wip.py 86.9: records_retained=4 incl. mine, prior_records=3; harness_log agrees: Cycle 1221 CONDITIONAL, 1222 CONDITIONAL, 1223 FAIL) so CONDITIONAL is unavailable. Harness compliance is CLEAN 5/5 and ZERO production files changed (git status --porcelain -- backend/ scripts/ empty; git diff --name-only HEAD -- '*.py' = 0 and untracked .py = 0, so the lint/tsc/pytest tiers are N/A BY DERIVATION, not green). Criteria 1-5 are MET and I re-derived every one myself rather than inheriting: (1) GET /api/settings/ 200 from pid 93024 (ps lstart 2026-08-13T20:30:59Z; backend.log:211616) returns paper_cycle_max_seconds=10800.0, and settings_api.py:406-407 Depends(get_settings) + settings.py:655 @lru_cache is the same object autonomous_loop.py:406 passes to :507, so this is the process value not a fresh-interpreter read; immutable cmd exit=0 -> 10800.0. (2) four completed cycles, wall-clocks re-derived from cycle_history.jsonl (4,534/4,889/1,405/5,512 s) reproduce the three tabled figures exactly; degradation fields confirm 2eab42d6 degraded 6/6 as disclosed; process chain 66306/99231/93024 all post-date the 08-09 raise. (3) my own run of measure_analysis_phase.py --budget-sec 10800 reproduces every section-3 figure EXACTLY (1609.6/1699.2/2.17/4850; 336.3/360.0/2.56/1366; 1707.5/1789.5/2.02/5454). (4) AST puts _run_single_analysis at 2088-2261 and the regex wait_for|asyncio.timeout|timeout= finds 0 hits inside it and exactly 3 file-wide at :426/:509/:514, so the no-inner-timeout answer and the +3,600 s hang-window answer are correct. (5) ON THE CALL MAIN ASKED ME TO MAKE: a PROVISIONAL withdrawal that names its own gap DOES satisfy \"explicitly recommended or withdrawn\" - the \"26% of rail TIME\" figure is a rationale premise of the criterion, not a measurement it commands; the tool genuinely emits no rail-time total (:219-220 only) and agent latency is None in all four windows; refusing to pass a call-rate off as a time-fraction is correct behaviour, not a shortfall. FAIL is driven by ONE blocking defect on criterion 6, and it is the fourth appearance of the exact class this refresh existed to eliminate. live_check_86.9.md:191-193 and again at :209 assert \"no `.env` write\", cited to `git status --porcelain -- backend/ scripts/` being empty. That guard is VACUOUS BY CONSTRUCTION and I proved it with a mutation that already happened in production: git check-ignore -v backend/.env -> .gitignore:5:.env, git ls-files backend/.env -> 0, git status -- backend/ -> 0 lines (GREEN), while stat mtime backend/.env = 2026-08-13T20:33:27Z and backend.log:211802-211803 records 'Settings updated: [gemini_model, deep_think_model]' + PUT /api/settings/ 200, with settings_api.py:453-465 _update_env_var writing _ENV_FILE=backend/.env and :468 clearing the cache. The subject changed 2h08m before the artifact was authored and 2 min after the restart the artifact itself records, and the cited check stayed green - it is the sole coverage for that criterion leg. Compounding: section 6 also says \"no restart\", contradicting sections 0 and 1 of the same file; and it justifies skipping the check because reading backend/.env is denied, yet stat and the settings_api log line are permitted, cost one command, and refute the claim. Criterion 6's other legs DO hold and I verified them (paper_analyze_top_n=5 live, not lowered; backend/.env.bak.20260809T155016 exists, mtime 2026-08-09T13:50:16Z, referenced), and the step-scoped reading of \"no other setting changed\" is plausibly true since the 08-13 model-picker PUT is unrelated to the raise - so the PRODUCT is sound and NOTHING should be reverted. Non-blocking findings recorded: section 3 tables 3 of the tool's 4 post-fix cycles without saying so and the omitted 08-10 cycle is HEALTHY (degradation null) at mean 1,315.2 s, so the stated band \"~1,610-1,708 s\" is not the full healthy set (conservative direction); section 4's \"2088-2305 (218-line body)\" does not reproduce against the AST (2088-2261, 174 lines; 2262-2305 are module-level _LITE_RISK_JUDGE_* constants) though a superset scan can only over-establish the zero; section 2 quotes four completion lines but tables three wall-clocks, omitting a5654ab9 (4,534 s) without affecting the 5,512 s max. On Main's second question: the refreshed live_check is NOT sufficient on its own - contract_86.9.md:37 and experiment_results_86.9.md:15,70 still assert pid 66306 as LIVE in the present tense, so the correction sits beside the stale claims instead of superseding them. REMEDY, small and concrete: delete the \"no `.env` write\" / \"no restart\" clauses at :191-193 and :209 and replace them with the stat mtime + backend.log:211802 disclosure stating the 08-13T20:33:27Z PUT is unrelated to the raise; scope the criterion-6 leg to the step's own change window and cite the cycle-1 key-by-key .env census already on record; add a dated supersession header to experiment_results_86.9.md pointing at live_check sections 0-2.",
+  "violated_criteria": [
+    "criterion_6_no_other_setting_changed",
+    "illusory-guard",
+    "criteria-erosion:gitignored-subject-unobservable"
+  ],
+  "violation_details": [
+    {
+      "violation_type": "Invalid_Precondition",
+      "action": "live_check_86.9.md:191-193 evidences criterion 6's 'no other setting changed' leg with `git status --porcelain -- backend/ scripts/` being empty",
+      "state": "backend/.env is gitignored (git check-ignore -v backend/.env -> .gitignore:5:.env) and untracked (git ls-files backend/.env -> 0 files), so `git status --porcelain -- backend/` returns 0 lines REGARDLESS of any .env write; the guard cannot fail when its subject changes, and it is the sole cited coverage for that leg",
+      "constraint": "SEVERITY BLOCK. qa.md 4c -- a guard that cannot fail when its subject is broken does not count; sole-coverage vacuity on a money-path criterion is BLOCKING. Skill heuristic #17 illusory-guard [BLOCK when sole coverage]"
+    },
+    {
+      "violation_type": "Contradiction",
+      "action": "live_check_86.9.md:192 and :209 state 'no `.env` write' (scoped 'by this session'), in an artifact authored 2026-08-13T22:41:03Z",
+      "state": "stat mtime backend/.env = 2026-08-13T20:33:27Z; backend.log:211802-211803 = 22:33:27 settings_api 'Settings updated: [gemini_model, deep_think_model]' + PUT /api/settings/ 200; settings_api.py:453-465 _update_env_var writes _ENV_FILE=backend/.env then :468 get_settings.cache_clear() -- same event, causally confirmed. Byte corroboration: backend/.env 6121 B vs backend/.env.bak.20260809T155016 6128 B while the raise alone is +2 B. The artifact offers no evidence anywhere distinguishing 'this session' from 'a peer session' for that write",
+      "constraint": "SEVERITY BLOCK. qa.md 4b -- every claim in a handoff artifact must reproduce against its own source; prefer FAIL when it does not"
+    },
+    {
+      "violation_type": "Contradiction",
+      "action": "live_check_86.9.md:191-193 asserts 'no restart' inside the same clause list",
+      "state": "the SAME artifact records a restart at 2026-08-13T20:30:59Z in sections 0 and 1 (pid chain 66306 -> 99231 -> 93024), which I independently confirmed via ps lstart and backend.log:211616 'Started server process [93024]'",
+      "constraint": "SEVERITY WARN. Internal consistency -- an artifact may not assert in section 6 the negation of what it measured in sections 0 and 1"
+    },
+    {
+      "violation_type": "Overgeneralization",
+      "action": "live_check_86.9.md section 3 presents a 3-row table introduced as 'All cycles below post-date the 2026-08-09 rail repair' and concludes the post-fix healthy per-ticker mean is '~1,610-1,708 s'",
+      "state": "my re-run of scripts/diagnostics/measure_analysis_phase.py emits FOUR post-fix cycles; the omitted 2026-08-10 cycle (a5654ab9) has degradation=null i.e. HEALTHY, with per-ticker mean 1,315.2 s, median 1,296.6, parallelism 1.85, projected 4,492 s -- the true healthy band is 1,315-1,708 s. It appears in section 5 only as an unnamed '(earlier window)'",
+      "constraint": "SEVERITY WARN. qa.md 4b -- scopes must be DERIVED from the tool's own output, never hand-narrowed without saying so. Direction is conservative, which is why this is WARN and not BLOCK"
+    },
+    {
+      "violation_type": "Contradiction",
+      "action": "live_check_86.9.md section 4 states 'backend/services/autonomous_loop.py:2088-2305 (218-line body, ENTIRE body scanned)'",
+      "state": "ast.parse gives _run_single_analysis lineno=2088 end_lineno=2261, a 174-line body; lines 2262-2305 are the module-level _LITE_RISK_JUDGE_SYSTEM / _LITE_RISK_JUDGE_TEMPLATE / _LITE_RISK_DEFAULT constants. The '218 lines' figure is arithmetic on the wrong range. 0 regex hits in 2088-2261 AND 0 in 2088-2305, so the zero-timeout conclusion is over-established, not under-established",
+      "constraint": "SEVERITY NOTE. qa.md 4b -- a stated range and count must reproduce against the source it names"
+    },
+    {
+      "violation_type": "Missing_Assumption",
+      "action": "the refreshed live_check corrects criterion 1 and 2 evidence while contract_86.9.md and experiment_results_86.9.md are left unchanged from 2026-08-11",
+      "state": "contract_86.9.md:37 'paper_cycle_max_seconds = 10800.0 <- LIVE from pid 66306' and experiment_results_86.9.md:15 and :70 still assert pid 66306 in the present tense; pid 66306 was replaced by 99231 (2026-08-11T20:26:52Z) and then 93024 (2026-08-13T20:31:01Z). No supersession marker links them to live_check sections 0-2",
+      "constraint": "SEVERITY WARN. A correction must SUPERSEDE, not sit beside -- the handoff must not carry two live artifacts asserting different current pids"
+    }
+  ],
+  "certified_fallback": false,
+  "checks_run": [
+    "qa_wip_attempt_counter",
+    "harness_compliance_5_item_audit",
+    "research_gate_envelope",
+    "mtime_ordering_contract_before_generate",
+    "log_last_and_masterplan_status",
+    "no_verdict_shopping_evidence_diff",
+    "immutable_verification_command",
+    "running_process_pid_and_start_time",
+    "live_endpoint_api_settings",
+    "settings_lru_cache_path_trace",
+    "git_status_production_diff",
+    "python_lint_scope_derivation_empty_set",
+    "cycle_history_wallclock_rederivation",
+    "cycle_degradation_field_check",
+    "measure_analysis_phase_rerun",
+    "measure_tool_readonly_verification",
+    "ast_function_boundary_derivation",
+    "timeout_regex_positive_control",
+    "rail_timeout_rate_rederivation",
+    "env_backup_existence_and_mtime",
+    "gitignore_guard_vacuity_proof",
+    "env_mtime_and_settings_put_log_correlation",
+    "settings_put_handler_source_trace",
+    "backend_log_process_start_chain",
+    "backend_runtime_smoke_api_health",
+    "code_review_heuristics",
+    "evaluator_critique_prior_cycles",
+    "claim_audit_4b",
+    "guard_vacuity_4c"
+  ],
+  "harness_compliance_ok": true,
+  "notes": "DERIVED ATTEMPT NUMBER: 4. Source: `python scripts/qa/qa_wip.py 86.9` -> records_retained=4 (including my own WIP written this run), prior_records=3 (verdict_wip_86.9__20260811T135222Z.md, __20260811T141151Z.md, __20260811T143220Z.md). PRIOR-VERDICT SEQUENCE: CONDITIONAL (harness_log Cycle 1221), CONDITIONAL (Cycle 1222), FAIL (Cycle 1223) -- the ledger and the secondary harness_log cross-check AGREE on 3 prior spawns, so the phase-86.75 repointing did not change the answer for this step. CORRECTION TO THE SPAWN PROMPT: it states 'the prior recorded verdict was CONDITIONAL'; harness_log:34183 and the masterplan notes both record the third as FAIL. That does not change the bound -- CONDITIONAL was unavailable either way and I returned PASS-or-FAIL as instructed. NOTE ON A LIVE TENSION IN qa.md: the 3rd-CONDITIONAL section counts ATTEMPTS via qa_wip (which cannot reset) while its closing sentence still says 'Counter resets on PASS, FAIL, or a new step-id'; after the Cycle-1223 FAIL those two readings disagree. Immaterial here, but worth reconciling. SEPARATION OF DUTIES: I was told this Main session edited .claude/agents/qa.md today (phase-86.75), including the attempt counter I was instructed to run. I ran it as instructed AND cross-checked it against an independent harness_log grep; they agree, so the edited instrument did not drive this verdict. Operator review of that edit is still owed per handoff/harness_log.md. WRITE-FIRST RECORD: /Users/ford/.openclaw/workspace/pyfinagent/.claude/agent-memory/qa/verdicts/verdict_wip_86.9__20260813T224141Z.md (STATUS: COMPLETE -- it is evidence for a future spawn, never a verdict). Nothing else was written and no write of mine was blocked. NO PERMISSION WORKAROUND: I did not attempt to read backend/.env (a prior cycle recorded it as denied by the permission system). Every element of the blocking finding comes from permitted instruments -- git check-ignore, git ls-files, stat mtime, backend.log, and the settings_api.py source -- which is exactly why the artifact's 'that would require reading backend/.env, which is denied' does not excuse the false claim: the refuting evidence was one `stat` away. SECTIONS N/A BY DERIVATION, NOT GREEN: 1a Python lint (git diff --name-only HEAD -- '*.py' = 0 AND git ls-files --others --exclude-standard -- '*.py' = 0, so the empty-set guard correctly aborts rather than reporting a false pass), 1b frontend, 1c live UI capture (no UI claims in the contract, criteria, or diff -- I took no Playwright capture and none was required), and scoped pytest -- the step deliberately changed no code and I verified the empty diff rather than assuming it, as instructed. 1d backend runtime smoke WAS exercised for real: /api/health 200 and /api/settings/ 200 against the live :8000 process (pid 93024). WHAT DESERVES THE RECORD: the artifact's scope honesty on criterion 5 is genuine and I want it stated plainly, because it is the opposite of the defect that has parked this step -- it measured a call-rate, refused to pass it off as the criterion's time-fraction, printed 'neither confirmed nor refuted', and bounded both recommendations accordingly; it also correctly flagged the 08-12 cycle as degraded 6/6 rather than averaging a work-skipped cycle in as healthy, which I confirmed against cycle_history.jsonl. My FAIL is not on that judgement and not on the product: all six criteria are substantively MET, zero production files changed, and NOTHING should be reverted. It is on one artifact defect of the exact class that parked this step three times -- an assertion evidenced by a check structurally incapable of observing its subject, where the subject demonstrably changed and the check stayed green. The masterplan note 'All known instances are now fixed in the artifacts' is therefore falsified by a fresh instance introduced in the refresh itself."
+}
+```
+
+---
+
+## Main's follow-up (cycle 5) — NOT part of the verdict. ESCALATING at 4 attempts.
+
+**The blocking finding is the best catch of the session, and it was mine to make.**
+
+I evidenced criterion 6's "no other setting changed" with
+`git status --porcelain -- backend/ scripts/` being empty. **`backend/.env` is
+gitignored** (`.gitignore:5:.env`) **and untracked**, so that command returns 0 lines
+**no matter what happens to the file**. It was the sole coverage for that leg. A guard
+that cannot fail when its subject changes is not a guard.
+
+**And the mutation had already run in production.** `backend/.env` mtime
+**2026-08-13T20:33:27Z**; `backend.log` records
+`Settings updated: ['gemini_model', 'deep_think_model']` + `PUT /api/settings/ 200`;
+`settings_api.py:453-465` writes `_ENV_FILE` and `:468` clears the cache; bytes 6,121 vs
+the backup's 6,128. **The file was written two minutes after the restart my own artifact
+records, and 2h08m before I authored it — and my check stayed green the whole time.**
+
+The Q/A's judgement that **the product is sound and nothing should be reverted** is
+correct: that write is a peer's model-picker change, unrelated to the 7200→10800 raise.
+
+**Fixed, all with landing assertions and a negative-controlled survivor probe:**
+the vacuous guard (replaced with the mtime + log evidence and a correctly scoped claim);
+the "no restart" clause that contradicted §0/§1 of its own file; the omitted 4th healthy
+cycle (true band **1,315–1,708 s**, not ~1,610–1,708); the AST line range
+(**2088-2261, 174 lines**, not 2088-2305/218). **0 untagged survivors.**
+
+**On the fifth appearance of the correction-beside-error class:** the Q/A found
+`contract:37` and `experiment_results:15,70` still asserting `pid 66306` in the present
+tense. Both files now carry a **dated supersession header**, and **all 7 inline mentions
+are tagged `[STALE 2026-08-14 -> now 93024]`** — so a reader quoting a single line still
+sees it. A header alone would have repeated the exact failure.
+
+### ESCALATING — I am not spawning attempt 5
+
+86.9's ledger is **CONDITIONAL → CONDITIONAL → FAIL → FAIL**. That is four attempts, the
+same point at which I escalated 86.62 tonight, and applying the rule inconsistently
+because this remedy looks small is how "one more attempt" becomes the default.
+
+**What the operator should know:**
+
+- **Criteria 1–5 are MET and were independently re-derived by the evaluator**, including
+  the criterion-5 judgement I flagged: *"a PROVISIONAL withdrawal that names its own gap
+  DOES satisfy 'explicitly recommended or withdrawn'"* — the 26% figure is a rationale
+  premise, not a measurement the criterion commands.
+- **Criterion 6's product is sound**; only its evidence was vacuous, and that is now
+  replaced.
+- **Substantive answers this step now carries:** the raise was **sufficient** (worst
+  cycle 5,512 s of 10,800 s), the 2,310–2,320 s figure **no longer holds** (healthy band
+  1,315–1,708 s), `_run_single_analysis` still has **no inner timeout** so the raise
+  **widens the hang window by exactly 3,600 s**, ask #24 **withdraw (provisionally)**,
+  ask #25 **defer**.
+- **Decision needed:** spawn attempt 5 on the corrected artifacts, or hand the remaining
+  verification to a fresh executor. Same question as 86.62, and I have now hit the
+  4-attempt line on both.

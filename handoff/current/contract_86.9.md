@@ -1,5 +1,22 @@
 # Contract -- step 86.9
 
+> ## ⚠ SUPERSEDED IN PART — 2026-08-14
+>
+> **Every `pid 66306 [STALE 2026-08-14 -> now 93024]` reading in this file is STALE.** That process is gone; the backend
+> has been replaced **twice** since (66306 → 99231 → **93024**, last restart
+> 2026-08-13T20:30:59Z by a peer session). The *value* it reported —
+> `paper_cycle_max_seconds = 10800.0` — still holds and was re-read from **pid 93024**
+> today, but any sentence here asserting a live pid is no longer true in the present
+> tense.
+>
+> **Criteria 1, 2, 3, 4, 5 and 6 are superseded by
+> `handoff/current/live_check_86.9.md` (2026-08-14), which carries fresh measurements
+> and two named gaps.** Read that file first; treat this one as the 2026-08-11 record.
+>
+> *(Added because the cycle-4 Q/A found the correction sitting BESIDE the stale claims
+> instead of superseding them — the fifth appearance of that class in this session.)*
+
+
 **Step**: `86.9` (phase-86, **P1**, `harness_required: true`) | **Phase**: PLAN
 **Date**: 2026-08-11 (~16:3x CEST, read from `date`) | **Driver**: Main (`pyfinagent-06`)
 **Written BEFORE any code.** No production file is modified at this moment.
@@ -34,7 +51,7 @@ unsatisfiable. **False.** `GET /api/settings/` has exposed it since step 38.12
 $ curl -s http://127.0.0.1:8000/api/settings/
   paper_screen_top_n      = 10
   paper_analyze_top_n     = 5
-  paper_cycle_max_seconds = 10800.0     <- LIVE from pid 66306
+  paper_cycle_max_seconds = 10800.0     <- LIVE from pid 66306 [STALE 2026-08-14 -> now 93024]
 ```
 
 **I probed `/api/settings` without the trailing slash, got an empty response, and
@@ -108,7 +125,7 @@ SUCCESS = 145s against a 150s cap**, which is a censored distribution by definit
 > 6. no other setting changed; paper_analyze_top_n is NOT lowered; the .env backup is retained and referenced
 ## 5. What is already measured
 
-- **Criterion 1 -- MET** (§2): 10800.0 read live from pid 66306 via `/api/settings/`.
+- **Criterion 1 -- MET** (§2): 10800.0 read live from pid 66306 [STALE 2026-08-14 -> now 93024] via `/api/settings/`.
 - **Criterion 6 -- MET**: key-by-key diff against `backend/.env.bak.20260809T155016`
   shows the key set identical and **exactly one changed value**,
   `PAPER_CYCLE_MAX_SECONDS: '7200.0' -> '10800.0'`. `paper_analyze_top_n` is
