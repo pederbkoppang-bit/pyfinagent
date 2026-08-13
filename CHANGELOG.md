@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-13 | `0eceb3c6` | phase-86.71: the harness's own attempt budget has no caller and no persistence |
 | 2026-08-13 | `a4d14dbc` | phase-86.70: queue the research-gate drop-recovery step -- a COMPLETE brief is discarded, and the ob |
 | 2026-08-13 | `4642758e` | docs: day report 2026-08-13 + regenerated goal -- the picker work is blocked behind a P0 |
 | 2026-08-13 | `275585ce` | phase-86.59: research-gate re-run DROPPED on the rail -- brief preserved, gate NOT passed |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-11 | `d98f2b0f` | docs(86.58): the vocabulary-boundary class has FIVE members, three open -- take the class, not the i |
 | 2026-08-11 | `4393da80` | phase-86.38 + day report: the drought moved to the risk gate; 86.58 is the same class as 86.25 |
 | 2026-08-11 | `301d9df1` | phase-86.38: supersede the NOT-IN-FORCE claim -- the restart happened |
-| 2026-08-11 | `d6873398` | docs(goal): addendum for 2026-08-12 -- 86.58 (P1) to the top, parks, restart state, measured cycle r |
 
 ---
 
