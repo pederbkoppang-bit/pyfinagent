@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-13 | `5fe813e0` | docs: day-report addendum -- 86.58 gate passed and measured, plus the three harness steps the operat |
 | 2026-08-13 | `58acf24f` | phase-86.73: research the harness's own depth/difficulty design instead of picking from my guesses |
 | 2026-08-13 | `9740c64f` | phase-86.72: the re-research leg never fires on the live rail + 86.58 contract and driven test |
 | 2026-08-13 | `0eceb3c6` | phase-86.71: the harness's own attempt budget has no caller and no persistence |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-12 | `63b3d42c` | docs(86.59): the picker analysed 8 distinct tickers in 8 cycles out of 583 -- the score is only trai |
 | 2026-08-11 | `27cf76d5` | docs: day report -- the vocabulary class is FIVE, and 86.25's filter could not see two |
 | 2026-08-11 | `58fbc9bd` | phase-86.52 + day report: the vocabulary class is FIVE, and 86.25's filter could not see two of them |
-| 2026-08-11 | `d98f2b0f` | docs(86.58): the vocabulary-boundary class has FIVE members, three open -- take the class, not the i |
 
 ---
 
