@@ -28,6 +28,10 @@ _VALID_MODELS = {
     "gpt-4o", "gpt-4o-mini", "gpt-4.1", "gpt-4.1-mini", "gpt-4.1-nano",
     "gpt-5", "gpt-5-chat", "gpt-5-mini", "gpt-5-nano",
     "o1", "o1-mini", "o1-preview", "o3", "o3-mini", "o4-mini",
+    # Anthropic — Claude 5 family (newest first)
+    # claude-mythos-5 is deliberately ABSENT: it is Project Glasswing-only and
+    # not reachable on this account, so listing it would offer a dead option.
+    "claude-fable-5", "claude-opus-5", "claude-sonnet-5",
     # Anthropic — current GA
     "claude-opus-4-8", "claude-opus-4-7", "claude-opus-4-6", "claude-opus-4-5", "claude-opus-4-1",
     "claude-sonnet-4-6", "claude-sonnet-4-5", "claude-haiku-4-5",
@@ -218,6 +222,16 @@ AVAILABLE_MODELS = [
     {"model": "o3",            "provider": "GitHub Models", "input_per_1m": 2.00,  "output_per_1m": 8.00,   "copilot_multiplier": 3.0},
     {"model": "o3-mini",       "provider": "GitHub Models", "input_per_1m": 1.10,  "output_per_1m": 4.40,   "copilot_multiplier": 0.33, "context_limited": True},
     {"model": "o4-mini",       "provider": "GitHub Models", "input_per_1m": 1.10,  "output_per_1m": 4.40,   "copilot_multiplier": 0.33},
+    # ── Anthropic direct — Claude 5 family (newest first) ──
+    # Fable 5 is 2x the Opus tier ($10/$50). CLAUDE.md's Fable doctrine keeps
+    # per-ticker/metered roles OFF Fable; the price shown here is the guard rail
+    # an operator sees before selecting it for the all-agents Standard slot.
+    # Sonnet 5 carries an introductory $2/$10 through 2026-08-31; LIST price is
+    # recorded instead so cost tracking does not silently under-report from
+    # 2026-09-01 onward.
+    {"model": "claude-fable-5",               "provider": "Anthropic",     "input_per_1m": 10.00, "output_per_1m": 50.00},
+    {"model": "claude-opus-5",                "provider": "Anthropic",     "input_per_1m": 5.00,  "output_per_1m": 25.00},
+    {"model": "claude-sonnet-5",              "provider": "Anthropic",     "input_per_1m": 3.00,  "output_per_1m": 15.00},
     # ── Anthropic direct — current GA ──
     {"model": "claude-opus-4-8",              "provider": "Anthropic",     "input_per_1m": 5.00,  "output_per_1m": 25.00},
     {"model": "claude-opus-4-7",              "provider": "Anthropic",     "input_per_1m": 5.00,  "output_per_1m": 25.00},

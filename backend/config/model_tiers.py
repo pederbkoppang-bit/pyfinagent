@@ -262,6 +262,13 @@ EFFORT_SUPPORTED_MODELS: tuple[str, ...] = (
     # is -- without it, llm_client silently drops effort for sonnet-5 pins
     # (the 67.4 post-window ROI candidate).
     "claude-sonnet-5",
+    # 2026-08-13: Opus 5 supports the full effort ladder (low..max incl.
+    # xhigh). Load-bearing exactly as the fable/sonnet-5 entries above are:
+    # without it model_supports_effort() returns False and llm_client.py
+    # silently DROPS effort for any opus-5 pin. Added in the same change that
+    # made opus-5 selectable in Settings -- listing a model without this entry
+    # is what turns a UI choice into a silent capability downgrade.
+    "claude-opus-5",
     "claude-opus-4-8",
     "claude-opus-4-7",
     "claude-opus-4-6",
@@ -333,6 +340,9 @@ MODEL_EFFORT_FALLBACK: tuple[tuple[str, Effort | None], ...] = (
     # project runs xhigh on the rare-event roles per the operator's
     # quality-first posture (EFFORT_DEFAULTS overrides per role anyway).
     ("claude-fable-5",    "xhigh"),
+    # 2026-08-13: Opus 5's documented starting point is xhigh for coding and
+    # agentic work (high elsewhere); it matches the 4.8 pin it supersedes.
+    ("claude-opus-5",     "xhigh"),
     ("claude-opus-4-8",   "xhigh"),
     ("claude-opus-4-7",   "xhigh"),
     ("claude-opus-4-6",   "high"),

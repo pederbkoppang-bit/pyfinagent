@@ -25,6 +25,15 @@ MODEL_PRICING: dict[str, tuple[float, float]] = {
     "gemini-2.0-flash": (0.10, 0.40),
     "gemini-2.5-flash": (0.30, 2.50),
     "gemini-2.5-pro": (1.25, 10.00),
+    # Anthropic Claude — Claude 5 family (newest first). Added 2026-08-13.
+    # These ids were previously ABSENT here while already present in
+    # model_tiers.py, so a call on one fell through to _DEFAULT_PRICING and was
+    # mis-costed (the gap claude_code_client.py flags near its _log_cc_call
+    # comment). Fable is 2x the Opus tier; Sonnet 5's introductory $2/$10 runs
+    # only to 2026-08-31, so LIST price is recorded to avoid under-reporting.
+    "claude-fable-5": (10.00, 50.00),
+    "claude-opus-5": (5.00, 25.00),
+    "claude-sonnet-5": (3.00, 15.00),
     # Anthropic Claude — current GA (Opus 4.x, Sonnet 4.6, Haiku 4.5)
     "claude-opus-4-8": (5.00, 25.00),  # phase-47.3: launched 2026-05-28, $5/$25 (same as 4.7)
     "claude-opus-4-7": (5.00, 25.00),

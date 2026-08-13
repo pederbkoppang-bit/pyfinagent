@@ -1631,7 +1631,11 @@ class ClaudeClient(LLMClient):
         # phase-67.6: xhigh is GA on claude-fable-5 + claude-sonnet-5 per the
         # effort doc; the old opus-only guard spuriously downgraded fable's
         # xhigh fallback (MODEL_EFFORT_FALLBACK carries fable -> xhigh).
-        if effort == "xhigh" and not model_id.startswith(("claude-opus-4-8", "claude-opus-4-7", "claude-fable-5", "claude-sonnet-5")):
+        # 2026-08-13: claude-opus-5 added. It supports the full ladder through
+        # max, and MODEL_EFFORT_FALLBACK pins it to xhigh -- without the prefix
+        # here that pin would be downgraded to high on every call, warning into
+        # a log nobody reads. Same failure the fable entry was added to fix.
+        if effort == "xhigh" and not model_id.startswith(("claude-opus-5", "claude-opus-4-8", "claude-opus-4-7", "claude-fable-5", "claude-sonnet-5")):
             logger.warning(
                 "[ClaudeClient] xhigh downgraded to high; %s does not support xhigh",
                 model_id,

@@ -102,6 +102,19 @@ const MODEL_DISPLAY_NAMES: Record<string, string> = {
   "claude-sonnet-4": "Claude Sonnet 4",
   "claude-opus-4": "Claude Opus 4",
   "claude-sonnet-4-6": "Claude Sonnet 4.6",
+  // Claude 5 family
+  "claude-fable-5": "Claude Fable 5",
+  "claude-opus-5": "Claude Opus 5",
+  "claude-sonnet-5": "Claude Sonnet 5",
+  // Opus 4.x / Haiku were missing here, so the Deep Think selector rendered the
+  // raw id ("claude-opus-4-8") while Standard rendered a friendly name.
+  "claude-opus-4-8": "Claude Opus 4.8",
+  "claude-opus-4-7": "Claude Opus 4.7",
+  "claude-opus-4-6": "Claude Opus 4.6",
+  "claude-opus-4-5": "Claude Opus 4.5",
+  "claude-opus-4-1": "Claude Opus 4.1",
+  "claude-sonnet-4-5": "Claude Sonnet 4.5",
+  "claude-haiku-4-5": "Claude Haiku 4.5",
   // Meta
   "meta-llama-3.1-405b-instruct": "Llama 3.1 405B",
   "meta-llama-3.1-8b-instruct": "Llama 3.1 8B",
