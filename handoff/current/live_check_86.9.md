@@ -4,10 +4,11 @@
 2026-08-11 and had gone stale in two criterion-relevant ways (see §0).
 **Backend:** pid **93024**.
 
-> **SCOPE, STATED UP FRONT.** This artifact supplies **criteria 1, 2 and 4** with fresh
-> measurements. **Criteria 3 and 5 are NOT done** — see §5. It is a refresh so that the
-> step's remaining attempt is not spent on staleness; **it is not a claim the step is
-> ready to PASS**, and I have **not** spawned that attempt.
+> **SCOPE, STATED UP FRONT.** This artifact supplies **criteria 1, 2, 3, 4 and 5** with
+> fresh measurements. **Criterion 6 is not re-verified here**, and criterion 5 carries a
+> **named gap**: I measured the rail timeout *rate*, not the "26% of rail *time*
+> discarded" figure the criterion cites — different quantities, and §5 says so rather
+> than treating one as the other. **I have NOT spawned the remaining attempt.**
 
 ---
 
@@ -78,6 +79,36 @@ budget is not currently binding, **not** that headroom is proven under full load
 
 ---
 
+## 3. Per-ticker mean and projected total — RE-DERIVED with the named tool
+
+Command (**read-only**: the tool's only write is `Path(args.json).write_text(...)` at
+`:316`, gated on `--json`, which defaults to `None` and was **not** passed):
+
+```
+python scripts/diagnostics/measure_analysis_phase.py --log backend.log --budget-sec 10800
+```
+
+All cycles below post-date the 2026-08-09 rail repair, as the criterion requires:
+
+| Cycle | per-ticker mean | median | eff. parallelism | projected cycle | vs 10,800 s |
+|---|---:|---:|---:|---:|---:|
+| 2026-08-11 | **1,609.6 s** | 1,699.2 s | 2.17 | 4,850 s | −5,950 s |
+| 2026-08-12 | **336.3 s** | 360.0 s | 2.56 | 1,366 s | −9,434 s |
+| 2026-08-13 | **1,707.5 s** | 1,789.5 s | 2.02 | 5,454 s | −5,346 s |
+
+Every cycle: `planned=6 dispatched=6 finished=6 unfinished=[]`, concurrency cap 3,
+end reason `reached_mark_to_market`. Tool verdict on each: **within budget**.
+
+**The criterion's own hypothesis is CONFIRMED: "the 2310-2320s figure predates that fix
+and may no longer hold."** It no longer holds — the post-fix per-ticker mean on full
+cycles is **~1,610–1,708 s**, roughly **26–30% below** the 2,310–2,320 s figure. The
+08-12 outlier at 336 s is the degraded cycle (6/6 degraded) and should not be averaged in
+as though it were a healthy fast cycle.
+
+**Projected total, worst observed: 5,454 s against a 10,800 s budget (50.5%).**
+
+---
+
 ## 4. `_run_single_analysis` still has NO inner per-ticker timeout — confirmed
 
 ```
@@ -106,22 +137,45 @@ without the second.
 
 ---
 
-## 5. NOT DONE — criteria 3 and 5. Do these BEFORE spawning.
+## 5. Asks #24 and #25 — re-evaluated, with one quantity I could NOT measure
 
-**Criterion 3 (per-ticker mean / projected total, re-derived with
-`scripts/diagnostics/measure_analysis_phase.py` against cycles run AFTER the 2026-08-09
-rail repair).** The tool **exists** (`13,820 b`, 2026-08-08) and there are **now more
-post-repair cycles than on 08-11** — so this is re-derivable and its inputs have
-improved. **I did not run it.**
+### What I measured: the rail TIMEOUT RATE, post-fix
 
-**Criterion 5 (asks #24 rail timeout 150→210 and #25 merged dispatch, each re-evaluated
-against post-fix data and explicitly recommended or withdrawn).** **Not evaluated.** The
-criterion's own wording — *"a budget raise that leaves 26% of rail calls timing out…"* —
-implies a rail-timeout rate must be re-measured post-fix. **I did not measure it.**
+| Cycle | rail calls started | timed out | **rate** | `subprocess_timeout_s` |
+|---|---:|---:|---:|---:|
+| (earlier window) | 152 | 1 | **0.66%** | 150 |
+| 2026-08-11 | 170 | 8 | **4.71%** | **120** |
+| 2026-08-12 | 75 | 1 | **1.33%** | 150 |
+| 2026-08-13 | 173 | 7 | **4.05%** | 150 |
 
-**Criterion 6 (no other setting changed; `paper_analyze_top_n` NOT lowered; `.env`
-backup retained).** Not re-verified here. Note independently: `paper_analyze_top_n = 5`
-in the running process, unchanged.
+Note the 08-11 cycle ran at `subprocess_timeout_s=120`, not 150, and carries the highest
+rate — coherent, and worth keeping because it is the one cycle whose cap differed.
+
+### What I did NOT measure, and it is the criterion's own number
+
+Criterion 5's wording is **"26% of rail TIME being discarded"** — a fraction of *time*,
+not of *calls*. **I measured calls. These are different quantities and I am not treating
+one as a refutation of the other.**
+
+The tool reports `rail_calls_started` / `rail_calls_timed_out` only (`:220`, printed at
+`:311`); it emits **no rail-time total**, and `agent latency` returns **`None`** in every
+window, so the Trace-based latency source is unavailable here. **The 26% figure is
+therefore neither confirmed nor refuted by this measurement.**
+
+### Recommendations, bounded by that gap
+
+- **Ask #24 (rail timeout 150 → 210): RECOMMEND WITHDRAWAL — provisionally.** On the
+  quantity I *can* measure, timeouts are **0.66%–4.71%** of calls, not a dominant failure
+  mode, and no cycle came near the budget. Raising the cap would extend the tail of the
+  slowest calls rather than fix them. **Provisional because** if 26% of rail *time* is
+  genuinely being discarded, the time-side argument is untouched by my call-side numbers.
+  **To settle it properly, derive rail time discarded** = Σ(timed-out call durations) ÷
+  Σ(all rail call durations); that needs a latency source this tool did not produce.
+- **Ask #25 (merged dispatch): RECOMMEND DEFERRAL.** Effective parallelism is
+  **2.02–2.56 against a cap of 3** (67–85% utilisation), so there is real headroom — but
+  the worst cycle used **50.5%** of budget, so dispatch efficiency is not currently the
+  binding constraint. Revisit if projected cycle time approaches the budget, or after
+  86.69 (the analysis-emptiness regression) changes the load profile.
 
 ---
 
