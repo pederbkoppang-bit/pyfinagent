@@ -15,26 +15,46 @@ and diversity-penalised portfolio construction, and out-of-sample validation of 
 
 ## ENVELOPE (born inert — flipped to COMPLETE only as the final act)
 
+> **v3 pass, 2026-08-13 (attempt 3).** The v2 body below was written by a run that DROPPED before
+> its final act, so this envelope was never updated past its born-inert seed: it still said
+> `external_sources_read_in_full: 6` while the read-in-full table below carries **10** rows, and
+> `snippet_only_sources: 0` / `urls_collected: 0` were never filled in at all. The v3 pass does
+> **verification and ownership, not new research**: every row of the read-in-full table is checked
+> for substantive content actually present in this file, the counts are re-derived from the file
+> on disk, and only then is `brief_status` flipped. **Tier discrepancy, disclosed:** the v1/v2 body
+> was produced under a `complex`-tier spawn (header above); this v3 spawn is `moderate`. The
+> envelope reports `moderate` (my caller's tier). No new depth was authored at complex scope.
+> Counts below are LIVE as of the v3 pass and are updated in place as each check lands.
+
 ```json
 {
-  "brief_status": "INCOMPLETE",
-  "tier": "complex",
-  "external_sources_read_in_full": 6,
-  "snippet_only_sources": 0,
-  "urls_collected": 0,
+  "brief_status": "COMPLETE",
+  "tier": "moderate",
+  "external_sources_read_in_full": 10,
+  "snippet_only_sources": 45,
+  "urls_collected": 55,
   "recency_scan_performed": true,
-  "internal_files_inspected": 6,
+  "internal_files_inspected": 5,
   "coverage": {
     "audit_class": false,
-    "rounds": 4,
-    "dry_rounds": 0,
+    "rounds": 5,
+    "dry_rounds": 1,
     "K_required": 2,
-    "new_findings_last_round": 3,
+    "new_findings_last_round": 0,
     "dry": false
   },
-  "gate_passed": false
+  "summary": "Verification pass on the v2 body; no new research. All 10 claimed read-in-full sources carry >=2 distinctive content markers in the prose - none dropped. The two decisive PDFs were re-downloaded and re-extracted with pypdf and every load-bearing quote regex-verified (Hanauer & Windmueller 65pp/121,826ch; Novy-Marx & Velikov 61pp/103,894ch - both byte-identical to v2's report). Both findings now stand as my own measurements: (A) _zscore is defined at screener.py:532 and called ONLY at :607-610 inside _apply_multidim_momentum (:564), so the live composite at :299-305 sums RAW returns - declared weights 0.40/0.35/0.25 are not the effective weights and reweighting before standardising tunes a dead knob; (B) Garleanu-Pedersen - low turnover is CORRECT for a slow predictor, so the defect is the ABSENCE of a fast signal, bounded by Novy-Marx & Velikov's per-side ~50% line. Residual momentum is not high-turnover once the convention mismatch is normalised (H&W sums both legs; N-M&V is per-side). Counts re-derived on disk: 10 / 55 / 5, correcting the seed's 6 and the stale '30 URLs' that was v1's over-claim. Three stale line anchors corrected in DISAGREEMENT 3.",
+  "brief_path": "handoff/current/research_brief_86.59_v2.md",
+  "gate_passed": true
 }
 ```
+
+**Gate logic, evaluated explicitly:** `external_sources_read_in_full` 10 ≥ 5 ✓ AND
+`recency_scan_performed` true ✓ AND every hard-blocker checklist item satisfied ✓ AND
+`coverage.audit_class` false (so `coverage.dry` is informational and does not gate) ✓ →
+**`gate_passed: true`**. `dry_rounds: 1` records that the v3 round added **zero** new read-in-full
+sources, which is expected for a verification pass and is reported rather than dressed up as
+coverage.
 
 ---
 
@@ -818,14 +838,139 @@ them as cross-domain mechanism transfers, and note the deterministic-vs-stochast
 
 ---
 
+## v3 VERIFICATION & OWNERSHIP PASS (2026-08-13, attempt 3)
+
+The v2 run dropped before its final act. This pass does **no new research**. Its job is to decide
+whether the body above can be certified as a return, and it does that by **re-checking rather than
+inheriting**. Everything below is a measurement made in the v3 session.
+
+### V-1. Every claimed read-in-full source carries substantive content — **10/10, none dropped**
+
+The check was deliberately not "does the URL appear" (that is the bar v1 failed in the opposite
+direction). For each of the 10 rows I required **≥2 distinctive content markers** — a verbatim
+quoted phrase or a published figure — present in the prose **outside** its own table row. A row
+passing on its URL alone would have been dropped from the count.
+
+| # | Source | Markers found | Verdict |
+|---|---|---|---|
+| 1 | Novy-Marx & Velikov w20721 | 4/4 (`one-sided monthly turnover lower than 50%`, `average over the long and short side`, `between 14% and 35%`, `momentum and its derivative anomalies`) | SUBSTANTIVE |
+| 2 | Gârleanu & Pedersen w15205 | 2/2 (`aim in front of the target`, `slower mean reversion`) | SUBSTANTIVE |
+| 3 | Daniel & Moskowitz w20439 | 2/2 (`approximately doubles the alpha`, `up- versus down-beta asymmetry`) | SUBSTANTIVE |
+| 4 | Lichtenberg et al. 2408.09168 | 3/3 (`samples a content type according to`, `13.57`, `independent of the underlying scoring function`) | SUBSTANTIVE |
+| 5 | Garcia & Messud 2601.08717 | 2/2 (`synthetic data (energy assets)`, `controlling expected profit and risk degradation`) | SUBSTANTIVE |
+| 6 | Quantpedia short-term reversal | 3/3 (`52.94`, `16.25`, `excessively trading in small cap stocks`) | SUBSTANTIVE |
+| 7 | Quantpedia residual momentum | 3/3 (`9.18`, `59.74`, `standardized by the standard deviation`) | SUBSTANTIVE |
+| 8 | Hanauer & Windmüller | 4/4 (`65.32`, `long leg plus the short leg`, `most of the performance improvement comes from orthogonalizing`, `5.67`) | SUBSTANTIVE |
+| 9 | CXO Advisory [ADVERSARIAL] | 4/4 (`1.39`, `1.54`, `half the volatility`, `1940-2000`) | SUBSTANTIVE |
+| 10 | Seppä-Lassila (Aalto MSc, **tier-5**) | 2/2 (`does not come from overly high turnover`, `more concentrated on large-cap stocks`) | SUBSTANTIVE |
+
+**Read-in-full count corrected upward from the born-inert seed: 6 → 10.** The seed value of 6 was
+never updated after rows 7-10 landed. The floor is 5; it is met on rows 1-9 alone, i.e. **without
+leaning on the single tier-5 student thesis** (#10), which is the weakest source in the set and is
+corroborative rather than load-bearing.
+
+### V-2. The two decisive external claims were RE-EXTRACTED, not inherited
+
+Project memory records that WebFetch PDF summarisation has **fabricated quotes twice** here, so a
+quote I did not extract myself is not a quote I can certify. I re-downloaded both decisive PDFs
+with `curl` and re-extracted with `pypdf`, then regex-verified each load-bearing string:
+
+- **Hanauer & Windmüller** — 65 pages / 121,826 chars, **byte-identical to v2's reported
+  extraction**. All 11 probes FOUND. The turnover table is verbatim in the extracted text:
+  `Turnover (in %) 53.79 80.63 82.22 65.32` (US) and `50.32 70.69 81.06 62.59` (Global), with the
+  break-even row immediately below it: `Round-trip costs at 5% sign. level (in %) 0.62 1.02 1.03
+  0.77` (US) and `0.35 0.76 0.52 0.87` (Global). The convention sentence is verbatim: *"Table 6
+  shows the average (over time) one-way portfolio turnover of the long leg plus the short leg."*
+  Footnote 7 verbatim: *"most of the performance improvement comes from orthogonalizing returns
+  with the market factor."* Spanning row verbatim: `iMOM α 0.32 0.28 0.29 t(α) 5.67 4.99 5.21`.
+- **Novy-Marx & Velikov w20721** — 61 pages / 103,894 chars, **byte-identical to v2's report**.
+  All 6 probes FOUND, including **both** per-side convention sentences (*"average turnover (average
+  over the long and short side)"* and *"monthly average turnover of each side of the strategy"*),
+  the *"between 14% and 35% per month"* band, and the Frazzini *"less than a tenth as large"*
+  counter-estimate.
+
+**This is what certifies JOB 1's central conclusion.** The claim that residual momentum is *not*
+high-turnover by this project's adopted standard rests entirely on a convention mismatch — H&W
+report a **sum** of both legs, N-M&V a **per-side average**. I verified both definitions at source
+in their own words. The ÷2 normalisation remains a normalisation, not a measurement (H&W publish
+only the sum), and is still flagged as such above.
+
+*Probe hygiene, disclosed:* my `0\.77` probe first matched a cell in a **correlation** table, not
+the break-even row. The break-even figure is nonetheless confirmed — it is visible verbatim in the
+context window of the `65.32` match quoted above. Reporting this because a probe that matches the
+wrong place is exactly how a clean check lies.
+
+*Incidental corroboration:* the v2 session's scratchpad still holds `revisited.pdf` at **243
+bytes** — precisely the failed S3 `AccessDenied` fetch v2 documented in its snippet table. v2
+recorded its failures accurately.
+
+### V-3. Internal findings (A) and (B): re-verified at source, anchors corrected
+
+| Claim | Verification run in v3 | Result |
+|---|---|---|
+| `_zscore` defined at `screener.py:532` | `grep -n "_zscore" backend/tools/screener.py` → 5 hits total | **CONFIRMED**: def at `:532`; calls at `:607,:608,:609,:610` and **nowhere else in the file** |
+| Those calls sit off the live path | enclosing `def` scan: `:564 _apply_multidim_momentum`, next def `:626 _pct_change` | **CONFIRMED** — all four calls are inside `_apply_multidim_momentum`, gated by `multidim_momentum_enabled` |
+| Composite at `:299-305`, weights 0.40/0.35/0.25 on RAW returns | `sed -n '295,315p'` | **CONFIRMED** verbatim — `if strategy == "momentum":` at `:299`, weights at `:302-304`, closing paren `:305` |
+| `screen_universe` returns UNSORTED | `sed` at `:145-150`/`:238-248` + scan of every `sort`/`sorted`/`return` in `:100-250` | **CONFIRMED** — `for ticker in tickers:` `:147`, `results.append(row)` `:240`, `return results` `:246`, and the *only* match in that range is the bare return: **no sort anywhere before it** |
+| Eight identical overlay slices | `grep -n "screen_data\[: *2 *\* *settings.paper_screen_top_n\]"` | **CONFIRMED — exactly 8**, at `:749, :769, :833, :860, :884, :910, :938, :967` |
+
+So **finding (A)** — declared weights 0.40/0.35/0.25 are applied to raw returns of differing
+dispersion, standardisation exists but is unreachable, therefore reweighting before standardising
+tunes a dead knob — and **finding (B)** — low turnover is *correct* for a slow predictor, so the
+defect is the absence of a fast signal — both stand as my own measurements, not as inherited text.
+The preference for **slate composition over score mutation** is preserved unchanged.
+
+> ### DISAGREEMENT 3 (anchors — flagged, not silently patched)
+> v2 caught the stale `_zscore` anchor in its inventory table but **left the same stale number in
+> Application A1**, which still reads `screener.py:541-553`. The correct anchor is **`:532`**
+> (helper) with call sites **`:607-610`**, and `_apply_multidim_momentum` is at **`:564`**, not
+> `:443-452`. Two further sub-anchors in the JOB-3 section are off by two: RSI penalties are at
+> **`:307-310`** (not `:305-308`) and the vol penalty at **`:312-313`** (not `:310-311`).
+> **Main must take anchors from this V-3 table, not from the inventory table or A1.** The
+> conclusions are unaffected; only the line numbers were wrong. `screener.py` is 759 lines and
+> `autonomous_loop.py` 3,752 as of this pass — re-derive before citing either again.
+
+### V-4. Counts re-derived from the file on disk, with the rule stated
+
+- **URLs collected: 55.** Rule: distinct absolute `http(s)://` strings literally present in this
+  file, trailing punctuation stripped, **minus the one arXiv search-UI endpoint**
+  (`arxiv.org/search/?searchtype=all&query=`), which is a tool invocation and not a candidate
+  source. Raw distinct count is **56** under two independent terminator rules that agree — the
+  control matters, because a single regex agreeing with itself proves nothing.
+  *This does not match the 59 quoted to me in the spawn prompt; I report what I can measure on
+  disk under a stated rule rather than inheriting a number I cannot reproduce.*
+- **Read in full: 10** (V-1). **Snippet-only: 45.** 55 − 10 = 45, which independently matches the
+  count of table rows whose first cell is a URL, minus the read-in-full rows. The v2 snippet
+  section is *headed* "26" and lists 22 + 4 = 26 rows in its two sub-tables; the remainder are
+  URLs cited in prose (method notes, dead/403 attempts, corroborations) that are genuinely
+  evaluated-but-not-read. **I report 45 as the honest superset and leave the section heading as
+  v2 wrote it** rather than restating its prose.
+- **Internal files inspected: 5** — `screener.py`, `autonomous_loop.py`, `autoresearch/gate.py`,
+  `services/promotion_gate.py`, `config/settings.py`. **Corrected downward from the seed's 6**,
+  which counted something the inventory does not evidence. Of these, **2 were personally
+  re-verified in v3** (`screener.py`, `autonomous_loop.py`); the other three are v2's reads with
+  file:line anchors, and `backend/.env` remains **DENIED** and therefore uninspected.
+
+### V-5. What this gate does and does not authorise
+
+This step is **BLOCKED behind 86.69**: 81.2% of analyses persist as an empty placeholder scored
+0.0 and labelled HOLD, so **no ranking change can pay off until that is fixed**. Clearing this
+gate closes an open protocol obligation; it does **not** authorise ranking work. Nothing here was
+implemented and no production code was edited — this pass was read-only.
+
+---
+
 ## Evidence gaps (honest)
 
-1. **Residual / idiosyncratic momentum: NO source read in full.** arXiv search for
-   "residual momentum idiosyncratic momentum" returned arXiv's *"produced no results"* page;
-   Semantic Scholar was rate-limited; the canonical source (Blitz, Huij & Martens 2011,
-   *Journal of Empirical Finance*) is SSRN/paywalled and I could not fetch it. **I therefore make
-   no evidenced claim about residual momentum's magnitude or its turnover profile.** This is the
-   single largest gap and Main should treat that branch as unresearched.
+1. ~~**Residual / idiosyncratic momentum: NO source read in full.**~~ **SUPERSEDED by JOB 1 (v2)
+   and confirmed in V-1 (v3).** This line is v1 text that the dropped v2 run never came back to
+   revise; it now contradicts the body above and must not be read as current. The gap is
+   **CLOSED**: three sources on this branch were read in full (#7 Quantpedia, #8 Hanauer &
+   Windmüller, #10 Seppä-Lassila) plus #9 CXO Advisory as the qualifying/adversarial view, and
+   the decisive numbers from #8 were re-extracted and regex-verified in v3. **The residual
+   limitation, stated precisely:** the canonical Blitz, Huij & Martens (2011) paper itself remains
+   **paywalled and unread** (SSRN abstract only); its construction and results reach this brief
+   *via* sources that reproduce them, which is weaker than reading the original.
 2. **Bandit/explore-exploit: snippet-level only** (F9). 23 candidates identified, none read.
 3. **Sector-neutralisation external evidence is thin** — the strongest datapoint is this
    project's own -0.166 replay, not the external literature.
@@ -835,23 +980,44 @@ them as cross-domain mechanism transfers, and note the deterministic-vs-stochast
 
 ---
 
-## Research Gate Checklist
+## Research Gate Checklist — RE-DERIVED IN v3 (the v1 figures below were stale and are replaced)
+
+> The version of this checklist left on disk by the dropped v2 run still claimed **"6" sources**
+> and **"30 unique URLs"**. **30 is the exact over-claim that failed the v1 gate** (13 URLs were
+> actually present). Both numbers are now re-derived from the file on disk under the rules stated
+> in V-4 — not carried forward, and not rounded up.
 
 Hard blockers:
-- [x] >=5 authoritative external sources READ IN FULL — **6** (3 NBER via documented
-      curl+pypdf chain, 3 via WebFetch full text)
-- [x] 10+ unique URLs total — **30** (6 read-in-full + 24 snippet-only)
-- [x] Recency scan (2024-2026) performed + reported — 3 complementary findings, 0 superseding
-- [x] Full papers/pages read, not abstracts — arXiv `/html/` full texts used, not `/abs/`;
-      NBER full text extracted (61/47/52 pp) and quotes regex-verified
-- [x] file:line anchors for every internal claim
+- [x] **≥5 authoritative external sources READ IN FULL — 10.** All 10 pass the ≥2-content-marker
+      test in V-1; none dropped. The floor is cleared on rows 1-9 alone, i.e. **without** the one
+      tier-5 student thesis. Hierarchy is respected: 3 peer-reviewed NBER working papers +
+      2 arXiv preprints + 3 industry/practitioner + 1 industry review + 1 tier-5 thesis.
+- [x] **10+ unique URLs total — 55** (10 read in full + 45 evaluated-not-read), from a raw distinct
+      count of 56 minus one search-UI endpoint; two independent terminator rules agree (V-4).
+- [x] **Recency scan (2024-2026) performed + reported** — 3 complementary findings, 0 superseding.
+      Three-variant query discipline is visible in the tables (year-less canonical, 2024-25 window,
+      2026 frontier).
+- [x] **Full papers/pages read, not abstracts** — arXiv `/html/` full texts, never `/abs/`, and
+      **never** a WebFetch on an `arxiv.org/pdf/` URL. NBER + Lancaster + Aalto PDFs extracted
+      locally with `pypdf`; the two decisive ones **re-extracted and regex-verified in v3** (V-2).
+- [x] **file:line anchors for every internal claim** — and the load-bearing ones re-verified at
+      source in V-3, with three stale anchors corrected in DISAGREEMENT 3.
 
 Soft checks:
-- [x] Internal exploration covered every module in the caller's scope
-- [x] Contradictions/consensus noted (Novy-Marx & Velikov vs Frazzini et al. on cost magnitude;
-      F8 vs F1 on turnover direction)
-- [x] Claims cited per-claim
-- [ ] **Residual momentum branch NOT covered** — documented in Evidence gaps §1, not padded over
+- [x] Internal exploration covered every module in the caller's scope (`screener.py` score/`_zscore`/
+      `screen_universe`; `autonomous_loop.py` overlay slices).
+- [x] Contradictions/consensus noted — Novy-Marx & Velikov vs Frazzini et al. on cost magnitude;
+      F8 vs F1 on turnover direction; CXO Advisory as the qualifying view against #7/#8/#10.
+- [x] Claims cited per-claim.
+- [x] **Residual momentum branch NOW COVERED** — was the v1 gap; closed in JOB 1, confirmed V-1.
+- [ ] **Open, disclosed, not padded over:** (a) Blitz-Huij-Martens (2011) itself is paywalled and
+      unread — reached only via reproducing sources; (b) the three dark mitigations are **not**
+      runtime-verifiable (`.env` DENIED, settings API does not expose them — DISAGREEMENT 2);
+      (c) the ÷2 turnover normalisation is a normalisation, not a measurement; (d) the "≈2.4×"
+      dispersion ratio is IID theory, unmeasured on our universe; (e) bandit/explore-exploit is
+      snippet-level only (F9).
 
-**gate_passed: true** — the >=5 floor, the >=10 URL floor and the recency scan are all met, with
-the residual-momentum gap disclosed rather than concealed.
+**gate_passed: true** — ≥5 read in full (10, verified individually), ≥10 URLs (55, measured on
+disk), recency scan performed, hard blockers all satisfied, and the step is not audit-class. The
+open items above are **disclosed limitations on specific claims**, not unmet floors; each one is
+attached to the claim it bounds rather than left as a general caveat.
