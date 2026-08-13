@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-14 | `1ea5dc2f` | phase-86.9: criterion 6 verified -- .env backup retained, paper_analyze_top_n not lowered |
 | 2026-08-14 | `7f20b59a` | phase-86.9: criteria 3 and 5 measured -- and I did NOT claim to refute a number I never derived |
 | 2026-08-14 | `ef4df9bd` | phase-86.9: refresh the stale live_check -- criteria 1, 2, 4 measured; 3 and 5 explicitly NOT done |
 | 2026-08-14 | `f991c760` | docs(goal): 86.9 must NOT be spawned yet -- artifacts 3 days stale, pid two generations out |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-13 | `9b44b67d` | phase-86.63: research gate PASSED -- the vocabulary split is authored in the PROMPTS, not in Python |
 | 2026-08-13 | `efae78b7` | docs: session close -- 86.58 PASS, goal regenerated with harness-correctness-first ordering |
 | 2026-08-13 | `2b50904a` | phase-86.58: the signal_downgrade SELL rule is measurably dead -- PASS, step done |
-| 2026-08-13 | `5c7197d2` | phase-86.58: PASS on attempt 3 -- verdict persisted verbatim, harness_log appended before the flip |
 
 ---
 
