@@ -160,11 +160,21 @@ renumber, and not to add a lock to preserve a value nobody consumes.
 
 ## What this artifact does and does not license
 
-- **Does:** unblock the step's final attempt by supplying the required file, with items
-  1–4 measured at a named tree.
-- **Does NOT:** certify criterion 5, certify the shipped producer change, or claim the
-  step is ready to PASS. **One attempt remains and it is PASS-or-FAIL** — a Q/A should be
-  spawned only after criterion 5 is genuinely settled.
+- **Does:** supply the required file with **criteria 1–5 measured** at a named tree,
+  including criterion 5, which I ran rather than deferred.
+- **Does NOT:** claim the step is ready to PASS — **the opposite.** Criterion 5 is now
+  settled **negatively**: concurrent-writer uniqueness is measurably false (14 collisions
+  of 16), and the numbering producer at `finalize.py:70-72`/`:83-85` is unfixed. **On the
+  evidence in this artifact a Q/A should FAIL criterion 5**, unless the step first fixes
+  that producer or argues explicitly that its scope was D1 (data loss) only.
+- **Therefore: do NOT spend the remaining PASS-or-FAIL attempt yet.** Decide the scope
+  question first — it is a real decision, not a formality, and it determines whether the
+  step can close at all in its current form.
+
+  *(This block previously read "Does NOT: certify criterion 5 … spawned only after
+  criterion 5 is genuinely settled." It is now settled, so that text was stale the
+  moment §5 landed — corrected here rather than left to sit beside its own correction,
+  which is the failure that cost four Q/A cycles on 86.62 tonight.)*
 - **Nothing was changed:** no file under `backend/` or `scripts/` was modified;
   `handoff/harness_log.md` was not edited by this artifact (the two headers I appended
   earlier were normal protocol logging for 86.75 and 86.58, before this measurement).
