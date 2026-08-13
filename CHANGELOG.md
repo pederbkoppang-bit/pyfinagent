@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-14 | `34e5d0c6` | chore: commit the session's evidence trail -- scanned for secrets BEFORE publishing |
 | 2026-08-14 | `a6cd61ee` | phase-86.68: contract -- verify a change that already ships and governs every commit |
 | 2026-08-14 | `61496fce` | docs(goal): regenerate clean -- rotation first, then the three decisions that are yours |
 | 2026-08-14 | `ac070b62` | SECURITY: root-cause link -- the exposed value IS segment 1 of the malformed backend OAuth token |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-14 | `1ea5dc2f` | phase-86.9: criterion 6 verified -- .env backup retained, paper_analyze_top_n not lowered |
 | 2026-08-14 | `7f20b59a` | phase-86.9: criteria 3 and 5 measured -- and I did NOT claim to refute a number I never derived |
 | 2026-08-14 | `ef4df9bd` | phase-86.9: refresh the stale live_check -- criteria 1, 2, 4 measured; 3 and 5 explicitly NOT done |
-| 2026-08-14 | `f991c760` | docs(goal): 86.9 must NOT be spawned yet -- artifacts 3 days stale, pid two generations out |
 
 ---
 
