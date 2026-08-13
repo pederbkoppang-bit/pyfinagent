@@ -157,3 +157,104 @@ read from the running process.
    and the diagnosis is right; it is the sequencing that was wrong.
 3. The 86.59 brief needs only its envelope flipped to `COMPLETE` — not new research.
 4. The `THEN` chain (86.58 → 86.63 → 86.62 → 86.9/86.44 → 86.64–86.68) is untouched.
+
+---
+
+# ADDENDUM — 21:40 to 22:10 (session continued past the report)
+
+The Stop hook correctly read Q1 as resolving to neither (c) nor (d), so the ELSE
+branch applied and the THEN chain was live work. Then the operator redirected to
+the harness itself. Both are covered below.
+
+## 86.58 — research gate PASSED, criteria 1/2/3/6 measured
+
+The gate returned clean on a **tight** prompt: `gate_passed: true`, 6 sources, 38
+URLs, `brief_status: COMPLETE`, **no rail drop** (contrast: 86.59's ~4,500-char
+prompt dropped; this one at ~2,500 returned). That is a usable signal about prompt
+length, not proof — n=1 each way.
+
+**The gate changed the design.** The single-boundary module already exists —
+`backend/services/recommendation_vocab.py` (209 lines, phase-86.20), whose docstring
+says it "is meant to be the ONLY one". It guards the **read** side only:
+`portfolio_manager.py:128` canonicalises, but `paper_trader.py:452` assigns
+`_pos_rec = reason` with **no parse step**. And the module predicted its own next
+failure at `:95-105` — *"A caller that unwraps them back into a literal set has undone
+the point"* — which is exactly what `portfolio_manager` does (imports only
+`canonical_recommendation` at `:16`, hand-writes `_BUY_RECS` at `:60-64`).
+
+Measured independently of the gate, and agreeing with it:
+
+- **Criterion 1 PROVEN BY DRIVING**, control green.
+  `scripts/qa/drive_86_58_dead_downgrade.py`: held row `'new_buy_signal'` + fresh
+  `HOLD` → **no orders**; identical row carrying `'BUY'` → `('NTAP','SELL','signal_downgrade')`;
+  `'swap_buy'` → dead. Cell D shows `sell_signal` pre-empts, so a `SELL` input
+  would have gone green for the wrong reason.
+- **Derived from source:** `_DOWNGRADE_RECS - _SELL_RECS = {HOLD}` — **`HOLD` is the
+  only input that can ever reach `signal_downgrade`.** The `:208-218` warning is not
+  describing a side effect; it is the rule's entire reachable domain.
+- **Criterion 2:** `paper_positions` holds exactly 1 row and it is 100% off-vocabulary.
+  Historically, `paper_round_trips.exit_reason` over all 32 round trips is
+  `stop_loss_trigger` 16 / `swap_for_higher_conviction` 13 / `sell_signal` 3 —
+  **`signal_downgrade` 0**. Positive control for that zero: `sell_signal`, the adjacent
+  branch in the same function writing the same column, fired 3 times.
+- **Criterion 3 blast radius, and it is acute:** NTAP is the only position, and 7 of
+  its 9 re-evals since 07-24 are empty-summary HOLDs (5 with `final_score=0.0`). So
+  promoting the 06-8 flags **today** would make the held row read `BUY`, meet a
+  fabricated `HOLD`, and **sell the book's only position on a placeholder**. That is
+  an argument to keep them dark until 86.69 closes — recorded for ask 06-8, **not acted on**.
+- **Criterion 6:** the 86.20 line is present in source (1 occurrence) and **fired twice**
+  in the driven run. Preserved, not quieted.
+- Contract at `handoff/current/contract_86.58.md`, criteria copied **programmatically**
+  (0 of 6 missing, positive control clean) — with the protocol-order breach **disclosed
+  in the contract itself**, because a file-mtime check would have passed.
+
+## Operator redirect — the harness repeating work
+
+Measured over all 527 `wf_*` run dirs (step identified from the first agent
+transcript; 459 matched, **68 unmatched and counted separately, not dropped**):
+
+| Finding | Number |
+|---|---|
+| Runs that repeat a step already attempted | **268 / 459 = 58.4%** |
+| Steps needing more than one run | 113 / 191 = 59.2% |
+| Worst step | **9 runs** (36.8), then 8 (86.28), then 7 (86.21, 75.5) |
+| Agents that dropped (started, never returned) | 106 / 1,288 = **8.2%** — reproduces CLAUDE.md's 8.6% |
+
+**The reported cause needed correcting: the cost is Q/A, not the researcher.**
+36.8 = 0 researcher / 9 Q/A. 86.28 = 0/8. 75.5 = 0/7. The researcher's maximum on any
+step is 3.
+
+Two root causes, both positive-controlled, both filed:
+
+- **86.71** — `attempt_budget.py` is what CLAUDE.md says bounds the loop. It is tested
+  and mutation-tested, and has **no runtime caller** (only CLAUDE.md, handoff artifacts,
+  its own test, its own mutation matrix) and **no persistence** (`json.dumps` to a string;
+  no open-for-write, no `json.load`), so it could not count across sessions even if wired.
+- **86.72** — the operator's re-research leg has **no implementation on the live rail**.
+  `research_needed` appears in exactly one file (`scripts/harness/run_harness.py`) and in
+  **neither** Workflow script — and the Layer-3 loop runs on the Workflow rail. The run
+  record shows it directly: 9 Q/A runs and 0 researcher runs on 36.8. Also: **tier is
+  caller-declared** (`:202`), not researcher-assessed, which diverges from the stated design.
+- **86.73** — the operator declined the menu and asked for research instead. Gate running
+  as `wf_9e70310d-8ee` (tier `complex`) on: depth-scaling (raise complex floors vs fork
+  2-3 parallel researchers) and who assesses difficulty. The `deep` tier stays **withheld**
+  per `research-gate.js:190-200` — "Report the gap; do not close it unilaterally."
+
+Note for whoever picks this up: the researcher is **not** the expensive role. Any proposal
+to spend more there must argue it reduces Q/A repeats, or concede that it does not.
+
+## Peer coordination
+
+`pyfinagent-c8` queued **86.70** for the dropped-envelope recovery stage and corrected two
+things in my framing, both accepted: recovery would **not** have rescued 86.59 (the marker
+was `INCOMPLETE`, so the gate still fails — only the report improves), and
+`verify_research_gate_workflow.mjs:910-911` already asserts that a dropped stage-1 fails
+even with a COMPLETE brief, so my proposal would have inverted a mutation-tested assertion
+rather than fixed a bug. Three of us now edit `research-gate.js` (86.70, 86.72, 86.73) —
+**coordinate before touching it.**
+
+## Still not done
+
+`86.63`, `86.62`, `86.9`, `86.44`, `86.64`–`86.68`. And 86.58 has a passed gate, a contract
+and four measured criteria but **no Q/A verdict**, so it stays `pending` — no step was
+flipped tonight, and the version is unchanged at 6.93.220.
