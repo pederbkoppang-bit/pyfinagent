@@ -191,27 +191,48 @@ if not feed:
     }
 ```
 
-**The answer is BOTH, and which one depends on whether `fallback_articles` was passed:**
+**CORRECTED AGAIN (cycle 3) — MEASURED BY EXECUTION, and it is WORSE than "zeroes".**
+I called this a *zeroing* branch twice. I executed `_score_fallback_articles` rather
+than reading it:
+
+```
+neutral-words article  -> avg_sentiment= 0.0  signal='NEUTRAL'  data_source='yfinance_fallback'
+positive-words article -> avg_sentiment= 1.0  signal='BULLISH'  data_source='yfinance_fallback'
+negative-words article -> avg_sentiment=-1.0  signal='BEARISH'  data_source='yfinance_fallback'
+```
+
+**It is a SUBSTITUTION branch, not a zeroing branch.** `_keyword_score` returns
+`(pos-neg)/total` over a 20-word positive / 22-word negative list and yields `0.0`
+**only when no keyword matches**; `_score_fallback_articles` returns the mean of those.
+So an Alpha Vantage rate limit can **fabricate a full-strength directional social
+signal (±1.0)** from crude keyword matching over yfinance headlines — and the
+`yfinance_fallback` provenance that would reveal it is dropped at `save_report`.
+
+**And it is the COMMON case, not an equal-odds branch:** `orchestrator.py:2041` passes
+`articles or fallback_articles or None`, so the fallback is supplied whenever the
+primary feed is empty.
 
 | Branch | Producer returns | Consumer `.get("avg_sentiment")` | Effect |
 |---|---|---|---|
-| `fallback_articles` present | `avg_sentiment: 0.0` via `_score_fallback_articles` | `0.0` | **ZEROES** — a neutral-band value |
-| `fallback_articles` absent | `NO_DATA` dict, **no `avg_sentiment` key** | `None` | **OMITS** |
+| `fallback_articles` present (**common**) | `avg_sentiment` anywhere in **[-1.0, +1.0]** | that value | **SUBSTITUTES** a fabricated directional signal |
+| `fallback_articles` absent | `NO_DATA` dict, no such key | `None` | **OMITS** — correct behaviour |
 
-`_keyword_score` still ends `if total == 0: return 0.0`, so the zeroing branch is real —
-but it is **one of two**, not "the production path". A single flat claim on a
-two-branch dichotomy is exactly the error the criterion was written to catch.
+My earlier "zeroes into the neutral band" **understated the defect**, and understated
+criterion 5's 86.60 mechanism with it: the perturbation range is **±1.0**, not a
+neutral non-signal.
 
-**The zeroing branch remains the defect class** — an absence recorded as a value, with
-the `yfinance_fallback` provenance dropped at `save_report`. But the omitting branch
-behaves **correctly**, and reporting only the first misdescribes the system.
+**The defect class is now sharper than "an absence recorded as a value":** it is an
+absence recorded as a **fabricated directional value**, which is a third and worse kind
+of input than either "zero" or "missing". The omitting branch behaves correctly.
 
 ## Criterion 5 — causal links, demonstrated or ruled out
 
-**86.60 (blind overlays) — LINK IS REAL for the ZEROING branch ONLY (corrected).** The
-mechanism below rests on the neutral-band `0.0`, which per criterion 4 above occurs only
-when `fallback_articles` is present. On the `NO_DATA` branch the signal is omitted and
-this link does **not** apply. Established for one of two branches, not both. The social overlay is one
+**86.60 (blind overlays) — LINK IS REAL, and STRONGER than I first scoped it
+(corrected cycle 3).** It applies to the **substitution** branch, which
+`orchestrator.py:2041` makes the **common** production case — not a minority branch —
+and the perturbation is **±1.0**, not a neutral non-signal. On the `NO_DATA` branch the
+signal is omitted and the link does not apply. My cycle-2 scoping under-claimed in both
+membership and magnitude. The social overlay is one
 of the eight; when rate-limited it contributes a `0.0` in the neutral band rather than
 abstaining, so it perturbs the score with a non-signal. **However**, 86.60's finding is
 that the overlays slice an *unsorted* head-of-universe, so they were already not
@@ -232,9 +253,19 @@ as empty placeholders), which is separately measured and P0.
 ## Criterion 6 — NO threshold changed
 
 The 500ms threshold is **untouched**. `git diff --stat` for `backend/` across this
-step: **empty**. The p95-population inference in criterion 2 is offered *as the
-argument someone would need* if they wanted to change it — with its own evidence, as a
-separate step. **Making that change here would be the exact breach criterion 6 names.**
+step: **empty**; `meta_coordinator.py:120 DEFAULT_LATENCY_THRESHOLD_MS = 500.0` intact.
+
+> **CORRECTED (cycle 3).** This paragraph previously ended: *"The p95-population
+> inference in criterion 2 is offered as the argument someone would need if they wanted
+> to change it."* **That sentence survived the withdrawal it contradicted** — declared
+> "withdrawn, not softened" ~100 lines above, still standing here, **inside the section
+> that certifies criterion-6 compliance**. It is the same sentence attempt 1 flagged,
+> and I left it while asserting the withdrawal was complete.
+>
+> **There is no argument for changing this threshold in this artifact.** The measured
+> evidence says the opposite: the 500ms threshold is a **TRUE POSITIVE** about
+> user-visible latency. Anyone wanting to change it must start from scratch, against
+> that evidence.
 
 ---
 
@@ -260,8 +291,12 @@ deliverable; it belongs in a queued step.
 - **The 19/19 figure spans the rotated archives.** The live `backend.log` alone holds
   **4** Step-1 cycles, so it cannot be reproduced from the live log in isolation. The
   population is stated above; I am not claiming more than it supports.
-- **The p95-population interpretation is an INFERENCE, not a measurement** — I did not
-  verify which endpoints feed `perf_tracker`.
+- ~~**The p95-population interpretation is an INFERENCE** — I did not verify which
+  endpoints feed `perf_tracker`.~~ **CORRECTED (cycle 3): FALSIFIED, struck through so
+  the error stays visible.** `backend/main.py:574` is `@app.middleware("http")` and
+  `:617` calls `get_perf_tracker().record(...)` after `await call_next(request)` — so
+  **EVERY HTTP request feeds it**. The question was answerable in one read, and the
+  artifact's own criterion-2 endpoint mix already answered it empirically.
 - The immutable command (`test -f backend.log && grep -c "Paper trading cycle complete"`)
   proves only that the log exists and is countable; it is not evidence for any criterion
   above, which is why each carries its own command.

@@ -43,9 +43,11 @@ Priorities 2 and 3 on 10 of 14 decisions.
 
 **Criterion 4 — CORRECTED (cycle 2):** the codebase does **BOTH**, decided by whether
 `fallback_articles` was passed. Consumer `backend/tasks/analysis.py:251`
-`.get("avg_sentiment")`; producer `social_sentiment.py:73-81` returns `0.0` on the
-fallback branch (**ZEROES**) and a `NO_DATA` dict with no such key on the other
-(**OMITS** → `None`). Saying "the production path ZEROES" flattened a two-branch answer
+`.get("avg_sentiment")`; producer `social_sentiment.py:73-81` **SUBSTITUTES** a value
+anywhere in **[-1.0, +1.0]** on the fallback branch (measured by execution: positive
+headlines → **1.0 BULLISH**, negative → **-1.0 BEARISH**) and returns a `NO_DATA` dict
+with no such key on the other (**OMITS** → `None`). Calling the first branch "zeroing"
+understated it twice. Saying "the production path ZEROES" flattened a two-branch answer
 on the exact dichotomy the criterion exists to resolve. `backend/tools/social_sentiment.py::_keyword_score` ends
 `if total == 0: return 0.0`, so a rate-limited fetch that falls back to keyword-scoring
 headlines yields **exactly 0.0 — inside the NEUTRAL band**. The provenance that would

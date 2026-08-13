@@ -127,15 +127,35 @@ social_sentiment_score=social_data_dict.get("avg_sentiment") if isinstance(socia
 
 **Producer** — `backend/tools/social_sentiment.py:73-81`, two branches:
 
-| Branch | Producer returns | `.get("avg_sentiment")` | Effect |
-|---|---|---|---|
-| `fallback_articles` present | `avg_sentiment: 0.0` | `0.0` | **ZEROES** (neutral band) |
-| `fallback_articles` absent | `NO_DATA` dict, no such key | `None` | **OMITS** |
+**CORRECTED AGAIN (cycle 3) — MEASURED BY EXECUTION, and it is WORSE than "zeroes".**
+I called this a *zeroing* branch twice. I executed `_score_fallback_articles` rather
+than reading it:
 
-The zeroing branch is real and is the defect — `"No sentiment data"` and `"genuinely
-neutral"` become the same number, with the `yfinance_fallback` provenance dropped at
-`save_report`. **But it is one of two branches, not "the production path".** The
-omitting branch behaves correctly.
+```
+neutral-words article  -> avg_sentiment= 0.0  signal='NEUTRAL'  data_source='yfinance_fallback'
+positive-words article -> avg_sentiment= 1.0  signal='BULLISH'  data_source='yfinance_fallback'
+negative-words article -> avg_sentiment=-1.0  signal='BEARISH'  data_source='yfinance_fallback'
+```
+
+**It is a SUBSTITUTION branch, not a zeroing branch.** `_keyword_score` returns
+`(pos-neg)/total` over a 20-word positive / 22-word negative list and yields `0.0`
+**only when no keyword matches**; `_score_fallback_articles` returns the mean of those.
+So an Alpha Vantage rate limit can **fabricate a full-strength directional social
+signal (±1.0)** from crude keyword matching over yfinance headlines — and the
+`yfinance_fallback` provenance that would reveal it is dropped at `save_report`.
+
+**And it is the COMMON case, not an equal-odds branch:** `orchestrator.py:2041` passes
+`articles or fallback_articles or None`, so the fallback is supplied whenever the
+primary feed is empty.
+
+| Branch | Producer returns | Consumer `.get("avg_sentiment")` | Effect |
+|---|---|---|---|
+| `fallback_articles` present (**common**) | `avg_sentiment` anywhere in **[-1.0, +1.0]** | that value | **SUBSTITUTES** a fabricated directional signal |
+| `fallback_articles` absent | `NO_DATA` dict, no such key | `None` | **OMITS** — correct behaviour |
+
+My earlier "zeroes into the neutral band" **understated the defect**, and understated
+criterion 5's 86.60 mechanism with it: the perturbation range is **±1.0**, not a
+neutral non-signal.
 
 ---
 
