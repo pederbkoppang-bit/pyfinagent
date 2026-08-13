@@ -71,7 +71,7 @@ the real artifact, and several caught me.
    failure** — every commoner class died in May–August, and the job ran six clean days
    before 08-13 broke. *Sort failure censuses by recency before frequency.*
 4. **86.68 — shipped, live, governing every commit, with zero handoff artifacts.**
-   Tonight was an unplanned natural experiment: **91 commits → exactly 1 version bump**,
+   Tonight was an unplanned natural experiment: **99 commits → exactly 1 version bump**,
    on the 1 step that flipped, while **86.62 failed 4× and 86.9 failed 2×** with
    `phase-86.x` subjects and produced **zero** bumps.
 
@@ -114,5 +114,7 @@ survivors**, and **negative-control the survivor probe**.
 
 ## Version
 
-**6.93.221** — one bump, from 86.58's flip. 91 commits, and the changelog rule shipped
+**6.93.221** — one bump, from 86.58's flip. **99 commits** (re-derived at push time; an
+earlier draft said 91, which went stale while the report was being written), and the
+changelog rule shipped
 yesterday behaved exactly as designed.
