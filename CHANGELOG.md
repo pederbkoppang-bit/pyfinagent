@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-13 | `e5907631` | phase-86.73: research says do NOT build the deep tier -- raise floors on one researcher |
 | 2026-08-13 | `c4e0c10a` | phase-86.69: the 08-13 cycle traded, and it is the one cycle without degraded=True |
 | 2026-08-13 | `5fe813e0` | docs: day-report addendum -- 86.58 gate passed and measured, plus the three harness steps the operat |
 | 2026-08-13 | `58acf24f` | phase-86.73: research the harness's own depth/difficulty design instead of picking from my guesses |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-12 | `08e0a3e3` | phase-86.59: research gate FAILED on a self-report over-claim -- no PLAN entered; two findings chang |
 | 2026-08-12 | `1208402e` | docs(86.60): alternative signals are fetched only for an UNRANKED head-of-universe slice, so they ca |
 | 2026-08-12 | `63b3d42c` | docs(86.59): the picker analysed 8 distinct tickers in 8 cycles out of 583 -- the score is only trai |
-| 2026-08-11 | `27cf76d5` | docs: day report -- the vocabulary class is FIVE, and 86.25's filter could not see two |
 
 ---
 
