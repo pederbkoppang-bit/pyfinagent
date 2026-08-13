@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-14 | `9dd026a4` | phase-86.63: partial GENERATE -- criteria 1/2/5 by measurement, 3/4/6 NOT done |
 | 2026-08-14 | `34e5d0c6` | chore: commit the session's evidence trail -- scanned for secrets BEFORE publishing |
 | 2026-08-14 | `a6cd61ee` | phase-86.68: contract -- verify a change that already ships and governs every commit |
 | 2026-08-14 | `61496fce` | docs(goal): regenerate clean -- rotation first, then the three decisions that are yours |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-14 | `ce8ac085` | phase-86.9: FAIL on a guard that could not fail -- fixed, and ESCALATING at 4 attempts |
 | 2026-08-14 | `1ea5dc2f` | phase-86.9: criterion 6 verified -- .env backup retained, paper_analyze_top_n not lowered |
 | 2026-08-14 | `7f20b59a` | phase-86.9: criteria 3 and 5 measured -- and I did NOT claim to refute a number I never derived |
-| 2026-08-14 | `ef4df9bd` | phase-86.9: refresh the stale live_check -- criteria 1, 2, 4 measured; 3 and 5 explicitly NOT done |
 
 ---
 
