@@ -49,10 +49,14 @@ headlines → **1.0 BULLISH**, negative → **-1.0 BEARISH**) and returns a `NO_
 with no such key on the other (**OMITS** → `None`). Calling the first branch "zeroing"
 understated it twice. Saying "the production path ZEROES" flattened a two-branch answer
 on the exact dichotomy the criterion exists to resolve. `backend/tools/social_sentiment.py::_keyword_score` ends
-`if total == 0: return 0.0`, so a rate-limited fetch that falls back to keyword-scoring
-headlines yields **exactly 0.0 — inside the NEUTRAL band**. The provenance that would
+~~`if total == 0: return 0.0`, so a rate-limited fetch that falls back to keyword-scoring
+headlines yields exactly 0.0 — inside the NEUTRAL band.~~ **STRUCK (cycle 4) — refuted by
+execution:** the fallback branch SUBSTITUTES a value across **[-1.0, +1.0]** (positive
+headlines → 1.0 BULLISH, negative → -1.0 BEARISH). `_keyword_score` returns `0.0` **only
+when no keyword matches**. The provenance that would
 reveal it (`yfinance_fallback`) is produced and then **dropped**: `save_report` has no
-social-provenance column. **"No data" and "genuinely neutral" are the same number.**
+social-provenance column. ~~**"No data" and "genuinely neutral" are the same number.**~~ **STRUCK (cycle 4):**
+they are not — "no data" can become a full-signed fabricated value.
 
 **The 404 is a MISSING TABLE, not a permission** — reason `notFound`, dataset IS `US`,
 and the request carried a Job ID proving `jobs.create`. A permission failure returns
@@ -94,7 +98,7 @@ Required live_check: `live_check_86.62.md quoting each degradation verbatim with
 3. **Criterion 3:** state the 404's specific missing BQ object, and answer
    *should the cycle have run on fallback params?* as an explicit **yes/no** with its
    consequence for that cycle's decisions.
-4. **Criterion 4:** quote `_keyword_score` verbatim and show the zero reaches the score.
+4. **Criterion 4:** read the CONSUMER, and characterise the fallback branch by EXECUTING it — not by reading `_keyword_score` and inferring a zero.
 5. **Criterion 5:** demonstrate **or explicitly rule out** the causal links to 86.47 and
    86.60. **Speculation in either direction is recorded as UNTESTED** — that is what the
    criterion asks for, and an untested link stated as untested is a pass, not a gap.

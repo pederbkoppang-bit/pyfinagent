@@ -229,19 +229,28 @@ of input than either "zero" or "missing". The omitting branch behaves correctly.
 
 **86.60 (blind overlays) — LINK IS REAL, and STRONGER than I first scoped it
 (corrected cycle 3).** It applies to the **substitution** branch, which
-`orchestrator.py:2041` makes the **common** production case — not a minority branch —
-and the perturbation is **±1.0**, not a neutral non-signal. On the `NO_DATA` branch the
+`orchestrator.py:2041` (`articles or fallback_articles or None`) makes structurally reachable whenever the primary feed is empty — note this governs whether the fallback ARG is SUPPLIED, not whether the branch is TAKEN, and I did **not** count `yfinance_fallback` vs `NO_DATA` in production, so no frequency claim is made —
+and the perturbation ranges over **[-1.0, +1.0]** (a range bound, not a point magnitude: `_score_fallback_articles` returns the MEAN of per-article scores, so ±1.0 needs unanimity). On the `NO_DATA` branch the
 signal is omitted and the link does not apply. My cycle-2 scoping under-claimed in both
 membership and magnitude. The social overlay is one
-of the eight; when rate-limited it contributes a `0.0` in the neutral band rather than
-abstaining, so it perturbs the score with a non-signal. **However**, 86.60's finding is
+of the eight; when rate-limited **on the fallback branch** it contributes a
+**fabricated directional value in `[-1.0, +1.0]`** rather than abstaining, so it
+perturbs the score with a **non-signal that carries a direction**.
+(~~contributes a `0.0` in the neutral band ... perturbs the score with a non-signal~~ —
+**STRUCK (cycle 4)**: refuted by the execution measurement in criterion 4, and it
+contradicted the sentence four lines above it. This is the third cycle in which a
+correction was declared complete while its superseded text survived beside it.) **However**, 86.60's finding is
 that the overlays slice an *unsorted* head-of-universe, so they were already not
 entry paths. **The two compound; neither causes the other.**
 
-**86.47 (trade drought) — NOT DEMONSTRATED. Recorded as UNTESTED.** A neutral-band
-`0.0` is directionally weak, and I have **not** measured whether removing it changes
-any candidate's rank or any BUY decision. That measurement requires replaying the
-scorer with the overlay abstaining versus zeroing, which this step did not do.
+**86.47 (trade drought) — NOT DEMONSTRATED. Recorded as UNTESTED.** I have **not**
+measured whether removing this input changes any candidate's rank or any BUY decision.
+(~~"A neutral-band `0.0` is directionally weak"~~ — **STRUCK (cycle 4)**. That was a
+**speculative downgrade** of the link's strength, refuted by my own execution
+measurement: the branch can emit a full-signed value. The untested record stands, but it
+must carry **no** characterisation of magnitude in either direction — which is exactly
+what criterion 5's clause is for.) That measurement requires replaying the
+scorer with the overlay abstaining versus substituting, which this step did not do.
 **I am not claiming a link and I am not ruling one out** — criterion 5 permits an
 untested link recorded as untested, and that is what this is.
 
@@ -295,7 +304,10 @@ deliverable; it belongs in a queued step.
   endpoints feed `perf_tracker`.~~ **CORRECTED (cycle 3): FALSIFIED, struck through so
   the error stays visible.** `backend/main.py:574` is `@app.middleware("http")` and
   `:617` calls `get_perf_tracker().record(...)` after `await call_next(request)` — so
-  **EVERY HTTP request feeds it**. The question was answerable in one read, and the
+  **every successfully-dispatched HTTP request feeds it** — precision corrected cycle 4:
+  `main.py:605` returns a `JSONResponse` on auth failure **before** `:611`/`:617`, so
+  401-rejected requests are never recorded, and "EVERY" was overstated. The question was
+  answerable in one read, and the
   artifact's own criterion-2 endpoint mix already answered it empirically.
 - The immutable command (`test -f backend.log && grep -c "Paper trading cycle complete"`)
   proves only that the log exists and is countable; it is not evidence for any criterion
