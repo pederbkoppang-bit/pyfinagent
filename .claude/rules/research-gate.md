@@ -5,6 +5,32 @@ record lives in `ARCHITECTURE.md::Research Gate Discipline (phase-4.16)`.
 The agent-facing prompt lives in `.claude/agents/researcher.md`.
 Do not duplicate rules across the three files -- cross-link.
 
+**THIS FILE IS THE AUTHORITATIVE SOURCE FOR THE FLOORS.** Do not restate a
+source or URL count anywhere else; point here instead. (phase-86.75: four
+different floors were live across four instructed-reading files --
+`CLAUDE.md:219` said >=3 while `CLAUDE.md:255` said >=5 in the same file,
+`per-step-protocol.md:63` said "2-3 authoritative sources", and the script
+enforces 5. All now point here.)
+
+**Why the gate exists** (moved verbatim from the deleted
+`.claude/context/research-gate.md`, phase-86.75): phases 0-2.7 were built
+from general knowledge with **zero papers fetched**. Phase 2.8 -- the first
+with real research -- immediately found **two code bugs** (DSR trial count,
+Lo(2002) formula). Research-first execution produces measurably better
+code. *"I already know how to do this"* is not research; it is assumption.
+
+*(That file was deleted as a fifth, drifted copy of this doctrine. It had
+rotted into granting a "`>=3` for simple steps" URL exemption against the
+`FLOOR_URLS = 10` that applies at every tier, pointing findings at a
+`RESEARCH.md` last committed 2026-04-16, and -- the reason deletion was
+urgent -- letting a local autoresearch memo "satisfy 3-5 of the required
+URL sources". That was the only text in the repo that would have let a
+source count be met **without a fetch**, and it is unenforceable anyway:
+`research-gate.js` cross-checks that every claimed URL literally appears
+in the brief, and a local file path is not a URL. Autoresearch memos are
+useful INPUT to a brief; they are not fetched sources and never count
+toward the floor.)*
+
 ## Floor: at least 5 sources read in full
 
 Every researcher spawn, at every tier, must fetch and read IN FULL

@@ -318,8 +318,20 @@ Read in order:
 - `handoff/archive/phase-*/evaluator_critique.md` (historical)
 - `backend/backtest/experiments/quant_results.tsv`
 
-If an evaluator verdict is FAIL or CONDITIONAL, that is ground
-truth. Do NOT override it.
+A prior evaluator verdict is **EVIDENCE, not ground truth.** Read it,
+then RE-DERIVE every number yourself and state explicitly where you
+disagree with it and why.
+
+*Why this changed (phase-86.75, 2026-08-13):* the old text read "If an
+evaluator verdict is FAIL or CONDITIONAL, that is ground truth. Do NOT
+override it." That survived the retired TWO-agent design, where the
+other evaluator was a peer. With ONE Q/A the only evaluator verdict on
+disk is **your own predecessor's** -- so a judge spawned specifically to
+re-grade CHANGED evidence was being told not to overturn it. That
+directly contradicts the fresh-respawn rule ~270 lines below ("the new
+verdict reflects the fix, not a different opinion") and ratchets toward
+repeat rounds. Anchoring to a stale verdict is the failure mode; the
+fix is to anchor to the evidence.
 
 ### 3. Harness dry-run (optional -- scoped-tests tier of the budget)
 
@@ -554,14 +566,22 @@ NOT auto-revert yourself — you are read-only.
 ## Quality criteria (from agent_definitions.py)
 
 | Criterion | Weight | Pass threshold |
-|-----------|--------|----------------|
-| Statistical Validity | 40% | DSR >= 0.95, Sharpe stable across 5 seeds |
-| Robustness | 30% | Positive Sharpe in ALL sub-periods |
-| Simplicity | 15% | <=15 params, each contributing >= +0.05 Sharpe |
-| Reality Gap | 15% | >=10bps costs, 5bps slippage, max position <10% |
+|-----------|--------------|----------------|
 | Contract completeness | gate | EVERY immutable criterion mapped to covering evidence in experiment_results.md (uncovered = Missing_Assumption, caps verdict) |
 
-Score below 6 on ANY criterion = FAIL.
+**The step's immutable success criteria ARE the rubric.** They are passed
+verbatim into your prompt, they are step-specific, and they are what you
+grade against. There is no numeric score.
+
+*Why the weighted table was removed (phase-86.75, 2026-08-13):* it
+carried four quant rows (Statistical Validity 40% / Robustness 30% /
+Simplicity 15% / Reality Gap 15%) plus "Score below 6 on ANY criterion =
+FAIL". It was **unenforceable** -- `grep score .claude/workflows/qa-verdict.js`
+returns nothing, so `VERDICT_SCHEMA` has no field to report a score in --
+and every spawn loaded it, including on pure harness, doc and infra steps
+where DSR and slippage are meaningless. The **Contract-completeness gate
+row above is live phase-71.3 machinery and was deliberately KEPT**: the
+audit finding that proposed this deletion would have taken it too.
 
 ## Constraints
 
@@ -593,13 +613,45 @@ Score below 6 on ANY criterion = FAIL.
   verdict-shop. The distinguishing test: did the files change between
   spawns?
 - **3rd-CONDITIONAL auto-FAIL.** Before issuing a CONDITIONAL verdict,
-  grep `handoff/harness_log.md` for the current step-id. If there are
-  already 2+ `result=CONDITIONAL` entries for this step-id (i.e. this
-  would be the third consecutive CONDITIONAL), return FAIL instead.
-  Stacking a third CONDITIONAL means the harness is logging, not
-  correcting (`violation_type: Unjustified_Inference`). Counter resets
-  on PASS, FAIL, or a new step-id. See
-  `docs/runbooks/per-step-protocol.md` §4 EVALUATE for full text.
+  count your own prior attempts on this step-id by running:
+
+  ```
+  python scripts/qa/qa_wip.py <step_id>
+  ```
+
+  Read `records_retained` and `prior_records` from its JSON. That is the
+  count of prior Q/A spawns on this step. If this would be the **third**
+  attempt or later, return **FAIL** instead of CONDITIONAL. Stacking a
+  third CONDITIONAL means the harness is logging, not correcting
+  (`violation_type: Unjustified_Inference`). Counter resets on PASS,
+  FAIL, or a new step-id.
+
+  **You MUST state the derived attempt number and the prior-verdict
+  sequence in `notes`.** A counter whose value is never shown cannot be
+  audited.
+
+  `handoff/harness_log.md` is a **secondary cross-check only** — if it
+  disagrees with the ledger, say so and let the ledger govern.
+
+  *Why the source changed (phase-86.75, 2026-08-13):* this rule used to
+  grep `handoff/harness_log.md`. **LOG runs AFTER EVALUATE**, so the
+  in-flight cycle is never in the file the judge greps, and Main
+  typically writes one row per completed step rather than per cycle.
+  Measured: `qa_wip.py 86.33` returns `records_retained: 3` and lists
+  both prior spawns, while `grep 'phase=86.33 result=CONDITIONAL'
+  handoff/harness_log.md` returns **0** — with the grep itself proven
+  live by `phase=36.17` returning 3. Across 1,227 cycle headers the log
+  holds only 35 `result=CONDITIONAL` rows, against 268 of 459 measured
+  repeat runs. The rule was not unfireable — it did convert 86.9 and
+  86.44 to FAIL — but it read systematically low. The WIP records are
+  run-stamped and written write-first, so they also survive the 8.2% of
+  spawns that drop and produce no verdict at all.
+
+  **Known limitation, accepted:** WIP records exist only from phase-86
+  onward (38 files, 17 step-ids), so steps older than that read 0. The
+  counter needs to be correct going forward, not retroactively.
+
+  See `docs/runbooks/per-step-protocol.md` §4 EVALUATE for full text.
 
 
 ---

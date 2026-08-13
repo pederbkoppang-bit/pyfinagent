@@ -143,8 +143,13 @@ const PROMPT = [
   'Return the verdict AS YOUR RETURN VALUE using the schema. This captured object IS the deliverable -- Main',
   'transcribes it VERBATIM into evaluator_critique.md (it is NOT a human-facing message). verdict=PASS only if',
   'EVERY immutable criterion is met AND harness compliance is clean AND no unintended production change. Use',
-  'CONDITIONAL for fixable gaps, FAIL for a criterion miss. If this would be the 3rd consecutive CONDITIONAL for',
-  'this step-id (grep harness_log), return FAIL instead. NEVER return PASS on a loop-prevention / errored exit.',
+  'CONDITIONAL for fixable gaps, FAIL for a criterion miss. Before issuing CONDITIONAL, count your own prior',
+  'attempts by running `python scripts/qa/qa_wip.py <step_id>` and reading records_retained / prior_records --',
+  'NOT by grepping harness_log, which is written in the LOG phase AFTER the verdict and so never contains the',
+  'in-flight cycle (measured phase-86.75: qa_wip says 3 for step 86.33 where harness_log says 0). If this would',
+  'be the 3rd attempt or later, return FAIL instead. State the derived attempt number and prior-verdict sequence',
+  'in notes. harness_log is a secondary cross-check only; if the two disagree, the ledger governs.',
+  'NEVER return PASS on a loop-prevention / errored exit.',
 ].join('\n')
 
 const VERDICT_SCHEMA = {

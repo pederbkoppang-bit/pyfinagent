@@ -34385,3 +34385,63 @@ reports are non-equity (an Amazon Music ranking paper; a synthetic energy-asset 
 I have not read either paper myself and the step says so.
 
 **No code was changed. No flag was promoted. 86.59 and 86.60 remain `pending`.**
+
+## Cycle 86.75 -- 2026-08-13 -- phase=86.75 result=IMPLEMENTED-PENDING-REVIEW
+
+**Harness best-practice audit (ultracode, 23 agents, 1.45M subagent tokens) -> 5 changes landed.**
+17 findings judged, **4 survived**, 13 refuted. Two of the refuted were MINE (see below).
+
+**OPERATOR REVIEW REQUESTED -- separation of duties (CLAUDE.md).** This session both
+authored `.claude/agents/qa.md` changes AND ran the audit that motivated them. Per the
+separation-of-duties rule, Peder should review before the next step depends on them.
+
+**Agent-file changes need a session restart for the Agent-tool path.** The Workflow rail
+reads `qa.md` from disk at runtime, so the Q/A changes are LIVE THERE IMMEDIATELY; the
+Agent-tool fallback still holds a session-start snapshot. Verify with
+`scripts/qa/verify_qa_roster_live.sh` after restart.
+
+### What changed
+
+1. **`qa.md` + `qa-verdict.js` -- the 3rd-CONDITIONAL counter now reads the WIP ledger**
+   (`python scripts/qa/qa_wip.py <step_id>`) instead of grepping `handoff/harness_log.md`.
+   ROOT CAUSE of the repeat loops: **LOG runs AFTER EVALUATE**, so the in-flight cycle is
+   never in the file the judge greps. Measured: `qa_wip.py 86.33` -> `records_retained: 3`
+   while `grep 'phase=86.33 result=CONDITIONAL'` -> **0**, with the grep proven live by
+   `phase=36.17` -> 3. Whole log holds 35 CONDITIONAL rows against 268/459 repeat runs.
+   The Q/A must now STATE the derived attempt number in `notes`.
+2. **`qa.md` -- deleted the prior-verdict anchoring clause.** It said a prior FAIL/CONDITIONAL
+   "is ground truth. Do NOT override it." That survived the retired TWO-agent design; with one
+   Q/A the only such verdict is its own predecessor's, so a judge respawned to re-grade CHANGED
+   evidence was told not to overturn it -- contradicting the fresh-respawn rule ~270 lines below.
+3. **`qa.md` -- deleted the unenforceable weighted quant rubric** (4 rows + "Score below 6 =
+   FAIL"). `grep score qa-verdict.js` returns nothing; the schema has no field for it, yet every
+   spawn loaded it, including on doc/infra steps. **KEPT `| Contract completeness | gate |`** --
+   live phase-71.3 machinery the audit finding would have deleted with it.
+4. **`CLAUDE.md:219` + `per-step-protocol.md:63` -- floors now point at the enforced file.**
+   Four different floors were live across four instructed-reading files (CLAUDE.md said >=3 at
+   :219 and >=5 at :255; the runbook said "2-3"; the script enforces 5).
+5. **Deleted `.claude/context/research-gate.md`** -- a drifted fifth copy granting a ">=3 URLs
+   for simple steps" exemption, pointing at a `RESEARCH.md` last committed 2026-04-16, and
+   letting a local memo "satisfy 3-5 of the required URL sources" -- the only text in the repo
+   that would let a source count be met WITHOUT a fetch. Its "Why" paragraph was moved verbatim
+   into `.claude/rules/research-gate.md`; 8 referencing sites repointed.
+
+### Verification
+`verify_research_gate_workflow.mjs`: **121 passed, 0 failed** -- unchanged from the audit's
+cited baseline, so nothing was broken and nothing was made green by deletion. All touched
+Python and JS parses. Every remaining mention of the deleted file was confirmed to be a
+deletion NOTE, not a live pointer.
+
+### Corrections to my own earlier claims -- both caught by the audit
+- I said attempt_budget.py might be dead weight. **REFUTED:** it is a live P1 (86.71) needing
+  WIRING, not deletion; its stale fixture was already remediated in commit 96870e44.
+- I said the F2 re-research leg "has no implementation on the live rail". **TOO STRONG:** F2 is
+  live executing code at `run_harness.py:1142-1150` with the re-spawn body at `:292-312`, and a
+  phase-53.3 brief measured it FIRING. The accurate claim is narrower: it is absent from the
+  **Layer-3 Workflow rail**. Filed into 86.72 rather than acted on.
+
+### Rejected, deliberately (full list in the audit return)
+Judge panel/ensemble; the `deep` tier / parallel researcher fan-out; a resume-from-partial-brief
+clause (punches a hole in the read-in-full floor); a wf_* transcript-scraping attempt counter
+(mis-measures in both directions); a try/catch in qa-verdict.js (computes zero bits); CLAUDE.md
+compression; any fleet-shaped infra. **Zero new agents, zero new services, zero new schemas.**

@@ -22,7 +22,7 @@ Why "live" is a placeholder:
   silent misroute to a wrong model in production.
 
 References:
-  - .claude/context/research-gate.md (citations baked into the plan at
+  - .claude/rules/research-gate.md (citations baked into the plan at
     /Users/ford/.claude/plans/parsed-tinkering-stallman.md)
   - Anthropic Multi-Agent blog: "Opus lead + Sonnet subagents outperforms
     single Opus by 90.2%" — validates the current build mapping.

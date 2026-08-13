@@ -8,7 +8,12 @@ arxiv/semantic_scholar/duckduckgo retrievers (no Tavily, no OpenAI),
 and writes a timestamped markdown memo to handoff/autoresearch/.
 
 The memo is a valid research-gate source for the MAS harness:
-.claude/context/research-gate.md includes autoresearch memos in its
+.claude/rules/research-gate.md is the authoritative gate doctrine. NOTE (phase-86.75):
+autoresearch memos do NOT count toward the source floor -- that clause lived in the
+now-deleted .claude/context/research-gate.md and was unenforceable, because the gate
+cross-checks that every claimed URL appears literally in the brief and a local memo
+path is not a URL. Memos are useful INPUT to a brief, never a substitute for a fetch.
+Historically this file's docstring said the gate included memos in its
 accepted-source list. The MAS harness cycle cites them verbatim when
 it needs a research-gate check.
 

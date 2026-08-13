@@ -58,10 +58,15 @@ that's re-splitting for the sake of splitting.
 
 Spawn the `researcher` subagent with an explicit effort tier:
 
+**The tier sets DEPTH OF ANALYSIS and brief length ONLY. It does NOT
+change the source floors** — those apply identically at every tier, live
+in `.claude/rules/research-gate.md`, and are enforced by
+`.claude/workflows/research-gate.js`. Do not restate a source count here.
+
 - `simple` — the prior substep in the same phase already cited the
   primary references and today's work reuses them.
-- `moderate` — new subtopic with 2–3 authoritative sources to
-  reconcile. Default.
+- `moderate` — new subtopic to reconcile against existing references.
+  Default.
 - `complex` — novel domain.
 
 Pass: step id, success criteria (verbatim from

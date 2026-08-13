@@ -87,7 +87,7 @@ Context you have access to:
 
 - `CLAUDE.md` — project-wide rules
 - `.claude/rules/` — convention files
-- `.claude/context/research-gate.md` — research protocol details
+- `.claude/rules/research-gate.md` — research protocol details (authoritative)
 - `handoff/harness_log.md` — prior cycle history (for tone / format)
 - `docs/GO_LIVE_CHECKLIST.md` — your target list
 - `scripts/go_live_drills/kill_switch_test.py`,

@@ -45,7 +45,7 @@ python -c "import ast; ast.parse(open('path/to/file.py').read())"
 - **Use `/masterplan`** to see current state and next actionable step
 - **Never edit verification criteria** in masterplan.json — they are immutable
 - **Research Gate is mandatory** — no step proceeds to GENERATE without deep research (see PLAN.md lines 44-83)
-- **Read `.claude/context/`** for project memory: project.md, mas-architecture.md, research-gate.md, owner.md
+- **Read `.claude/context/`** for project memory: project.md, mas-architecture.md, owner.md (research-gate.md was DELETED phase-86.75 as a drifted fifth copy -- the authoritative gate doctrine is `.claude/rules/research-gate.md`)
 - **NEVER manually update CHANGELOG.md** — the PostToolUse hook does it automatically on every commit. **Every commit gets a Recent-Activity row; only SHIPPED WORK gets a version bump (phase-86.68, 2026-08-13).** A version bump now requires the commit to have flipped at least one masterplan step to `done`, detected from the **masterplan diff**, not the commit subject — a subject is a claim, a diff is what happened. Magnitude when a flip is present: **major** if the flip emptied a whole top-level phase (no pending steps left in phase X), **minor** if the flipped step is the phase kickoff (`X.0`), **patch** otherwise. An explicit `feat!:`/`fix!:` prefix or a `BREAKING CHANGE:` body line still bumps **major on its own authority**, flip or no flip — that is an operator writing it deliberately. Everything else — including every `phase-X.Y:` remediation commit — produces a Recent-Activity row and **no version bump**. *Why it changed:* `phase-X.Y:` → patch made the version count commits that MENTION a step, i.e. one per attempt. Measured over 348 commits from 2026-08-11: steps 86.9 and 86.44 each ended **PARKED with no PASS** and together moved the version **19 times while shipping nothing**. Replayed under the new rule the same 348 commits produce **7** bumps instead of 136. The detector **never raises** — on any internal error it bumps nothing and prints `[changelog] flip-detect FAILED` to stderr, because this hook must never break a commit, but a silent stop would be its own bug. See `.claude/hooks/post-commit-changelog.sh::classify_commit` and `::_flip_magnitude`. Skip changelog tasks entirely.
 - **Commit message convention** — every meaningful commit MUST start with a Conventional Commits prefix so the classifier picks the right bump. Examples: `feat: add new endpoint`, `fix(scheduler): null guard`, `phase-23.7.1: research brief`, `chore: housekeeping`. Bare unprefixed subjects default to patch (safe fallback).
 - **Per-step auto-push** — when a masterplan step status flips to `done` in `.claude/masterplan.json`, the `auto-commit-and-push.sh` PostToolUse hook stages all changes, commits with the step's name as subject, invokes the changelog hook, and pushes to `origin/main`. No manual `git push` per step. Push failures log to `handoff/logs/auto-push.log` and exit 0 (do not break the masterplan Write). Re-run `git push origin main` manually if the log shows a failure.
@@ -216,7 +216,7 @@ Every step produces, in order, exactly these artifacts:
 
 | Phase | File (under `handoff/current/`) | Must contain |
 |-------|-------------------------------|--------------|
-| RESEARCH | (no file of its own; research feeds the contract) | ≥3 sources, ≥10 URLs, cite per claim, read full papers not abstracts |
+| RESEARCH | `handoff/current/research_brief_<sid>.md` | The floors live in `.claude/rules/research-gate.md` and are ENFORCED by `.claude/workflows/research-gate.js` — do not restate them here; cite per claim, read full papers not abstracts |
 | PLAN | `contract.md` | Step id, research-gate summary, hypothesis, immutable success criteria copied verbatim from `.claude/masterplan.json`, plan steps, references |
 | GENERATE | `experiment_results.md` | What was built/changed + file list + verbatim verification command output + artifact shape |
 | EVALUATE | `evaluator_critique.md` | **Q/A verdict** (single agent, merged qa-evaluator + harness-verifier). Must include deterministic checks_run + LLM judgment + violated_criteria + verdict (PASS / CONDITIONAL / FAIL). |
@@ -390,7 +390,20 @@ files (the `archive-handoff` hook handles the rotation).
   reads it. Step 75.5 carries `retry_count: 3, max_retries: 3, status: done`
   -- it reached its ceiling and closed anyway.
   **The bound is therefore CUMULATIVE and lives in
-  `scripts/harness/attempt_budget.py`:**
+  `scripts/harness/attempt_budget.py` — but READ THIS FIRST: that module is
+  NOT YET WIRED.** Measured 2026-08-13 with a positive-controlled repo-wide
+  search: it has **no runtime caller** (references exist only in this file,
+  in handoff artifacts, in its own test and its own mutation matrix) and
+  **no persistence** (`json.dumps` to a string; no open-for-write, no
+  `json.load`), so it cannot count across sessions — and the Layer-3 loop
+  runs across sessions. **The live per-step bound is the Q/A-side
+  3rd-CONDITIONAL counter in `.claude/agents/qa.md`**, which as of
+  phase-86.75 counts prior spawns via `python scripts/qa/qa_wip.py <step_id>`
+  rather than by grepping `handoff/harness_log.md` (LOG runs AFTER EVALUATE,
+  so the log never contains the in-flight cycle). Wiring the cumulative
+  budget is pending step **86.71**. Until then, do not read the paragraphs
+  below as a termination guarantee this harness actually has — they describe
+  the intended design:
   - It increments on **ATTEMPT, not OUTCOME**. A dropped/errored spawn costs
     full tokens and returns no verdict, so a verdict-keyed counter is blind
     to it -- measured between 8.6% (513 runs, all-time) and 29.2% (24 runs,

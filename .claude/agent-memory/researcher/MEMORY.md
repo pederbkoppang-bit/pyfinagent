@@ -1,5 +1,10 @@
 # Researcher Agent Memory Index
 
+- [Research-gate depth 86.73](project_research_gate_depth_86_73.md) — Anthropic's 2026 post says "start with single-agent"; `env.tier` is NEVER compared to the requested tier; `opts.floors` has ZERO callers
+
+- [Dead SELL rule 86.58](project_dead_sell_rule_86_58.md) — the canonicaliser ALREADY exists but guards the READ only; portfolio_manager unwrapped it back into literal sets; `:127` anchor is stale (`:264`)
+- [Screener turnover 86.59](project_screener_turnover_86_59.md) — zero turnover is trailing-window ARITHMETIC; no z-score so declared weights ≠ effective; both code-cited arXiv IDs are non-equity
+
 - [Cycle number 86.44](project_cycle_number_86_44.md) — 482/1224 headers say "Cycle 1"; NOTHING reads the number; the runbook template `## Cycle N` IS the bug source
 
 - [Timeout-raise 86.9](project_timeout_raise_86_9.md) — a deadline-terminated run is RIGHT-CENSORED (max = budget, not work); per-ITEM raise endorsed, per-BATCH rejected; grep the API before believing "no endpoint exposes it"
@@ -87,7 +92,7 @@
 - [Anthropic agent patterns](project_anthropic_agent_patterns.md) — evaluator→generator retry loop + lead-spawns-researcher, mapped to
 - [Alpaca paper execution 3.7.5](project_alpaca_paper_execution.md) — SDK choice, ops-toggle flag shape, shadow-mode drift threshold, paper gotchas
 - [vitest + leaderboard 4.7.4](project_474_vitest_leaderboard.md) — vitest Next.js 15 setup, --filter positional-arg fix, DSR/PBO colour thresholds
-- [Research gate discipline](project_research_gate_discipline.md) — 4.16.1 raised the floor to >=5; stale context/research-gate.md +
+- [Research gate discipline](project_research_gate_discipline.md) — 4.16.1 raised the floor to >=5; the stale context/research-gate.md was DELETED phase-86.75 +
 - [BigQuery dataset locations](project_bq_dataset_locations.md) — financial_reports is us-central1 (NOT US) and holds the paper_* tables
 - [LLM cost/pricing tables](project_cost_pricing_tables_inventory.md) — 3+ independent pricing tables (cost_tracker MODEL_PRICING canonical); patch ALL
 - [Metric paths + DESC trap](project_metric_source_paths.md) — THREE distinct Sharpe/maxDD paths; get_paper_snapshots returns DESC ⇒ re-sort
