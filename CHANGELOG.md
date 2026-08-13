@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-14 | `3c25d2d3` | SECURITY: incident addenda -- ONE token not five, repo is PUBLIC WITH A FORK, window bounded both si |
 | 2026-08-14 | `144d54ad` | phase-86.64: contract -- the premise is refuted, so criterion 4 must rest on decidability |
 | 2026-08-14 | `55e524c8` | docs(goal): the SECOND stale 91 my first sweep missed |
 | 2026-08-14 | `5ccadd34` | docs: correct a stale commit count in my own day report (91 -> re-derived at push time) |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-14 | `323f8c78` | phase-86.44: supply the MISSING live_check so the step's last attempt is not spent on a known gap |
 | 2026-08-14 | `5a64981a` | docs(goal): overnight addendum -- 86.62 escalated at 4 attempts, 86.67 risk checked and NOT realised |
 | 2026-08-14 | `d5736cce` | phase-86.62: ESCALATING at 4 attempts -- criterion 5 failed 4x on my bookkeeping, not the analysis |
-| 2026-08-14 | `892983e9` | phase-86.62 cycle-4: three cycles of one class -- a correction that accompanied the error instead of |
 
 ---
 
