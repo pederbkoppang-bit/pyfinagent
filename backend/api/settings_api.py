@@ -226,12 +226,15 @@ AVAILABLE_MODELS = [
     # Fable 5 is 2x the Opus tier ($10/$50). CLAUDE.md's Fable doctrine keeps
     # per-ticker/metered roles OFF Fable; the price shown here is the guard rail
     # an operator sees before selecting it for the all-agents Standard slot.
-    # Sonnet 5 carries an introductory $2/$10 through 2026-08-31; LIST price is
-    # recorded instead so cost tracking does not silently under-report from
-    # 2026-09-01 onward.
+    # Sonnet 5 is $2/$10. That began as introductory pricing through
+    # 2026-08-31, but Anthropic has since made it the STANDARD price and
+    # cancelled the scheduled rise to $3/$15 -- verified against
+    # platform.claude.com/docs/en/about-claude/pricing on 2026-08-13, which
+    # states the increase "will not occur". Do not "restore" $3/$15 in
+    # September; that would over-state Sonnet 5 spend by 50%.
     {"model": "claude-fable-5",               "provider": "Anthropic",     "input_per_1m": 10.00, "output_per_1m": 50.00},
     {"model": "claude-opus-5",                "provider": "Anthropic",     "input_per_1m": 5.00,  "output_per_1m": 25.00},
-    {"model": "claude-sonnet-5",              "provider": "Anthropic",     "input_per_1m": 3.00,  "output_per_1m": 15.00},
+    {"model": "claude-sonnet-5",              "provider": "Anthropic",     "input_per_1m": 2.00,  "output_per_1m": 10.00},
     # ── Anthropic direct — current GA ──
     {"model": "claude-opus-4-8",              "provider": "Anthropic",     "input_per_1m": 5.00,  "output_per_1m": 25.00},
     {"model": "claude-opus-4-7",              "provider": "Anthropic",     "input_per_1m": 5.00,  "output_per_1m": 25.00},
