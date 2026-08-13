@@ -170,3 +170,59 @@ bounded to what is already recorded here.
 
 The **3 newest session files are untracked and clean**, so a `git add -A` by either
 session — and both our hooks stage tree-wide — will not publish a new token.
+
+---
+
+## 8. ROOT-CAUSE LINK (2026-08-14 ~13:15) — the exposed value IS the backend's live OAuth token
+
+**This raises the severity above what §1 records.** It is not "a token" — it is
+**segment 1 of the malformed `CLAUDE_CODE_OAUTH_TOKEN`** that operator ask **#20**
+already flagged on **2026-08-08**, the same day the leak began.
+
+**Ask #20 (commit `5fc3ca7f`, filed inside the leak-start bracket) states:**
+
+> total length **123**, containing the `sk-ant-oat01-` prefix **twice** and an embedded
+> **newline**. Split on that newline: **seg1 = 92 chars**, starts with the prefix and
+> contains the prefix twice; seg2 = 30 chars. Consistent with a double-paste that got
+> wrapped. **`~/Library/LaunchAgents/com.pyfinagent.away-watchdog.plist` holds the
+> byte-identical value.**
+
+**Two independent discriminators, both measured by me, both match:**
+
+| | ask #20's seg1 | the leaked value |
+|---|---:|---:|
+| length | **92** | **92** |
+| `sk-ant-oat01-` occurrences | **2** | **2** |
+
+A regex match on `sk-ant-[A-Za-z0-9_-]+` **stops at the embedded newline**, which is
+exactly why the leaked match is 92 and not 123.
+
+### What this changes
+
+1. **The exposed credential is the one the backend and the away-watchdog both
+   authenticate with** — byte-identical in `com.pyfinagent.away-watchdog.plist` per
+   ask #20's SHA-256 comparison. Not an incidental token.
+2. **Ask 06-2 (rotate) and ask #20 (re-issue the malformed token) are the SAME
+   credential and ONE fix** — ask #20 says so explicitly, and it also covers 62.1.1 and
+   85.3.3. Rotation now has two independent justifications: it is malformed **and** it is
+   public.
+3. **Ask #20's own recommendation still stands and is now urgent:** *"Re-issue the token
+   and set it ONCE, in one place, for both plists."*
+
+### What is PROVEN vs INFERRED — the distinction matters
+
+**PROVEN:** the leaked value is identical in length and prefix-count to ask #20's seg1;
+ask #20 was filed 2026-08-08, inside the bracket where the leak starts.
+
+**INFERRED, NOT PROVEN:** *how* the token reached the `result` field.
+`scripts/away_ops/run_away_session.sh` writes `$OUT_JSON` with a `result` key from the
+CLI's own JSON output (`:162` shows the dry-run shape), so the likeliest path is an
+auth-failure response echoing the Authorization header into `result`. **I did not
+demonstrate that path**, and `grep` for `CLAUDE_CODE_OAUTH_TOKEN` in that script returns
+nothing — so the env var reaches it from the plist environment, not from the script text.
+
+**ALSO NOT ESTABLISHED:** why the leak stopped after 08-10. Neither bracket contains a
+producer change — both windows are docs/masterplan/handoff commits only. **So the fix,
+if any, was NOT in git**: a plist edit, an env change, or the malformed token simply
+ceasing to produce the echoing failure mode. §5 item 3 remains open, but the search space
+is now much smaller: look outside the repo.
