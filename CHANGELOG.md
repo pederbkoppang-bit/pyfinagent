@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-13 | `e21468d5` | fix(pricing): Claude Sonnet 5 is $2/$10, not $3/$15 -- the introductory rate became the standard pri |
 | 2026-08-13 | `cc0d2bff` | phase-86.58 cycle-2: fix all five blockers the Q/A raised |
 | 2026-08-13 | `56abdbde` | feat(settings): add the Claude 5 family to the model picker, with pricing and effort support |
 | 2026-08-13 | `cba26085` | phase-86.58: Q/A verdict FAIL -- persisted verbatim in the turn it returned |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-13 | `f6c2dbf4` | phase-86.59: Q1 answered -- the binding constraint is upstream analysis emptiness, not the ranking |
 | 2026-08-13 | `fbac40d7` | feat: version bumps now mean SHIPPED WORK, and the major moves on a completed phase |
 | 2026-08-13 | `a34ee589` | docs(86.68): the version bumps per attempt, not per shipped step -- 86.9 and 86.44 moved it 19 times |
-| 2026-08-13 | `1d007f93` | docs(86.64-86.67): file the verified gaps from the codex review plus two found while checking it |
 
 ---
 
