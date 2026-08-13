@@ -258,3 +258,86 @@ rather than fixed a bug. Three of us now edit `research-gate.js` (86.70, 86.72, 
 `86.63`, `86.62`, `86.9`, `86.44`, `86.64`–`86.68`. And 86.58 has a passed gate, a contract
 and four measured criteria but **no Q/A verdict**, so it stays `pending` — no step was
 flipped tonight, and the version is unchanged at 6.93.220.
+
+---
+
+# ADDENDUM 2 — 22:10 to 23:45 (session close)
+
+## 86.58 CLOSED — PASS, the only step flipped today
+
+Ledger **FAIL → CONDITIONAL → PASS** (`wf_b127735e-55b`, `wf_1e709e75-776`,
+`wf_bb75a26d-e5c`). Final verdict `ok:true`, `harness_compliance_ok:true`,
+`violated_criteria: []`, 19 checks run. All 6 immutable criteria MET with **zero
+production code changed** — the fix is operator-gated, so the deliverable is evidence.
+
+Each failure was mine, and each is worth recording:
+
+1. **FAIL** — I published a flag-ON blast radius of **1 of 1 (100%)** *without ever
+   running with the flags on*. My script `assert`ed both flags `False` and aborted
+   otherwise, using a hand-set `'BUY'` as a proxy. Measured properly: **0 of 2**. False
+   in both halves. Third instance of the assert-the-property-not-a-proxy class; the
+   auto-memory now carries the greppable signature.
+2. **FAIL** — counts stale: I published "the book holds 1 position" **eight minutes
+   after** DELL opened, a trade **I had recorded myself that hour**.
+3. **CONDITIONAL** — I called a real measurement a dead end. `Settings()` reads
+   `backend/.env`, and `paper_risk_judge_reject_binding` returns `True` *because the
+   operator promoted it there*. The Q/A's phrase: **"Main understated its own evidence."**
+
+**Two things the evaluator did that outrank the verdict:** it **closed a residual gap I
+left open** (checked the launchd plist to prove no env var overrides `.env`, and
+confirmed the sibling flag's code default is `False` while `Settings()` returns `True`);
+and it **caught a broken probe in itself** — its first mutation survived and looked like
+a finding until it read the source and found the probe, not the guard, was broken.
+
+## The harness fix proved itself on live data
+
+During cycle 3 the Q/A ran **both** counter sources: `qa_wip.py` returned **3**, the
+retired `grep` on `harness_log.md` returned **0**. They disagreed exactly as phase-86.75
+predicted — LOG runs after EVALUATE — and the ledger gave the right answer on a real
+step. Under the old source a third CONDITIONAL would still have been available; under
+the new one it was forbidden. The Q/A concluded the edit is **stricter against its
+author, not laxer**, and judged its independence intact.
+
+## Peer coordination
+
+A peer restarted the backend at 20:30:59Z (99231 → 93024) on the operator's session-end
+instruction — **3m45s after** I wrote `live_check_86.58.md`, falsifying its pid header
+mid-evaluation. **I left it.** Editing an artifact while it is being graded is what the
+freeze rule prevents; the Q/A caught the stale claim and the correction landed visibly
+*after* the verdict. All process-sourced measurements were re-probed on 93024 and are
+unchanged.
+
+The peer also filed **P0 86.74**: the DELL trade I reported as good news is a **risk-gate
+bypass** — the judge rejected it at 0% and a falsy-zero check inverted that into a
+10%-of-NAV buy. **My "the book traded today" framing was wrong** and is corrected in the
+86.69 addendum.
+
+## Steps closed / filed today
+
+| Step | State |
+|---|---|
+| **86.58** | **done (PASS)** — the only flip today |
+| 86.69 | filed P0 — the empty-HOLD regression blocking the picker |
+| 86.71 | filed — the attempt budget has no caller and no persistence |
+| 86.72 | filed — the re-research leg absent from the Workflow rail |
+| 86.73 | filed + **gate PASSED**, decision researched and settled |
+| 86.75 | filed — the 5 audit changes, **shipped but unverified** |
+
+Version **6.93.220** → bumped only by 86.58's flip, which is the changelog rule
+shipped yesterday working as intended.
+
+## Honest gaps at close
+
+1. **86.75 is shipped and unverified**, and I both authored and audited it. Operator
+   review of the `qa.md` edit is owed.
+2. **86.59's gate has failed twice.** The brief is good (61,837 chars, 59 URLs, both
+   jobs closed) and needs only its envelope flipped — not new research.
+3. **The cause of the 06-12/15 break is still not established.** The 08-13 cycle showing
+   no degradation makes it look **intermittent**, which weakens the single-root-cause
+   hypothesis. n=1.
+4. **The picker chain past 86.63 is untouched** — deferred on the operator's explicit
+   "harness correctness first".
+5. One `live_check` requirement (**flag values from the running process**) is satisfied
+   only by **convergent positive-controlled inference**, not a direct read. A launch-time
+   env var could still override `.env`; the Q/A closed that via the launchd plist, but a
+   read-only route would close it properly.
