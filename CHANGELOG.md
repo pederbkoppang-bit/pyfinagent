@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-14 | `194a8047` | docs(goal): 86.68 -- shipped and live with ZERO artifacts; tonight is a natural experiment for it |
 | 2026-08-14 | `fbc7745e` | docs(goal): 86.66 census -- the AttributeError is the ONLY current failure, and my count-ranked firs |
 | 2026-08-14 | `1422d0ec` | phase-86.44: correct the closing block -- criterion 5 is settled, and settled NEGATIVELY |
 | 2026-08-14 | `5769c366` | phase-86.44: criterion 5 MEASURED -- concurrent-writer uniqueness is DISPROVEN, 14 collisions of 16 |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-13 | `a8ab0c7d` | phase-86.62: research gate PASSED -- all three degradations are CHRONIC, and the cycle reports itsel |
 | 2026-08-13 | `7d0cfb3f` | phase-86.59: research gate PASSED on attempt 3 -- verification, not a marker flip |
 | 2026-08-13 | `bc6471bf` | docs(goal): 86.9 and 86.44 are at the attempt ceiling -- the counter no longer resets on a FAIL |
-| 2026-08-13 | `0fd1c23e` | phase-86.63: contract written -- the guard cannot reach the root, and the contract says so |
 
 ---
 
