@@ -34,11 +34,19 @@ attention, is the defect.
 | p95 breach (6267ms vs 500ms) | 10 of 14 MetaCoordinator decisions | No |
 | AV social rate limit | 27 events on 14 of 21 days | No |
 
-`quant_opt` — the action the p95 breach is supposed to trigger — **fired 0 times in
-21 days.**
+~~`quant_opt` — the action the p95 breach is supposed to trigger — fired 0 times in
+21 days.~~ **CORRECTED (cycle 2): this was wrong and is retained struck-through so the
+error is visible rather than erased.** The p95 branch returns **`perf_opt`**, which
+fired **10 of 10**; `quant_opt` is the unrelated Priority-2 low-Sharpe action, and the
+bare string occurs 17 times. The real finding: Priority 1's early return **STARVES**
+Priorities 2 and 3 on 10 of 14 decisions.
 
-**Criterion 4 is answered and I verified it at source:** both branches exist and **the
-production path ZEROES.** `backend/tools/social_sentiment.py::_keyword_score` ends
+**Criterion 4 — CORRECTED (cycle 2):** the codebase does **BOTH**, decided by whether
+`fallback_articles` was passed. Consumer `backend/tasks/analysis.py:251`
+`.get("avg_sentiment")`; producer `social_sentiment.py:73-81` returns `0.0` on the
+fallback branch (**ZEROES**) and a `NO_DATA` dict with no such key on the other
+(**OMITS** → `None`). Saying "the production path ZEROES" flattened a two-branch answer
+on the exact dichotomy the criterion exists to resolve. `backend/tools/social_sentiment.py::_keyword_score` ends
 `if total == 0: return 0.0`, so a rate-limited fetch that falls back to keyword-scoring
 headlines yields **exactly 0.0 — inside the NEUTRAL band**. The provenance that would
 reveal it (`yfinance_fallback`) is produced and then **dropped**: `save_report` has no

@@ -35,9 +35,41 @@ population above; none is asserted.
 | p95 breach | **10** | 9 | **10 of 14 MetaCoordinator decisions = 71.4%** | **No** |
 | AV social rate limit | **27** | 14 | 27 events over 21 days | **No** |
 
-**`quant_opt` fired 0 times in the whole 21-day window** — positive-controlled by
-`MetaCoordinator decision` appearing **14** times, so the log channel demonstrably
-works and the zero is about `quant_opt` specifically.
+> **CORRECTED (cycle 2, Q/A `wf_52e33912-843` FAIL).** This paragraph previously read
+> *"`quant_opt` fired 0 times in the whole 21-day window"* and elsewhere called it *"the
+> remedial action the breach is meant to trigger"*. **Both halves were wrong, and the
+> evidence refuting me was quoted in my own artifact two lines above.**
+
+**What `meta_coordinator.py:156-172` actually does — an EARLY-RETURN LADDER:**
+
+```python
+# Priority 1: Latency issues (cheap to fix, user-visible)
+if health.p95_latency_ms > self.latency_threshold_ms:
+    return CoordinatorDecision(action="perf_opt", ...)     # <-- RETURNS HERE
+
+# Priority 2: Low Sharpe (quant params need tuning)
+if (health.sharpe_ratio < self.sharpe_target and ...):
+    return CoordinatorDecision(action="quant_opt", ...)
+```
+
+- The p95 branch returns **`perf_opt`**, and it fired **10 of 10** breaches
+  (`MetaCoordinator decision: perf_opt` = **10** in the population). **The remedial
+  action for p95 fired every single time.**
+- **`quant_opt` is Priority 2 — the LOW-SHARPE action — and has nothing to do with
+  p95.** My claim inverted the code.
+- **My "0 times" count was literally false:** `quant_opt` occurs **17** times in the
+  population (module `quant_optimizer`). Only the narrower
+  `MetaCoordinator decision: quant_opt` is 0 — and even under that charitable reading
+  the gloss was wrong.
+
+**THE FINDING I MISSED, and it is the better one:** because Priority 1 **returns**, a
+chronic p95 breach **STARVES** Priority 2 and Priority 3. On **10 of 14** decisions,
+`quant_opt` and `skill_opt` were **never evaluated at all**. The degradation is not
+"the remedy never fires" — it is "one remedy fires so reliably that the other two are
+unreachable."
+
+Verified counts: `MetaCoordinator decision: perf_opt` = **10**;
+`MetaCoordinator decision: quant_opt` = **0**; bare `quant_opt` = **17**.
 
 ### A disagreement I hit, pinned rather than papered over
 
@@ -81,13 +113,30 @@ perf_tracker.py:~63       recent = [e for e in self._entries if e.timestamp >= c
 Not per cycle, not per analysis, not per LLM call — **the last five minutes of API
 traffic.**
 
-**INFERENCE, labelled as such and NOT measured:** a 500ms threshold is an
-*interactive-API* figure, while a 5-minute window sampled during a paper-trading cycle
-contains long analysis requests. That would make a breach the expected state rather
-than a signal, which is consistent with 10 of 14 breaching while the remedial action
-never fires. **I did not verify which endpoints populate those entries**, so this is a
-hypothesis for whoever changes the threshold — and per criterion 6 that change is not
-made here.
+> **WITHDRAWN AND REFUTED (cycle 2).** I offered, labelled as an unmeasured inference,
+> the hypothesis that the 300s window "contains long analysis requests" so a 500ms
+> threshold would make breach the expected state — and nominated it as *"the argument
+> someone would need"* to change the threshold. **The Q/A refuted it with two checks I
+> could have run myself:**
+>
+> **(a) Live, backend idle, no cycle running:** `GET /api/observability/latency?window=300`
+> returned **p50 5.2ms, p95 2680.2ms, p99 4594.1ms over 37 requests** — the threshold is
+> breached **5.4x with ZERO batch traffic present**.
+>
+> **(b) Historical endpoint mix** in the 300s before each of the 10 breaches, from
+> 147,416 uvicorn access lines: **all ten windows are dominated by frontend dashboard
+> polling**, and no analysis or agent endpoint appears in any top-6. The
+> 2026-08-11 21:21:28 / 6267ms window — the cycle this step is named for — is 111
+> requests: live-prices 17, portfolio 16, snapshots 16, kill-switch 16, freshness 15,
+> gate 15.
+>
+> **The interactive endpoints ARE the slow ones.** `/api/paper-trading/portfolio` alone
+> shows p95 **4,724.7ms** against `/api/health` at **5.4ms**. So the 500ms threshold is a
+> **TRUE POSITIVE about user-visible latency**, not batch contamination.
+>
+> **The lesson:** labelling a claim an inference does not make it safe when it points at
+> loosening a gate. This one would have seeded a future threshold change with a refuted
+> argument. It is withdrawn, not softened.
 
 ---
 
@@ -115,40 +164,54 @@ take it as an argument. The fallback path is the *correct* behaviour here, and t
 
 ---
 
-## Criterion 4 — BOTH branches exist, and the production path ZEROES
+## Criterion 4 — CORRECTED: the codebase does BOTH, and I never read the consumer
 
-Verbatim, `backend/tools/social_sentiment.py::_keyword_score`:
+> **CORRECTED (cycle 2).** The criterion prescribes a METHOD — *"determined by reading
+> the consumer"* — and **no deliverable cited a single consumer file:line**. A census of
+> `avg_sentiment` / `analysis.py` / `NO_DATA` returned **0/0/0** across all three
+> artifacts. I then asserted flatly *"the production path ZEROES"* **on the exact
+> dichotomy the criterion exists to resolve.**
+
+**THE CONSUMER** — `backend/tasks/analysis.py:251`:
 
 ```python
-def _keyword_score(text: str) -> float:
-    """Return a sentiment score in [-1, 1] using keyword matching."""
-    words = set(text.lower().split())
-    pos = len(words & _POSITIVE)
-    neg = len(words & _NEGATIVE)
-    total = pos + neg
-    if total == 0:
-        return 0.0
-    return (pos - neg) / total
+social_sentiment_score=social_data_dict.get("avg_sentiment") if isinstance(social_data_dict, dict) else None,
 ```
 
-When the AV fetch is rate-limited, the fallback keyword-scores yfinance headlines. A
-no-match returns **exactly `0.0`** — which sits **inside the NEUTRAL band**.
+**THE PRODUCER** — `backend/tools/social_sentiment.py:73-81`, **two** rate-limit branches:
 
-**A zeroed signal and an absent signal are different inputs to a score, and this path
-produces the zero.** "We have no sentiment data" and "sentiment is genuinely neutral"
-are represented by the identical number. The provenance that would distinguish them
-(`yfinance_fallback`) is produced and then **dropped** — `save_report` has no
-social-provenance column.
+```python
+if not feed:
+    if fallback_articles:
+        return _score_fallback_articles(ticker, fallback_articles)   # -> avg_sentiment 0.0
+    return {
+        "ticker": ticker,
+        "signal": "NO_DATA",
+        "summary": "No social sentiment data available.",           # <-- NO avg_sentiment key
+    }
+```
 
-**This is the same defect class as 86.69** (a failed analysis persisted as `HOLD`) and
-86.58 (an order reason persisted as a recommendation): **an absence recorded as a
-value.** Third instance in this codebase, found independently.
+**The answer is BOTH, and which one depends on whether `fallback_articles` was passed:**
 
----
+| Branch | Producer returns | Consumer `.get("avg_sentiment")` | Effect |
+|---|---|---|---|
+| `fallback_articles` present | `avg_sentiment: 0.0` via `_score_fallback_articles` | `0.0` | **ZEROES** — a neutral-band value |
+| `fallback_articles` absent | `NO_DATA` dict, **no `avg_sentiment` key** | `None` | **OMITS** |
+
+`_keyword_score` still ends `if total == 0: return 0.0`, so the zeroing branch is real —
+but it is **one of two**, not "the production path". A single flat claim on a
+two-branch dichotomy is exactly the error the criterion was written to catch.
+
+**The zeroing branch remains the defect class** — an absence recorded as a value, with
+the `yfinance_fallback` provenance dropped at `save_report`. But the omitting branch
+behaves **correctly**, and reporting only the first misdescribes the system.
 
 ## Criterion 5 — causal links, demonstrated or ruled out
 
-**86.60 (blind overlays) — LINK IS REAL, mechanism shown.** The social overlay is one
+**86.60 (blind overlays) — LINK IS REAL for the ZEROING branch ONLY (corrected).** The
+mechanism below rests on the neutral-band `0.0`, which per criterion 4 above occurs only
+when `fallback_articles` is present. On the `NO_DATA` branch the signal is omitted and
+this link does **not** apply. Established for one of two branches, not both. The social overlay is one
 of the eight; when rate-limited it contributes a `0.0` in the neutral band rather than
 abstaining, so it perturbs the score with a non-signal. **However**, 86.60's finding is
 that the overlays slice an *unsorted* head-of-universe, so they were already not

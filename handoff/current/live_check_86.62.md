@@ -48,10 +48,23 @@ dataset **is** `US`. **Specific missing object:**
 across 9 distinct days. Parsed values: **n=10, min 2,750ms, max 13,341ms, 10 of 10 over
 threshold (100%)**.
 
-**Positive control for the zero below:** `MetaCoordinator decision` appears **14**
-times, so the channel works.
-**`quant_opt` appears 0 times in 21 days** — the remedial action the breach is meant to
-trigger has never fired.
+**CORRECTED (cycle 2, Q/A FAIL).** This previously read *"`quant_opt` appears 0 times
+in 21 days — the remedial action the breach is meant to trigger has never fired."*
+**Wrong on both halves.**
+
+`meta_coordinator.py:156-172` is an **early-return ladder**. The p95 branch returns
+**`perf_opt`** (Priority 1) and it fired **10 of 10** — the verbatim lines quoted above
+say `perf_opt`, which is the evidence that refutes my own sentence. `quant_opt` is
+**Priority 2, the LOW-SHARPE action**, unrelated to p95. And the bare string `quant_opt`
+occurs **17** times in the population (module `quant_optimizer`), so "0 times" was
+literally false; only `MetaCoordinator decision: quant_opt` is 0.
+
+**The real defect, which I missed:** because Priority 1 returns, a chronic p95 breach
+**STARVES** Priorities 2 and 3 — on **10 of 14** decisions `quant_opt` and `skill_opt`
+were never evaluated.
+
+Verified: `MetaCoordinator decision: perf_opt` = **10** · `... quant_opt` = **0** ·
+bare `quant_opt` = **17** · `MetaCoordinator decision` = **14**.
 
 **The p95 is over HTTP request latencies in a rolling 300-second window**
 (`perf_tracker.py:59 summarize(window_seconds=300)` → `meta_coordinator.py:267`), not
@@ -103,10 +116,26 @@ probe was measuring a different population. Recorded rather than silently reconc
         return 0.0
 ```
 
-A rate-limited fetch falls back to keyword-scoring headlines; a no-match returns
-**exactly `0.0`**, inside the **NEUTRAL** band. **"No sentiment data" and "sentiment is
-genuinely neutral" become the same number**, and the `yfinance_fallback` provenance that
-would distinguish them is dropped — `save_report` has no column for it.
+**CORRECTED (cycle 2): the codebase does BOTH, and the answer depends on a branch.**
+The criterion demanded this be *"determined by reading the consumer"*, and my first
+version cited no consumer at all.
+
+**Consumer** — `backend/tasks/analysis.py:251`:
+```python
+social_sentiment_score=social_data_dict.get("avg_sentiment") if isinstance(social_data_dict, dict) else None,
+```
+
+**Producer** — `backend/tools/social_sentiment.py:73-81`, two branches:
+
+| Branch | Producer returns | `.get("avg_sentiment")` | Effect |
+|---|---|---|---|
+| `fallback_articles` present | `avg_sentiment: 0.0` | `0.0` | **ZEROES** (neutral band) |
+| `fallback_articles` absent | `NO_DATA` dict, no such key | `None` | **OMITS** |
+
+The zeroing branch is real and is the defect — `"No sentiment data"` and `"genuinely
+neutral"` become the same number, with the `yfinance_fallback` provenance dropped at
+`save_report`. **But it is one of two branches, not "the production path".** The
+omitting branch behaves correctly.
 
 ---
 
