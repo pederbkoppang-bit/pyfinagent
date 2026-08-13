@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-13 | `a34ee589` | docs(86.68): the version bumps per attempt, not per shipped step -- 86.9 and 86.44 moved it 19 times |
 | 2026-08-13 | `1d007f93` | docs(86.64-86.67): file the verified gaps from the codex review plus two found while checking it |
 | 2026-08-13 | `e0aaddb6` | docs(goal): next-session goal -- candidate picker as P1, plus every Q/A and Researcher finding from  |
 | 2026-08-12 | `c670421a` | docs: deep-research prompt for the candidate picker -- ordered to test the premise before optimising |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-11 | `16b2c7d4` | docs(day-report): the 20:00 cycle completed in 4887s with zero trades -- risk-gate REJECT, not an em |
 | 2026-08-11 | `bbc09871` | docs(86.57): the session-stop gate demands an unsatisfiable ordering condition and reads a stale goa |
 | 2026-08-11 | `62c84c45` | docs(86.56): a dead-man's-switch is being refreshed by something that is not a cycle |
-| 2026-08-11 | `0cc71504` | docs(day-report): derived disposition for the goal's sequenced backlog -- 4 done, 4 parked, 1 peer-o |
 
 ---
 
