@@ -34445,3 +34445,79 @@ Judge panel/ensemble; the `deep` tier / parallel researcher fan-out; a resume-fr
 clause (punches a hole in the read-in-full floor); a wf_* transcript-scraping attempt counter
 (mis-measures in both directions); a try/catch in qa-verdict.js (computes zero bits); CLAUDE.md
 compression; any fleet-shaped infra. **Zero new agents, zero new services, zero new schemas.**
+
+## Cycle 86.58 -- 2026-08-13 -- phase=86.58 result=PASS
+
+**The signal_downgrade SELL rule is measurably dead on held positions. Three attempts,
+FAIL -> CONDITIONAL -> PASS, every number re-derived by the evaluator rather than
+inherited.**
+
+Verdict ledger: attempt 1 `wf_b127735e-55b` FAIL; attempt 2 `wf_1e709e75-776`
+CONDITIONAL; attempt 3 `wf_bb75a26d-e5c` **PASS** (`ok:true`,
+`harness_compliance_ok:true`, `violated_criteria: []`, 19 checks run).
+
+### Outcome
+All 6 immutable criteria MET. **No production code changed** -- per-commit diffs
+against `backend/` are EMPTY across all three 86.58 commits. The deliverable is
+evidence, not a fix: the fix is operator-gated (ask 06-8) and criterion 4 forbids it.
+
+- The rule is dead by DRIVING `decide_trades`, controls green, under **both** flag states.
+- Population re-derived at publication time: **2 of 2** held rows off-vocabulary, 0 in
+  the closed set. `paper_round_trips`: `signal_downgrade` **0** of 32, positive-controlled
+  by the adjacent `sell_signal` at 3.
+- **Blast radius 0 of 2**, mechanism confirmed independently by the Q/A: flags-ON
+  `_resolve_rec('new_buy_signal')` = `'__UNRECOGNISED__'`, in none of the three sets;
+  and `_pos_rec` is written only by `execute_buy`, so flipping a flag does not rewrite
+  rows already on disk. Exposure begins at the next `execute_buy`.
+
+### What the Q/A caught that I got wrong
+1. **Cycle 1 (FAIL):** I published a 1-of-1 blast radius **without ever running with the
+   flags on** -- my script asserted them `False` and aborted otherwise, using a hand-set
+   `'BUY'` as a proxy. The real number **inverted** to 0-of-2. Third instance of the
+   assert-the-property-not-a-proxy class; auto-memory updated with the greppable
+   signature.
+2. **Cycle 1:** counts were stale -- I published "1 position" eight minutes after DELL
+   opened, a trade **I had recorded myself that hour**.
+3. **Cycle 2 (CONDITIONAL):** I called a real measurement a dead end. `Settings()` reads
+   `backend/.env`, and `paper_risk_judge_reject_binding` returns **True** because the
+   operator promoted it there -- so both 86.58 flags reading `False` was always a
+   positive-controlled read of real config, not "the defaults path". The Q/A's phrase:
+   **"Main understated its own evidence."**
+
+### Two things the Q/A did that are worth keeping
+- **It closed the residual gap I left open.** `com.pyfinagent.backend.plist` injects only
+  `PATH`/`DEV_LOCALHOST_BYPASS`/`PYTHONUNBUFFERED`, so no launch-time env var overrides
+  `.env`; and `settings.py:343` shows the sibling flag's *code default* is `False` while
+  `Settings()` returns `True`, proving the positive control genuine.
+- **It caught a broken probe in ITSELF.** Its first mutation (`_BUY_RECS +=
+  'new_buy_signal'`, lowercase) SURVIVED and looked like a real finding. Reading source
+  showed flags-OFF `_resolve_rec` is `(raw or default).upper()`, so the token is
+  `'NEW_BUY_SIGNAL'` and a lowercase literal can never match -- **the probe was broken,
+  not the guard.** Corrected as M1b, which killed the cell. Recorded so a later spawn
+  does not re-file it as a defect.
+
+### LIVE PROOF that today's phase-86.75 counter fix was correct
+The Q/A ran both sources. `qa_wip.py 86.58` returned **records_retained=3**; the retired
+`grep -cF "phase=86.58" handoff/harness_log.md` returned **0**. They disagreed exactly as
+86.75 predicted -- LOG runs after EVALUATE -- and **the ledger gave the right answer on a
+real step**. Under the old source CONDITIONAL would still have been available at attempt
+3; under the new one it was forbidden. The Q/A noted the edit is therefore **stricter
+against its author, not laxer**, and did not consider its independence compromised.
+
+### PASS-WITH-FLAG and open follow-ups (NOT blockers, queued not fixed)
+- **Contract-before-generate was BREACHED** (criteria 1-2 ran before the contract),
+  voluntarily disclosed in `contract_86.58.md`, and the Q/A confirmed the blind mtime
+  check passes anyway. Violates no immutable criterion; not curable retroactively.
+- Four NOTE-level items for a later pass: the stale "TOTAL 1 rows" block sits adjacent to
+  its correction rather than replaced; the displayed SQL lacks a `quantity > 0` filter
+  (immaterial -- identical member set, checked); `live_check` §1 says "and its rotated
+  archives" where the live log alone suffices; and "three independent instruments" is
+  strongest for the posfix flag -- instruments 2 and 3 do not speak to the vocab flag.
+
+### Operator actions owed
+- **Ask 06-8 unchanged: do NOT promote.** Corrected basis -- promotion has **zero
+  immediate effect** on the 2 held rows; the hazard is **deferred** to the next
+  `execute_buy`, after which a fabricated placeholder `HOLD` becomes a live SELL trigger.
+  Sequence 86.69 first.
+- **Review of the `.claude/agents/qa.md` edit (phase-86.75) is still owed** -- separation
+  of duties; this session authored it and used it.

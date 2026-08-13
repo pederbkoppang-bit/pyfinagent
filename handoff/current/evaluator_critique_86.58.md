@@ -249,3 +249,48 @@ instruments available.
 (phase-86.75), a third attempt may not return CONDITIONAL — it must be PASS or FAIL.
 That is stricter than the old consecutive-CONDITIONAL rule and is intended: a budget may
 only stop the loop earlier, never admit work a Q/A refused.
+
+
+---
+
+# CYCLE 3 VERDICT — PASS
+
+**Run:** `wf_bb75a26d-e5c` (attempt 3)  |  `ok: True`  |  `harness_compliance_ok: True`
+**Verdict ledger:** attempt 1 = **FAIL** (`wf_b127735e-55b`) → attempt 2 = **CONDITIONAL** (`wf_1e709e75-776`) → attempt 3 = **PASS** (`wf_bb75a26d-e5c`)
+
+> Transcribed VERBATIM from the Q/A's returned structured output. Main records
+> the verdict and never authors it.
+
+```json
+{
+  "ok": true,
+  "verdict": "PASS",
+  "reason": "All 6 immutable criteria MET, each re-derived independently rather than inherited. Immutable command exit=0 (\"parses\"). No production code changed by this step: per-commit diffs for cba26085/cc0d2bff/e00773dc against backend/, frontend/ and .claude/masterplan.json are all EMPTY (cost_tracker.py + settings_api.py in the same window belong to peer commits 73c8c2ce/e21468d5). Ruff F821/F401/F811 over a commit-DERIVED non-empty 5-file scope: \"All checks passed!\" exit=0. C1: I re-ran scripts/qa/drive_86_58_dead_downgrade.py and got output BYTE-IDENTICAL to the published block, exit=0; it drives the real decide_trades (proven, not assumed - patching the production module's globals moves its cells, excluding vacuity shape 7). C2: BQ re-derived by me - paper_positions holds 2 rows, both currently held, both recommendation='new_buy_signal', off-vocab 2 of 2 = 100.0%, in-closed-set 0 of 2, DELL entry 2026-08-13T19:31:19.212436Z; paper_round_trips 32 total with signal_downgrade 0, positive-controlled by sell_signal 3. C3: flags-ON measured non-live via in-process model_copy, blast radius 0 of 2, and I CONFIRMED the stated mechanism directly - flags-ON _resolve_rec('new_buy_signal') = '__UNRECOGNISED__', a member of none of the three sets. C4: no flag promoted; both read False; .env contains neither. C5: not-applicable is the CORRECT reading - no guard was added, verified by the empty backend/ diff. C6: exactly 1 occurrence of \"UNRECOGNISED recommendation\" in portfolio_manager.py, file clean and untouched by this step, firing 4x in production including today. MY OWN mutation matrix (in-process, zero tree writes, control observed GREEN first): M1b kills cell A, M2b kills cell E, M5 kills cell C, M3 kills control B, M4 shows the discrimination guard would go red - byte-identical restore verified and post-restore baseline re-run reproduces. I also CLOSED the residual gap Main disclosed as open: com.pyfinagent.backend.plist injects only PATH/DEV_LOCALHOST_BYPASS/PYTHONUNBUFFERED, so no launch-time env var overrides .env; and settings.py:343 shows paper_risk_judge_reject_binding's code default is False while Settings() returns True, proving instrument 1's positive control is genuine. Main understated its own evidence. PASS-WITH-FLAG: the contract-before-generate ordering was BREACHED (criteria 1-2 ran before the contract) and voluntarily disclosed in contract_86.58.md:88-97 naming the blind mtime check that passes anyway - I confirmed mtimes do pass (19:22:39Z < 19:24:51Z < 20:25:55Z). It violates none of the 6 immutable criteria, its harm channel is structurally closed because the criteria are immutable and I verified they match the masterplan verbatim, and it is not curable retroactively.",
+  "violated_criteria": [],
+  "violation_details": [],
+  "certified_fallback": false,
+  "checks_run": [
+    "harness_compliance_audit_5_item",
+    "immutable_verification_command",
+    "production_diff_scope_per_commit",
+    "ruff_lint_F821_F401_F811_derived_scope",
+    "drive_script_byte_identical_reproduction",
+    "mutation_matrix_6_cells_with_control_and_restore",
+    "backend_log_recount_44MB",
+    "bigquery_population_rederivation",
+    "bigquery_round_trip_distribution",
+    "flag_state_positive_control_settings_default_vs_read",
+    "launchd_plist_env_override_check",
+    "backend_pid_and_start_time_verification",
+    "research_gate_envelope_and_url_count",
+    "log_last_and_masterplan_status",
+    "verdict_shopping_evidence_changed_check",
+    "cycle3_diff_audit",
+    "code_review_heuristics",
+    "qa_wip_attempt_counter",
+    "evaluator_critique"
+  ],
+  "harness_compliance_ok": true,
+  "notes": "ATTEMPT COUNTER: this is attempt 3. `python scripts/qa/qa_wip.py 86.58` returns records_retained=3, prior_records=[verdict_wip_86.58__20260813T202813Z.md, verdict_wip_86.58__20260813T201406Z.md] - i.e. 2 prior spawns plus mine. Prior-verdict sequence: attempt 1 = FAIL (wf_b127735e-55b), attempt 2 = CONDITIONAL (wf_1e709e75-776), attempt 3 = PASS (this run). Secondary cross-check: `grep -cF \"phase=86.58\" handoff/harness_log.md` = 0, which DISAGREES with the ledger; the ledger governs, and the disagreement is exactly the systematic under-read phase-86.75 documented (LOG runs after EVALUATE). CONDITIONAL was therefore unavailable to me; I did not soften anything to reach PASS and I did not manufacture a defect to avoid it. SEPARATION OF DUTIES: this same Main session edited .claude/agents/qa.md today (phase-86.75), including the counter I just ran. I do not consider my independence compromised, and I checked rather than assumed: the edit is STRICTER against the author, not laxer - under the retired harness_log grep this step reads 0 priors and CONDITIONAL would still have been available; under the new qa_wip source it reads 2 and CONDITIONAL is forbidden. The companion edit (\"a prior verdict is EVIDENCE, not ground truth\") cuts both ways and instructs re-derivation, which I performed on every number. My verdict rests on measurements I reproduced myself, not on either prior verdict. Operator review of the qa.md edit is still warranted and is already requested in harness_log.md. RE-TESTED, NOT INHERITED, as instructed: (a) criterion 5's not-applicable reading is correct - no guard exists to mutate, confirmed by empty backend/ diffs across all three 86.58 commits and a clean working tree; (b) the protocol-order breach is real, mtimes do pass, and Main's disclosure is accurate; (c) the 0-of-2 blast radius reproduces exactly and I verified its mechanism by an independent mutation rather than by reading Main's explanation. BROKEN PROBE I CAUGHT IN MYSELF: my first mutation (_BUY_RECS += 'new_buy_signal', lowercase) SURVIVED and looked like a real finding. Reading the source showed flags-OFF _resolve_rec is the legacy `(raw or default).upper()`, so the resolved token is 'NEW_BUY_SIGNAL' and a lowercase literal can never match - the probe was broken, not the guard. Corrected as M1b, which killed the cell. Recorded so the next spawn does not re-file it as a defect. NOTE-LEVEL, NON-BLOCKING: (1) experiment_results section \"Criterion 2\" leaves the stale \"TOTAL 1 rows\" output directly under the SQL with the CORRECTED block below rather than replacing it - correction is adjacent and explicit; (2) the displayed SQL carries no `quantity > 0` filter although the criterion says CURRENTLY held - immaterial here, both operationalizations return the identical member set {NTAP, DELL} (symmetric difference empty), which I checked rather than assuming cardinality agreement; (3) live_check section 1 says \"backend.log and its rotated archives\" but no archives exist - all four firings reproduce from the live 44.5 MB log alone, so nothing is inflated; (4) \"three independent instruments\" is strongest for the posfix flag - instruments 2 and 3 do not speak to the vocab flag at all, and instrument 2's disjunction (\"posfix OFF or synthesis_integrity ON\") only collapses using instrument 1's synthesis_integrity=False reading; my launchd-plist instrument is genuinely independent and strengthens the conclusion. BLOCKED CHECK: three Bash calls containing value-extracting greps against backend/.env were denied by the permission system; I worked within it using count-only greps plus the settings.py code default, which was sufficient and arguably stronger. GATES NOT APPLICABLE: 1b (frontend lint/typecheck) and 1c (live UI capture) - the diff touches no frontend/** and the step makes no UI claim. 1d backend runtime smoke was satisfied by driving the real production decide_trades and by reading the running process's own output in backend.log. No code-review heuristic fired at BLOCK or WARN severity: the diff adds one script under scripts/qa/ and handoff artifacts, touches no execution path, no risk guard, no secret, no dependency pin."
+}
+```
