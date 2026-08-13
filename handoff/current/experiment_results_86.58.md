@@ -5,7 +5,14 @@
 **Contract:** `handoff/current/contract_86.58.md`
 **Research gate:** PASSED (`wf_58d0341b-6cb`) — brief at `handoff/current/research_brief_86.58.md`
 
-**Outcome: the step's four measurable criteria are satisfied by MEASUREMENT, and NO
+> **CYCLE-2 CORRECTION (Q/A `wf_b127735e-55b` returned FAIL).** Three published
+> claims did not survive re-measurement and are corrected below, each marked
+> **CORRECTED**. The headline error: I reported a flag-ON blast radius of
+> **1 of 1 (100%)** without ever running with the flags on. Measured with them
+> genuinely on, it is **0 of 2**. The old text is not silently patched — what was
+> wrong is stated next to what replaced it.
+
+**Outcome: the step's measurable criteria are satisfied by MEASUREMENT, and NO
 production code was changed.** That is the honest deliverable: criterion 4 forbids
 promoting the flags, and the flags are the fix. What this step produces is proof the
 rule is dead, the derived population, the quantified blast radius, and a recorded
@@ -33,41 +40,59 @@ source .venv/bin/activate && PYTHONPATH=/Users/ford/.openclaw/workspace/pyfinage
   python scripts/qa/drive_86_58_dead_downgrade.py
 ```
 
-Verbatim output (exit 0):
+Verbatim output, REGENERATED after the cycle-2 script rewrite (exit 0):
 
 ```
 phase-86.20: UNRECOGNISED recommendation 'new_buy_signal' (held position row ticker=NTAP) -- treated as neither buy nor sell nor downgrade. A producer vocabulary drift is the usual cause.
 phase-86.20: UNRECOGNISED recommendation 'swap_buy' (held position row ticker=NTAP) -- treated as neither buy nor sell nor downgrade. A producer vocabulary drift is the usual cause.
-=== FLAG STATE (asserted, not assumed) ===
-  paper_position_recommendation_fix_enabled = False
-  paper_recommendation_vocab_fix_enabled = False
+paper_position_recommendation_fix_enabled is ON while paper_synthesis_integrity_enabled is OFF -- rail-failure synthetic HOLDs can trigger signal_downgrade SELLs of healthy positions. Enable the integrity flag first (phase-61.2 interaction hazard).
+phase-86.20: UNRECOGNISED recommendation 'new_buy_signal' (held position row ticker=NTAP) -- treated as neither buy nor sell nor downgrade. A producer vocabulary drift is the usual cause.
+paper_position_recommendation_fix_enabled is ON while paper_synthesis_integrity_enabled is OFF -- rail-failure synthetic HOLDs can trigger signal_downgrade SELLs of healthy positions. Enable the integrity flag first (phase-61.2 interaction hazard).
+paper_position_recommendation_fix_enabled is ON while paper_synthesis_integrity_enabled is OFF -- rail-failure synthetic HOLDs can trigger signal_downgrade SELLs of healthy positions. Enable the integrity flag first (phase-61.2 interaction hazard).
+phase-86.20: UNRECOGNISED recommendation 'swap_buy' (held position row ticker=NTAP) -- treated as neither buy nor sell nor downgrade. A producer vocabulary drift is the usual cause.
+phase-86.20: recommendation VOCABULARY MISMATCH 'Strong Buy' -- canonical STRONG_BUY, but the legacy gate sees 'STRONG BUY' (held position row ticker=NTAP). vocab_fix_enabled=False
+paper_position_recommendation_fix_enabled is ON while paper_synthesis_integrity_enabled is OFF -- rail-failure synthetic HOLDs can trigger signal_downgrade SELLs of healthy positions. Enable the integrity flag first (phase-61.2 interaction hazard).
+phase-86.20: recommendation VOCABULARY MISMATCH 'Strong Buy' -- canonical STRONG_BUY, but the legacy gate sees 'STRONG BUY' (held position row ticker=NTAP). vocab_fix_enabled=True
+=== FLAG STATE ===
+  OFF cells use the real defaults:
+    paper_position_recommendation_fix_enabled = False
+    paper_recommendation_vocab_fix_enabled = False
+  ON cells use an in-process override (no .env write, no promotion):
+    paper_position_recommendation_fix_enabled = True
+    paper_recommendation_vocab_fix_enabled = True
 
-=== VOCABULARY, read from source ===
-  _BUY_RECS       = ['BUY', 'STRONG_BUY']
-  _DOWNGRADE_RECS = ['HOLD', 'SELL', 'STRONG_SELL']
-  _SELL_RECS      = ['SELL', 'STRONG_SELL']
-  DERIVED: sell_signal fires first and `continue`s, so the ONLY fresh
-           recommendation that can ever REACH signal_downgrade is:
-           _DOWNGRADE_RECS - _SELL_RECS = ['HOLD']
+=== VOCABULARY (from source) ===
+  _BUY_RECS=['BUY', 'STRONG_BUY'] _DOWNGRADE_RECS=['HOLD', 'SELL', 'STRONG_SELL'] _SELL_RECS=['SELL', 'STRONG_SELL']
+  DERIVED: sell_signal fires first and continues, so the ONLY fresh rec that can
+           reach signal_downgrade is _DOWNGRADE_RECS - _SELL_RECS = ['HOLD']
 
-=== CELLS ===
-  A  pos.recommendation='new_buy_signal', fresh='HOLD'  -> []
-     signal_downgrade present? False   (claim: False)
-  B  pos.recommendation='BUY',            fresh='HOLD'  -> [('NTAP', 'SELL', 'signal_downgrade')]
-     signal_downgrade present? True   (control: True)
-  C  pos.recommendation='swap_buy',       fresh='HOLD'  -> []
-     signal_downgrade present? False   (claim: False)
-  D  pos.recommendation='BUY',            fresh='SELL'  -> [('NTAP', 'SELL', 'sell_signal')]
-     reason is 'sell_signal', NOT 'signal_downgrade' -> ['sell_signal']
+=== FLAGS OFF ===
+  A  pos='new_buy_signal'   fresh='HOLD' -> []  fired=False
+  B  pos='BUY'              fresh='HOLD' -> [('NTAP', 'SELL', 'signal_downgrade')]  fired=True
+  C  pos='swap_buy'         fresh='HOLD' -> []  fired=False
+  D  pos='BUY' fresh='SELL' -> [('NTAP', 'SELL', 'sell_signal')]  (sell_signal PRE-EMPTS; testing with SELL would prove nothing)
+
+=== FLAGS ON (the condition criterion 3 names) ===
+  E  pos='new_buy_signal'   fresh='HOLD' -> []  fired=False
+  F  pos='BUY'              fresh='HOLD' -> [('NTAP', 'SELL', 'signal_downgrade')]  fired=True
+  G  pos='swap_buy'         fresh='HOLD' -> []  fired=False
+
+=== DISCRIMINATION CONTROL: pos='Strong Buy', fresh='HOLD' ===
+  flags OFF -> []  fired=False
+  flags ON  -> [('NTAP', 'SELL', 'signal_downgrade')]  fired=True
 
 === VERDICT ===
-  CONTROL GREEN: the harness CAN observe signal_downgrade firing.
-  A (new_buy_signal) dead: True
-  C (swap_buy)       dead: True
+  Controls GREEN: B (OFF) and F (ON) both fire; the discrimination control
+  is dead OFF and live ON, so the probe demonstrably reads flag state.
+  A new_buy_signal OFF dead: True   E new_buy_signal ON dead: True
+  C swap_buy       OFF dead: True   G swap_buy       ON dead: True
 
-  PROVEN BY DRIVING: a held row whose recommendation field carries an order
-  reason cannot be sold by signal_downgrade, while an otherwise identical
-  row carrying 'BUY' is sold. The rule is structurally dead on the real data.
+  MEASURED: a held row carrying an order REASON is dead under BOTH flag
+  states. Flipping the flag does NOT revive the rule for rows already on
+  disk, because flag-ON _resolve_rec maps the value to _UNRECOGNISED_REC
+  (in none of the three sets) and the field is written only by execute_buy.
+  Blast radius at PROMOTION TIME is therefore 0 for existing rows;
+  exposure begins at the next execute_buy that rewrites the field.
 ```
 
 **Cell B is the anti-vacuity control.** Without it, cells A and C report only silence,
@@ -112,11 +137,29 @@ OFF-VOCAB  'new_buy_signal'  n=1  tickers=1
 TOTAL 1 rows; in closed set 0 (0.0%); OFF-VOCAB 1 (100.0%)
 ```
 
-**Currently held rows carrying a reason-shaped value: 1 of 1 (100%).
-Carrying a member of the closed set: 0 of 1.**
+**CORRECTED — re-derived at publication time, 2026-08-13T20:24:53Z:**
 
-`paper_positions` is a current-state table, so n=1 is the whole population — complete
-but weak on its own. Strengthened from history:
+```
+CURRENTLY HELD ROWS: 2
+  NTAP   rec='new_buy_signal'  qty=5.346643  entry=2026-07-31T18:47:37Z  in_closed_set=False
+  DELL   rec='new_buy_signal'  qty=4.806437  entry=2026-08-13T19:31:19Z  in_closed_set=False
+
+  off-vocabulary: 2 of 2 = 100.0%   in closed set: 0 of 2
+```
+
+**Currently held rows carrying a reason-shaped value: 2 of 2 (100%).
+Carrying a member of the closed set: 0 of 2.**
+
+**What was wrong and why:** this section originally published "TOTAL 1 rows" and
+"the book holds 1 position". DELL entered at **19:31:19Z — eight minutes before
+the artifact was written** — and I had personally recorded that trade in
+`q1_binding_constraint_86.59.md` in the same hour. Knowing a fact is not the same
+as re-deriving the count that depends on it. **The proportion survives and
+strengthens** (1/1 → 2/2, still 100% off-vocabulary, still 0 in the closed set);
+the cardinality did not reproduce. The query and method were correct; the
+publication time was not.
+
+Strengthened from history:
 
 `paper_round_trips.exit_reason`, all 32 completed round trips:
 `stop_loss_trigger` 16 (50.0%) · `swap_for_higher_conviction` 13 (40.6%) ·
@@ -133,51 +176,79 @@ these fields: `new_buy_signal` 20 · `stop_loss_trigger` 16 · `swap_buy` 13 ·
 
 ---
 
-## Criterion 3 — flag-ON blast radius, measured, non-live
+## Criterion 3 — flag-ON blast radius, MEASURED WITH THE FLAGS ON (CORRECTED)
 
-Measured **in-process only**; no flag was changed and nothing was written.
+**What was wrong.** The first version of this section asserted **1 of 1 (100%)** and
+concluded *"Promoting the 06-8 flags today would sell the book's only position on an
+empty analysis."* **Both halves are false.** The driven script
+`assert`ed both flags were `False` and aborted otherwise, then hand-set
+`pos.recommendation='BUY'` as a stand-in for the post-fix value — so the production
+flag-read executed in **zero cells**. An assertion pinning the subject to its default
+is the signature of a proxy.
 
-The book holds **1** position. With the fix flags ON, that row would carry its analysis
-recommendation (`BUY`) instead of the order reason. Cell B proves `BUY` + fresh `HOLD`
-produces `('NTAP','SELL','signal_downgrade')`.
-
-NTAP's holding re-evals since 2026-07-24:
+**What the corrected measurement shows.** The script now ENTERS the condition via
+`Settings().model_copy(update={both flags: True})` — in-process only, no `.env`
+write, no promotion, no live-book contact:
 
 ```
-date        rec    score  empty_summary
-2026-08-12  HOLD    0.0   True
-2026-08-11  BUY     8.0   False
-2026-08-10  Hold    6.08  True
-2026-08-09  Hold    6.58  True
-2026-08-09  HOLD    0.0   True
-2026-08-08  HOLD    0.0   True
-2026-08-05  HOLD    0.0   True
-2026-07-31  BUY     8.0   False
-2026-07-29  HOLD    0.0   True
+=== FLAGS OFF ===
+  A  pos='new_buy_signal'   fresh='HOLD' -> []                                        fired=False
+  B  pos='BUY'              fresh='HOLD' -> [('NTAP','SELL','signal_downgrade')]      fired=True
+  C  pos='swap_buy'         fresh='HOLD' -> []                                        fired=False
+  D  pos='BUY' fresh='SELL' -> [('NTAP','SELL','sell_signal')]   (sell_signal PRE-EMPTS)
+
+=== FLAGS ON ===
+  E  pos='new_buy_signal'   fresh='HOLD' -> []                                        fired=False
+  F  pos='BUY'              fresh='HOLD' -> [('NTAP','SELL','signal_downgrade')]      fired=True
+  G  pos='swap_buy'         fresh='HOLD' -> []                                        fired=False
+
+=== DISCRIMINATION CONTROL: pos='Strong Buy', fresh='HOLD' ===
+  flags OFF -> []                                         fired=False
+  flags ON  -> [('NTAP','SELL','signal_downgrade')]       fired=True
 ```
 
-**7 of 9 are an empty-summary HOLD; 5 carry `final_score = 0.0`** — the 86.69
-placeholder defect.
+**Three controls, all green.** B fires with flags OFF and F with flags ON, so neither
+half is vacuous. The **discrimination control** is the one that was missing before:
+`'Strong Buy'` is dead flag-OFF and fires flag-ON, which proves the probe actually
+**reads flag state** rather than ignoring it. Without that cell, E and G being empty
+would be indistinguishable from the override never taking effect.
 
-**Blast radius: 1 of 1 currently-held positions (100%) would become a
-`signal_downgrade` SELL candidate**, and on the most recent re-eval (2026-08-12,
-`HOLD`, score 0.0, empty summary) the triggering verdict would be a **fabricated
-placeholder, not a judgment.**
+**MEASURED BLAST RADIUS AT PROMOTION TIME: 0 of 2 currently-held rows.**
 
-**Promoting the 06-8 flags today would sell the book's only position on an empty
-analysis.** That is the measured recommendation for the ask.
+**Mechanism, verified in source — two things I never checked:**
 
----
+1. Flag-ON `_resolve_rec` maps `'new_buy_signal'` to `_UNRECOGNISED_REC`
+   (`'__UNRECOGNISED__'`), which is a member of **none** of `_BUY_RECS`,
+   `_SELL_RECS` or `_DOWNGRADE_RECS`. The flag does not translate an order reason
+   into a recommendation; it classifies it as unrecognised.
+2. `_pos_rec` is written **only** by `execute_buy` (`paper_trader.py:488`, `:512`);
+   the partial-sell path at `:676` preserves the stored value. **Flipping a flag does
+   not rewrite rows already on disk.**
+
+**So the hazard is real but DEFERRED, not immediate.** Exposure begins at the next
+`execute_buy` that rewrites the field — and the fix is not inert: production does
+pass `analysis_recommendation` through `portfolio_manager.py:578,:918` →
+`autonomous_loop.py:251,:1768`.
 
 ## Criterion 4 — no flag promoted
 
 Neither flag was touched. Both read `False` from `Settings()` and the driven script
 **asserts** it rather than assuming, aborting if either is not `False`.
 
-Recorded for **ask 06-8**: do **not** promote until 86.69 closes. The interaction is not
-theoretical — while 81.2% of analyses are empty `HOLD` placeholders, promoting the fix
-converts a dead SELL rule into one that fires on fabricated verdicts. The correct order
-is 86.69 first, then re-measure this blast radius, then decide.
+**CORRECTED recommendation for ask 06-8.** The original justification rested on the
+refuted 1-of-1 immediate blast radius and is withdrawn.
+
+The corrected position: promotion has **zero immediate effect on the 2 currently-held
+rows**, so it is *not* an emergency and it would *not* sell the book on an empty
+analysis today. The hazard is **deferred** — it begins at the next `execute_buy` that
+rewrites `paper_positions.recommendation`, after which a held row would carry a real
+`BUY` and a fresh `HOLD` would fire `signal_downgrade`.
+
+That still argues for sequencing **86.69 before promotion**, but on a narrower and
+honest basis: once the field starts carrying real recommendations, a fabricated
+placeholder `HOLD` (81.2% of analyses in the POST-break regime) becomes a live SELL
+trigger. The recommendation is unchanged; the reason it rests on is now one that
+reproduces.
 
 ---
 
@@ -211,7 +282,7 @@ Not weakened, not quieted, not reworded. The loudness that surfaced this defect 
 ## Immutable verification command
 
 ```
-bash -c 'source .venv/bin/activate && python -c "import ast; ast.parse(open(\"backend/services/portfolio_manager.py\").read()); print(\"parses\")'
+bash -c 'source .venv/bin/activate && python -c "import ast; ast.parse(open(\"backend/services/portfolio_manager.py\").read()); print(\"parses\")"'
 ```
 
 Result: `parses` (exit 0). Note this command only proves the file parses — it is not
