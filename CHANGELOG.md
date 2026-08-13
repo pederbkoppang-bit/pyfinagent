@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-14 | `1422d0ec` | phase-86.44: correct the closing block -- criterion 5 is settled, and settled NEGATIVELY |
 | 2026-08-14 | `5769c366` | phase-86.44: criterion 5 MEASURED -- concurrent-writer uniqueness is DISPROVEN, 14 collisions of 16 |
 | 2026-08-14 | `ce8ac085` | phase-86.9: FAIL on a guard that could not fail -- fixed, and ESCALATING at 4 attempts |
 | 2026-08-14 | `1ea5dc2f` | phase-86.9: criterion 6 verified -- .env backup retained, paper_analyze_top_n not lowered |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-13 | `bc6471bf` | docs(goal): 86.9 and 86.44 are at the attempt ceiling -- the counter no longer resets on a FAIL |
 | 2026-08-13 | `0fd1c23e` | phase-86.63: contract written -- the guard cannot reach the root, and the contract says so |
 | 2026-08-13 | `03e448ea` | docs(goal): 86.63 gate PASSED -- record the prompt-authored root and the six-member class count |
-| 2026-08-13 | `9b44b67d` | phase-86.63: research gate PASSED -- the vocabulary split is authored in the PROMPTS, not in Python |
 
 ---
 
