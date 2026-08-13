@@ -222,3 +222,53 @@ POST-break zero-score share is measured back down.
 5. The 08-13 cycle was **still running** while this was written (started
    18:00:00Z, 3,465s elapsed of a 10,800s budget at first check), so 2026-08-13
    contributes partial data to population B and none to the trade counts.
+
+---
+
+## ADDENDUM — the 2026-08-13 cycle completed after this was written, and it TRADED
+
+The cycle in flight during this analysis finished at 19:31:52Z, 5,512,216 ms
+(~92 min) of a 10,800 s budget, **`n_trades: 1`** — the first trade since
+2026-07-31.
+
+**It is also the one recent cycle whose `degradation` key carries no
+`degraded: True`.** Compare:
+
+| Cycle | `degradation` | trades |
+|---|---|---:|
+| 2026-08-12 | `{'fallback_rate':'0/6','fallback_alarm_fired':False,'degraded':True,'degraded_analyses':'6/6'}` | 0 |
+| 2026-08-13 | `{'fallback_rate':'0/6','fallback_alarm_fired':False}` — **no `degraded` key** | **1** |
+
+And the analyses match:
+
+```
+009150.KS Hold  5.88 | DELL Buy 6.58 | HPE Hold 5.65
+HPQ       Hold  5.18 | MRVL HOLD 0.0 | NTAP Hold 6.20
+```
+
+**1 of 6 (16.7%) scored 0.0, against the 81.2% POST-break baseline.** The trade:
+`BUY DELL 4.806437 @ 497.72 = $2,392.26, reason='new_buy_signal'`.
+
+**This is the predicted direction, from the opposite end.** 81% empty → 0 trades;
+17% empty → 1 trade. It strengthens the thesis that analysis availability, not
+ranking, is the binding constraint.
+
+**It is n=1 and I am not treating it as proof.** One good cycle does not establish
+a recovery, and I did not determine *why* this cycle was healthier — that is
+86.69's criterion 1 and remains open. If anything it sharpens the question: the
+break is evidently not permanent, so whatever degrades the pipeline is
+intermittent, which makes a single root cause less likely and a
+resource/timing/upstream explanation more plausible.
+
+Two further observations, neither owned by a criterion here:
+
+1. **`empty_summary` is NOT the degradation marker; `final_score == 0.0` is.** All
+   six of today's analyses have an empty summary, but five carry real scores. The
+   86.69 evidence remains correctly stated — it describes the *zero-score* rows'
+   properties and never claims the converse — but anyone re-deriving it should use
+   the score, not the summary.
+2. **The DELL BUY was made on an analysis with a real score and an empty summary**,
+   i.e. a buy with no written justification persisted. Recorded, not queued.
+
+The case-inconsistency of 86.63 is visible in this single cycle too: `Hold`,
+`Buy`, and `HOLD` all appear among six rows.
