@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-14 | `dc822e2f` | docs(goal): 86.65 criterion 4 answered by measurement -- CLAUDE.md:205 points at a nonexistent path |
 | 2026-08-14 | `323f8c78` | phase-86.44: supply the MISSING live_check so the step's last attempt is not spent on a known gap |
 | 2026-08-14 | `5a64981a` | docs(goal): overnight addendum -- 86.62 escalated at 4 attempts, 86.67 risk checked and NOT realised |
 | 2026-08-14 | `d5736cce` | phase-86.62: ESCALATING at 4 attempts -- criterion 5 failed 4x on my bookkeeping, not the analysis |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-13 | `e00773dc` | phase-86.58 cycle-3: fix both CONDITIONAL findings; the Q/A corrected me in my favour |
 | 2026-08-13 | `73c8c2ce` | fix(settings): promote the Claude 5 flagships (and opus-4-8) in the model picker |
 | 2026-08-13 | `e21468d5` | fix(pricing): Claude Sonnet 5 is $2/$10, not $3/$15 -- the introductory rate became the standard pri |
-| 2026-08-13 | `cc0d2bff` | phase-86.58 cycle-2: fix all five blockers the Q/A raised |
 
 ---
 
