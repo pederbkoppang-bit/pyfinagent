@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-13 | `bb08ee00` | phase-86.69: queue the P0 that blocks the picker work -- 81% of analyses persist as an empty HOLD |
 | 2026-08-13 | `f6c2dbf4` | phase-86.59: Q1 answered -- the binding constraint is upstream analysis emptiness, not the ranking |
 | 2026-08-13 | `fbac40d7` | feat: version bumps now mean SHIPPED WORK, and the major moves on a completed phase |
 | 2026-08-13 | `a34ee589` | docs(86.68): the version bumps per attempt, not per shipped step -- 86.9 and 86.44 moved it 19 times |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-11 | `268d376b` | chore: session-end backend restart done -- D2 verified in force (endpoint 1226 == on-disk 1226) |
 | 2026-08-11 | `373a1c17` | phase-observe: the 20:00 cycle completed in 4887s, zero trades at the risk gate; ask 06-8 raised |
 | 2026-08-11 | `810096c1` | docs(86.58): a SELL rule that cannot fire, caught live by today's own 86.20 guard |
-| 2026-08-11 | `16b2c7d4` | docs(day-report): the 20:00 cycle completed in 4887s with zero trades -- risk-gate REJECT, not an em |
 
 ---
 
