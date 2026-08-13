@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-13 | `ab0659fe` | phase-86.75: harness audit -- the attempt counter was reading a file written AFTER it runs |
 | 2026-08-13 | `7389d663` | phase-86.74: queue the risk-gate bypass -- a REJECT at 0% was inverted into a 10%-of-NAV buy |
 | 2026-08-13 | `e5907631` | phase-86.73: research says do NOT build the deep tier -- raise floors on one researcher |
 | 2026-08-13 | `c4e0c10a` | phase-86.69: the 08-13 cycle traded, and it is the one cycle without degraded=True |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-12 | `c670421a` | docs: deep-research prompt for the candidate picker -- ordered to test the premise before optimising |
 | 2026-08-12 | `7427fd46` | docs(86.62,86.63): close the two real gaps found auditing whether the session's findings all reached |
 | 2026-08-12 | `08e0a3e3` | phase-86.59: research gate FAILED on a self-report over-claim -- no PLAN entered; two findings chang |
-| 2026-08-12 | `1208402e` | docs(86.60): alternative signals are fetched only for an UNRANKED head-of-universe slice, so they ca |
 
 ---
 
