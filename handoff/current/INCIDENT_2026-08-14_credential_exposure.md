@@ -108,3 +108,65 @@ containing JSON key.
 security finding is in its summary and is verified regardless of that verdict — a failed
 gate does not make its observations false, and this one is the most important thing the
 session produced.
+
+---
+
+## 7. ADDENDA (2026-08-14 ~12:10) — peer session `95794`, each item re-verified by me
+
+### 7a. It is ONE token, not five — and the repo is PUBLIC WITH A FORK
+
+```
+gh repo view  ->  visibility: PUBLIC   isPrivate: false   forkCount: 1   stargazerCount: 2
+distinct credentials across the 5 files: 1   (sha256-identical match, length 92)
+```
+
+**One credential, exposed five times.** One revoke closes all five.
+
+**THE FORK CHANGES THE REMEDIATION CALCULUS.** A fork is a **separate GitHub-hosted
+copy**. History rewriting on `origin` **does not reach it**. Combined with GitHub
+retaining unreachable objects and any clones already taken, this makes §5's ordering
+stronger, not weaker: **rotation is not merely the priority — it is the only action that
+actually revokes the credential.** History remediation is cosmetic by comparison.
+
+*Honest note on the digest:* the peer reported `916320a93a02…`, I computed
+`32fd30514637…`. **The digests differ because we hashed different substrings**, not
+because we disagree — both independently conclude **one distinct credential**. Recorded
+rather than smoothed, because two people reporting "the same hash" when they hashed
+different things is exactly how a false agreement gets into a record.
+
+### 7b. The window is bounded on BOTH sides — I had only established the trailing edge
+
+```
+session_pm_20260807T200011Z   clean
+session_am_20260808T053009Z   clean   <- LAST CLEAN BEFORE
+session_pm_20260808T200008Z   LEAK    <- FIRST LEAK
+  … exactly 5 consecutive runs …
+session_pm_20260810T200010Z   LEAK    <- LAST LEAK
+session_am_20260811T053009Z   clean   <- FIRST CLEAN AFTER
+  … 6 consecutive clean, through 2026-08-13 PM
+```
+
+Across all 77 session files back to June. **This converts the producer hunt from
+"closed but unexplained" into two ~14-hour brackets to diff:**
+
+- something changed between **2026-08-08 05:30Z and 08-08 20:00Z**
+- and reverted between **2026-08-10 20:00Z and 08-11 05:30Z**
+
+That is a far better starting point than §2's open-ended "why it stopped is unverified",
+and it supersedes that framing.
+
+### 7c. My broken regex did NOT hide exposure elsewhere — that worry is CLOSED
+
+The peer re-scanned the **entire tracked tree** at `origin/main` with
+`sk-ant-[A-Za-z0-9_-]{10,}`, not just `away_ops`: **18 files match the vendor prefix;
+only these 5 are real.** The other 13 are placeholders (FAKE/TEST markers in the value)
+or 17–43-character stubs.
+
+§5 item 4 asked for exactly this re-scan. **It is done, by an independent session, and
+it came back negative.** The residual risk from my false-negative pattern is therefore
+bounded to what is already recorded here.
+
+### 7d. No fresh exposure is pending
+
+The **3 newest session files are untracked and clean**, so a `git add -A` by either
+session — and both our hooks stage tree-wide — will not publish a new token.
