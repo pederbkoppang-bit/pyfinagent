@@ -25261,6 +25261,27 @@
             "live_check": "live_check_86.67.md with git check-ignore output before and after, and the consumer enumeration"
           },
           "notes": "Filed 2026-08-13. Ask 06-2 covers ROTATION of the already-published credential; this step covers PREVENTING the next automatic publication. Do not conflate them."
+        },
+        {
+          "id": "86.68",
+          "priority": "P3",
+          "status": "pending",
+          "harness_required": true,
+          "name": "the version number counts ATTEMPTS, not shipped work -- two steps that shipped nothing moved it 19 times",
+          "audit_basis": "OPERATOR-REPORTED 2026-08-13 from the What's-New UI ('the changelog seems to update on every attempt'), then MEASURED. The classifier is behaving EXACTLY as CLAUDE.md documents -- this is a SPEC defect, not a code bug, and any fix must not be framed as repairing broken code. MEASURED over commits since 2026-08-11: 346 commits, of which 136 classify as `patch` and 210 as `none`. The 210 are correct -- `docs:`/`chore:` produce no row, as specified. The problem is the 136. They cluster by step: phase-86.38 = 22 bumps, phase-86.33 = 16, phase-86.44 = 10, phase-86.32 = 10, phase-86.41 = 10, phase-86.9 = 9, phase-86.36 = 8, phase-86.5 = 7. THE DEFECT IN ONE SENTENCE: `phase-X.Y:` -> patch means the version increments on every COMMIT THAT MENTIONS A STEP, which in this harness is once per remediation attempt -- so the number measures how many tries a step took, not what shipped. The clearest evidence is that 86.9 and 86.44 EACH ENDED PARKED WITH NO PASS, shipping no closed step between them, and together moved the version 19 times. 86.5 is also parked and moved it 7 more. WHY IT MATTERS beyond tidiness: the What's-New surface is the operator's view of what changed. A version series that advances fastest when a step is struggling inverts the signal -- the more trouble a step is in, the more 'releases' the operator sees. It also makes the version useless as a coarse progress measure. NOT THE FIX: suppressing the Recent-Activity rows. Those are the audit trail and every commit belongs there. Only the VERSION BUMP should be rarer.",
+          "verification": {
+            "success_criteria": [
+              "the bump-per-step distribution is RE-DERIVED at execution time with the classifying rule stated beside the counts, since both the commit history and the classifier may have moved",
+              "a bump trigger is chosen and justified against at least one alternative; the leading candidate is 'bump on the masterplan status flip to done' (the auto-commit hook already fires exactly there), which would make a patch mean one shipped step",
+              "whichever trigger is chosen, PARKED and FAILED steps are shown NOT to bump -- proven by replaying the 86.9 and 86.44 commit sequences through the new classifier and showing zero bumps where there were 9 and 10",
+              "Recent-Activity rows are UNCHANGED -- every commit still appears; only the version bump becomes rarer, and that separation is demonstrated rather than asserted",
+              "CLAUDE.md's classifier documentation is updated in the same change, since the current behaviour matches the current doc and leaving them out of sync would make the doc wrong instead of the code",
+              "mutation-test the new rule: revert it and show a replay of a parked step's commits produces bumps again, with the control observed GREEN first"
+            ],
+            "command": "bash -c 'test -f .claude/hooks/post-commit-changelog.sh && bash -n .claude/hooks/post-commit-changelog.sh && echo classifier-parses'",
+            "live_check": "live_check_86.68.md with the before/after bump counts for the replayed 86.9 and 86.44 sequences"
+          },
+          "notes": "Filed 2026-08-13 from an operator observation. IMPORTANT FRAMING: the hook is doing what CLAUDE.md says. Do not open this by calling the hook broken -- the documented rule is what needs changing, and the doc must change with it."
         }
       ]
     }
