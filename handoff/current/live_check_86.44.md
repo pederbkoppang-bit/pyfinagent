@@ -11,8 +11,10 @@
 > phase-86.75 the next attempt is **PASS or FAIL**, so spawning against a missing
 > required artifact would have burned it. **I have NOT spawned that attempt.**
 >
-> **Scope honesty up front:** items 1–4 below are mine, measured at the named tree.
-> **Item 5 I did NOT verify** — see §5.
+> **Scope honesty up front:** items 1–5 are mine, measured. §5 was measured on
+> **2026-08-14** by running the shipped probe, and its result is **negative**:
+> concurrent-writer uniqueness is **disproven**, 14 collisions of 16. I have **not**
+> spawned the step's remaining attempt.
 
 ---
 
@@ -111,25 +113,48 @@ territory, not history's.
 
 ---
 
-## 5. Concurrent-writer uniqueness — **NOT VERIFIED BY ME. Conditional criterion.**
+## 5. Concurrent-writer uniqueness — MEASURED (2026-08-14). It is DISPROVEN, not proven.
 
-Criterion 5 applies **"if the producer is changed"**. Prior sessions shipped work here
-that I did **not** re-run and am **not** certifying:
+**I ran the shipped probe rather than deferring it.** It is safe: it writes only inside a
+`tempfile.TemporaryDirectory()` and never touches `handoff/harness_log.md` (verified
+after the run — `git status --porcelain -- handoff/harness_log.md` empty). It runs as a
+**file** deliberately, because macOS spawn re-imports `__main__` by path and a heredoc
+has none.
 
-- `scripts/qa/prove_cycle_number_toctou_86_44.py` (4,119 b, 2026-08-11) — its header
-  describes **D1 as FIXED**: `run_harness.py` previously did `read_text` + `write_text`,
-  and the TOCTOU window between `_next_cycle_number(read_text())` and `open("a")` let
-  two writers claim the same max.
-- `scripts/qa/mutation_matrix_86_44.py` (11,347 b).
+```
+python scripts/qa/prove_cycle_number_toctou_86_44.py
 
-**What the next executor must do before claiming criterion 5:** re-run both, confirm the
-producer change is actually in the tree, and demonstrate two concurrent appends in the
-same second do not collide. **I did not do this**, and this artifact must not be read as
-evidence that it holds.
+  seed max              : 100
+  concurrent appenders  : 16
+  numbers assigned      : [101 x10, 102 x6]
+  DISTINCT numbers      : 2 of 16
+  collisions            : 14
+  rows actually written : 17 (seed 1 + 16 new)
+```
 
-Note the probe's own header records a self-caught trap worth preserving: *"the first run
-of this probe reported 16/16 distinct and would have been read as a pass"* — the probe
-was wrong before it was right.
+**Two races, and only one is fixed:**
+
+| | | |
+|---|---|---|
+| **D1 — DATA loss** | `run_harness.py` did `read_text` + `write_text` | **FIXED in 86.44.** All 17 rows survived; `finalize.py` uses `open('a')`. |
+| **D4 — NUMBER collision** | `scripts/smoketest/steps/finalize.py:70-72` computes `_next_cycle_number(read_text())`, then appends at `:83-85` — **max is read BEFORE the write, with no lock** | **NOT FIXED. 14 of 16 writers collided.** |
+
+**This is the mechanism behind the duplicate integers in §1**: 141 numbers reused, and
+`Cycle 1` appearing **482** times. The history is not merely untidy — it is the
+predictable output of an unlocked read-then-append.
+
+**How this bears on criterion 5, stated plainly rather than to my advantage:** the
+criterion says *"If the producer is changed, the new numbering is proven UNIQUE under
+concurrent writers."* A producer **was** changed (D1), so the condition is live — and
+uniqueness is **not proven; it is measurably false.** A Q/A would be right to treat that
+as unmet unless the step either fixes the numbering producer or argues explicitly that
+its scope was D1 only.
+
+**It also strengthens §4's do-not-renumber decision.** The number cannot be made unique
+without a lock at `finalize.py`, and §2 established that **nothing reads it**. Renumbering
+history would fix a field no consumer uses while leaving the generator that corrupts it
+untouched. **The coherent fix is to stop treating the field as an identifier** — not to
+renumber, and not to add a lock to preserve a value nobody consumes.
 
 ---
 
