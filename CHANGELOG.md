@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-14 | `3ddc97bc` | phase-86.64: gate PASSED and it REFUTES the step's premise -- the gap is a matcher, not a platform l |
 | 2026-08-14 | `194a8047` | docs(goal): 86.68 -- shipped and live with ZERO artifacts; tonight is a natural experiment for it |
 | 2026-08-14 | `fbc7745e` | docs(goal): 86.66 census -- the AttributeError is the ONLY current failure, and my count-ranked firs |
 | 2026-08-14 | `1422d0ec` | phase-86.44: correct the closing block -- criterion 5 is settled, and settled NEGATIVELY |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-13 | `c6519b43` | phase-86.62: GENERATE -- all three degradations triaged, none transient, zero code changed |
 | 2026-08-13 | `a8ab0c7d` | phase-86.62: research gate PASSED -- all three degradations are CHRONIC, and the cycle reports itsel |
 | 2026-08-13 | `7d0cfb3f` | phase-86.59: research gate PASSED on attempt 3 -- verification, not a marker flip |
-| 2026-08-13 | `bc6471bf` | docs(goal): 86.9 and 86.44 are at the attempt ceiling -- the counter no longer resets on a FAIL |
 
 ---
 
