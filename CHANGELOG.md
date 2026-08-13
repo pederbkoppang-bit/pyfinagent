@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-13 | `56abdbde` | feat(settings): add the Claude 5 family to the model picker, with pricing and effort support |
 | 2026-08-13 | `cba26085` | phase-86.58: Q/A verdict FAIL -- persisted verbatim in the turn it returned |
 | 2026-08-13 | `9a59a4fa` | phase-86.75: harness audit -- the attempt counter was reading a file written AFTER it runs |
 | 2026-08-13 | `ab0659fe` | phase-86.75: harness audit -- the attempt counter was reading a file written AFTER it runs |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-13 | `a34ee589` | docs(86.68): the version bumps per attempt, not per shipped step -- 86.9 and 86.44 moved it 19 times |
 | 2026-08-13 | `1d007f93` | docs(86.64-86.67): file the verified gaps from the codex review plus two found while checking it |
 | 2026-08-13 | `e0aaddb6` | docs(goal): next-session goal -- candidate picker as P1, plus every Q/A and Researcher finding from  |
-| 2026-08-12 | `c670421a` | docs: deep-research prompt for the candidate picker -- ordered to test the premise before optimising |
 
 ---
 
