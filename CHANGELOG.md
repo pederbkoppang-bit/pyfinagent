@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-13 | `9b44b67d` | phase-86.63: research gate PASSED -- the vocabulary split is authored in the PROMPTS, not in Python |
 | 2026-08-13 | `efae78b7` | docs: session close -- 86.58 PASS, goal regenerated with harness-correctness-first ordering |
 | 2026-08-13 | `2b50904a` | phase-86.58: the signal_downgrade SELL rule is measurably dead -- PASS, step done |
 | 2026-08-13 | `5c7197d2` | phase-86.58: PASS on attempt 3 -- verdict persisted verbatim, harness_log appended before the flip |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-13 | `9740c64f` | phase-86.72: the re-research leg never fires on the live rail + 86.58 contract and driven test |
 | 2026-08-13 | `0eceb3c6` | phase-86.71: the harness's own attempt budget has no caller and no persistence |
 | 2026-08-13 | `a4d14dbc` | phase-86.70: queue the research-gate drop-recovery step -- a COMPLETE brief is discarded, and the ob |
-| 2026-08-13 | `4642758e` | docs: day report 2026-08-13 + regenerated goal -- the picker work is blocked behind a P0 |
 
 ---
 
