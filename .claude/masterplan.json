@@ -25181,6 +25181,86 @@
             "live_check": "live_check_86.63.md with the derived class enumeration and a driven demonstration that an unknown vocabulary value fails loudly at the boundary"
           },
           "notes": "Filed 2026-08-12. Credit to pyfinagent-52 for the class observation. DO NOT close 86.58 by adding 'new_buy_signal' to the vocabulary -- that is the sixth costume, not a fix."
+        },
+        {
+          "id": "86.64",
+          "priority": "P2",
+          "status": "pending",
+          "harness_required": true,
+          "name": "the qa-write-guard cannot see the write channel that would actually be used to evade it",
+          "audit_basis": "RAISED by an external review (codex) 2026-08-13, VERIFIED by me in source the same day. Both halves are true and both are stated in the guard's own text. (a) It is registered with matcher Write|Edit (.claude/hooks/qa-write-guard.sh:2) and gates on `is_qa_role(agent_type) and tool_name in (\"Write\",\"Edit\")` (:124), so a write performed through Bash -- a heredoc, a shell redirect, tee, python -c -- is NEVER INTERCEPTED. The file says so itself at :18: 'KNOWN GAP (permissions doc): Write/Edit hooks do not intercept Bash'. (b) It is fail-open by construction: ':38 Any failure in this block must end in \"allow\"' and ':134 Nothing decided (python missing/crashed) -> fail open', and .claude/settings.json:40's statusMessage advertises it as fail-open. WHY THIS IS ITS OWN STEP: 86.33 established that `agent_type` is CALLER-CHOSEN, i.e. the identity the guard keys on is not trustworthy. This is a DIFFERENT and independent evasion -- even a correctly-identified Q/A can write anywhere via Bash without the hook ever running. Two independent bypasses on one control mean the control is a convention check, which is exactly what operator ask 06-6 asks the operator to decide about. NOT A CRITICISM OF FAIL-OPEN PER SE: a logging/advisory hook that blocks its caller on its own bug is worse. The defect is the MISMATCH between what the statusMessage claims ('the qa evaluator is read-only outside .claude/agent-memory/qa/') and what is enforced.",
+          "verification": {
+            "success_criteria": [
+              "the Bash-channel evasion is DEMONSTRATED, not argued: drive a write to a guarded path through Bash under a qa-shaped agent_type and show the hook does not fire",
+              "the full set of tool names capable of writing a file is ENUMERATED from the platform's own tool list, not guessed, and each is stated as intercepted or not",
+              "any change preserves fail-open on internal error -- a hook that blocks its caller when the hook itself breaks is a worse failure than the one being fixed, and that property is proven by making the guard's own helper raise",
+              "if the conclusion is that the control cannot be made sound (because agent_type is caller-chosen AND Bash is uninterceptable), the statusMessage and documentation are corrected to describe a CONVENTION CHECK rather than a boundary -- accuracy of the claim is itself an acceptable outcome",
+              "mutation-test any guard added: revert it and show the check goes red, with the control observed GREEN first and a byte-identical restore"
+            ],
+            "command": "bash -c 'bash -n .claude/hooks/qa-write-guard.sh && echo guard-parses'",
+            "live_check": "live_check_86.64.md with the driven Bash-channel write and the hook log showing no entry for it"
+          },
+          "notes": "Filed 2026-08-13. Sibling of 86.33 (agent_type is caller-chosen) and of operator ask 06-6 (choose the direction). Do NOT fix by making the hook fail-closed without answering 06-6 first."
+        },
+        {
+          "id": "86.65",
+          "priority": "P3",
+          "status": "pending",
+          "harness_required": true,
+          "name": "CLAUDE.md points at a runbook path that does not exist, and three artifact-naming conventions are live at once",
+          "audit_basis": "RAISED by an external review (codex) 2026-08-13, VERIFIED and REFINED by me. (a) CLAUDE.md:205 states 'Project implementation: `.claude/agents/per-step-protocol.md`'. That file DOES NOT EXIST. The real runbook is docs/runbooks/per-step-protocol.md (24,408 bytes). CLAUDE.md is auto-loaded into every session, so every session is pointed at a missing file for the one document that defines the protocol. (b) THREE contract-naming conventions are in simultaneous use, and the reviewer's framing understated it -- so does my own first measurement, which I scoped to handoff/current/ only and had to correct. MEASURED: CLAUDE.md documents `handoff/current/contract.md` (bare); docs/runbooks/per-step-protocol.md contains THREE forms (`contract.md`, `<step_id>-contract.md`, `phase-<id>-contract.md`); on disk handoff/current/ holds 95 `contract_<step>.md`, 1 bare `contract.md`, and 0 `<step>-contract.md`, while the wider handoff/ tree holds 168 `*-contract.md` (predominantly archive). So the dominant CURRENT form (contract_<step>.md, n=95) is documented NOWHERE, and the form the runbook teaches has zero current instances. CONSEQUENCE: the five-file protocol is enforced by hooks and by Q/A agents that look for these artifacts. A convention that differs between the doc a session reads and the disk it writes to is a latent source of 'artifact missing' findings that are really lookup failures.",
+          "verification": {
+            "success_criteria": [
+              "the naming census is RE-DERIVED with the population rule stated beside each count, and separately for handoff/current/ and the archive -- a single tree-wide number hides the split and is what made the first measurement wrong",
+              "every consumer that LOOKS UP a contract/experiment/critique artifact by name is enumerated by grep (hooks, scripts/qa, the Q/A and researcher agent files, the workflows) and each is reported as convention-agnostic or convention-bound",
+              "ONE convention is chosen and the docs are corrected to it; historical files are NOT renamed unless a consumer requires it, and if they are left alone that decision is stated with its reason",
+              "CLAUDE.md:205 is corrected to the path that exists, and any other CLAUDE.md path reference is checked the same way rather than assumed correct",
+              "no verification criteria of any existing step are edited by this step"
+            ],
+            "command": "bash -c 'test -f docs/runbooks/per-step-protocol.md && echo runbook-present'",
+            "live_check": "live_check_86.65.md with the per-directory naming census and the grep-derived consumer list"
+          },
+          "notes": "Filed 2026-08-13. P3: it misleads readers and lookups rather than mis-trading. Note my own first count was wrong for scoping to handoff/current/ -- state the population rule."
+        },
+        {
+          "id": "86.66",
+          "priority": "P2",
+          "status": "pending",
+          "harness_required": true,
+          "name": "autoresearch crashes with AttributeError: 'str' object has no attribute 'append'",
+          "audit_basis": "FOUND 2026-08-13 by me while auditing the worktree. handoff/autoresearch/2026-08-13-ERROR-topic01.md records: \"Autoresearch FAILED -- 2026-08-13 ... Error: AttributeError: 'str' object has no attribute 'append'\". That is a concrete type defect -- something initialised or reassigned as a str is later used as a list -- not a quota or network failure, so it is fixable in code and will recur deterministically on the same path. CONTEXT that matters for scoping: the phase-85 scheduler audit already recorded autoresearch as failing 62 of 65 runs, and the standing away-ops constraint is $0 metered, so a dead autoresearch rail has been tolerated. This step is NOT 'revive autoresearch' -- it is 'fix the specific AttributeError and determine whether it explains any part of the 62/65'. Do not widen it into a rail-revival without a separate decision, and do not assume the AttributeError is the whole story.",
+          "verification": {
+            "success_criteria": [
+              "the traceback is obtained in full (not just the one-line summary in the ERROR file) and the offending assignment is identified by file and line",
+              "whether this AttributeError accounts for some, all, or none of the historical failure rate is DETERMINED by classifying the existing ERROR files, with the classification command stated -- do not assert a share",
+              "the fix is proven by driving the real code path to completion, not by a unit test over the fixed function alone",
+              "no metered spend is incurred: if reproducing requires a paid API call, say so and stop rather than spending",
+              "mutation-test the fix: revert it and show the check goes red, with the control observed GREEN first"
+            ],
+            "command": "bash -c 'ls handoff/autoresearch/ >/dev/null && echo autoresearch-dir-present'",
+            "live_check": "live_check_86.66.md with the full traceback and the post-fix successful run, or an explicit statement that reproduction would cost metered spend"
+          },
+          "notes": "Filed 2026-08-13. Related: phase-85 scheduler estate (autoresearch 62/65 ERROR). Metered spend is a standing STOP -- reproduce free or not at all."
+        },
+        {
+          "id": "86.67",
+          "priority": "P2",
+          "status": "pending",
+          "harness_required": true,
+          "name": "away_ops session files are not gitignored, so the auto-commit hook can publish the next one that contains a credential",
+          "audit_basis": "FOUND 2026-08-13 by me while auditing the worktree, and it is the unclosed half of operator ask 06-2. MEASURED NOW: four untracked handoff/away_ops/session_*.json files exist (session_am_20260812, session_am_20260813, session_pm_20260811, session_pm_20260812) and ALL FOUR ARE CLEAN -- `grep -c 'sk-ant-'` returns 0 on each. So there is no new exposure today, which matches the peer's finding that the 2026-08-11T05:30Z file onward is clean. THE DEFECT IS THE MECHANISM, NOT TODAY'S CONTENT: `git check-ignore` returns NOTHING for these paths, so they are ordinary untracked files. The auto-commit-and-push hook runs `git add -A` on a masterplan status flip, which is EXACTLY how ask 06-2's incident happened -- a credential-bearing away_ops session file reached origin/main under an unrelated step's commit message on 2026-08-11 at 06:42Z. The producer has been fixed such that recent files are clean, but nothing prevents a future regression from being published automatically. This is defence-in-depth for a channel that has already leaked once.",
+          "verification": {
+            "success_criteria": [
+              "whether these files need to be in git AT ALL is decided explicitly -- if the away-ops digest consumes them from disk rather than from the repo, gitignoring them is strictly better than scrubbing them",
+              "the decision is proven against the CONSUMER: enumerate what reads handoff/away_ops/session_*.json and show that ignoring them does not break the away-ops rail",
+              "if they are ignored, the ignore rule is proven to actually match by running git check-ignore on a real path and on a deliberately non-matching path (a rule that matches nothing is the failure mode here)",
+              "ALREADY-TRACKED historical files are NOT rewritten or force-removed by this step -- published history is operator-gated (ask 06-2) and stays that way",
+              "the currently-clean state is re-measured at execution time rather than trusted from this basis, since the producer may have regressed"
+            ],
+            "command": "bash -c 'ls handoff/away_ops/ >/dev/null && echo away-ops-dir-present'",
+            "live_check": "live_check_86.67.md with git check-ignore output before and after, and the consumer enumeration"
+          },
+          "notes": "Filed 2026-08-13. Ask 06-2 covers ROTATION of the already-published credential; this step covers PREVENTING the next automatic publication. Do not conflate them."
         }
       ]
     }
