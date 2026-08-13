@@ -141,9 +141,20 @@ const MODEL_DISPLAY_NAMES: Record<string, string> = {
   "mistral-small-2503": "Mistral Small",
 };
 
+// Models promoted above the collapsed "Other models (N)" section. This is a
+// SIXTH place a model id has to appear: adding one to the backend catalog makes
+// it selectable, but only via search or by expanding "Other", which is not what
+// "available in Settings" means to an operator scanning the list.
 const PRIMARY_MODEL_NAMES = new Set([
   // phase-60.1: gemini-2.0-flash removed -- discontinued on Vertex 2026-06-01.
   "gemini-2.5-flash",
+  // 2026-08-13: current Anthropic flagships. claude-opus-4-8 was missing even
+  // though it is the live deep_think_model pin, so the selected Deep Think
+  // model sat outside the promoted list on the operator's own screen.
+  "claude-fable-5",
+  "claude-opus-5",
+  "claude-sonnet-5",
+  "claude-opus-4-8",
   "gpt-4.1",
   "gpt-4o",
   "gpt-5",
