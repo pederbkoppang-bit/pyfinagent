@@ -1,7 +1,13 @@
 # Researcher Agent Memory Index
 
+- [away_ops session gitignore 86.67](project_away_ops_session_gitignore_86_67.md) — sole consumer globs from a `--ops` DISK path keyed on mtime; `session.log` is the live ignored-and-still-consumed precedent; `sk-[A-Za-z0-9]{20,}` CANNOT match `sk-ant-oat01-` (hyphens) — 5 tracked files on origin/main carry a token
+
+- [Write-guard channels 86.64](project_write_guard_channels_86_64.md) — "hooks can't intercept Bash" is FALSE (PreToolUse fires for every tool but EndConversation); the gap is the MATCHER; bypassPermissions skips PROMPTS not DENY; the log's 307 Bash records are all synthetic
+
 - [Research-gate depth 86.73](project_research_gate_depth_86_73.md) — Anthropic's 2026 post says "start with single-agent"; `env.tier` is NEVER compared to the requested tier; `opts.floors` has ZERO callers
 
+- [Three degradations 86.62](project_three_degradations_86_62.md) — all 3 CHRONIC not transient; `best_params` NEVER reaches `decide_trades` so the promoted-404 is inert; AV limit ZEROES social via a keyword proxy; the cycle record says "clean"
+- [Vocab boundary 86.63](project_vocab_boundary_86_63.md) — SIX filed steps not five and ~25 write seams with 2 guarded; the ROOT is authored in the skill `.md` prompts; paper_positions is NULLABLE so 86.25's sentinel argument does NOT transfer
 - [Dead SELL rule 86.58](project_dead_sell_rule_86_58.md) — the canonicaliser ALREADY exists but guards the READ only; portfolio_manager unwrapped it back into literal sets; `:127` anchor is stale (`:264`)
 - [Screener turnover 86.59](project_screener_turnover_86_59.md) — zero turnover is trailing-window ARITHMETIC; no z-score so declared weights ≠ effective; both code-cited arXiv IDs are non-equity
 
