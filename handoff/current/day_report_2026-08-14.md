@@ -287,3 +287,64 @@ The new anti-vacuity test **caught its own harness producing no swap at all**
 all three assertions would otherwise have passed on an empty list. Second time
 this cycle a probe of mine was saved by its own vacuity check -- the first was the
 criterion-3 sweep that mistook a return value for a branch.
+
+---
+
+## 8. C7 RESOLVED after the verdict -- "33 undetermined" was mostly my own under-reporting
+
+The CONDITIONAL rested on two blockers. **One of them is now answered.**
+
+My earlier sweep said *1 confirmed inversion + 33 UNDETERMINED*. That
+under-reported for two reasons, both mine: it read only the **nested** verdict
+shape (the lite path is **flat**), and it conflated *"did not join"* with
+*"joined but carried no verdict"*. Re-derived:
+
+```
+INVERSION (a REJECT or 0% verdict, yet a BUY executed) :  1   <- DELL, and only DELL
+verdict PERMITTED the buy                              :  0
+joined, but NO risk verdict in the row                 : 19
+NO joinable analysis row (permanently unattributable)  : 14
+                                                  sum  : 34
+POSITIVE CONTROL -- DELL detected                      : True
+```
+
+**The 19 are a MEASURED not-an-inversion, not a gap.** The `risk_assessment` key
+is **absent entirely** in 19 of 19 -- no verdict existed, so the 10% default was
+legitimate and the inversion is *impossible* for those rows rather than merely
+unobserved.
+
+**The 14 are permanently unrecoverable, and the cause is measured.** All fall in
+2026-04-26..2026-05-01; the nearest analysis row per ticker is **15-20 DAYS**
+away, so no join tolerance helps. `analysis_results` holds **zero rows between
+2026-04-20 and 2026-05-15** while the table itself dates to **2025-11-23** -- and
+the code names the reason: phase-24.2 F-2, *"full pipeline previously evaporated
+without persistence"*, closed by phase-25.A2. **Those analyses were never written.**
+
+So the criterion's question -- *how many positions were sized at the 10%-NAV
+default while a completed risk verdict existed* -- has an answer: **exactly one.**
+
+## 9. The restart decision -- and why it is now defensible
+
+**Production code is IDENTICAL to the commit the Q/A graded** (`76ac89ee`):
+
+```
+git diff 76ac89ee HEAD -- backend/services backend/agents backend/api \
+                          backend/config backend/db backend/tasks   ->  EMPTY
+```
+
+Everything committed since is tests, docs, and the QA harness. So a restart puts
+**graded** code into the live process, which is the precondition my own handoff
+set. The running pid **27945** started **13:30:35 CEST**, before every 86.74
+commit (the graded one landed **17:35:32**), so the fix is committed and **NOT IN
+FORCE**.
+
+**One restart at session end**, per the standing operator instruction -- not
+earlier, because a mid-session restart interrupts the book (and on 2026-08-09 a
+`bootout`+`bootstrap` race left the backend down ~4 minutes). `kickstart -k` is
+sufficient here: this is a **code** change, not an `EnvironmentVariables` change,
+so the operator-reserved `bootout`+`bootstrap` verb is not needed.
+
+**C4 still will not be measurable today.** The restart only makes the fix live; the
+post-fix share needs an **autonomous cycle to run afterwards**. That is next
+session's measurement, and the baseline to compare against is in
+`experiment_results_86.74.md` §C4.
