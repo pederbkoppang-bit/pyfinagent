@@ -668,16 +668,22 @@ if (tierUnsupported) {
 // UNPROVEN -- size, wall-clock, effort and the documented preamble-suppression
 // trigger were each tested and refuted.
 //
-// THIS GATE IS THE WORST-HIT CALLER: research-gate drops 39/73 = 53.4%, against
-// qa-verdict's 14.3% on the SAME model. Whatever the cause, it is amplified
-// roughly 4x here -- an open question this retry does not answer.
+// CORRECTED 2026-08-14, same day: an earlier revision of this comment claimed
+// this gate was "the worst-hit caller" at 53.4% versus qa-verdict's 14.3%, and
+// justified maxAttempts=3 by that gap. THAT WAS A MEASUREMENT ARTEFACT. The
+// first probe matched the error string anywhere in the run record -- and the
+// record embeds this file's SOURCE, which quotes the string in the 86.37
+// comment block above. research-gate quoted it more than qa-verdict did, so
+// research-gate looked worse. Classified from the `error` field alone the two
+// are indistinguishable: research-gate 6/73 = 8.2%, qa-verdict 34/367 = 9.3%.
+// There is no 4x amplification and nothing here to explain.
 //
-// maxAttempts is 3 here, not the qa default of 2, purely because the base rate
-// is so much higher: 53.4% -> 28.5% at two attempts -> 15.2% at three. The
-// worst case is ~3x a single gate's tokens, but a drop today already costs the
-// full run AND a hand-driven re-run, so three automatic attempts is at or below
-// what the failure already costs -- and it is the write-first brief on disk,
-// not the retry, that keeps a partial from being wasted.
+// maxAttempts stays 3 rather than the qa default of 2, but on a DIFFERENT and
+// weaker rationale, stated honestly: a dropped research gate is the more
+// expensive loss (a full brief, ~190K tokens, and the step cannot proceed
+// without it), not because this caller fails more often. 8.2% -> 0.7% at three
+// attempts. Revisit if the reader shows the two converging in cost as well as
+// rate: `python3 scripts/qa/rail_drop_rate.py`.
 //
 // Retrying cannot manufacture a pass: `enforceGate` still RECOMPUTES
 // gate_passed from the brief on disk, and an exhausted retry still lands in the

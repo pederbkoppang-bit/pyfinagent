@@ -352,11 +352,27 @@ function enforceEscalation(verdict, sequence, opts = {}) {
 // StructuredOutput` -- the turn ends, no schema call is emitted, tokens are
 // spent, nothing returns.
 //
+// CORRECTED 2026-08-14, SAME DAY, BEFORE ANY OF THESE FIGURES WERE RELIED ON.
+// The first measurement classified a run as dropped if the error string
+// appeared ANYWHERE in its record. The record embeds the workflow's own SOURCE,
+// and these files quote that string in comments -- including this one. So the
+// probe matched itself: 38 of 81 "drops" were comment text. Corrected figures,
+// classified ONLY from the record's `error` field:
+//
 //   by model:     claude-opus-4-8[1m]  0/73   0.0%
 //                 claude-fable-5       4/135  3.0%
-//                 claude-opus-5[1m]   76/348 21.8%   <- 76 of all 80 drops
-//   qa-verdict on opus-4-8: 0/41;  on opus-5: 36/252 = 14.3%  (workflow held constant)
-//   P(0 drops in 73 | true rate 14.3%) = 1.3e-5, so the model split is not chance.
+//                 claude-opus-5[1m]   39/349 11.2%
+//   by workflow:  qa-verdict          34/367  9.3%
+//                 research-gate        6/73   8.2%
+//   overall                           43/563  7.6%
+//   P(0 drops in 73 | true rate 11.2%) = 2e-4 -- the model split SURVIVES.
+//
+// WHAT DID NOT SURVIVE, and must not be requoted from anywhere: an overall
+// "21.8%", a research-gate "53.4%", a "4x amplification" between the two
+// workflows (they are 9.3% vs 8.2% -- indistinguishable), and an "August 10
+// regression" (the daily rate bounces 0-23% throughout, and 2026-08-13 is
+// 0.0%). The re-runnable reader is `scripts/qa/rail_drop_rate.py`, which uses
+// the corrected predicate -- prefer it to any number pasted in a comment.
 //
 // WHAT THIS IS NOT: a fix for the cause. The mechanism is UNPROVEN. Four
 // hypotheses were tested against the same data and REFUTED -- prompt/run size
