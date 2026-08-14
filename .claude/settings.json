@@ -37,7 +37,7 @@
           {
             "type": "command",
             "command": "bash \"${CLAUDE_PROJECT_DIR:-$(pwd)}/.claude/hooks/qa-write-guard.sh\"",
-            "statusMessage": "qa-write-guard: CONVENTION CHECK, not a boundary (phase-86.64) -- matcher is Write|Edit so a Bash-channel write is never routed here (measured: same qa identity + same path = exit 2 via Write, exit 0 via Bash), and agent_type is spawner-chosen. Fail direction is MIXED: fail-OPEN when the hook itself breaks (bad JSON / no python3), fail-CLOSED when a qa Write has no readable file_path. Covering control for a deliberate write: Main post-verdict git-status cleanliness, per-step-protocol.md section 4. Log handoff/logs/qa_write_guard.log"
+            "statusMessage": "qa-write-guard: CONVENTION CHECK, not a boundary (phase-86.64 cycle-3). TWO SEPARATE GATES: the settings.json matcher decides ROUTING and is evidenced ONLY by the log (0 real-payload Bash rows against ~27k platform Bash calls); the in-script gate `tool_name in (\"Write\",\"Edit\")` decides what the script does with a payload it HAS received, and a piped-payload A/B measures THAT, not the matcher -- mutation-proven, so widening the matcher alone closes nothing. Unsound for two reasons: DECIDABILITY (Bash IS interceptable, CWE-693 ignored-not-missing; CARE 85.64% F1 vs CVE-2025-66032 $IFS bypass) and IDENTITY (agent_type is spawner-chosen, decisive alone). Fail direction splits on TRUTHINESS: falsy/absent file_path -> deny; TRUTHY NON-STRING -> .replace() raises -> ALLOW; hook broken -> fail-open. Covering control: Main post-verdict git-status cleanliness, per-step-protocol.md section 4. Log handoff/logs/qa_write_guard.log"
           }
         ]
       }

@@ -23,13 +23,21 @@
 #   (a) The settings.json matcher `Write|Edit` decides whether the platform
 #       ROUTES a tool call here at all. Evidenced ONLY by the log: over the
 #       log's 21-day window, 0 of 26,934 platform Bash calls produced a row.
-#   (b) Line 148 below, `tool_name in ("Write", "Edit")`, decides what this
-#       script does with a payload it HAS received.
+#   (b) The IN-SCRIPT GATE further down -- the `if is_qa_role(agent_type) and
+#       tool_name in (...)` line -- decides what this script does with a
+#       payload it HAS received. LOCATE IT BY SYMBOL, never by line number:
+#           grep -n '^if is_qa_role' .claude/hooks/qa-write-guard.sh
+#       (anchored at column 0 ON PURPOSE: an unanchored 'tool_name in ('
+#       now matches THIS COMMENT too -- the locator must not match the
+#       prose that describes it.)
+#       (phase-86.64 cycle-3: three separate documents cited this gate as
+#       :124, :134 and :148, and all three were stale -- editing THIS header
+#       moved it again. A symbol cannot go stale; a line number always can.)
 #   A piped-payload A/B (exit 2 for Write, exit 0 for Bash) measures (b)
 #   ONLY -- the matcher is not in its causal path. MUTATION-PROVEN: widen
-#   line 148 to include "Bash" with settings.json UNTOUCHED and the same
+#   that gate to include "Bash" with settings.json UNTOUCHED and the same
 #   payload flips 0 -> 2. So a maintainer who "fixes" the matcher alone has
-#   closed nothing: line 148 would still allow Bash. BOTH must change.
+#   closed nothing: the in-script gate would still allow Bash. BOTH must change.
 #
 # WHY IT CANNOT BE MADE SOUND -- the reason is DECIDABILITY, not channel.
 # Bash IS interceptable (CWE-693 "Protection Mechanism Ignored", not

@@ -27,7 +27,7 @@ Mutation, reproduced by me on a scratchpad copy:
 
 ```
 CONTROL  unmutated, qa + tool_name=Bash                      -> exit 0
-MUTANT   widen ONLY qa-write-guard.sh:148 to include "Bash",
+MUTANT   widen ONLY the in-script gate in qa-write-guard.sh to include "Bash",
          settings.json matcher UNTOUCHED                     -> exit 2
 repo md5 unchanged: 3eb5acfea3ec356ac6b289011f49912d
 ```
@@ -37,9 +37,9 @@ repo md5 unchanged: 3eb5acfea3ec356ac6b289011f49912d
 | gate | evidence |
 |---|---|
 | routing matcher `Write\|Edit` | **0 of 26,934** platform Bash calls produced a log row over 21 days |
-| `qa-write-guard.sh:148` | the piped A/B above |
+| `qa-write-guard.sh` in-script gate | the piped A/B above |
 
-**A maintainer who widens only the matcher closes nothing** — `:148` still allows Bash.
+**A maintainer who widens only the matcher closes nothing** — the in-script gate still allows Bash.
 
 ## The immutable command
 
