@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-14 | `89efc7d8` | fix(86.84): correct F1/F2/F3/NOTE-A/NOTE-B from the cycle-1 Q/A |
 | 2026-08-14 | `d9e9a35b` | docs(86.84): CONDITIONAL verdict transcribed verbatim + contract; gate PASSED |
 | 2026-08-14 | `ddc08396` | docs(86.84): retract the graceful-degradation corollary, refuted by the research gate |
 | 2026-08-14 | `577adcdf` | docs(harness): day report + next-session goal for the 86.84 turn-cap diagnosis |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-14 | `97832063` | phase-86.74 cycle-4: C7 RESOLVED -- 33 "undetermined" was 19 determined + 14 provably unrecoverable |
 | 2026-08-14 | `791865b5` | docs(harness-log): cycle 192 -- the swap-fix grade and the proxy-assertion it caught |
 | 2026-08-14 | `ba896969` | docs(86.74): record the cycle-4 grade, the proxy-assertion fix, and a wrong count in cba60c0b |
-| 2026-08-14 | `cba60c0b` | phase-86.74 cycle-4: assert the HARM, not the BUY -- an orphaned SELL was unmeasured |
 
 ---
 
