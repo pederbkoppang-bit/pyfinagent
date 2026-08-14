@@ -62,10 +62,13 @@ SESSION START   2026-07-13..2026-08-14   570 runs
   EXHAUSTED  44   7.7%
   RETRIED     1          <- the injected probe ONLY
 
-SESSION END   2026-07-13..2026-08-14   571 runs
-  EXHAUSTED  45   7.9%
-  RETRIED     3          <- +2, on a WILD drop
+SESSION END   2026-07-13..2026-08-14   572 runs
+  EXHAUSTED  46   8.0%
+  RETRIED     5          <- +4 across the session, ALL on wild drops
 ```
+
+Session delta: **+2 runs, +2 exhausted, +4 retried.** Both my Q/A spawns dropped
+and the retry fired on all four agents -- and **all four still exhausted**.
 
 **THE FIRST GENUINE DATAPOINT -- and it is not the good news it first looks like.**
 
