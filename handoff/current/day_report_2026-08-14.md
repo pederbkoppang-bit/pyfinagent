@@ -90,9 +90,13 @@ Run id recorded, per the goal: **`wf_2e5ddb63-de9`**.
 
 ---
 
-## 2. Step 86.74 (P0, live money) -- NOT CLOSED. Awaiting a verdict.
+## 2. Step 86.74 (P0, live money) -- VERDICT: CONDITIONAL. NOT CLOSED.
 
-**Status: code complete. BOTH Q/A cycles DROPPED. No verdict. `pending`, not flipped.**
+**Status: `CONDITIONAL` (`ok: false`), returned by the Agent-tool fallback on
+attempt 5 after both rail cycles dropped. `pending`, not flipped.**
+
+**And acting on the verdict's WARN then found a SECOND live money defect** -- see
+§2b. That one matters more than anything else in this report.
 
 | cycle | run | tokens | outcome |
 |---|---|---|---|
@@ -245,3 +249,41 @@ position was not liquidated or resized.
    sweep", missing its subject. Not amended: rewriting a chained commit with a peer
    session active is worse than the cosmetic defect. The substance is in
    `experiment_results_86.74.md`.
+
+---
+
+## 2b. THE MOST IMPORTANT FINDING OF THE DAY -- a REJECT could LIQUIDATE a holding
+
+The CONDITIONAL verdict carried an independent WARN: the AST seam scan matched
+only `ast.Constant==10.0` (so `or DEFAULT_POSITION_PCT` evades it), **and** sites
+`824/877/902` sit in `_compute_swap_candidates`, **which no test drove**.
+
+Acting on the second half surfaced a defect **all three Q/A passes missed**:
+
+```
+the swap path sized a BUY from a 0% verdict: [('NEW', 0.0)]
+```
+
+The `$50` floor was reachable **only inside `if _atomic:`**, and production runs
+`paper_atomic_swap_enabled=False`. So on the swap path a `0%` REJECT emitted a
+**real SELL** of the displaced holding paired with a **$0.00 no-op BUY**:
+
+> **net -1 position, with the risk judge's REJECT silently LIQUIDATING a holding.**
+
+Same falsy-zero family as the DELL inversion, pointing the **opposite** way. DELL
+was "a REJECT buys at maximum size"; this is "a REJECT sells and buys nothing".
+Criterion 2 requires a 0% verdict to produce **no order**, and the swap path is a
+buy path -- so **C2 was not actually met when the verdict was issued.** The
+evaluator drove `decide_trades` only, and had itself flagged those sites as
+undriven; its own note is what led me there.
+
+Fixed by moving the floor out of the `_atomic` branch. **Tightening only** -- a
+legitimate 3%-of-$10k swap ($300) is untouched; it can only suppress a degenerate
+pair. **This fix is UNGRADED** (it landed after the verdict) and the next session
+must grade it.
+
+The new anti-vacuity test **caught its own harness producing no swap at all**
+(`paper_swap_max_per_cycle` defaults to `0` and short-circuits the function), so
+all three assertions would otherwise have passed on an empty list. Second time
+this cycle a probe of mine was saved by its own vacuity check -- the first was the
+criterion-3 sweep that mistook a return value for a branch.

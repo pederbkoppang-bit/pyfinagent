@@ -34879,3 +34879,56 @@ never contaminated (mtimes predate the window, sha256 matches, `git diff` empty)
 **Attempt accounting:** `attempt_number=4, prior_attempts=3` (lower bound). Under F1b's
 5-attempt budget this step is near escalation; a third consecutive drop must use the
 **Agent-tool `qa` fallback** that CLAUDE.md names for this case.
+
+## Cycle 191 -- 2026-08-14 -- phase=86.74 result=CONDITIONAL (Agent-tool fallback)
+
+**A real verdict arrived.** After two Workflow-rail drops, the documented
+Agent-tool `qa` fallback returned on attempt 5: **CONDITIONAL, `ok: false`**.
+Transcribed verbatim into `evaluator_critique_86.74.md` §0. **86.74 stays
+`pending`** -- CONDITIONAL does not close a step, and the masterplan is untouched.
+
+**8 of 10 criteria MET**, each re-derived by the evaluator rather than inherited:
+immutable command `37 passed` exit 0; lint clean over a derived 6-file non-empty
+scope; the mutation matrix re-run **by it** with a green control, M1-M6 all
+KILLED, byte-identical restore confirmed by **its own md5s** on four subjects.
+
+**Blockers C4 + C7**, both of which Main had self-reported as partial -- and the
+evaluator states the volunteering "neither earned nor cost anything", reaching
+CONDITIONAL on its own derivation. C4 is *temporally* blocked (it verified pid
+27945 started 13:30:35 CEST, **before** both commits, so the fix is committed but
+NOT IN FORCE, and measuring needs a restart policy defers). C7 is a join-coverage
+limit: 1 confirmed, 33 of 34 UNDETERMINED, never claimed as a measured zero.
+Disclosed rather than proxied -> CONDITIONAL, not FAIL.
+
+**ITS WARN PAID OFF TWICE, and the second is the important one.**
+
+The WARN: the AST seam scan matched only `ast.Constant==10.0`, so a reintroduction
+spelled `or DEFAULT_POSITION_PCT` -- the constant *this step introduced* -- evades
+it; and sites `824/877/902` sit in `_compute_swap_candidates`, **which no test
+drove**, so for 3 of 4 sizing sites that scan was the ONLY guard.
+
+1. Scan widened to Name/Attribute, with a positive control for **each** spelling.
+   The evasion was **reproduced first** (`MISSED`) -- a hole gets observed open
+   before it is closed.
+2. Driving the untested swap path surfaced **a live defect all three Q/A passes
+   missed**: `the swap path sized a BUY from a 0% verdict: [('NEW', 0.0)]`. The
+   `$50` floor was reachable **only inside `if _atomic:`**, and production runs
+   `paper_atomic_swap_enabled=False`. So a 0% REJECT emitted a **real SELL** of
+   the displaced holding paired with a **$0.00 no-op BUY** -- **net -1 position,
+   the risk judge's REJECT silently LIQUIDATING a holding.** Same falsy-zero
+   family as DELL, pointing the other way. **C2 was therefore NOT met when the
+   verdict was issued** -- the evaluator drove `decide_trades` only, and had
+   itself flagged those sites as undriven.
+
+Fixed by moving the floor out of the `_atomic` branch; tightening only. The new
+anti-vacuity test **caught its own harness producing no swap at all**
+(`paper_swap_max_per_cycle` defaults to 0 and short-circuits the function) -- the
+second time this cycle a probe of mine was saved by its own vacuity check.
+
+**40 passed.** The four adjacent failures are the same pre-existing ones from the
+measured set of 19.
+
+**The swap fix is UNGRADED** -- it landed after the verdict. No fresh Q/A was
+spawned: the step cannot close regardless (C4/C7 unresolvable this session), so
+another ~200-400K-token cycle would predictably return CONDITIONAL for the same
+two reasons. **Next session must grade it, and can close C4 after the restart.**
