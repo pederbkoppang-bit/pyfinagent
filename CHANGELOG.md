@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-14 | `9d14291e` | phase-86.74: a 0% REJECT can no longer become the largest position -- and the falsy-zero was only ha |
 | 2026-08-14 | `7afe1122` | fix(security): close the credential exposure -- revocation CONFIRMED BY PROBE, and correct the rotat |
 | 2026-08-14 | `98eafb90` | chore(masterplan): queue the two defects 86.81 found and deliberately did not fix |
 | 2026-08-14 | `8b520f6c` | phase-86.81: prove the StructuredOutput drop retry actually fires, and stop the metric counting its  |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-14 | `9b4d5281` | phase-86.78/86.79: close the qa.md half via a fresh executor, and the tool-output channel it found |
 | 2026-08-14 | `a878b39f` | phase-86.74: record the operator's DO-THIS-NEXT directive -- and why P0 alone cannot carry it |
 | 2026-08-14 | `2cade52f` | phase-86.78 cycle-2: close the three mutants the Q/A left surviving; criterion 3 escalated |
-| 2026-08-14 | `fedcffff` | phase-86.78: stop telling the judge what its verdict will trigger; compute the threshold caller-side |
 
 ---
 
