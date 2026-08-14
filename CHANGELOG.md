@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-14 | `d0366a00` | docs(goal): remove a self-contradiction and a superseded count |
 | 2026-08-14 | `4d9294c9` | docs(goal): next-session goal reflects the CONDITIONAL verdict and the three items blocking 86.74 |
 | 2026-08-14 | `f85746cc` | docs: record the CONDITIONAL verdict and the swap-path liquidation defect it led to |
 | 2026-08-14 | `76ac89ee` | phase-86.74 cycle-3: verdict CONDITIONAL -- and acting on its WARN found a live defect where a REJEC |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-14 | `1159059a` | docs(incident): the 'why did it stop' question is answered, and the answer inverts the finding |
 | 2026-08-14 | `cd9774e3` | fix(security): the credential leak was DORMANT, not closed -- redact before the tracked file exists |
 | 2026-08-14 | `4ecba45a` | docs: day report + regenerated goal -- 0 steps closed, and why that is the honest outcome |
-| 2026-08-14 | `ccb29804` | phase-86.78/86.79: record both rail drops as NO VERDICT, and the finding one of them died carrying |
 
 ---
 
