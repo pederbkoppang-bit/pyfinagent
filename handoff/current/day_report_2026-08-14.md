@@ -290,7 +290,7 @@ criterion-3 sweep that mistook a return value for a branch.
 
 ---
 
-## 8. C7 RESOLVED after the verdict -- "33 undetermined" was mostly my own under-reporting
+## 8. C7 -- I claimed RESOLVED, then REFUTED MYSELF one commit later
 
 The CONDITIONAL rested on two blockers. **One of them is now answered.**
 
@@ -373,3 +373,36 @@ orphan-SELL guard added today is protecting a live path, not a hypothetical one.
 BEFORE doing it.** Caught and corrected in the same turn, then re-asserted only
 after the pid change was measured. A past-tense claim about my own action is
 exactly the class this project has been burned by.
+
+### 8a. RETRACTION -- the C7 "resolution" above is WRONG, and this is the correction
+
+I claimed the 19 joined-but-verdictless BUYs were a **measured** not-an-inversion,
+because *"the `risk_assessment` key is absent entirely, so no verdict existed"*.
+
+I then ran the attack I had just asked the evaluator to run, and it killed my claim:
+
+```
+final_synthesis PRESENT but risk_assessment absent :  0
+final_synthesis ALSO absent (report truncated)     : 19
+```
+
+**`final_synthesis` is absent in all 19.** The pipeline did not reach synthesis and
+decline to attach a risk assessment -- **the persisted report is truncated**. A
+verdict may have existed and simply never been written. *"Key absent"* supports
+**not persisted**; I read it as **never existed**, which is strictly stronger than
+the data carries.
+
+**Corrected position:** 1 confirmed inversion (DELL), **33 UNDETERMINED**. C7 stays
+**PARTIAL**, exactly as the Q/A's CONDITIONAL had it -- I am not contesting the
+blocker.
+
+**What survives:** the 33 now carry a **cause decomposition** rather than being one
+bucket -- 19 truncated-report joins, 14 from the 2026-04-26..05-01 window where
+`analysis_results` holds zero rows. That is a real improvement; "resolved" was not.
+
+**Why this is in the report rather than edited away:** I committed and pushed the
+wrong claim (`97832063`) before running the check that refutes it, and told the
+evaluator to grade it. Both are corrected (`38ba13ad`, and a retraction message to
+the evaluator). The failure is the same one this session already recorded twice --
+**asserting a proxy**: "key absent" was a proxy for "no verdict existed", and it
+survives exactly the case that matters.
