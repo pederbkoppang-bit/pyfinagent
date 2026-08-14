@@ -459,3 +459,75 @@ tokens, so one was **not** spawned.
 
 **86.74 remains `pending`. The next session must grade the swap fix**, and can
 close C4 once the backend restarts on this code.
+
+---
+
+## 9. CYCLE 4 -- the swap fix was graded, and the grade caught a PROXY assertion
+
+The Agent-tool Q/A graded commit `76ac89ee` (scoped to it, not a re-grade of the
+step): **CONDITIONAL**. Working record:
+`.claude/agent-memory/qa/verdicts/verdict_wip_86.74__20260814T153803Z.md`.
+
+### 9a. What it CONFIRMED -- re-derived, not taken on my word
+
+- **The defect is real.** With the floor block excised in-memory, the real
+  `_compute_swap_candidates` returns
+  `[('SELL','OLD',None), ('BUY','NEW',0.0)]` on a 0% REJECT, against `[]` as
+  shipped.
+- **Tightening only.** 3% -> `$300` and ABSENT -> `$1000` both fire unchanged.
+  The suppression set is exactly `nav*pct/100 < 50`, which is **parity with the
+  identical `if buy_amount < 50` the MAIN buy path already carries at `:536`** --
+  so this aligns the two paths rather than inventing a constraint. The atomic
+  path is provably untouched: `:932` runs *after* `min(buy_amount, cash+freed)`,
+  so the new check at `:919` can never reject what the later one would pass.
+  **It found no swap that should fire and is now suppressed.**
+- **C2 now holds behaviourally on the swap path.**
+- **No new regressions** -- the four adjacent failures reclassified against the
+  **parent** module, and the zero-buy-gap failure is `Expected 2 swap SELLs, got 1`
+  with its swap BUYs at `$1000`, twenty times the floor: unrelated by mechanism.
+
+### 9b. What CAPPED it -- I asserted a proxy for the harm
+
+> *"the commit's own claim is 'emitting neither leg, so the SELL cannot orphan',
+> and that property has no guard. I mutated to suppress ONLY the BUY append,
+> leaving the SELL to orphan -- the exact net -1 harm -- and all three new tests
+> PASSED (rc 0). The assertion filters `o.action == 'BUY'`, so the half that
+> causes the loss is unmeasured."*
+
+**The harm is the orphaned SELL, not the zero-dollar BUY**, and I asserted on the
+BUY subset. Fixed exactly as named: assert the **whole order list** is empty, plus
+a second test naming the orphaned SELL so a regression prints its own harm.
+
+**Proven, not asserted:** the orphan mutant **SURVIVED** the old assertion
+(rc 0, 3 passed) and is **KILLED** by the new one (rc 1). Added as permanent cell
+**M7**, which needs **two** edits -- delete the early floor, re-apply it after the
+SELL append -- because emitting the SELL and suppressing the BUY are two lines
+apart. Matrix now **7/7 KILLED**, control green first, byte-identical restore.
+
+### 9c. A comment of mine misdescribed production, in the dangerous direction
+
+I wrote that `paper_swap_max_per_cycle` *"defaults to 0 and short-circuits the
+whole function"*. **Production defaults it to 2** (`settings.py:378`) with
+`paper_swap_enabled=True` (`:368`) -- **the swap path is LIVE BY DEFAULT.** The 0
+is the `getattr` fallback for an attribute absent from my test's `SimpleNamespace`
+stub. A reader could have concluded the swap path was dark when it is live, which
+makes the orphan-SELL harm a **live** concern rather than a hypothetical.
+Corrected in place.
+
+The Q/A also checked whether I had over-configured my way into an unreachable
+scenario and found the opposite: all four explicit values **match the production
+defaults exactly**, so the scenario is production-representative -- *"stronger
+evidence of live reachability than your own framing gave it."*
+
+### 9d. Correction to commit `cba60c0b`'s message
+
+That message states **"42 passed"**. The measured count is **41**
+(`python -m pytest backend/tests/test_phase_66_2_risk_judge_shape.py -q`). The
+commit is no longer the tip (the changelog hook committed above it) and a peer
+session is active, so it was **not** rebased; **41 is the correct figure** and this
+line supersedes it.
+
+### 9e. Status
+
+**86.74 still does NOT close.** This grade was scoped to the swap commit; C4 and
+C7 are untouched by it and remain the step's blockers.
