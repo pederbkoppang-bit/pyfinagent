@@ -397,13 +397,40 @@ function enforceEscalation(verdict, sequence, opts = {}) {
 // 0.0%). The re-runnable reader is `scripts/qa/rail_drop_rate.py`, which uses
 // the corrected predicate -- prefer it to any number pasted in a comment.
 //
-// WHAT THIS IS NOT: a fix for the cause. The mechanism is UNPROVEN. Four
-// hypotheses were tested against the same data and REFUTED -- prompt/run size
-// (dropped runs are 1.1x median tokens; the >30min band has ZERO drops), wall
-// clock (1.1x), effort (max 7.8% vs low 10.3% -- low is WORSE), and Anthropic's
-// documented preamble-suppression trigger (absent from these prompts). Tool
-// count rises 5%->42% across bands but collapses to 0% above 100 calls, so it
-// is an association, not a dose-response.
+// THE MECHANISM IS PROVEN AS OF phase-86.84 (2026-08-14). This block used to
+// say it was UNPROVEN; that is SUPERSEDED, and the retry below is now a
+// belt-and-braces measure rather than the only defence.
+//
+// THE CAUSE IS TURN-BUDGET EXHAUSTION. `.claude/agents/qa.md` carried
+// `maxTurns: 30` and `researcher.md` carried `maxTurns: 40`. Measured over 572
+// run records / 1325 spawns: 39 of 302 `qa` spawns and 9 of 93 `researcher`
+// spawns dropped, and EVERY ONE sat at exactly its cap -- the set of turn
+// counts on dropped spawns is {30} and {40}, no other value. The three agent
+// types with no cap dropped 0 times in 930 spawns and reach 93 turns.
+// `maxTurns` counts TOOL-USE turns only and StructuredOutput is itself a tool
+// call, so the last permitted turn goes to ordinary work and there is none left
+// to emit the schema call. Both pins were REMOVED in phase-86.84.
+//   Re-runnable: `python3 scripts/qa/rail_turn_cap.py --verify`
+//   Write-up:    handoff/current/live_check_86.84.md
+//
+// THE FOUR REFUTED HYPOTHESES STAY REFUTED -- prompt/run size, wall clock,
+// effort, and the documented preamble-suppression trigger were each correctly
+// ruled out, and each is CONSISTENT with turn exhaustion (prompt size does not
+// change how many turns an investigation needs, which is why a lean prompt
+// still dropped). Turn count is a FIFTH hypothesis those four never tested.
+//
+// THE MODEL SPLIT REPORTED BELOW IS CONFOUNDED, and this is the correction that
+// matters most for anyone re-reading the old numbers: 223 of
+// claude-opus-4-8[1m]'s 258 spawns were uncapped `general-purpose`, a type that
+// has never dropped on any model, so its clean 0.0% measured what it RAN.
+// Holding the model fixed at claude-opus-5[1m]: 47/379 on the two capped roles
+// against 0/417 on the three uncapped ones.
+//
+// AND THE OLD TOOL-COUNT LINE WAS THE CLUE, MISREAD. It said the rate "rises
+// 5%->42% across bands but collapses to 0% above 100 calls, so it is an
+// association, not a dose-response." The collapse is not evidence against a
+// dose-response -- it is the cap. Nothing capped can REACH 100 tool calls, so
+// the only spawns in that band are uncapped types, which never drop.
 //
 // WHY A RETRY IS NONETHELESS CORRECT, AND NOT A GUESS: the failure is
 // STOCHASTIC, and that is measured rather than assumed. Grouping runs by sha1 of

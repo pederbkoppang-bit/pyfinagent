@@ -578,11 +578,13 @@ though it never flipped to COMPLETE (7 sources read in full, gate NOT passed):
    workflow files. Unverified against the version in use here.
 - **No Q/A verdict was obtained on this session's work.** The diagnosis is
   committed as evidence, not as a passed step; 86.84 stays `pending`.
-- Stale claims still on disk, deliberately not edited during a freeze:
-  `scripts/qa/rail_drop_rate.py` and the twin comment blocks in
-  `.claude/workflows/qa-verdict.js` and `.claude/workflows/research-gate.js` all
-  still say the mechanism is unproven and split the rate by model. Correcting
-  them at source is criterion 5 of 86.84.
+- ~~Stale claims still on disk, deliberately not edited during a freeze.~~
+  **SUPERSEDED — see "Session 4" below.** The operator lifted the freeze and
+  criterion 5 was completed: `scripts/qa/rail_drop_rate.py` and the twin comment
+  blocks in `.claude/workflows/qa-verdict.js` and
+  `.claude/workflows/research-gate.js` no longer say the mechanism is unproven,
+  and each now carries the confound correction at source rather than a note
+  beside it.
 
 ## Pending restart list
 

@@ -94,11 +94,19 @@ Exactly at it, every time.
   rate** — still decisive, but not 930-strong, and 0/930 should not be quoted
   without this qualifier.
 
-- **The at-cap non-emitter population is 50, not 48** (Q/A finding F5, which I
+- **The at-cap non-emitter population is 49, not 48** (Q/A finding F5, which I
   had missed). Two *completed* research-gate runs (`wf_a6ea31e7-9b9`,
   `wf_078f4125-57a`) each contain a researcher spawn sitting at exactly 40/40
   that never emitted `StructuredOutput` — exhaustions absorbed by the phase-86.81
   retry rather than surfacing as a failed run. They strengthen the mechanism.
+
+  **The Q/A said 50 and that is one too many; I am not adopting it.** It added
+  its 2 to the 48 dropped spawns without subtracting the one drop it had itself
+  identified in F3 — `wf_d4e2e794-567`, whose last `tool_use` *was*
+  `StructuredOutput`. So `(48 − 1) + 2 = 49`, now computed by the script rather
+  than argued: `at_cap_non_emitters` = 49, of which 2 sit in completed runs.
+  Taking an evaluator's arithmetic on trust is the same failure as taking my
+  own on trust.
 
 - **A free negative control, also from the Q/A and also unclaimed by me:** the 6
   `killed` runs ("Workflow aborted") sit at 6/3/5/4/16/2/2/1/1 turns — nowhere

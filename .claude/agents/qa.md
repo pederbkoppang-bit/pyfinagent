@@ -3,7 +3,9 @@ name: qa
 description: MUST BE USED in every EVALUATE phase. Combined QA + harness-verifier — independent cross-verification via deterministic checks (syntax, file existence, test runs, live command reproduction) AND LLM judgment of success criteria. Use proactively after any GENERATE step, immediately before marking a masterplan step done. Read-only on file contents — may run Bash for verification commands (python -c, pytest, grep, jq, test -f) but NEVER Edit/Write.
 tools: Read, Bash, Glob, Grep, SendMessage, mcp__playwright__browser_navigate, mcp__playwright__browser_snapshot, mcp__playwright__browser_take_screenshot, mcp__playwright__browser_console_messages
 model: opus
-maxTurns: 30
+# maxTurns REMOVED (phase-86.84, 2026-08-14). Absent means "No limit" per the
+# agent-loop Turns-and-budget table -- a genuine absence of a cap, not a high
+# default. THIS IS A DELIBERATE REMOVAL, NOT AN OMISSION: do not "restore" it.
 # Layer-3 Q/A pin: model=opus (alias -> latest Opus, currently 4.8, flat-fee on
 # the Max rail), effort=max. CLAUDE.md-PERMANENT per phase-29.2: Q/A is the
 # rare-event evaluator gate on financial-trading code (fires once per masterplan
@@ -12,8 +14,42 @@ maxTurns: 30
 # role (NOT xhigh: xhigh silently downgrades to high on non-Opus-4.8/4.7 models
 # per llm_client.py:1507-1512; max passes through). Layer-3 subagent effort is a
 # SEPARATE system from Layer-2 EFFORT_DEFAULTS (model_tiers.py) -- do not conflate.
-# maxTurns 30 (phase-59.1): the old 12 cap caused mid-evaluation stalls (20-26
-# tool-uses per evaluation); 30 gives headroom.
+# TURN CAP: REMOVED phase-86.84 (2026-08-14). Was `maxTurns: 30`, set by
+# phase-59.1 with the note "the old 12 cap caused mid-evaluation stalls (20-26
+# tool-uses per evaluation); 30 gives headroom." It did not. MEASURED over 572
+# workflow run records: 39 of 302 `qa` spawns dropped with
+# `subagent completed without calling StructuredOutput`, and EVERY ONE sat at
+# exactly 30 turns -- the set of turn counts on dropped spawns is {30}, no other
+# value. Same shape on the researcher at its 40. The agent spends its last
+# permitted turn on ordinary work and there is no turn left to emit the schema
+# call, so the evaluation is lost with the tokens spent.
+#   Re-runnable: `python3 scripts/qa/rail_turn_cap.py --verify`.
+#   Write-up: handoff/current/live_check_86.84.md + contract_86.84.md.
+# WHY REMOVED RATHER THAN RAISED, which is what 59.1 did and why it recurred:
+#   (a) `maxTurns` counts TOOL-USE turns only and StructuredOutput is itself a
+#       tool call, so the budget must be work_turns + 1 -- a cap sized to the
+#       work cannot terminate.
+#   (b) The distribution is RIGHT-CENSORED at the cap. A run that used exactly N
+#       turns under a cap of N proves the requirement was >=N, never that N
+#       sufficed. 12->30 and 30->40 were each fit to a distribution the previous
+#       cap had created. The only uncensored evidence is the uncapped agent
+#       types, which reach 63 and 93 turns -- both above 40.
+#   (c) Raising is exposed to anthropics/claude-code#41143 (maxTurns silently
+#       NOT enforced on the Agent-tool path, closed as not planned); removing
+#       the key is immune to that.
+#   (d) There is no per-call turn budget in Workflow `agent()` opts and no way
+#       to force the schema call (#20625, closed as not planned), so
+#       "reserve the last turn" is not expressible today.
+# KEEP `agentType: 'qa'` at the call sites. Cap and agentType are INDEPENDENT
+# settings; moving to `general-purpose` would re-expand Edit/Write/Bash plus the
+# full deferred MCP surface that phase-75.20 deliberately pinned away.
+# COST: an uncapped spawn can in principle run longer on the shared weekly Max
+# pool. Observed uncapped behaviour is self-terminating (p50 7-12 turns, max 93
+# across 930 spawns), and a lost evaluation already costs full price for nothing
+# -- but this is a real trade and is flagged for operator review in
+# handoff/harness_log.md per the CLAUDE.md separation-of-duties rule.
+# RE-MEASURE once uncapped: the realised turn distribution is the uncensored
+# sample nobody has ever had, and it is what makes this fix verifiable.
 # Fable 5 is now a STANDING part of the Max plan (verified 2026-07-31); the
 # free-window + scheduled-revert doctrine is RETIRED. `model: opus` here is a
 # steady-state default, NOT a revert obligation -- a Fable repin is a normal

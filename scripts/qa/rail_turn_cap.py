@@ -8,12 +8,14 @@ WHY THIS EXISTS
     agent({schema}): subagent completed without calling StructuredOutput
     (after in-conversation nudge)
 
-and says, in its own header, that the mechanism is UNPROVEN -- "size,
+and used to say, in its own header, that the mechanism was UNPROVEN -- "size,
 wall-clock, effort and the documented preamble-suppression trigger were each
-tested and refuted", with the rate splitting by MODEL.
+tested and refuted", with the rate splitting by MODEL. (That header, and the
+twin comment blocks in both workflow files, were superseded by phase-86.84 on
+the strength of what this script measures. All four of those refutations
+STAND; the cause is a fifth hypothesis none of them tested.)
 
-This script tests a hypothesis those probes did not: the subagent runs out of
-TURNS. Every custom agent in `.claude/agents/*.md` carries a `maxTurns:`
+This script tests that fifth hypothesis: the subagent runs out of TURNS. Every custom agent in `.claude/agents/*.md` carries a `maxTurns:`
 frontmatter key. The built-in agent types (`general-purpose`, `Explore`) and the
 default workflow subagent carry none.
 
@@ -114,8 +116,12 @@ PROJECT_SLUG = "-Users-ford--openclaw-workspace-pyfinagent"
 RECORDS_GLOB = "*/workflows/wf_*.json"
 REPO = Path(__file__).resolve().parents[2]
 
-# A run whose status is one of these is a lost run for our purposes.
-FAILED_STATUS = "failed"
+# The three run statuses actually present in the corpus. They are DISJOINT and
+# are read from the record's named `status` field, never inferred from each
+# other -- see the F4 note in collect().
+FAILED_STATUS = "failed"        # the lost runs: the StructuredOutput drop
+COMPLETED_STATUS = "completed"
+KILLED_STATUS = "killed"        # "Workflow aborted" -- operator/runtime stop
 
 # Cardinality floors. These have NO opt-out flag: a run of this script over an
 # empty or truncated corpus must FAIL, not report a serene zero. A guard that
@@ -130,8 +136,36 @@ def projects_root() -> Path:
     return Path(os.path.expanduser("~/.claude/projects")) / PROJECT_SLUG
 
 
+# ── THE CAP IN FORCE IS A FUNCTION OF TIME, NOT OF TODAY'S FILE ─────────────
+# Discovered the moment phase-86.84 removed the caps: this script read the LIVE
+# frontmatter to explain HISTORICAL runs, so the remediation made its own
+# verifier go red -- "no agent type carries a cap; nothing to test", plus 48
+# drops reclassified as uncapped. The measurement was scoring yesterday's runs
+# against today's file.
+#
+# Each run must be scored against the cap that was actually in force WHEN IT
+# RAN. The corpus spans exactly one cap change, so the timeline is two entries
+# per role. Extend it -- do not edit the historical numbers -- if a cap is ever
+# reintroduced.
+CAP_REMOVED_AT = "2026-08-14T17:35:00Z"  # phase-86.84 removed both pins
+HISTORICAL_CAPS = {"qa": 30, "researcher": 40}  # set by phase-59.1
+
+
+def effective_cap(agent_type: str | None, run_timestamp: str | None) -> int | None:
+    """The maxTurns actually in force for a run, by its timestamp.
+
+    Before CAP_REMOVED_AT the phase-59.1 pins applied. At or after it, the live
+    frontmatter governs (and should be uncapped). Runs with no timestamp are
+    treated as historical, which is the conservative direction: it keeps them
+    inside the claim being tested rather than quietly excusing them from it.
+    """
+    if run_timestamp is None or run_timestamp < CAP_REMOVED_AT:
+        return HISTORICAL_CAPS.get(agent_type or "")
+    return parse_cap(agent_type)
+
+
 def parse_cap(agent_type: str | None) -> int | None:
-    """maxTurns from .claude/agents/<type>.md frontmatter, or None if uncapped.
+    """maxTurns from .claude/agents/<type>.md frontmatter as it stands NOW.
 
     Only the frontmatter block (between the first two `---` lines) is scanned,
     so a `maxTurns` mentioned in the body prose cannot be mistaken for the pin.
@@ -235,8 +269,15 @@ def collect() -> dict:
                     "run_id": run_id,
                     "status": status,
                     "dropped": status == FAILED_STATUS,
+                    # phase-86.84 cycle-1 Q/A, finding F4: there is a THIRD run
+                    # status (`killed`, "Workflow aborted"). `not dropped` is
+                    # not the same thing as `completed`, and bucketing killed
+                    # runs into the ok* columns contaminated them. Carry the
+                    # three states explicitly and never infer one from another.
+                    "completed": status == COMPLETED_STATUS,
+                    "killed": status == KILLED_STATUS,
                     "agent_type": entry.get("agentType"),
-                    "cap": parse_cap(entry.get("agentType")),
+                    "cap": effective_cap(entry.get("agentType"), rec.get("timestamp")),
                     "model": entry.get("model"),
                     "turns": turns,
                     "assistant_lines": assistant_lines,
@@ -265,7 +306,8 @@ def analyse(data: dict) -> dict:
     for atype, group in sorted(by_type.items(), key=lambda kv: str(kv[0])):
         cap = group[0]["cap"]
         dropped = [s for s in group if s["dropped"]]
-        completed = [s for s in group if not s["dropped"]]
+        # F4: `completed` is its own status, NOT "everything that did not drop".
+        completed = [s for s in group if s["completed"]]
         at_cap_dropped = [s for s in dropped if cap is not None and s["turns"] == cap]
         over_cap = [s for s in group if cap is not None and s["turns"] > cap]
         rows.append(
@@ -302,6 +344,9 @@ def analyse(data: dict) -> dict:
     capped = [s for s in spawns if s["cap"] is not None]
     uncapped = [s for s in spawns if s["cap"] is None]
 
+    killed_all = [s for s in spawns if s["killed"]]
+    completed_all = [s for s in spawns if s["completed"]]
+
     controls = {
         # C1: the turn counter is not returning zeros.
         "c1_zero_turns_with_assistant_lines": sum(
@@ -310,16 +355,44 @@ def analyse(data: dict) -> dict:
         "c1_positive_turn_counts": sum(1 for s in spawns if s["turns"] > 0),
         # C2: no spawn of a capped type ever exceeds its cap.
         "c2_capped_spawns_over_cap": sum(1 for s in capped if s["turns"] > s["cap"]),
-        # Positive control on the drop detector, from the completed population.
+        # Positive control on the drop detector. Denominator is the COMPLETED
+        # population only (F4) -- killed runs are neither successes nor drops.
         "structured_output_called_completed": sum(
-            1 for s in spawns if not s["dropped"] and s["structured_output"]
+            1 for s in completed_all if s["structured_output"]
         ),
-        "completed_total": sum(1 for s in spawns if not s["dropped"]),
+        "completed_total": len(completed_all),
         "structured_output_called_dropped": sum(
             1 for s in dropped_all if s["structured_output"]
         ),
         "dropped_total": len(dropped_all),
+        # C3 NEGATIVE CONTROL (phase-86.84 cycle-1 Q/A, contributed by the
+        # evaluator and adopted here). A `killed` run is a termination that is
+        # NOT turn exhaustion, so its spawns should sit nowhere near a cap. If
+        # killed spawns started landing at the cap, the "at cap" signal would be
+        # measuring something generic about long runs rather than exhaustion.
+        "c3_killed_spawns": len(killed_all),
+        "c3_killed_turn_values": sorted(s["turns"] for s in killed_all),
+        "c3_killed_at_cap": sum(
+            1 for s in killed_all if s["cap"] is not None and s["turns"] == s["cap"]
+        ),
     }
+
+    # NOTE-A (cycle-1 Q/A): "0 drops in N uncapped" is inflated if most of that N
+    # was never at risk. An uncapped spawn that finished in 9 turns could not
+    # have exhausted a 30-turn cap, so it is not evidence about the cap. The
+    # AT-RISK subset is the uncapped spawns that ran past the smallest live cap.
+    live_caps = sorted({s["cap"] for s in capped if s["cap"] is not None})
+    smallest_cap = live_caps[0] if live_caps else None
+    uncapped_at_risk = (
+        [s for s in uncapped if smallest_cap is not None and s["turns"] > smallest_cap]
+    )
+
+    # F5 (cycle-1 Q/A): run status is a PROXY. The mechanism is "sat at the cap
+    # and never emitted the schema call", and that can happen inside a run that
+    # ultimately COMPLETED, because the phase-86.81 retry can absorb it. Measure
+    # the mechanism directly rather than through the run's outcome.
+    at_cap = [s for s in capped if s["turns"] == s["cap"]]
+    at_cap_non_emitters = [s for s in at_cap if not s["structured_output"]]
 
     claim = {
         "every_drop_is_at_its_cap": all(
@@ -329,12 +402,38 @@ def analyse(data: dict) -> dict:
         "uncapped_spawns": len(uncapped),
         "uncapped_max_turns": max((s["turns"] for s in uncapped), default=0),
         "capped_spawns": len(capped),
+        "smallest_live_cap": smallest_cap,
+        "uncapped_at_risk": len(uncapped_at_risk),
+        "uncapped_at_risk_drops": sum(1 for s in uncapped_at_risk if s["dropped"]),
+        "capped_drop_rate_pct": (
+            round(100.0 * len(dropped_all) / len(capped), 1) if capped else 0.0
+        ),
+        "at_cap_spawns": len(at_cap),
+        "at_cap_non_emitters": len(at_cap_non_emitters),
+        "at_cap_non_emitters_in_completed_runs": sum(
+            1 for s in at_cap_non_emitters if s["completed"]
+        ),
+        "at_cap_non_emitter_runs": sorted(
+            {s["run_id"] for s in at_cap_non_emitters if s["completed"]}
+        ),
+    }
+
+    # THE REMEDIATION'S OWN CHECK. The diagnosis and the fix are verified by the
+    # same command deliberately: a green run must mean both "the mechanism is
+    # still what we said" and "the caps are still gone". If someone restores a
+    # pin, this goes red without anyone having to remember why.
+    remediation = {
+        "cap_removed_at": CAP_REMOVED_AT,
+        "live_caps": {r: parse_cap(r) for r in sorted(HISTORICAL_CAPS)},
+        "historical_caps": dict(HISTORICAL_CAPS),
+        "all_pins_removed": all(parse_cap(r) is None for r in HISTORICAL_CAPS),
     }
 
     return {
         "records": data["records"],
         "spawns": len(spawns),
         "missing_transcripts": data["missing_transcripts"],
+        "remediation": remediation,
         "by_agent_type": rows,
         "model_x_agent_type": {k: dict(v) for k, v in cross.items()},
         "controls": controls,
@@ -404,6 +503,11 @@ def render(a: dict) -> str:
         f"{c['structured_output_called_completed']}/{c['completed_total']} completed "
         f"spawns vs {c['structured_output_called_dropped']}/{c['dropped_total']} dropped"
     )
+    w(
+        f"  C3 negative control       : {c['c3_killed_spawns']} spawns in `killed` runs "
+        f"sit at turns {c['c3_killed_turn_values']}; {c['c3_killed_at_cap']} at a cap "
+        f"(must be 0 -- a non-exhaustion stop should land nowhere near one)"
+    )
     w("")
     cl = a["claim"]
     w("CLAIM")
@@ -413,6 +517,37 @@ def render(a: dict) -> str:
         f"{cl['drops_on_uncapped_types']}/{cl['uncapped_spawns']} "
         f"(uncapped spawns reach {cl['uncapped_max_turns']} turns)"
     )
+    w(
+        f"  ... of which AT RISK (>{cl['smallest_live_cap']} turns)        : "
+        f"{cl['uncapped_at_risk_drops']}/{cl['uncapped_at_risk']}  "
+        f"vs a {cl['capped_drop_rate_pct']}% drop rate on capped spawns"
+    )
+    w("     ^ QUOTE THIS RATIO, NOT THE RAW UNCAPPED TOTAL. A spawn that")
+    w("       finished well under the smallest cap could never have exhausted")
+    w("       it, so it is not evidence about the cap.")
+    w("")
+    w(
+        f"  spawns sitting AT a cap                    : {cl['at_cap_spawns']}, of which "
+        f"{cl['at_cap_non_emitters']} never emitted StructuredOutput"
+    )
+    w(
+        f"  ... inside runs that COMPLETED anyway      : "
+        f"{cl['at_cap_non_emitters_in_completed_runs']} "
+        f"{cl['at_cap_non_emitter_runs']}"
+    )
+    w("     ^ run status is a PROXY. These are exhaustions the 86.81 retry")
+    w("       absorbed, so the true at-cap non-emitter population is larger")
+    w("       than the failed-run count. They strengthen the mechanism.")
+    w("")
+    r = a["remediation"]
+    w("REMEDIATION (phase-86.84) -- checked by the same command as the diagnosis")
+    w(f"  caps removed at : {r['cap_removed_at']}")
+    w(f"  in force before : {r['historical_caps']}  (phase-59.1 pins)")
+    w(f"  live now        : {r['live_caps']}")
+    w(f"  all pins removed: {r['all_pins_removed']}  (must be True)")
+    w("  Runs are scored against the cap in force WHEN THEY RAN, not against")
+    w("  today's file -- otherwise removing the caps would erase the evidence")
+    w("  for removing them.")
     w("")
     w("NOT ESTABLISHED: that the cap is the whole cause; and the capped roles'")
     w("turn distribution is RIGHT-CENSORED at the cap, so no percentile in this")
@@ -423,6 +558,16 @@ def render(a: dict) -> str:
 def verify(a: dict) -> tuple[bool, list[str]]:
     problems: list[str] = []
     c, cl = a["controls"], a["claim"]
+
+    r = a["remediation"]
+    if not r["all_pins_removed"]:
+        still = {k: v for k, v in r["live_caps"].items() if v is not None}
+        problems.append(
+            f"REMEDIATION REVERTED: a maxTurns pin is live again on {still}. "
+            "phase-86.84 removed these deliberately -- see the rationale block in "
+            ".claude/agents/qa.md. Raising a cap is not a fix; the distribution is "
+            "right-censored at whatever the cap is."
+        )
 
     if a["spawns"] < MIN_AGENTS:
         problems.append(
@@ -458,6 +603,23 @@ def verify(a: dict) -> tuple[bool, list[str]]:
         problems.append(
             "detector control FAILED: completed spawns do not emit StructuredOutput "
             "more often than dropped ones -- the detector does not discriminate"
+        )
+    if c["c3_killed_at_cap"]:
+        problems.append(
+            f"C3 FAILED: {c['c3_killed_at_cap']} spawns in `killed` runs sit exactly at "
+            "a cap -- 'at cap' may be measuring something generic about long runs "
+            "rather than turn exhaustion"
+        )
+    if cl["uncapped_at_risk"] < 10:
+        problems.append(
+            f"cardinality floor: only {cl['uncapped_at_risk']} uncapped spawns ran past "
+            f"the smallest cap ({cl['smallest_live_cap']}) -- the uncapped comparison "
+            "has too few AT-RISK cases to carry weight, whatever the raw total says"
+        )
+    if cl["uncapped_at_risk_drops"]:
+        problems.append(
+            f"CLAIM BROKEN: {cl['uncapped_at_risk_drops']} at-risk uncapped spawns "
+            "dropped"
         )
 
     if not cl["every_drop_is_at_its_cap"]:

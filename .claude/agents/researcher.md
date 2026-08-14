@@ -3,7 +3,8 @@ name: researcher
 description: MUST BE USED before every PLAN phase. Combined external-literature researcher + internal-codebase explorer. Use proactively at the start of any masterplan step, before writing contract.md. Searches papers + official docs + blog posts + GitHub (external) AND greps/reads the pyfinagent repo (internal) in the same session.
 tools: Read, Grep, Glob, Bash, WebSearch, WebFetch, SendMessage
 model: opus
-maxTurns: 40
+# maxTurns REMOVED (phase-86.84, 2026-08-14). Absent means "No limit" per the
+# agent-loop Turns-and-budget table. DELIBERATE REMOVAL -- do not "restore" it.
 # Layer-3 Researcher pin: model=opus (alias -> latest Opus, currently 4.8,
 # flat-fee on the Max rail), effort=max. CLAUDE.md-PERMANENT per phase-29.2
 # (operator override of Anthropic's Sonnet/medium baseline): cost is contained
@@ -13,8 +14,24 @@ maxTurns: 40
 # downgrades to high on non-Opus-4.8/4.7 models per llm_client.py:1507-1512;
 # max passes through). Layer-3 subagent effort is a SEPARATE system from
 # Layer-2 EFFORT_DEFAULTS (model_tiers.py) -- do not conflate.
-# maxTurns 40 (phase-59.1): complex briefs hit the old 30 cap mid-write; 40
-# gives headroom.
+# TURN CAP: REMOVED phase-86.84 (2026-08-14). Was `maxTurns: 40`, set by
+# phase-59.1 with the note "complex briefs hit the old 30 cap mid-write; 40
+# gives headroom." It did not. MEASURED: 9 of 93 `researcher` spawns dropped
+# with `subagent completed without calling StructuredOutput`, and EVERY ONE sat
+# at exactly 40 turns -- the set of turn counts on dropped spawns is {40}. Two
+# further at-40 non-emitters sit inside runs that COMPLETED because the
+# phase-86.81 retry absorbed them (wf_078f4125-57a, wf_a6ea31e7-9b9), so run
+# status understates the mechanism.
+#   Re-runnable: `python3 scripts/qa/rail_turn_cap.py --verify`.
+# The full rationale for REMOVING rather than raising -- turn arithmetic,
+# right-censoring, #41143, #20625 -- is written once in `.claude/agents/qa.md`
+# above its own removed pin. Read it there; it is not duplicated here.
+# THIS ROLE HAS AN EXTRA REASON TO BE UNCAPPED: write-first means a dropped
+# researcher still leaves a partial brief, but a brief truncated mid-write by a
+# turn cap is exactly the "INCOMPLETE" outcome the 86.37 marker exists to
+# detect -- so the cap manufactured the failure the marker reports.
+# Flagged for operator review in handoff/harness_log.md (CLAUDE.md
+# separation-of-duties on agent-file edits).
 # Fable 5 is now a STANDING part of the Max plan (verified 2026-07-31); the
 # free-window + scheduled-revert doctrine is RETIRED. `model: opus` here is a
 # steady-state default, NOT a revert obligation -- a Fable repin is a normal

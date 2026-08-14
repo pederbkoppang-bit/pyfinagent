@@ -663,10 +663,29 @@ if (tierUnsupported) {
 // ── 2026-08-14: RETRY A STOCHASTIC StructuredOutput DROP ────────────────────
 // Full derivation of the measurement lives in the twin comment in
 // `.claude/workflows/qa-verdict.js`. The headline, classified from the run
-// record's `error` field alone: across 565 recorded runs the drop rate splits by
-// MODEL -- opus-4-8[1m] 0/73 = 0.0%, fable-5 4/135 = 3.0%, opus-5[1m]
-// 40/351 = 11.4% -- and the mechanism is UNPROVEN: size, wall-clock, effort and
-// the documented preamble-suppression trigger were each tested and refuted.
+// record's `error` field alone: across 565 recorded runs the drop rate appeared
+// to split by MODEL -- opus-4-8[1m] 0/73 = 0.0%, fable-5 4/135 = 3.0%,
+// opus-5[1m] 40/351 = 11.4%.
+//
+// THAT MODEL SPLIT IS CONFOUNDED AND THE MECHANISM IS NOW PROVEN (phase-86.84,
+// 2026-08-14). This block used to end "the mechanism is UNPROVEN: size,
+// wall-clock, effort and the documented preamble-suppression trigger were each
+// tested and refuted." Those four refutations STAND. The cause is a fifth thing
+// none of them tested: TURN-BUDGET EXHAUSTION. `researcher.md` carried
+// `maxTurns: 40` and every one of its 9 dropped spawns sat at exactly 40 turns;
+// `qa.md` carried 30 and all 39 of its drops sat at exactly 30. Uncapped agent
+// types dropped 0 times in 930 spawns. The model split measured what each model
+// RAN -- 223 of opus-4-8[1m]'s 258 spawns were uncapped `general-purpose`.
+// Holding the model fixed at opus-5[1m]: 47/379 capped vs 0/417 uncapped.
+// Both pins were REMOVED in phase-86.84.
+//   Re-runnable: `python3 scripts/qa/rail_turn_cap.py --verify`
+//
+// NOTE FOR THIS GATE SPECIFICALLY: two at-40 non-emitters sit inside runs that
+// COMPLETED (wf_078f4125-57a, wf_a6ea31e7-9b9) because the retry below absorbed
+// them -- so this caller's own failed-run count understated the problem, and a
+// brief truncated mid-write by the cap is exactly the INCOMPLETE outcome the
+// 86.37 marker exists to detect. The cap was manufacturing the failure the
+// marker reports.
 //
 // A NOTE ON WHY THE FIGURES IN THIS BLOCK MOVED (phase-86.81). An earlier
 // revision claimed this gate was "the worst-hit caller" and justified

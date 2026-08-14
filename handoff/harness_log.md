@@ -35020,3 +35020,67 @@ instrument -- each was a correct measurement of the wrong thing.
 **Standing at session end:** 86.74 `pending`. Verdicts this session --
 2 rail drops (NO VERDICT), 1 CONDITIONAL (step), 1 CONDITIONAL (swap commit),
 1 PASS (cycle-4 work). Rail 0-for-4; Agent-tool fallback 3-for-3.
+
+## Cycle 218 -- 2026-08-14 -- phase=86.84 result=IN-PROGRESS (cycle-1 CONDITIONAL, remediation applied, fresh Q/A pending)
+
+**OPERATOR REVIEW REQUESTED -- agent-file change, CLAUDE.md separation-of-duties.**
+
+`maxTurns` has been REMOVED from BOTH `.claude/agents/qa.md` (was 30) and
+`.claude/agents/researcher.md` (was 40). This is a substantive edit to the
+Layer-3 agent definitions and the same session authored it, so per CLAUDE.md
+("Separation of duties on agent edits") Peder should review before any step
+depends on it.
+
+**WHY.** The Workflow rail's `agent({schema}): subagent completed without
+calling StructuredOutput` failure is TURN-BUDGET EXHAUSTION. Measured over 572
+run records / 1325 spawns: 39 of 302 `qa` spawns dropped and every one sat at
+exactly 30 turns; 9 of 93 `researcher` spawns dropped and every one sat at
+exactly 40. The set of turn counts on dropped spawns is {30} and {40} -- no
+other value, 48 of 48. The three agent types carrying no cap dropped 0 times in
+930 spawns and reach 93 turns. `maxTurns` counts TOOL-USE turns only and
+StructuredOutput is itself a tool call, so the last permitted turn goes to
+ordinary work and none is left to emit the schema call.
+  Re-runnable: `python3 scripts/qa/rail_turn_cap.py --verify` (exit 0).
+  Evidence:    handoff/current/live_check_86.84.md
+  Plan:        handoff/current/contract_86.84.md
+  Research:    handoff/current/research_brief_86.84.md (gate_passed, 11 sources)
+
+**WHY REMOVED RATHER THAN RAISED.** phase-59.1 already raised these same two
+caps for this same failure (qa 12->30, researcher 30->40) and it recurred. A run
+that used exactly N turns under a cap of N proves the requirement was >=N, never
+that N sufficed -- the distribution is right-censored at whatever the cap is, so
+every number is fit to a distribution the previous cap created. The only
+uncensored evidence is the uncapped types at 63 and 93 turns, both above 40.
+There is also no per-call turn budget in Workflow `agent()` opts and no way to
+force the schema call (#20625, closed as not planned), so "reserve the last
+turn" is not expressible; and raising is exposed to #41143 (maxTurns silently
+not enforced on the Agent-tool path) while removing the key is immune.
+
+**THE TRADE, STATED HONESTLY.** An uncapped spawn can in principle run longer on
+the shared weekly Max pool. Observed uncapped behaviour is self-terminating
+(p50 7-12 turns, max 93 across 930 spawns), and a dropped evaluation already
+costs full price and returns nothing -- but this is a real cost question and it
+is the operator's call, not mine. Reverting is a one-line re-add per file;
+`rail_turn_cap.py --verify` will go RED if a pin is restored, deliberately, so
+the revert is visible rather than silent.
+
+**WHAT THIS DOES NOT DO.** It changes no verdict semantics, loosens no gate, and
+touches no threshold. `agentType: 'qa'` is unchanged at all call sites -- cap and
+agentType are independent, and moving to `general-purpose` would re-expand
+Edit/Write/Bash plus the deferred MCP surface phase-75.20 pinned away.
+
+**NOT IN FORCE YET.** The Agent-tool roster snapshots at session start, so the
+removal takes effect next session. Verify with
+`scripts/qa/verify_qa_roster_live.sh`. Until then this is committed but NOT
+active, and no behavioural claim about the uncapped rail can be made from this
+session.
+
+**RE-MEASURE NEXT.** The realised turn distribution once uncapped is the
+uncensored sample nobody has ever had, and it is what turns this from a
+reasoned fix into a verified one. Read it with `rail_turn_cap.py` and the rate
+with `rail_drop_rate.py`, remembering that runs after 2026-08-14T17:35Z measure
+a different system than runs before it.
+
+Step 86.84 remains `pending`: cycle-1 Q/A returned CONDITIONAL on the diagnosis,
+its F1/F2/F3/F4/F5/NOTE-A/NOTE-B are now addressed, and a FRESH Q/A on the
+changed evidence has not yet returned.

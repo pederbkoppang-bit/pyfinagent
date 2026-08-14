@@ -17,6 +17,26 @@ claude-opus-4-8[1m] 0/73 = 0.0%; by workflow qa-verdict 35/368 = 9.5% and
 research-gate 6/74 = 8.1% -- indistinguishable, so there is no per-workflow
 amplification to hunt.
 
+THE CAUSE IS NOW KNOWN, AND THE MODEL SPLIT ABOVE IS CONFOUNDED -- DO NOT CITE
+IT AS A MODEL EFFECT (phase-86.84, 2026-08-14). The drop is TURN-BUDGET
+EXHAUSTION: `.claude/agents/qa.md` carried `maxTurns: 30` and `researcher.md`
+carried `maxTurns: 40`, and every one of the 48 dropped spawns sat at EXACTLY
+its cap -- the set of turn counts on drops is {30} and {40}, no other value.
+Agent types with no cap dropped 0 times in 930 spawns. `maxTurns` counts
+TOOL-USE turns only and StructuredOutput is itself a tool call, so the last
+permitted turn goes to ordinary work and none is left to emit the schema call.
+
+The per-model figures measure WHAT EACH MODEL RAN, not the model: 223 of
+claude-opus-4-8[1m]'s 258 spawns were uncapped `general-purpose`, a type that
+has never dropped on any model. Holding the model fixed at claude-opus-5[1m]:
+47/379 on the two capped roles against 0/417 on the three uncapped ones.
+
+Both pins were REMOVED in phase-86.84, so a rate measured after 2026-08-14T17:35Z
+is measuring a DIFFERENT system than one measured before it. Compare across that
+boundary only if you say so out loud. The turn-cap evidence, its controls, and
+the remediation check live in `scripts/qa/rail_turn_cap.py --verify`; this
+script remains the right reader for the RATE over time.
+
 A single run cannot measure a rate. This script reads the run records that
 Claude Code already writes -- nothing new is instrumented, no hook is added --
 so the measurement accumulates by itself as the masterplan is drained. Run it
