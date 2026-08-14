@@ -67,19 +67,56 @@ ALL GREEN: 121 passed, 0 failed
 
 **121 = the cited baseline exactly.** Nothing was made green by deleting assertions.
 
-## C6 — every mention enumerated and classified
+## C6 — enumeration SHOWN, with the population rule stated
 
-`.claude/context/research-gate.md` — **confirmed absent**.
+> **My earlier count of "10 files" was unreproducible and is withdrawn.** The cycle-1 Q/A
+> tested six population rules and got 19 / 13 / 20 / 19 / 13 / 11 — **none yields 10** — and
+> the criterion requires the enumeration *shown*, not a count. Both defects were real.
 
-**10 files mention the path; the live-pointer test classifies all 10 as NOTES.** The test
-looks for the path inside `open(` / `read_text` / `Path(` — i.e. something that would
-actually resolve it.
+**POPULATION RULE:** git-tracked files at `HEAD`, excluding `handoff/archive/**` (historical
+snapshots of closed steps, not live references), matching the literal
+`context/research-gate.md`.
 
-**Positive control:** the test fires on a synthetic `open(".claude/context/research-gate.md")`,
-so "0 live pointers" is a measured zero, not a dead probe.
+```
+git grep -l 'context/research-gate\.md' HEAD -- ':!handoff/archive'
+```
 
-*(Archives excluded from the scan by design — they are historical snapshots, not live
-references. That exclusion is stated because it changes the denominator.)*
+**COUNT UNDER THAT RULE: 14** *(including archives it is 20 — stated so the exclusion
+is visible rather than hidden in the denominator).*
+
+  1. `.claude/agent-memory/researcher/MEMORY.md`
+  2. `.claude/agent-memory/researcher/project_cron_maintenance_jobs.md`
+  3. `.claude/agent-memory/researcher/project_research_gate_discipline.md`
+  4. `.claude/masterplan.json`
+  5. `.claude/rules/research-gate.md`
+  6. `handoff/audit/phase-4.11/tool_use_primitives.md`
+  7. `handoff/current/audit_phase75/confirmed_findings.json`
+  8. `handoff/current/contract_86.75.md`
+  9. `handoff/current/experiment_results_86.75.md`
+ 10. `handoff/current/live_check_86.75.md`
+ 11. `handoff/data/02aed8f.patch`
+ 12. `handoff/harness_log.md`
+ 13. `handoff/phase-proposals/phase-5.5-data-audit.md`
+ 14. `scripts/autoresearch/run_memo.py`
+
+`.claude/context/research-gate.md` itself — **confirmed absent**.
+
+### Live-pointer classification
+
+The test looks for the path inside `open(` / `read_text` / `Path(` — something that would
+actually resolve it, rather than merely name it.
+
+**Result: 0 live pointers.** Every one of the 14 is a deletion note, a historical
+record, a memory file, a `.patch`, or this step's own artifacts.
+
+> **The test flagged THIS FILE, and that is the fifth self-match of the session.** The hit is
+> the sentence describing the positive control — a probe matching its own documentation.
+> Excluding the three 86.75 artifacts that *describe* the test leaves **11 files and 0 live
+> pointers**.
+
+**Positive control:** the test fires on a synthetic `open()` of the deleted path, so the zero
+is measured, not a dead probe. **Corroborating evidence:** `run_memo.py:22` states in its own
+docstring *"Nothing here reads that path"* — the only `.py` in the set says so itself.
 
 ## C8 — verdict semantics unchanged, DEMONSTRATED
 
@@ -115,10 +152,26 @@ do-not-override instruction buys reproducibility at the cost of validity.
 
 ## C1 and C7 — NOT satisfied, and one of them cannot be by me
 
-- **C1** requires a **driven Q/A**. Per the gate's decisive finding (arXiv 2604.15224:
-  consequence-framing → leniency in **58/72** cells, invisible to CoT), that spawn must NOT
-  be told its attempt number or the consequence — otherwise the measurement is contaminated
-  by the defect now filed as **86.78**. Not yet run.
+- **C1 — the evidence EXISTS and was not cited. That was the defect.** The cycle-1 Q/A
+  charged this as a Contract-completeness Missing_Assumption (`qa.md:570`): I told the
+  spawn about the evidence but never mapped it in the graded artifact. Cited now, and the
+  Q/A verified every figure against `qa_wip.py` and the WIP files on disk:
+
+  | subject | records_retained | derived attempt | source |
+  |---|---:|---:|---|
+  | 86.68 | 1 → 2 | 1, then 2 | `evaluator_critique_86.68.md` |
+  | 86.64 | 1 → 2 → 3 | 1, 2, 3 | `evaluator_critique_86.64.md` |
+  | **86.75** | **0 prior** | **1** | `evaluator_critique_86.75.md` (this step) |
+
+  The **≥2-prior half** is 86.64 attempt 3; the **0-prior half** is 86.75's own spawn.
+  *(Original text: "requires a driven Q/A … Not yet run." That was wrong — it had been run.)*
+
+- **C1 residual, found by the Q/A and NOT fixed here:** `qa.md:622` calls `records_retained`
+  *"the count of prior Q/A spawns"* — **it is not.** `qa_wip.py:315` sets it to
+  `len(records)` **including the current run's own file**. The two coincide only because
+  write-first forces the current spawn to write first, and `prune_wip_records(keep=3)` can
+  make it **UNDERCOUNT past attempt 3** — so the escalation could fail to fire exactly when
+  it matters most. Filed as a defect; not repaired here.
 - **C7** is **operator-owed**: separation-of-duties review, now covering **four**
   Main-authored `qa.md` edits. Main cannot discharge it.
 
