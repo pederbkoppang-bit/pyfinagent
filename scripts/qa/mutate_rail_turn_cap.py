@@ -128,11 +128,15 @@ CELLS = [
      lambda m, a: _write_pin(a, "qa", "maxTurns: 30.0"), "KILL"),
     ("M20", "zero is still a pin, `maxTurns: 0`",
      lambda m, a: _write_pin(a, "qa", "maxTurns: 0"), "KILL"),
-    # Timeline constants must be load-bearing.
-    ("M11", "CAP_REMOVED_AT moved before the corpus (2026-01-01)",
-     lambda m, a: setattr(m, "CAP_REMOVED_AT", "2026-01-01T00:00:00Z"), "KILL"),
-    ("M11b", "CAP_REMOVED_AT moved mid-corpus (2026-08-01)",
-     lambda m, a: setattr(m, "CAP_REMOVED_AT", "2026-08-01T00:00:00Z"), "KILL"),
+    # Timeline constants must be load-bearing. phase-86.84 F-E retargeted these
+    # from the retired CAP_REMOVED_AT to CAP_EDIT_AT, the constant the disk-derived
+    # boundary actually reads. Leaving them on the old name would have made all
+    # three cells INERT -- setattr would have created an attribute nothing reads,
+    # and an inert mutation proves nothing about the code that replaced it.
+    ("M11", "CAP_EDIT_AT moved before the corpus (2026-01-01)",
+     lambda m, a: setattr(m, "CAP_EDIT_AT", "2026-01-01T00:00:00Z"), "KILL"),
+    ("M11b", "CAP_EDIT_AT moved mid-corpus (2026-08-01)",
+     lambda m, a: setattr(m, "CAP_EDIT_AT", "2026-08-01T00:00:00Z"), "KILL"),
     ("M12", "HISTORICAL_CAPS qa 30 -> 31 (off by one, high)",
      lambda m, a: m.HISTORICAL_CAPS.__setitem__("qa", 31), "KILL"),
     ("M12b", "HISTORICAL_CAPS qa 30 -> 29 (off by one, low)",
@@ -140,9 +144,15 @@ CELLS = [
     ("M13", "HISTORICAL_CAPS researcher 40 -> 41",
      lambda m, a: m.HISTORICAL_CAPS.__setitem__("researcher", 41), "KILL"),
     # Known-equivalent: the whole corpus already precedes any later boundary.
-    ("M14", "CAP_REMOVED_AT moved far future (2027)",
-     lambda m, a: setattr(m, "CAP_REMOVED_AT", "2027-01-01T00:00:00Z"),
+    ("M14", "CAP_EDIT_AT moved far future (2027)",
+     lambda m, a: setattr(m, "CAP_EDIT_AT", "2027-01-01T00:00:00Z"),
      "SURVIVE_EQUIVALENT"),
+    # F-E: the boundary is now DERIVED FROM DISK, so the derivation itself must be
+    # load-bearing too -- a constant-only matrix would not notice if
+    # session_is_post_removal stopped discriminating. Forcing it True reclassifies
+    # the whole corpus as uncapped, which must collapse capped_n and kill the run.
+    ("M21", "session_is_post_removal forced True (every session reads as uncapped)",
+     lambda m, a: setattr(m, "session_is_post_removal", lambda _d: True), "KILL"),
     # Absent-subject vacuity, reported honestly rather than hidden.
     ("M6", "qa.md deleted entirely",
      lambda m, a: (a / "qa.md").unlink(), "SURVIVE_KNOWN_GAP"),

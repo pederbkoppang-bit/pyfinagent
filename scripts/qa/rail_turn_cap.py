@@ -105,6 +105,7 @@ WHAT THIS SCRIPT DOES NOT ESTABLISH, AND THE HONEST LIMITS
 from __future__ import annotations
 
 import argparse
+import datetime
 import json
 import os
 import re
@@ -153,11 +154,25 @@ def projects_root() -> Path:
 # would score those spawns as uncapped and, if one of them exhausted, the
 # verifier would go red with "CLAIM BROKEN: a dropped spawn is not at its cap" --
 # indicting the diagnosis when the real fault was the boundary. Fails loud, but
-# misdiagnoses. So the boundary is the START OF THE NEXT SESSION, and until an
-# actual post-restart run exists on disk the honest value is "no run is past it".
-# Bump this to the real timestamp once the next session starts; the verifier's
-# own remediation check is what proves the pins are gone in the meantime.
-CAP_REMOVED_AT = "2026-08-15T00:00:00Z"  # phase-86.84: first session after the edit
+# misdiagnoses. So the boundary is the START OF THE SESSION THAT LAUNCHED THE RUN.
+#
+# F-E (cycle-3): the first attempt at that was a HARDCODED CALENDAR CONSTANT --
+# `CAP_REMOVED_AT = "2026-08-15T00:00:00Z"`, standing in for "the first session
+# after the edit". That is a PREDICTION about a future event, and it is wrong in
+# BOTH directions:
+#   * a spawn of the PRE-removal session running past midnight is still capped by
+#     its roster snapshot but would score cap=None -- and a drop there reddens the
+#     verifier against the DIAGNOSIS when the real fault is the boundary;
+#   * a spawn of the POST-removal session before midnight is genuinely uncapped
+#     but would score against the phase-59.1 pins -- so the uncensored sample the
+#     removal exists to produce would be read back as censored evidence.
+# The cap a spawn ran under is a property of ITS SESSION, not of the wall clock,
+# and sessions overlap -- so no single instant can separate them. The boundary is
+# therefore DERIVED FROM DISK, per run: a run is post-removal iff the SESSION
+# DIRECTORY owning its run record was born after the edit. The edit instant is a
+# commit that has already happened -- a historical fact, not a forecast -- which
+# is the difference that matters.
+CAP_EDIT_AT = "2026-08-14T17:37:50Z"  # commit 85127353; `git log -1 --format=%cI`
 HISTORICAL_CAPS = {"qa": 30, "researcher": 40}  # set by phase-59.1
 
 # A frontmatter cap that parses to something non-integral is neither "absent"
@@ -166,15 +181,42 @@ HISTORICAL_CAPS = {"qa": 30, "researcher": 40}  # set by phase-59.1
 SENTINEL_UNPARSEABLE_CAP = -1
 
 
-def effective_cap(agent_type: str | None, run_timestamp: str | None) -> int | None:
-    """The maxTurns actually in force for a run, by its timestamp.
+def session_started_at(session_dir: Path) -> str | None:
+    """When the session owning a run record started -- the directory's birth time.
 
-    Before CAP_REMOVED_AT the phase-59.1 pins applied. At or after it, the live
-    frontmatter governs (and should be uncapped). Runs with no timestamp are
-    treated as historical, which is the conservative direction: it keeps them
-    inside the claim being tested rather than quietly excusing them from it.
+    The Agent-tool roster, and therefore the maxTurns pin, is snapshotted at
+    SESSION START. So this -- not the run's own timestamp -- is what decides which
+    cap was in force for its spawns.
+
+    Returns None when no birth time is available (a filesystem without
+    st_birthtime, or an unreadable directory). Callers treat None as HISTORICAL,
+    the conservative direction: it keeps the run inside the claim being tested
+    rather than quietly excusing it from it.
     """
-    if run_timestamp is None or run_timestamp < CAP_REMOVED_AT:
+    try:
+        birth = getattr(session_dir.stat(), "st_birthtime", None)
+    except OSError:
+        return None
+    if birth is None:
+        return None
+    return datetime.datetime.fromtimestamp(
+        birth, datetime.timezone.utc
+    ).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def session_is_post_removal(session_dir: Path) -> bool:
+    """True iff this session's roster snapshot was taken after the caps were removed."""
+    started = session_started_at(session_dir)
+    return started is not None and started > CAP_EDIT_AT
+
+
+def effective_cap(agent_type: str | None, post_removal: bool) -> int | None:
+    """The maxTurns actually in force for a run, by the SESSION that launched it.
+
+    For a pre-removal session the phase-59.1 pins applied. For a post-removal
+    session the live frontmatter governs (and should be uncapped).
+    """
+    if not post_removal:
         return HISTORICAL_CAPS.get(agent_type or "")
     return parse_cap(agent_type)
 
@@ -333,6 +375,8 @@ def collect() -> dict:
         status = rec.get("status")
         session_dir = record_path.parent.parent
         tdir = session_dir / "subagents" / "workflows" / str(run_id)
+        # F-E: scored by the SESSION's roster snapshot, not by the wall clock.
+        post_removal = session_is_post_removal(session_dir)
 
         for entry in rec.get("workflowProgress") or []:
             if entry.get("type") != "workflow_agent":
@@ -356,7 +400,9 @@ def collect() -> dict:
                     "completed": status == COMPLETED_STATUS,
                     "killed": status == KILLED_STATUS,
                     "agent_type": entry.get("agentType"),
-                    "cap": effective_cap(entry.get("agentType"), rec.get("timestamp")),
+                    "cap": effective_cap(entry.get("agentType"), post_removal),
+                    "post_removal": post_removal,
+                    "session_started_at": session_started_at(session_dir),
                     "model": entry.get("model"),
                     "turns": turns,
                     "assistant_lines": assistant_lines,
@@ -501,8 +547,18 @@ def analyse(data: dict) -> dict:
     # same command deliberately: a green run must mean both "the mechanism is
     # still what we said" and "the caps are still gone". If someone restores a
     # pin, this goes red without anyone having to remember why.
+    # F-E: the boundary is OBSERVED, not declared. `cap_edit_at` is the commit
+    # that removed the pins; `first_post_removal_run` is the earliest run record
+    # on disk owned by a session that started after it -- i.e. the first spawn
+    # that actually ran uncapped. Until one exists this is None, and None is the
+    # honest reading: "no run on disk is past the boundary yet". A number here
+    # would be a forecast dressed as a measurement.
+    post_removal_spawns = [s for s in spawns if s.get("post_removal")]
+    post_removal_ts = [s["timestamp"] for s in post_removal_spawns if s.get("timestamp")]
     remediation = {
-        "cap_removed_at": CAP_REMOVED_AT,
+        "cap_edit_at": CAP_EDIT_AT,
+        "first_post_removal_run": min(post_removal_ts) if post_removal_ts else None,
+        "post_removal_spawns": len(post_removal_spawns),
         "live_caps": {r: parse_cap(r) for r in sorted(HISTORICAL_CAPS)},
         "historical_caps": dict(HISTORICAL_CAPS),
         "all_pins_removed": all(parse_cap(r) is None for r in HISTORICAL_CAPS),
@@ -625,7 +681,19 @@ def render(a: dict) -> str:
     w("")
     r = a["remediation"]
     w("REMEDIATION (phase-86.84) -- checked by the same command as the diagnosis")
-    w(f"  caps removed at : {r['cap_removed_at']}")
+    w(f"  caps removed at : {r['cap_edit_at']}  (commit 85127353)")
+    if r["first_post_removal_run"] is None:
+        w("  first uncapped  : NONE ON DISK YET -- no session started after the")
+        w("                    edit has produced a run record, so every run below")
+        w("                    is scored against the phase-59.1 pins. The realised")
+        w("                    uncapped turn distribution is NOT YET MEASURABLE.")
+    else:
+        w(f"  first uncapped  : {r['first_post_removal_run']}  "
+          f"({r['post_removal_spawns']} spawn(s) past the boundary)")
+    w("     ^ DERIVED FROM DISK, per run, from the birth time of the session")
+    w("       directory owning the run record -- never a calendar constant. The")
+    w("       roster snapshots at SESSION START, and sessions overlap, so no")
+    w("       single instant separates capped from uncapped runs.")
     w(f"  in force before : {r['historical_caps']}  (phase-59.1 pins)")
     w(f"  live now        : {r['live_caps']}")
     w(f"  all pins removed: {r['all_pins_removed']}  (must be True)")

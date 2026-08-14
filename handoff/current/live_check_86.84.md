@@ -184,24 +184,93 @@ command the masterplan freezes. The fallback no longer interprets the value at
 all: **any top-level `maxTurns` key with a non-null value is a pin**, because
 over-detection can only make the check redder. The output now prints which
 parser it used, so the guard's strength is never an undisclosed property of the
-interpreter. Verified across 13 shapes on the no-PyYAML path and 21 mutation
+interpreter. Verified across 13 shapes on the no-PyYAML path and 22 mutation
 cells on both.
 
-**Open, disclosed, and not fixed — cycle-3 finding F-E.** `CAP_REMOVED_AT` is
-`2026-08-15T00:00:00Z` as a stand-in for "first session after the edit". A spawn
-of *this* session after midnight UTC is still capped by the roster snapshot but
-would be scored `cap=None`, and an exhausted drop in that window makes
-`--verify` exit 1 with *"CLAIM BROKEN … the diagnosis must be revisited"* —
-loud, but blaming the diagnosis rather than the boundary. **The window is open
-tonight.** The real fix is to key the boundary on the first post-restart run
-actually present on disk rather than a hardcoded midnight; it is named here
-rather than papered over.
+**F-E — FIXED 2026-08-14 (cycle-4).** *(The paragraph this replaces described
+`CAP_REMOVED_AT = "2026-08-15T00:00:00Z"` as open and unfixed. It is now removed
+from the code, so the description is replaced rather than annotated.)*
+
+The retired constant was a **prediction about a future event**, and it was wrong in
+**both** directions — the earlier write-up named only one:
+
+* a spawn of the **pre-removal** session running past midnight is still capped by
+  its roster snapshot but would score `cap=None` — a drop there reddens `--verify`
+  against the **diagnosis** when the real fault is the boundary (the disclosed half);
+* a spawn of the **post-removal** session **before** midnight is genuinely uncapped
+  but would score against the phase-59.1 pins — so the uncensored sample the whole
+  removal exists to produce would be read back as censored evidence. **This half was
+  live from 19:27Z tonight and was not previously stated.**
+
+**The fix is structural, not a better constant.** The cap a spawn ran under is a
+property of **its session**, not of the wall clock — and sessions overlap, so no
+single instant can separate them. `effective_cap()` now takes the run's
+**session** rather than a timestamp, and `session_is_post_removal()` decides it
+from the **birth time of the session directory owning the run record**. The only
+remaining constant, `CAP_EDIT_AT = 2026-08-14T17:37:50Z`, is the commit instant of
+`85127353` — a fact that has already happened, not a forecast.
+
+**It populated itself, with no hand-edit** (which is the point — the old design
+required someone to remember to "bump this"):
+
+```
+before this session's first spawn:
+  first uncapped  : NONE ON DISK YET -- ... The realised uncapped turn
+                    distribution is NOT YET MEASURABLE.
+after it:
+  caps removed at : 2026-08-14T17:37:50Z  (commit 85127353)
+  first uncapped  : 2026-08-14T19:35:25.339Z  (2 spawn(s) past the boundary)
+```
+
+Verified: `rail_turn_cap.py --verify` exit **0** and
+`mutate_rail_turn_cap.py --verify` exit **0**, on **both** the venv (PyYAML) and
+the bare `python3` (fallback) interpreters — the interpreter trap this file
+already records.
+
+**The mutation matrix was retargeted, and that was load-bearing.** Cells M11/M11b/M14
+mutated `CAP_REMOVED_AT`. Left alone, `setattr` would have created an attribute
+**nothing reads** — three cells silently INERT, the exact "operation that cannot fail
+loudly" class. They now mutate `CAP_EDIT_AT` and are **KILLED**. A new cell **M21**
+forces `session_is_post_removal` to return `True`; it is **KILLED**, which is what
+proves the *derivation* — not merely the constant — is load-bearing. Matrix is now
+**22 cells, 0 real survivors**, 3 known/equivalent (M14, M6, M6b).
+
+## 4b. The re-measurement — HONEST STATUS: **NOT YET A VERIFICATION**
+
+The uncensored sample the removal exists to produce now exists, and it is **n = 2**:
+
+| agent | turns | cap | StructuredOutput | status |
+|---|---:|---|---|---|
+| `researcher` | **15** | None | emitted | completed |
+| `Explore` | **3** | None | emitted | completed |
+
+**0 drops.** Against the right-censored pre-removal contrast:
+
+| role | n | cap | p50 | max | at cap | drops |
+|---|---:|---:|---:|---:|---:|---:|
+| `qa` | 302 | 30 | 20 | **30** | 45 | 39 |
+| `researcher` | 93 | 40 | 25 | **40** | 12 | 9 |
+
+**This does not yet verify the fix, and must not be read as if it does.** A run that
+used **15** turns would not have exhausted a **40** cap either — it carries no
+information about the cap. Two completed spawns with zero drops is consistent with
+the fix working and equally consistent with two lucky short runs; the pre-removal
+`researcher` p50 is already 25. `rail_drop_rate.py` cannot help yet either: its
+split is on the **retry** commit (10:15:17Z), a different boundary, and it prints
+its own refusal — *"only 9 run(s) have LAUNCHED since the fix — too few to call a
+rate."*
+
+**What would verify it:** post-boundary spawns that run **past 30 (qa) / 40
+(researcher)** turns and still emit `StructuredOutput`. That is the observation the
+censored corpus could never contain, and none has occurred yet. Until then the fix
+is *reasoned and now correctly instrumented*, not *verified*.
 
 ## 5. Mutation matrix — `python3 scripts/qa/mutate_rail_turn_cap.py --verify`
 
 **V-1: this used to exist only as three lines of commit-message prose.** It is
 now executable code with a recorded control, per-cell results, and a
-byte-identical-restore proof. 15 cells, **control observed GREEN first**,
+byte-identical-restore proof. **22 cells** (15 at cycle-3; +6 pin-shape cells,
++M21 for the F-E derivation), **control observed GREEN first**,
 **0 real survivors**, real tree md5-unchanged (mutations run against a temp
 mirror of `.claude/agents`).
 

@@ -68,10 +68,11 @@ VERIFY: PASS -- controls green, turn-exhaustion claim holds.
 ```
 $ python3 scripts/qa/mutate_rail_turn_cap.py --verify   # exit 0
   control verify_ok=True  live_caps={'qa': None, 'researcher': None}
-  ... 15 cells; M4r M5r M9 M8 M7c M7b M7 M11 M11b M12 M12b M13 KILLED
+  ... 22 cells; M4r M5r M9 M8 M7c M7b M7 M15 M16 M17 M18 M19 M20
+  ...           M11 M11b M12 M12b M13 M21 KILLED
   ...           M14 (equivalent), M6, M6b (known gap) SURVIVED
 BYTE-IDENTICAL RESTORE (md5 before == after, real tree never written): all ok
-cells=15  real survivors=0  known/equivalent survivors=3
+cells=22  real survivors=0  known/equivalent survivors=3
 VERIFY: PASS -- control green, 0 real survivors, tree unchanged.
 ```
 
