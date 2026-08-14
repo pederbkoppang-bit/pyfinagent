@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-14 | `97832063` | phase-86.74 cycle-4: C7 RESOLVED -- 33 "undetermined" was 19 determined + 14 provably unrecoverable |
 | 2026-08-14 | `791865b5` | docs(harness-log): cycle 192 -- the swap-fix grade and the proxy-assertion it caught |
 | 2026-08-14 | `ba896969` | docs(86.74): record the cycle-4 grade, the proxy-assertion fix, and a wrong count in cba60c0b |
 | 2026-08-14 | `cba60c0b` | phase-86.74 cycle-4: assert the HARM, not the BUY -- an orphaned SELL was unmeasured |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-14 | `73520bbc` | docs(goal): rotation is the blocking item, so it is now section 0 |
 | 2026-08-14 | `846fb371` | docs(incident): record what was done and what emphatically was NOT |
 | 2026-08-14 | `e91c711e` | security: take the credential off the DEFAULT BRANCH -- this does NOT revoke it |
-| 2026-08-14 | `255329ce` | fix(security): guard the CLASS, not the one producer -- scan every tracked file |
 
 ---
 
