@@ -25,29 +25,64 @@ For reference, the defect executed: BUY 4.8064 x DELL @ 497.72 = 2392.26
 The pre-fix code produced a **$2,392.26 BUY = exactly 10.00% of NAV** on this
 input. Both flag states now produce **no order**.
 
-## 2. The paper_trades sweep with its enumeration rule -- SATISFIED (as PARTIAL)
+## 2. The paper_trades sweep -- RESOLVED (supersedes the earlier PARTIAL)
 
 **Enumeration rule.** Population = every `paper_trades` row with
 `UPPER(action)='BUY'`, all time = **34** (`COUNT(*)=66`, `COUNTIF(BUY)=34`,
-`COUNT(DISTINCT trade_id)=66` -- taken from the table, not from a join). Joined to
-`analysis_results` on `ticker` AND `ABS(TIMESTAMP_DIFF(analysis_date,
-TIMESTAMP(analysis_id), SECOND)) < 2`. Verdict read from
-`$.final_synthesis.risk_assessment.judge`. Flagged when a completed verdict was
-`REJECT` or `pct = 0` and a BUY nevertheless executed.
+`COUNT(DISTINCT trade_id)=66`, taken from the table). Joined to
+`analysis_results` on `ticker` AND
+`ABS(TIMESTAMP_DIFF(analysis_date, TIMESTAMP(analysis_id), SECOND)) < 2`.
+Verdict read **nested-first then flat** (`$.final_synthesis.risk_assessment.judge`
+then `$.final_synthesis.risk_assessment`) -- the lite path is flat, and an earlier
+version of this sweep read **nested only**, which is why it under-reported.
 
 ```
-INVERSION confirmed                 :  1   DELL 2026-08-13  notional 2392.26  REJECT/0.0
-verdict permitted the buy           :  0
-NO joinable verdict -> UNDETERMINED : 33   (2026-04-26 .. 2026-07-31)
-POSITIVE CONTROL -- DELL detected   :  True
+INVERSION -- a verdict of REJECT or 0% yet a BUY executed :  1
+verdict PERMITTED the buy                                 :  0
+joined, but the row carries NO risk verdict at all        : 19
+NO joinable analysis row (permanently unattributable)     : 14
+                                                     sum  : 34
+POSITIVE CONTROL -- DELL detected                         : True
 ```
 
-**The 33 are UNDETERMINED, not a measured zero.** Criterion 7 asks that a zero be
-reported as a measured zero with a positive control; here the answer is not zero
-and not clean -- it is **1 confirmed plus 33 unresolved**, and I am not claiming
-DELL was the only occurrence. The positive control passes (the query provably
-detects the known case), so the **1** is trustworthy; the **33** are a coverage
-limit of the join, not evidence of absence.
+### The criterion's actual question, answered
+
+> *"report how many positions were sized at the 10%-NAV default while a completed
+> risk verdict existed"*
+
+**Exactly ONE: DELL, 2026-08-13, $2,392.26 = 10.00% of NAV against REJECT/0%.**
+
+### The 19 are a MEASURED not-an-inversion, not a gap
+
+For all 19, the **`risk_assessment` key is ABSENT ENTIRELY** from the persisted
+report (verified by `JSON_VALUE(...,'$.final_synthesis.risk_assessment') IS NULL`
+returning true for 19 of 19). **No verdict existed**, so the 10% default was
+legitimately applied -- the inversion is not merely unobserved, it is impossible
+for these rows. 4 carry `_path='lite'` (the lite path skips risk assessment by
+design, `orchestrator.py:1736`); 15 predate the `_path` provenance stamp.
+
+### The 14 are PERMANENTLY unattributable, with a measured cause
+
+All 14 fall in **2026-04-26 .. 2026-05-01**, and the nearest analysis row for each
+ticker is **15-20 DAYS away** -- so this is not a join-tolerance problem and no
+widening can rescue them:
+
+```
+analysis_results rows, 2026-04-20 .. 2026-05-20 :  none until 2026-05-16
+earliest analysis_results row overall            :  2025-11-23
+```
+
+The table existed and was being written months earlier, so the gap is specific:
+**full-path runs were not persisted at all** in that window -- documented in the
+code as phase-24.2 F-2, *"full pipeline previously evaporated without
+persistence"*, and closed by phase-25.A2's `_persist_analysis`
+(`autonomous_loop.py:3382`). The analyses these 14 BUYs acted on were **never
+written**, so no join can ever recover them.
+
+**Determined: 20 of 34. Permanently unrecoverable: 14 of 34, with a stated cause.
+Inversions: exactly 1.** This supersedes the earlier "33 UNDETERMINED", which
+under-reported because it read only the nested verdict shape and did not
+decompose the join failures.
 
 ## 3. Post-fix persisted-verdict share vs the 0-of-129 baseline -- **NOT SATISFIED**
 

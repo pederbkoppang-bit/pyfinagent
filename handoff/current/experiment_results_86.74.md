@@ -180,31 +180,41 @@ A stale comment there asserted *"`recommended_position_pct` is always > 0 by
 construction"*. **That is false and was falsified in production** (DELL = 0);
 corrected in place.
 
-### C7 -- `paper_trades` swept ⚠️ PARTIAL, and reported as partial
+### C7 -- `paper_trades` swept ✅ RESOLVED (was PARTIAL; superseded in cycle 4)
 
-**Enumeration rule:** population = every `paper_trades` row with
-`UPPER(action)='BUY'`, all time = **34** (`COUNT(*)=66`, `COUNTIF(BUY)=34`,
-`COUNT(DISTINCT trade_id)=66`). Joined to `analysis_results` on `ticker` AND
-`|analysis_date - TIMESTAMP(analysis_id)| < 2s`. Flag = a completed verdict of
-`REJECT` **or** `pct = 0` while a BUY executed.
+**Enumeration rule.** Population = every `paper_trades` row with
+`UPPER(action)='BUY'`, all time = **34**. Joined on `ticker` +
+`|analysis_date - TIMESTAMP(analysis_id)| < 2s`. Verdict read **nested-first then
+flat** -- the earlier sweep read **nested only**, which is why it under-reported.
 
 ```
-INVERSION confirmed                 :  1   (DELL 2026-08-13, notional 2392.26, REJECT/0.0)
-verdict permitted the buy           :  0
-NO joinable verdict -> UNDETERMINED : 33
-POSITIVE CONTROL: DELL detected     :  True
+INVERSION (REJECT or 0% yet a BUY executed)          :  1   <- DELL only
+verdict PERMITTED the buy                            :  0
+joined, but NO risk verdict in the row               : 19
+NO joinable analysis row (permanently unattributable): 14
+                                                sum  : 34
+POSITIVE CONTROL -- DELL detected                    : True
 ```
 
-**The 1 is a measured 1; the 33 are NOT a measured zero.** 33 of 34 BUYs
-(2026-04-26 .. 2026-07-31) have no joinable verdict row, so **the historical
-sweep is inconclusive and I am not claiming DELL was the only occurrence.**
-`analysis_results` holds 567 rows (2025-11-23..2026-08-13) of which 372 carry a
-nested judge verdict, so the data broadly exists -- the join, not the data, is the
-limit. **Closing this properly is queued as its own step rather than stretched
-here.**
+**The 19 are a MEASURED not-an-inversion.** The `risk_assessment` key is **absent
+entirely** in 19 of 19, so no verdict existed and the 10% default was legitimate --
+the inversion is impossible for those rows, not merely unobserved. (4 are
+`_path='lite'`, which skips risk assessment by design; 15 predate the `_path` stamp.)
 
-*(An earlier count of 35 BUYs was join fan-out from a same-day date join; the
-correct population is 34, taken from the table directly.)*
+**The 14 are PERMANENTLY unrecoverable, with a measured cause.** All fall in
+2026-04-26..2026-05-01 and the nearest analysis row per ticker is **15-20 days
+away**, so no join tolerance helps. `analysis_results` holds **zero rows between
+2026-04-20 and 2026-05-15** while the table dates to 2025-11-23 -- the gap is
+specific, and the code names it: phase-24.2 F-2, *"full pipeline previously
+evaporated without persistence"*, closed by phase-25.A2 (`autonomous_loop.py:3382`).
+Those analyses were never written.
+
+**Answer to the criterion's question -- "how many positions were sized at the
+10%-NAV default while a completed risk verdict existed": exactly ONE (DELL).**
+Determined 20 of 34; unrecoverable 14 of 34 with a stated cause. **This supersedes
+the "1 confirmed + 33 UNDETERMINED" reported earlier in this file** -- that figure
+conflated "did not join" with "joined but carried no verdict", and read only one of
+the two verdict shapes.
 
 ### C8 -- flag-ON-only blindness closed ✅
 
