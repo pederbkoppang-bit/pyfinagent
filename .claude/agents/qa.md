@@ -623,15 +623,31 @@ audit finding that proposed this deletion would have taken it too.
   **attempt number**, and it is authoritative. The JSON deliberately carries no
   `verdict` key (`is_verdict: false`) and never will.
 
-  **The verdict SEQUENCE is a different quantity with a weaker source, and you
-  must not fake it.** In priority order:
-  1. a `## Verdict ledger` block in `handoff/current/evaluator_critique_<id>.md`
-     (the 86.32 Q/A ruled this "the authoritative per-attempt ledger");
-  2. failing that, header-anchored rows —
-     `grep -E '^## Cycle .*phase=<id> .*result=' handoff/harness_log.md`
-     — which **undercount** (measured: 6 of 8 steps, and 4→0 on step 86.62);
-  3. failing that, Main's disclosure in the spawn prompt, which is **ADVISORY
-     ONLY** because Main is the party the rule constrains.
+  **For the verdict SEQUENCE, use the purpose-built counter — do not hand-roll
+  one.** phase-86.21 already shipped it:
+
+  ```
+  python scripts/qa/verdict_history_86_21.py --step <step_id>
+  ```
+
+  It reads the append-only `handoff/verdict_ledger.jsonl`, prints the sequence,
+  computes `consecutive` **with reset-on-PASS/FAIL**, states `auto-FAIL armed`,
+  and — the part that matters — **returns a STATUS and refuses to print a number
+  it does not know**: `ok`, `no_rows_for_step`, `ledger_missing`,
+  `ledger_empty`, `unparseable`. The last three do **not** report 0; they report
+  `None` and fail closed. It also prints its own disagreement with the
+  `harness_log` grep and names the cause.
+
+  **CROSS-CHECK THE TWO SOURCES — this is free and it catches the live failure.**
+  `qa_wip.py` is written automatically by every spawn; the ledger is appended
+  **by hand** and *nothing writes it automatically yet*. So:
+
+  > if `records_retained` (auto) **>** the ledger's verdict count, **the ledger
+  > is STALE** — say so in `notes` and treat the sequence as unreliable.
+
+  Measured 2026-08-14 on step **86.62**: `qa_wip` = **4**, ledger =
+  `no_rows_for_step` (**0**). Four graded cycles invisible to the sequence
+  source. The ledger's own last row is dated **2026-08-11**.
 
   **Do NOT infer verdicts by scanning `prior_records` bodies for the words
   PASS/CONDITIONAL/FAIL.** Measured 2026-08-14: only **3 of 46** records carry a
