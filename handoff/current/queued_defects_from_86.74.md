@@ -102,3 +102,60 @@ in `test_dod4_tier1_coverage_investment.py` still call it.
 
 **Deliverable:** either delete it and update those three tests, or document at the
 definition that it must never be used for sizing. Low urgency, real trap.
+
+---
+
+## D5 (P1) -- `analysis_results` rows persisted with NO `final_synthesis` subtree, and it is STILL FIRING
+
+**Surfaced 2026-08-14** while adding a positive control the Q/A asked for. Named by
+the Q/A as absent from the masterplan: it searched the pending steps for
+`final_synthesis`/truncation and got 23 hits, **none of them this** — the nearest
+are **61.2** (persisting a synthetic `0.00`/`HOLD` on synthesis FAILURE) and
+**75.5.8** (truncation-blind LLM-JSON parsers). Both adjacent; neither the same
+defect.
+
+**MEASURED (use `JSON_QUERY`, NOT `JSON_VALUE` — see the trap below):**
+
+```sql
+SELECT DATE_TRUNC(DATE(analysis_date),MONTH) month, COUNT(*) rows_total,
+  COUNTIF(JSON_QUERY(full_report_json,'$.final_synthesis') IS NULL) truncated
+FROM `sunny-might-477607-p8.financial_reports.analysis_results`
+GROUP BY month ORDER BY month
+```
+
+| month | rows | truncated | % |
+|---|---:|---:|---:|
+| 2025-11 .. 2026-03 | 54 | 0 | 0.0% |
+| 2026-05 | 174 | 58 | 33.3% |
+| 2026-06 | 134 | 68 | **50.7%** |
+| 2026-07 | 137 | 12 | 8.8% |
+| 2026-08 | 68 | 6 | **8.8% — STILL FIRING** |
+
+**Why it matters beyond tidiness.** A row with no `final_synthesis` carries no
+verdict, no recommendation and no rationale, so **no audit of a trade against its
+risk verdict is possible for that row**. It is exactly what makes 86.74's criterion
+7 permanently unclosable by measurement — and because it is still firing, **the
+undetermined set GROWS**. That converts C7 from "unrecoverable backwards" to
+"accumulating".
+
+**Likely related to 86.69** (81% of analyses persist as an empty HOLD scored 0.0,
+dated break 06-12/06-15). The 50.7% June peak here overlaps that window. **Do not
+assume they are the same defect** — establish it or refute it.
+
+### THE TRAP, pinned so the next reader does not repeat it
+
+`JSON_VALUE(full_report_json,'$.final_synthesis')` **extracts scalars only and
+returns NULL for an object**, so it reports "absent" for **every row in the table**
+(567 of 567), including rows whose nested judge decision reads back fine. I used it,
+got a 100%-truncation result that contradicted a value I had already read from the
+same row, and only caught it because the Q/A insisted the decisive zero needed a
+positive control.
+
+**Positive control to reuse:** DELL `2026-08-13` has `judge.decision='REJECT'`, so
+its `final_synthesis` **must** be present. Any probe that calls that row truncated
+is broken.
+
+**Deliverable:** determine whether the write is still producing truncated rows
+today (8.8% suggests yes), find the producer, and either fix it or record why a
+truncated row is unavoidable. Report the rate with the month breakdown and the
+population rule beside it.

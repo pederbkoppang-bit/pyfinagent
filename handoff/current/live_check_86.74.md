@@ -115,3 +115,64 @@ paper_atomic_swap_enabled            False
 ```
 
 No flag was promoted and no `.env` was written by this step.
+
+### 2d. The retraction in 2c was RIGHT — but I reached it with a BROKEN PROBE
+
+The evaluator flagged that 2c's decisive number is a **zero with no positive
+control**, and that criterion 7's own standard forbids exactly that. Adding the
+control **found an error in my own instrument**:
+
+```
+JSON_VALUE(full_report_json,'$.final_synthesis') IS NULL   -> TRUE for 567 of 567 rows
+```
+
+**`JSON_VALUE` extracts SCALARS ONLY and returns NULL for an object**, so it
+reported "final_synthesis absent" for **every row in the table** — including
+DELL's 2026-08-13 row, from which I had *successfully read*
+`$.final_synthesis.risk_assessment.judge.decision = 'REJECT'`. Both cannot be true;
+the probe was answering a question about types, not about content.
+
+**Positive control, on the artifact rather than invented:**
+
+```
+DELL 2026-08-13, judge_decision = 'REJECT'
+  JSON_VALUE says final_synthesis absent : True    <- FALSE POSITIVE
+  JSON_QUERY says final_synthesis absent : False   <- correct
+```
+
+**Re-measured with `JSON_QUERY`, the answer is UNCHANGED:** `final_synthesis` is
+absent in **19 of 19**. So **2c's conclusion stands** — the reports are truncated,
+and "no verdict existed" remains unsupportable. **C7 stays PARTIAL.**
+
+But I got the right answer for the wrong reason, and that is worth stating: a probe
+that returns `TRUE` for every row cannot distinguish anything. Had the 19 in fact
+been synthesis-present, my broken probe would have hidden it and I would have
+"confirmed" the retraction just as confidently. **The control is what turned a
+lucky answer into a measured one.**
+
+### 2e. NEW DEFECT, surfaced by that control — truncation is STILL FIRING
+
+Correctly measured, the truncated-report shape is real, was never historical, and
+is **accumulating**:
+
+| month | rows | truncated | % |
+|---|---:|---:|---:|
+| 2025-11 .. 2026-03 | 54 | 0 | 0.0% |
+| 2026-05 | 174 | 58 | **33.3%** |
+| 2026-06 | 134 | 68 | **50.7%** |
+| 2026-07 | 137 | 12 | 8.8% |
+| 2026-08 | 68 | 6 | **8.8% — still firing** |
+
+**An `analysis_results` row persisted with no `final_synthesis` subtree at all** is
+a persistence defect in its own right. It is *why* C7 is permanently unclosable by
+measurement, and because it is still firing, **C7's undetermined set grows**. Queued
+as its own step (`queued_defects_from_86.74.md` D5) rather than fixed here.
+
+### 2f. The in-system precedent for 2c's reasoning
+
+2c argues *"key absent supports not-persisted, never never-existed"* on principle.
+**This step already proved it empirically** — criterion **C6** exists because
+`signal_attribution.py` dropped the RiskJudge row entirely when `pct` was `None`, so
+**a real DELL verdict left no trace in a persisted artifact**. Same system, same
+verdict, same week. Anyone tempted to re-run my original reasoning should be pointed
+at C6, not at an abstract argument.
