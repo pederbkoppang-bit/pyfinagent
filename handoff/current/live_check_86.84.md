@@ -155,11 +155,35 @@ from these percentiles repeats exactly the inference that produced 30.
   Claude Code actually supports is the open question the 86.84 research gate is
   running against; **it was still in flight at session freeze and no remedy has
   been chosen or applied.**
-- Whether the Agent-tool path degrades gracefully at the same cap. It is
-  *consistent* with the operator's measured "rail 0-for-4, Agent-tool 3-for-3"
-  that a non-schema spawn hitting maxTurns still returns its partial text while
-  a schema spawn returns nothing — but I did not measure the Agent-tool path,
-  and this sentence is a hypothesis, not a finding.
+- ~~Whether the Agent-tool path degrades gracefully at the same cap.~~
+  **RETRACTED before this artifact was ever acted on.** I had written that a
+  non-schema spawn hitting maxTurns probably still returns its partial text
+  while a schema spawn returns nothing, labelled as a hypothesis. The 86.84
+  research gate **refuted it from the docs the same hour**: the agent-loop
+  result-subtype table gives `error_max_turns` → *"`result` field available?
+  **No**"*, and the one documented partial-return path applies when "a rate
+  limit, overload, or server error cuts off a subagent that already produced
+  text output" — an **API error, not a turn-limit stop**. So there is no partial
+  output to salvage at the cap on **either** path, and the operator's measured
+  "rail 0-for-4, Agent-tool 3-for-3" must have another explanation (most likely
+  that the Agent-tool spawns simply finished inside 30 turns). The replacement
+  claim, not the original, is what stands.
+
+Three findings from that gate change the REMEDY and are recorded here because
+they arrived before freeze (`handoff/current/research_brief_86.84.md`,
+`brief_status: INCOMPLETE`, 7 sources read in full, gate NOT passed):
+
+- **`maxTurns` counts tool-use turns only, and `StructuredOutput` is itself a
+  tool call** — so emitting the schema *costs a turn*. The budget must be
+  `work_turns + 1`. **A cap sized to the work is a cap that cannot terminate.**
+  This makes the remedy arithmetic rather than a guess, and it is the strongest
+  argument yet against simply picking a bigger number.
+- **The documented default for an absent `maxTurns` is "No limit"** — a real
+  absence of a cap, not a high default. That corroborates the 0/930 measured
+  above from the vendor side.
+- **The throw may not be catchable at script level** (issue #65500, OPEN), which
+  is adversarial to the phase-86.81 retry loop already shipped in both workflow
+  files. Not yet verified against the version in use here.
 
 ## 6. Scope discipline
 

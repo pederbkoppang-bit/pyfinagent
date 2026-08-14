@@ -555,9 +555,27 @@ So the **diagnosis** landed and is durable; the **fix** is queued as 86.84.
 - Turn exhaustion is proven **necessary** on 48/48 drops, and no uncapped spawn
   has dropped in 930 tries. It is **not** proven sufficient — a second mechanism
   that only fires at the cap is not excluded.
-- The corollary that the Agent-tool path degrades gracefully at maxTurns while
-  the schema path returns nothing is **consistent** with the operator's measured
-  "rail 0-for-4, Agent-tool 3-for-3" but I did **not** measure it.
+- I wrote a corollary that the Agent-tool path probably degrades gracefully at
+  maxTurns while the schema path returns nothing. **The research gate refuted it
+  from the docs within the hour and it is retracted, not softened**:
+  `error_max_turns` has **no `result` field**, and the documented
+  partial-return path is for API errors, not turn-limit stops. There is nothing
+  to salvage at the cap on either path. The operator's "rail 0-for-4,
+  Agent-tool 3-for-3" most likely just means those Agent-tool spawns finished
+  inside 30 turns.
+
+**The research gate did land three remedy-shaping findings before freeze**, even
+though it never flipped to COMPLETE (7 sources read in full, gate NOT passed):
+
+1. **`maxTurns` counts tool-use turns only, and `StructuredOutput` is itself a
+   tool call.** Emitting the schema costs a turn, so the budget must be
+   `work_turns + 1` — **a cap sized to the work is a cap that cannot
+   terminate.** This is the strongest argument against picking a bigger number.
+2. **The documented default for an absent `maxTurns` is "No limit"** — vendor-side
+   corroboration of the 0/930 measured here.
+3. **The throw may not be catchable at script level** (issue #65500, OPEN),
+   which is adversarial to the phase-86.81 retry loop already shipped in both
+   workflow files. Unverified against the version in use here.
 - **No Q/A verdict was obtained on this session's work.** The diagnosis is
   committed as evidence, not as a passed step; 86.84 stays `pending`.
 - Stale claims still on disk, deliberately not edited during a freeze:
