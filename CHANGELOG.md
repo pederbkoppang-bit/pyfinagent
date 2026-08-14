@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-14 | `f237bb8d` | chore: stop a stray workflow test-copy from being committable |
 | 2026-08-14 | `73520bbc` | docs(goal): rotation is the blocking item, so it is now section 0 |
 | 2026-08-14 | `846fb371` | docs(incident): record what was done and what emphatically was NOT |
 | 2026-08-14 | `e91c711e` | security: take the credential off the DEFAULT BRANCH -- this does NOT revoke it |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-14 | `5e95ffbe` | phase-86.79 cycle-3: close every code finding from two Q/A cycles; criterion 4 escalated |
 | 2026-08-14 | `dc6575b6` | phase-86.79: the attempt counter was a gauge read as a counter -- split the field, account the loss, |
 | 2026-08-14 | `9db8027c` | docs(goal): regenerate HARNESS-FIRST per the operator instruction |
-| 2026-08-14 | `4ac079fa` | phase-86.75 cycle-2 + 86.79: my count reproduced under NO rule, and the counter I repointed counts t |
 
 ---
 
