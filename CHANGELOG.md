@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-14 | `ccb29804` | phase-86.78/86.79: record both rail drops as NO VERDICT, and the finding one of them died carrying |
 | 2026-08-14 | `f49089da` | phase-86.80: queue the arXiv rate-limiting that silently thins every nightly research memo |
 | 2026-08-14 | `f88f8190` | fix(harness): correct the drop-rate measurement -- the probe was matching its own comment text |
 | 2026-08-14 | `6b4df8f9` | fix(harness): retry the stochastic StructuredOutput drop -- ~22% of runs return nothing |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-14 | `8c4aa92c` | docs: day report addendum -- 86.64 FAILED on attempt 3, escalated at 3 of 5 |
 | 2026-08-14 | `948e6e93` | phase-86.64: ESCALATE after 3 attempts -- criterion 2 failed three times, each smaller than the last |
 | 2026-08-14 | `10e6135f` | phase-86.64: FAIL on attempt 3 -- criterion 2 missed members the PRIOR VERDICT had named in writing |
-| 2026-08-14 | `e37c51f8` | docs: day report part 3 -- the evaluate loop ran and caught me four more times |
 
 ---
 
