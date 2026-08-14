@@ -34678,3 +34678,48 @@ line) and were fixed as probes, not as code.
 
 **NOT FLIPPED.** Criterion 3 cannot be met end-to-end without the operator-gated `qa.md`
 edit removing `:665`/`:685`/`:702`. Escalated alongside 86.79's, as one decision.
+
+---
+
+## Cycle 3 -- 2026-08-14 -- phase=86.79 result=NO_VERDICT (rail drop)
+## Cycle 2 -- 2026-08-14 -- phase=86.78 result=NO_VERDICT (rail drop)
+
+**Both closing Q/A runs DROPPED without calling StructuredOutput.** 369K tokens, no
+verdicts. Recorded as ATTEMPTS, never as passes. **Neither step flipped.** The peer's
+retry wrapper landed at 12:15; both runs launched at 12:10 and were uncovered.
+
+**THE SESSION'S DECISIVE FINDING CAME OUT OF A DYING RUN, because write-first made it
+write before it died.** Its own system prompt was `qa.md@2e40e8c7` -- the PRE-FIX text.
+Confirmed independently by a probe spawn: **5 of 5 pre-fix consequence markers present
+in the live judge's system prompt, 0 of 3 post-fix markers**, while on disk the pre-fix
+markers are at 0.
+
+`qa-verdict.js` launches **`agentType: 'qa'`**, so the judge's system prompt IS the agent
+definition, snapshotted at session start. STEP 0 also makes it READ qa.md at runtime --
+and both are true at once: **a runtime read can ADD text but never RETRACT it.** So an
+ADDITIVE qa.md change is live immediately, and a **DELETION-based one -- which is exactly
+what 86.78 is -- is INERT until restart.** This falsifies the claim in CLAUDE.md and
+`qa-verdict.js:13-16` that a qa.md edit is live immediately on this path.
+
+**The same trap is armed on the researcher** (`research-gate.js:710`,
+`agentType: 'researcher'`); no live divergence today only because researcher.md was last
+edited 08-10.
+
+**Sibling defect one level up, caught BEFORE it produced a verdict:**
+`Workflow({name:...})` runs a session-snapshotted SCRIPT -- 0 of 3 named launches carried
+either same-day fix. That run was stopped and relaunched via `scriptPath`.
+
+**Drop rates, both rails, controls stated:** qa **39/374 (10.4%)**, researcher
+**21/278 (7.6%)**. The researcher survives drops; it has had drop handling since 86.37
+and its brief is on disk. The Q/A rail had neither until today.
+
+**What the drops still delivered.** 86.79: criterion 4's members 4b/4c have **no guard**
+(the gate asserts only that the patch FILE exists, so both could be reverted green); a
+C4 label went stale at cycle 4; `records_pruned_known` and the `ok`-path unit are
+unguarded. It independently verified 4a/4b/4c MET and confirmed both deliberate
+exclusions were right -- including that the dated `qa_wip.py 86.33` measurement STILL
+REPRODUCES.
+
+**Session outcome: 0 steps closed, 0 verdicts issued by Main, version unchanged at
+v6.93.222.** Ending deliberately so the restart makes the qa.md scrub live -- which is
+the only way 86.78 can be graded honestly.
