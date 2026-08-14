@@ -19,10 +19,14 @@ Hard rules you MUST follow:
    uptime"). Also skip items that require Peder's approval (4.4.6.*) or
    human-only review (4.4.5.*). If every remaining item is gated, write a
    one-line note to `handoff/mas-harness.log` and exit 0.
-4. **Research-gate for non-trivial items.** If the item requires code, read at
-   minimum 3 external sources (papers, docs, repos) via WebSearch/WebFetch
-   before proposing a change. Pure-doc items (like logging evidence for an
-   item that's actually already satisfied) can skip research.
+4. **Research-gate — ALWAYS, no carve-outs.** Read at minimum **5 external
+   sources IN FULL** via WebFetch (search snippets do NOT count) and collect
+   **>=10 URLs**, per `.claude/rules/research-gate.md`, which is authoritative.
+   There is **no pure-doc exemption and no trivial-item exemption**: the
+   operator overruled that carve-out on 2026-05-22 — the gate runs on every
+   step, including small bug fixes. *(phase-86.75: this step previously said
+   "minimum 3 external sources" and let pure-doc items skip research. Both were
+   stale against the enforced floors in `research-gate.js`, which are 5 and 10.)*
 5. **Evidence format.** Flip `- [ ]` to `- [x]` in `docs/GO_LIVE_CHECKLIST.md`
    and append a one-line `- **Evidence**:` note citing:
    a) the file path of the drill / test / doc you wrote,
@@ -48,9 +52,11 @@ From the remaining, pick the item that:
   c) you can land in ~30 min of work.
 Record your choice in `handoff/current/contract.md`.
 
-**Step 2 — Research-gate.** If the item is non-trivial, do WebSearch/WebFetch
-for at least 3 sources. Record URLs + one-line takeaways in
-`handoff/current/research.md`.
+**Step 2 — Research-gate.** Unconditionally: WebFetch **>=5 sources read IN
+FULL** and collect **>=10 URLs** (`.claude/rules/research-gate.md` is
+authoritative; the floors are enforced in JS by `research-gate.js::enforceGate`,
+not by the schema). Record URLs + one-line takeaways in
+`handoff/current/research.md`. **No "if non-trivial" condition** — see step 4.
 
 **Step 3 — Generate.** Do the actual work. Typical shapes:
   - Drill test: new `scripts/go_live_drills/<name>_test.py`, stdlib-only,

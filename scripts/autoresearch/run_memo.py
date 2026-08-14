@@ -7,15 +7,20 @@ on day-of-year modulo N_topics), runs one research pass with Claude +
 arxiv/semantic_scholar/duckduckgo retrievers (no Tavily, no OpenAI),
 and writes a timestamped markdown memo to handoff/autoresearch/.
 
-The memo is a valid research-gate source for the MAS harness:
-.claude/rules/research-gate.md is the authoritative gate doctrine. NOTE (phase-86.75):
-autoresearch memos do NOT count toward the source floor -- that clause lived in the
-now-deleted .claude/context/research-gate.md and was unenforceable, because the gate
-cross-checks that every claimed URL appears literally in the brief and a local memo
-path is not a URL. Memos are useful INPUT to a brief, never a substitute for a fetch.
-Historically this file's docstring said the gate included memos in its
-accepted-source list. The MAS harness cycle cites them verbatim when
-it needs a research-gate check.
+A memo is INPUT to a research brief, never a research-gate source in its own
+right (phase-86.75). `.claude/rules/research-gate.md` is the authoritative gate
+doctrine and it is the only one: memos do NOT count toward the source floor.
+
+That is not a policy change, it is a statement of what the gate can enforce --
+`enforceGate` cross-checks that every URL claimed as read-in-full appears
+literally in the brief on disk, and a local memo path is not a URL, so a memo
+could never have satisfied the floor whatever a doc said.
+
+The contrary clause ("the gate includes memos in its accepted-source list") lived
+in `.claude/context/research-gate.md`, which was DELETED in phase-86.75 as a
+drifted fifth copy -- it was the only text in the repo that let a source be
+counted without a fetch. Nothing here reads that path; this paragraph is a
+deletion note, not a pointer.
 
 Invoked by launchd via scripts/autoresearch/run_nightly.sh.
 Can also be run manually:
