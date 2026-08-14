@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-14 | `a2c46988` | docs(goal): regenerate at 09:20 -- six steps carry artifacts and zero Q/A verdicts |
 | 2026-08-14 | `3e5d481f` | docs: day report -- session 2 part 2, five steps advanced, four probe errors caught |
 | 2026-08-14 | `d31e204c` | phase-86.67: research gate RE-RUN PASSED -- redaction-at-write ranks first, and the existing pre-com |
 | 2026-08-14 | `56418ebc` | phase-86.66: the step names ONE bug; there are TWO, and the named one has no traceback anywhere -- s |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-14 | `61496fce` | docs(goal): regenerate clean -- rotation first, then the three decisions that are yours |
 | 2026-08-14 | `ac070b62` | SECURITY: root-cause link -- the exposed value IS segment 1 of the malformed backend OAuth token |
 | 2026-08-14 | `91ab018e` | phase-86.68: gate PASSED and the shipped fix is VERIFIED -- detection is parsed masterplan state, no |
-| 2026-08-14 | `3c25d2d3` | SECURITY: incident addenda -- ONE token not five, repo is PUBLIC WITH A FORK, window bounded both si |
 
 ---
 
