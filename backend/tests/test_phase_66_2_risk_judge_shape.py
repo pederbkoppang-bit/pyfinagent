@@ -553,11 +553,16 @@ class TestSwapPathSizingIsBehaviourallyGuarded:
 
     def _run(self, pct, state, nav=10_000.0):
         from backend.services.portfolio_manager import _compute_swap_candidates
-        # These four values are set explicitly because `_settings()` builds a
-        # SimpleNamespace stub that OMITS them, so `getattr(settings, ..., 0)` at
-        # portfolio_manager.py:719 falls back to 0 and short-circuits the whole
-        # function -- every assertion here would then pass on an empty list. The
-        # anti-vacuity test below is what caught exactly that.
+        # FIVE values are set here, for TWO different reasons -- an earlier
+        # version of this comment said "four" and gave one reason for all of
+        # them, and neither reproduced:
+        #   * `paper_swap_enabled` is PRESENT-but-False in `_settings()`
+        #     (test:26), so it must be OVERRIDDEN, not supplied.
+        #   * the other four are ABSENT from that SimpleNamespace stub, so
+        #     `getattr(settings, ..., 0)` at portfolio_manager.py:719 falls back
+        #     to 0 and short-circuits the whole function -- every assertion here
+        #     would then pass on an empty list. The anti-vacuity test below is
+        #     what caught exactly that.
         #
         # CORRECTED (86.74 cycle-4, Q/A WARN): an earlier version of this comment
         # said the setting "defaults to 0", which MISDESCRIBED PRODUCTION and in

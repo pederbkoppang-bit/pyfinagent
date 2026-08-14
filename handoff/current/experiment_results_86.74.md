@@ -534,3 +534,71 @@ line supersedes it.
 
 **86.74 still does NOT close.** This grade was scoped to the swap commit; C4 and
 C7 are untouched by it and remain the step's blockers.
+
+---
+
+## 10. CYCLE 5 -- the cycle-4 work graded **PASS**, with two WARNs
+
+Agent-tool Q/A, scoped to `cba60c0b^..HEAD`. Working record:
+`.claude/agent-memory/qa/verdicts/verdict_wip_86.74__20260814T155443Z.md`.
+
+**`ok: true, verdict: PASS`** — and it verified more than I had reported. It
+rebuilt M7's two edits **in-memory from `MUTATIONS`** and drove the real function:
+
+```
+0% REJECT   -> [('SELL','OLD',None)]                              a GENUINE orphan
+legitimate 3% -> [('SELL','OLD',None), ('BUY','NEW',300.0)]        FULL pair intact
+```
+
+That second line is the part I had not done: it proves **M7 isolates the orphan
+rather than collapsing the harness**, so the kill is *attributable*. It also
+reviewed the new multi-edit normaliser for a fail-open and confirmed it scores
+`NOT_APPLIED` and continues (`mutation_matrix_86_74.py:207-211`) — **fails closed**.
+
+### WARN 1 -- a count that did not reproduce, inside a comment written to fix a count that did not reproduce
+
+My corrected comment said *"These four values"* while **five** kwargs are set, and
+said `_settings()` *"OMITS them"* when `paper_swap_enabled` is **present-but-False**
+at `test:26`. Both verified and fixed; the comment now distinguishes the two
+reasons:
+
+```
+kwargs actually passed : 5
+PRESENT in base (must be OVERRIDDEN) : ['paper_swap_enabled']
+ABSENT  from base (must be SUPPLIED) : [max_per_cycle, min_delta_pct, churn_fix, atomic]
+```
+
+Now **machine-checked** rather than re-asserted — the assertion above parses the
+call site and the `_settings` base and fails if either count drifts. Writing an
+inaccurate comment *while fixing an inaccurate comment* is its own lesson.
+
+### WARN 2 -- the evaluator disclosed the limit of its own grade
+
+> *"I did NOT re-measure those numbers \[the C7 decomposition]. My item-3 grade
+> rests on internal consistency and the soundness of the reasoning. Acceptable
+> ONLY because the claim now standing is the CONSERVATIVE one — an unverified
+> 'still undetermined' creates no risk. It would NOT be acceptable for a
+> 'resolved'."*
+
+Recorded verbatim because it is exactly right, and it means **the C7 decomposition
+(19/14/0) is still only MY measurement.** The next session must re-derive it before
+building on it.
+
+### Two scope corrections it made against me
+
+1. **`cba60c0b..HEAD` EXCLUDES `cba60c0b`** — and the orphan guard and M7 live *in*
+   that commit, so the range I gave was docs-only. It graded `cba60c0b^..HEAD`
+   instead of grading the wrong thing.
+2. **The tree MOVED during its evaluation** — `38ba13ad` and `a33a5117` (the C7
+   retraction) landed after the range I gave, so my tasking message was stale
+   against the tree. It graded `HEAD` and said so.
+
+Both are mine. The second is the freeze-the-tree rule again: I retracted C7 *while*
+an evaluator was reading. It was safe only because the movement made the claim
+strictly **more conservative** and was fully recorded — but "safe because of which
+direction it happened to move" is luck, not method.
+
+### Standing
+
+**This PASS is scoped to the cycle-4 work and does NOT close 86.74.** C4 is open,
+C7 is PARTIAL — exactly as the earlier CONDITIONAL had them.
