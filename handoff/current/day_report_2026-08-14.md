@@ -371,3 +371,51 @@ prose. The Q/A found each by **executing what I had only argued**. Recorded as
   `qa.md` edits I authored); and whether 86.65/86.66/86.75 are re-run or closed outside the
   harness.
 - **Version 6.93.222.** No other step flipped.
+
+---
+
+# ADDENDUM (17:50) — 86.64 cycle 3 came back **FAIL**, and I escalated
+
+Part 3 above was written while cycle 3 was still running. The outcome:
+
+**FAIL** (`wf_b5768692-862`). Criterion 2 NOT MET **for the third consecutive cycle** — and
+this time the missing members were handed to me in cycle 2's own remediation text:
+*"…browser_take_screenshot, browser_run_code_unsafe, **and the snapshot/console filename
+paths**."* I added the first two and **dropped the third clause**.
+
+**My own falsifying evidence indicted my table.** The 307 files under `.playwright-mcp/`
+decompose as **191 `page-*.yml` + 114 `console-*.log`** + 1 png + 1 json — so **305 of the
+307 files I used to disprove the "MCP writers are remote" row were written by the two tools
+I omitted**, while I credited them to `take_screenshot` (1 png).
+
+**The root cause is the method, not the list.** I answered a *capability* question with a
+*usage* measurement. My own table proved it: `NotebookEdit` sat at **0 observed events,
+supplied from memory** — a guess, inside the artifact meant to eliminate guessing.
+`grep -ci schema` = **0** across both artifacts; the schema carries the `filename` param that
+settles it.
+
+**Two more probe errors of mine, both caught by re-checking:**
+- The audit file has **two record shapes** (`tool_name` and `tool`). My verification probe
+  read only the first and reported **0** where the truth is **60**.
+- My withdrawal check used raw text on a phrase that straddles a newline, so `find` returned
+  −1 and I printed the file header as "context", then called a legitimate quotation a live
+  survivor.
+
+**Escalated at 3 of 5 attempts** — `handoff/current/ESCALATION_86.64.md`. C1/C3/C4/C5 are MET
+and were reproduced by the Q/A on evidence it generated itself. The decision is (a) fresh
+executor for C2 with the schema method specified — my recommendation; (b) attempt 4 with me,
+against three cycles of contrary evidence; or (c) close scope-reduced with C2 deferred.
+
+## Final state, 18:00
+
+| | |
+|---|---|
+| **Closed PASS** | **86.68** — full loop, 2 Q/A cycles, v6.93.221 → **v6.93.222** |
+| **FAILED + escalated** | **86.64** — 3 attempts, C2 three times |
+| Gates PASSED | 86.59, 86.67 — both had failed for the *same* cause |
+| Partial | 86.63 (criteria 3/4/6 need a live-trade-path guard) |
+| Protocol breaches | 86.65, 86.66, 86.75 — no gate, no contract |
+| Operator-blocked | token rotation; 86.62 / 86.9 / 86.44; 86.75 criterion 7 |
+
+**Steps flipped this session: one.** Version moved once, from that flip. That is the changelog
+rule working exactly as 86.68 designed it.
