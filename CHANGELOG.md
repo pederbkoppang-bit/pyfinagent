@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-14 | `bab78790` | docs(goal): restore the 3964-char goal a cp installed over |
 | 2026-08-14 | `e77b5392` | docs(goal): reorder 86.84 into an ordered (a)(b)(c) first-actions block |
 | 2026-08-14 | `58ed0e73` | docs(goal): restore the safety constraints an auto-trim wrongly dropped |
 | 2026-08-14 | `6b40d01c` | docs(goal): D5 refutation, /api/health, cycle-3 discipline lessons |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-14 | `577adcdf` | docs(harness): day report + next-session goal for the 86.84 turn-cap diagnosis |
 | 2026-08-14 | `c1797888` | fix(harness): diagnose the Layer-3 rail drop as TURN-BUDGET EXHAUSTION, and file 86.84 + 86.85 |
 | 2026-08-14 | `5594ed65` | docs(goal): trim so BOTH char and byte counts clear 4000 (em-dashes are multi-byte) |
-| 2026-08-14 | `ccf154b0` | docs(goal): rewrite next-session goal around the MEASURED harness failure, under 4000 chars |
 
 ---
 
