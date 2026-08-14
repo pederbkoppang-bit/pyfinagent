@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-14 | `28be64f1` | docs(86.84): flag a fabricated completion timestamp in the Q/A verdict artifact |
 | 2026-08-14 | `c50c9a9c` | docs(goal): clear the 4000 char/byte ceiling |
 | 2026-08-14 | `e133eeac` | docs(goal): trim under the 4000 char/byte ceiling |
 | 2026-08-14 | `b2cea6a7` | docs(goal): regenerate for 86.84 with the gate PASSED and the cycle-1 CONDITIONAL |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-14 | `38ba13ad` | phase-86.74: RETRACT the "C7 RESOLVED" claim -- I refuted it myself, one commit later |
 | 2026-08-14 | `d6a1500a` | chore: session-end backend restart, verified -- the 86.74 fix is now IN FORCE |
 | 2026-08-14 | `73d42267` | docs(goal): C7 resolved; C4 reduced to confirm-restart-then-measure |
-| 2026-08-14 | `4e610437` | docs(day-report): C7 resolved, and the restart precondition is now met |
 
 ---
 
