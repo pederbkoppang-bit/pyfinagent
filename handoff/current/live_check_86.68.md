@@ -43,17 +43,32 @@ exit=0
 It proves the classifier **parses**. It cannot observe behaviour — the replay above is what
 carries criteria 1, 3, 4 and 6.
 
-## The separation, live on this session
+## The separation — CORRECTED after the cycle-1 Q/A
+
+**The cycle-1 version of this section was confounded and is withdrawn.** It read
+*"Recent-Activity rows dated 2026-08-14: 20 ← all still written"*. **20 is `MAX_ROWS=20`**
+(`post-commit-changelog.sh:17`), the trim cap — a count identical to the cap cannot show
+coverage. Re-derived:
 
 ```
-version at session start (34e5d0c6) : v6.93.221
-version now                          : v6.93.221     <- UNCHANGED across 20 commits
-Recent-Activity rows dated 2026-08-14: 20            <- all still written
-substantive commits checked in CHANGELOG.md          : 10 of 10 present
+POPULATION RULE: row-eligible unless the subject matches
+  ^chore: (auto-changelog|changelog drift)   [the skip at post-commit-changelog.sh:27]
+
+commits dated 2026-08-14                  : 86
+skipped as chore                          : 43
+ROW-ELIGIBLE                              : 43
+rows surviving in the table               : 20   <- exactly MAX_ROWS=20
+eligible commits TRIMMED                  : 23   <- got a row, then aged out
+
+of the 43 eligible, commits that BUMPED   :  0
+surviving rows whose commit did NOT bump  : 20 of 20
+version at session start (34e5d0c6)       : v6.93.221
+version now                               : v6.93.221   <- UNCHANGED
 ```
 
-Eight of those ten are `phase-86.x:` commits that produced **zero** version bumps and still
-appear. Under the retired rule each would have bumped the patch number.
+**Rows exist exactly where bumps do not**, and that conclusion does not depend on the
+trimmed 23. Structurally: the row-insert (`:252-270`) is unconditional; the version header
+(`:212`) and bullet (`:228`) are gated on `bump_type`.
 
 ## Provenance of the last bump
 
@@ -73,7 +88,9 @@ The corpus grew by 134 commits; the proportion losing a bump is stable (**73.1%*
 
 ## What this artifact does NOT license
 
-- **It does not close the step.** No Q/A has graded it.
+- **It does not close the step.** A Q/A graded cycle 1 **CONDITIONAL** (`wf_aebf89bf-bfd`);
+  the two blockers it named are fixed above and in the replay harness, and a **fresh Q/A
+  must grade the changed evidence**.
 - The counts are **tree-dependent** and will move; the durable claim is the rule.
 - **A wording gap in `CLAUDE.md`** is disclosed in `experiment_results_86.68.md` §C5:
   it says detection is "from the masterplan diff", which reads as a *text* diff — the exact

@@ -6,7 +6,7 @@ Read-only: runs `git show` and parses. Nothing is written, nothing is committed.
 Run as a FILE (macOS spawn re-imports __main__ by path).
 """
 from __future__ import annotations
-import json, re, subprocess, sys, collections
+import json, re, subprocess, sys
 
 REPO = "."
 
@@ -98,6 +98,7 @@ for step in ("86.9","86.44"):
 
 # ---- criterion 6: MUTATION -- remove the flip gate ------------------------
 print("\nCRITERION 6 -- MUTATION (flip gate removed):")
+all_killed_ok = []
 ctrl_ok = True
 for step in ("86.9","86.44"):
     pat = re.compile(rf"^phase-{re.escape(step)}[.:\s]")
@@ -107,9 +108,18 @@ for step in ("86.9","86.44"):
     green = (ctrl == 0)
     ctrl_ok &= green
     killed = mut > ctrl
+    # phase-86.68 cycle-2, from the Q/A's residual note: the exit code used to gate
+    # ONLY on control-greenness, so a run whose cells all SURVIVED still exited 0 and
+    # the quoted `REAL exit=0` evidenced nothing about a kill. Gate on BOTH.
+    all_killed_ok.append(green and killed)
     print(f"  {step:6} CONTROL={ctrl} ({'GREEN' if green else 'NOT GREEN -- cell UNSCORABLE'})"
           f"  MUTANT={mut}  -> {'KILLED' if (green and killed) else 'SURVIVED/UNSCORABLE'}")
 
-print("\nCRITERION 4 -- Recent-Activity rows are independent of the bump:")
-print("  every commit still yields a row; only `bump_type != none` writes a version header.")
-sys.exit(0 if ctrl_ok else 1)
+print("\nCRITERION 4 -- rows are independent of the bump (see experiment_results C4):")
+print("  The row-insert is UNCONDITIONAL; the version header and bullet are gated on")
+print("  bump_type. NOTE: the table is capped at MAX_ROWS=20, so a row COUNT is not a")
+print("  census -- older eligible commits are trimmed. Do not read row-count as coverage.")
+ok = ctrl_ok and all(all_killed_ok) and len(all_killed_ok) > 0
+print(f"\nexit gate: control_green={ctrl_ok} all_cells_killed={all(all_killed_ok)} "
+      f"cells_scored={len(all_killed_ok)} -> exit {0 if ok else 1}")
+sys.exit(0 if ok else 1)

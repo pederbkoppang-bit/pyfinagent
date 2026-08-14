@@ -64,30 +64,48 @@ bumps over the same corpus, one per *attempt*.
 **26**. The larger figure strengthens the finding; it is reported rather than silently
 adopted.)
 
-## C4 — Recent-Activity rows are UNCHANGED, demonstrated by a natural experiment
+## C4 — rows are independent of the bump — CORRECTED after the cycle-1 Q/A
 
-**This session is the demonstration**: 20 commits, of which 8 are substantive
-`phase-86.x:` commits.
+> **My cycle-1 demonstration was CONFOUNDED, and the Q/A caught the exact thing I had
+> flagged as a worry.** I wrote *"20 commits this session … 20 rows ← all still written"*
+> and read that as coverage. **The 20 is `MAX_ROWS=20`** (`post-commit-changelog.sh:17`) —
+> the trim cap — which I never mentioned. A count numerically identical to the cap cannot
+> distinguish "every commit got a row" from "the table is simply full". My companion check
+> ("10 of 10 substantive commits present") was a hand-assembled scope whose members all
+> lay inside the surviving window, so it *structurally could not* observe the trimmed ones.
+
+**Population rule:** a commit is ROW-ELIGIBLE unless its subject matches
+`^chore: (auto-changelog|changelog drift)` — the skip at `post-commit-changelog.sh:27`,
+which fires **before** any row is written.
+
+**Derived (not hand-assembled), 2026-08-14:**
+
+| quantity | value |
+|---|---:|
+| commits dated 2026-08-14 | **86** |
+| skipped as chore | 43 |
+| **row-eligible** | **43** |
+| rows surviving in the table | **20** ← exactly `MAX_ROWS=20` |
+| eligible commits **trimmed** | **23** |
+
+**So a row count is NOT a census.** 23 eligible commits did get a row and then aged out
+(e.g. `d5736cce phase-86.62`, `c5ad55d8 phase-86.62 cycle-3`).
+
+### The evidence that actually carries the separation
 
 ```
-  version at session start (34e5d0c6) : v6.93.221
-  version now                          : v6.93.221      <- UNCHANGED
-  Recent-Activity rows dated 2026-08-14: 20             <- all still written
+row-eligible commits on 2026-08-14        : 43
+of those that BUMPED the version          :  0
+surviving rows in the table               : 20
+surviving rows whose commit did NOT bump  : 20 of 20
 ```
 
-Every substantive commit was checked individually against `CHANGELOG.md`: **10 of 10
-present**, including all 8 that produced no bump.
+**Rows exist exactly where bumps do not**, and this does not depend on the trimmed 23. The
+mechanism confirms it structurally: the row-insert at `:252-270` is **unconditional**, while
+the version header (`:212`) and the bullet (`:228`) are gated on `bump_type`.
 
-> **A correction I owe, because I asserted the opposite mid-analysis.** Reading
-> `is_chore = bump_type == "none"` and its comment (*"no version row AND no bullet"*), I
-> announced a confirmed defect: that the new rule would strip Recent-Activity rows. **That
-> was wrong.** `is_chore` gates the **bullet under a version header** (`:228`); the
-> **Recent Activity table** is written by a separate, unconditional block. I inferred which
-> artifact "bullet" meant instead of checking. The measurement above is what settled it.
-
-The only commits without their own row are `chore: auto-changelog hook entry for <sha>` —
-the hook's own bookkeeping commits, `none` under **both** rules. That predates 86.68 and is
-unchanged by it.
+*(Independently reproduced by the cycle-1 Q/A, which measured 84/42/22 against my 86/43/23 —
+the delta is two commits I made between its run and this re-derivation.)*
 
 ## C5 — the documentation matches the code
 
@@ -110,9 +128,22 @@ Mutant: remove the flip gate, so the subject verdict governs again.
   86.44  CONTROL=0 (GREEN)  MUTANT=13  -> KILLED
 ```
 
-**The control is asserted green before the mutant is scored**, and the harness exits
-non-zero if it is not — a cell whose control is red is UNSCORABLE, not a pass. `REAL exit=0`
-(captured directly, not through a pipe).
+**The control is asserted green before the mutant is scored** — a cell whose control is red
+is UNSCORABLE, not a pass.
+
+**Hardened after the cycle-1 Q/A.** It found a real residual: the exit code gated **only**
+on control-greenness, so its MUTANT B (mutant arm neutered) exited **0** while both cells
+reported SURVIVED — meaning the quoted `REAL exit=0` did not by itself evidence a kill. The
+gate now requires **control-green AND all-cells-killed AND cells_scored > 0**, and prints
+its own reasoning:
+
+```
+exit gate: control_green=True all_cells_killed=True cells_scored=2 -> exit 0
+REAL exit=0     (captured bare, never through a pipe)
+```
+
+The Q/A also verified the gate cannot be bypassed from inside: its MUTANT A (flip gate dead
+in *both* arms) produced `CONTROL=13 (NOT GREEN -- cell UNSCORABLE)` and exit 1.
 
 ---
 
@@ -122,4 +153,16 @@ non-zero if it is not — a cell whose control is red is UNSCORABLE, not a pass.
 - **The 482/186/8 figures are re-derived at this tree** and will move again; the *rule* is
   the durable claim, not the counts.
 - **C5 is met but with a stated wording gap** in CLAUDE.md, disclosed above.
-- **No Q/A has graded this**, and the step is not flipped.
+- **A Q/A HAS graded this: CONDITIONAL on attempt 1** (`wf_aebf89bf-bfd`), transcribed
+  verbatim in `evaluator_critique_86.68.md`. Criteria 1, 2, 3, 5, 6 MET and independently
+  reproduced; **criterion 4 NOT MET as evidence** and the `qa.md` §1a lint gate red. Both
+  are fixed above and in `scripts/qa/replay_changelog_rule_86_68.py`; a fresh Q/A must grade
+  the changed evidence. **The step is NOT flipped.**
+- **The Q/A retired the obvious objection to the replay harness by execution**: it extracted
+  `classify_commit` and `_flip_magnitude` verbatim from the hook and drove them per-sha —
+  **0 mismatches** against my re-implementation across 496 commits, production counts
+  OLD=191 / NEW=8.
+- **C1 narrowness, noted by the Q/A and worth carrying**: the criterion asks for the
+  bump-per-**step** distribution; I gave corpus totals plus two named steps. Its derivation:
+  43 steps bumped under the old rule, 177 of 191 bumps attributable to a step, and the top
+  offender is **86.38 at 22 bumps** — above both 86.9 (13) and 86.44 (13).
