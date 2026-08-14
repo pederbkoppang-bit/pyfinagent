@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-14 | `e91c711e` | security: take the credential off the DEFAULT BRANCH -- this does NOT revoke it |
 | 2026-08-14 | `255329ce` | fix(security): guard the CLASS, not the one producer -- scan every tracked file |
 | 2026-08-14 | `1159059a` | docs(incident): the 'why did it stop' question is answered, and the answer inverts the finding |
 | 2026-08-14 | `cd9774e3` | fix(security): the credential leak was DORMANT, not closed -- redact before the tracked file exists |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-14 | `4ac079fa` | phase-86.75 cycle-2 + 86.79: my count reproduced under NO rule, and the counter I repointed counts t |
 | 2026-08-14 | `77eda15d` | phase-86.75: GENERATE re-derived under the contract -- 6 of 8 criteria, every figure re-run |
 | 2026-08-14 | `d43d1c8f` | phase-86.75: contract written AFTER the repair gate -- and it binds the RE-DERIVATION, not the work  |
-| 2026-08-14 | `d68a1763` | phase-86.78: the Q/A is told its verdict's CONSEQUENCE before issuing it -- measured leniency bias,  |
 
 ---
 
