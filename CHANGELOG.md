@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-14 | `5594ed65` | docs(goal): trim so BOTH char and byte counts clear 4000 (em-dashes are multi-byte) |
 | 2026-08-14 | `ccf154b0` | docs(goal): rewrite next-session goal around the MEASURED harness failure, under 4000 chars |
 | 2026-08-14 | `120f67f9` | docs: record the broken probe, its control, and D5 (truncation still firing) in the day report and g |
 | 2026-08-14 | `f4642435` | phase-86.74: the C7 retraction was RIGHT but reached with a BROKEN PROBE -- and the control found a  |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-14 | `4d9294c9` | docs(goal): next-session goal reflects the CONDITIONAL verdict and the three items blocking 86.74 |
 | 2026-08-14 | `f85746cc` | docs: record the CONDITIONAL verdict and the swap-path liquidation defect it led to |
 | 2026-08-14 | `76ac89ee` | phase-86.74 cycle-3: verdict CONDITIONAL -- and acting on its WARN found a live defect where a REJEC |
-| 2026-08-14 | `2f7a6ee6` | docs(day-report): final session-end rail reading -- 572/46/5, all four retries still exhausted |
 
 ---
 
