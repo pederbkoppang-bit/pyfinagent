@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-14 | `c50c9a9c` | docs(goal): clear the 4000 char/byte ceiling |
 | 2026-08-14 | `e133eeac` | docs(goal): trim under the 4000 char/byte ceiling |
 | 2026-08-14 | `b2cea6a7` | docs(goal): regenerate for 86.84 with the gate PASSED and the cycle-1 CONDITIONAL |
 | 2026-08-14 | `89efc7d8` | fix(86.84): correct F1/F2/F3/NOTE-A/NOTE-B from the cycle-1 Q/A |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-14 | `d6a1500a` | chore: session-end backend restart, verified -- the 86.74 fix is now IN FORCE |
 | 2026-08-14 | `73d42267` | docs(goal): C7 resolved; C4 reduced to confirm-restart-then-measure |
 | 2026-08-14 | `4e610437` | docs(day-report): C7 resolved, and the restart precondition is now met |
-| 2026-08-14 | `97832063` | phase-86.74 cycle-4: C7 RESOLVED -- 33 "undetermined" was 19 determined + 14 provably unrecoverable |
 
 ---
 
