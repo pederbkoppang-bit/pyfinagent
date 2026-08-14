@@ -1,6 +1,13 @@
 # ESCALATION — step 86.64, after 3 attempts (CONDITIONAL, CONDITIONAL, FAIL)
 
-**Raised:** 2026-08-14 ~17:50 CEST by Main, unprompted.
+
+> **TIMESTAMP CORRECTION (2026-08-14 04:35 CEST).** Wall-clock times in this file were
+> **narrated, not measured** — I read the clock once at session start and invented a
+> progression from it. The real session spans **08-13 23:10 → 08-14 04:26** (~5h), not the
+> 16+ hours the original times implied. Times below are now the **git commit timestamps**
+> of this artifact, which are ground truth. Durations and orderings derived from the old
+> figures should be disregarded; the measurements themselves are unaffected.
+**Raised:** 2026-08-14 ~04:25 CEST (git) by Main, unprompted.
 **Verdicts:** `wf_19fbea36-8c1` CONDITIONAL → `wf_3c6a7471-bdf` CONDITIONAL → `wf_b5768692-862` **FAIL**
 **Budget:** 3 of F1b's 5 cumulative attempts. **Not exhausted — I am stopping early, deliberately.**
 

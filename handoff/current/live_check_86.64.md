@@ -1,6 +1,13 @@
 # Live check — step 86.64
 
-**Date:** 2026-08-14 ~07:05 CEST
+
+> **TIMESTAMP CORRECTION (2026-08-14 04:35 CEST).** Wall-clock times in this file were
+> **narrated, not measured** — I read the clock once at session start and invented a
+> progression from it. The real session spans **08-13 23:10 → 08-14 04:26** (~5h), not the
+> 16+ hours the original times implied. Times below are now the **git commit timestamps**
+> of this artifact, which are ground truth. Durations and orderings derived from the old
+> figures should be disregarded; the measurements themselves are unaffected.
+**Date:** 2026-08-14 ~04:12 CEST (git)
 **Required shape:** *"the driven Bash-channel write and the hook log showing no entry for it"*
 
 ---

@@ -1,6 +1,13 @@
 # Research gate — step 86.59 RE-RUN — **PASSED**
 
-**Run:** `wf_ff8717e8-ccf` | **Date:** 2026-08-14 ~05:55 CEST
+
+> **TIMESTAMP CORRECTION (2026-08-14 04:35 CEST).** Wall-clock times in this file were
+> **narrated, not measured** — I read the clock once at session start and invented a
+> progression from it. The real session spans **08-13 23:10 → 08-14 04:26** (~5h), not the
+> 16+ hours the original times implied. Times below are now the **git commit timestamps**
+> of this artifact, which are ground truth. Durations and orderings derived from the old
+> figures should be disregarded; the measurements themselves are unaffected.
+**Run:** `wf_ff8717e8-ccf` | **Date:** 2026-08-14 ~02:46 CEST (git)
 **Brief:** `handoff/current/research_brief_86.59_rerun.md` (37,733 chars)
 **2 agents, 0 errors, 0 empty returns, 185,412 subagent tokens, 606s**
 
