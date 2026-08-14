@@ -15,14 +15,38 @@
 # frontmatter name") when the hook fires inside a subagent call. Main's
 # own tool calls carry no agent_type -> always allowed.
 #
-# KNOWN GAP (permissions doc): Write/Edit hooks do not intercept Bash
-# subprocess writes; the Main-side post-verdict git-status cleanliness
-# rule (per-step-protocol.md section 4) is the covering control.
+# THIS IS A CONVENTION CHECK, NOT A SECURITY BOUNDARY (phase-86.64).
+# Stated plainly because the difference decides what may be relied on it.
+# Two independent reasons, both MEASURED by driving this hook:
+#   1. CHANNEL. The settings.json matcher is Write|Edit, so a write issued
+#      through Bash is never routed here at all. Measured: an identical qa
+#      identity writing an identical target path returns exit 2 via
+#      tool_name=Write and exit 0 via tool_name=Bash, and the Bash write
+#      added ZERO lines to this hook log.
+#   2. IDENTITY. agent_type is chosen by the SPAWNER (RFC 9700 s4.15), so a
+#      caller that wants past this simply does not name itself qa-anything.
+# It therefore raises the cost of an ACCIDENTAL breach and cannot stop a
+# deliberate one. The covering control for the deliberate case is the
+# Main-side post-verdict git-status cleanliness rule
+# (per-step-protocol.md section 4). Unguarded tool names are enumerated in
+# handoff/current/experiment_results_86.64.md criterion 2.
 #
 # Exit 2 = block (PreToolUse convention). Exit 0 = allow.
-# FAIL-OPEN by design: missing fields, malformed JSON, or an internal
-# error must never brick the session -- only an explicit qa-outside-
-# memory match blocks.
+#
+# FAIL DIRECTION IS MIXED, AND THE PREVIOUS COMMENT HERE WAS WRONG.
+# It claimed "missing fields, malformed JSON, or an internal error must
+# never brick the session -- only an explicit qa-outside-memory match
+# blocks." The second half is false and was falsified by measurement:
+#   * HOOK-ITSELF-BROKE  -> FAIL-OPEN, as claimed. Malformed JSON, an empty
+#     payload, and python3 absent from PATH all exit 0.
+#   * PATH INDETERMINATE on a qa Write/Edit -> FAIL-CLOSED, exit 2. A
+#     missing tool_input key, a null tool_input, an empty dict, an empty
+#     file_path and a non-dict tool_input ALL deny, because normpath("")
+#     is "." and "." is not inside the memory dir. That is NOT an "explicit
+#     qa-outside-memory match", and it is the safe direction for a control
+#     whose whole job is to refuse when it cannot read the target -- so the
+#     BEHAVIOUR is kept and the DESCRIPTION is corrected.
+# A non-qa identity is unaffected by all of the above and always allows.
 
 payload=""
 if [ ! -t 0 ]; then

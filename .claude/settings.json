@@ -37,7 +37,7 @@
           {
             "type": "command",
             "command": "bash \"${CLAUDE_PROJECT_DIR:-$(pwd)}/.claude/hooks/qa-write-guard.sh\"",
-            "statusMessage": "qa-write-guard: the qa evaluator is read-only outside .claude/agent-memory/qa/ (phase-75.20.1; fail-open; log handoff/logs/qa_write_guard.log)"
+            "statusMessage": "qa-write-guard: CONVENTION CHECK, not a boundary (phase-86.64) -- matcher is Write|Edit so a Bash-channel write is never routed here (measured: same qa identity + same path = exit 2 via Write, exit 0 via Bash), and agent_type is spawner-chosen. Fail direction is MIXED: fail-OPEN when the hook itself breaks (bad JSON / no python3), fail-CLOSED when a qa Write has no readable file_path. Covering control for a deliberate write: Main post-verdict git-status cleanliness, per-step-protocol.md section 4. Log handoff/logs/qa_write_guard.log"
           }
         ]
       }
