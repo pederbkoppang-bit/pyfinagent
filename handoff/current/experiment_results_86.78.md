@@ -5,11 +5,12 @@
 **Evidence:** `handoff/current/live_check_86.78.md` — verbatim, re-runnable.
 **Totals (cycle 2): 43 checks (floor 41), 13 mutation cells, 13 killed.**
 
-> **CYCLE 2.** The cycle-1 Q/A returned **CONDITIONAL**, 5 of 6 criteria met, and its
+> **CYCLE 3.** Criterion 3 is now CLOSED end-to-end — see **§8**.
+> **Cycle 2:** the cycle-1 Q/A returned **CONDITIONAL**, 5 of 6 criteria met, and its
 > own 7-cell battery left **3 survivors**. All three are now closed and pinned as cells
 > **M11/M12/M13** — see `live_check_86.78.md` "CYCLE 2" and
-> `evaluator_critique_86.78.md` for the verbatim verdict. Criterion 3 is **unchanged at
-> PARTIAL**: it is operator-gated, and no amount of further work here moves it.
+> `evaluator_critique_86.78.md` for the verbatim verdict. Criterion 3 was PARTIAL at
+> that point and operator-gated; the operator has since answered and **§8 closes it**.
 
 ---
 
@@ -21,7 +22,10 @@
 | `scripts/qa/verify_escalation_86_78.mjs` | **new** — **43**-check checker driving the REAL function |
 | `scripts/qa/mutation_matrix_86_78.mjs` | **new** — **13**-cell mutation matrix |
 
-**Not touched:** `.claude/agents/qa.md` (**zero-line diff**), `CLAUDE.md`,
+**`.claude/agents/qa.md`:** untouched by Main (**zero-line diff** through cycles 1-2),
+then edited at cycle 3 by a **fresh executor** on the operator's instruction — §8.
+**Also changed at cycle 3:** `scripts/qa/verdict_history_86_21.py` (the `--evidence-only`
+mode) and a renamed ADR. **Not touched at all:** `CLAUDE.md`,
 `.claude/rules/research-gate.md`, `scripts/qa/qa_wip.py`.
 
 ### F1 — the consequence is out of the prompt; the evidence stays
@@ -64,7 +68,7 @@ importing it, so it can never drift from a hand-copy.
 |---|---|---|---|
 | 1 | exposure RE-DERIVED; enumerate consequence-supplying prompts, command stated | **met, with the correction recorded** | live_check §1 — **three classes**: A 365/370 named, B **25/370 (6.8%)** stated, C 16/370 demanded. §1c records that a first pass reported a **false 98.6%** by pooling a table-of-contents pointer with a stakes sentence |
 | 2 | leniency direction stated; already-collected verdicts reasoned about | **met** | §3 below |
-| 3 | counter moved OUTSIDE the judge; a Q/A with NO attempt number still escalates caller-side | **PARTIAL — §4** | live_check §2 — driven; but `qa.md` still instructs self-counting |
+| 3 | counter moved OUTSIDE the judge; a Q/A with NO attempt number still escalates caller-side | **met (cycle 3) — §8** | rail prompt, `qa.md`, AND the tool's stdout all closed; all five consequence probes return 0 |
 | 4 | verdict semantics UNCHANGED; 3rd-CONSECUTIVE still terminates | **met** | live_check §2 C4 — no input verdict is mutated under any sequence; `would_auto_fail` can arm only on a CONDITIONAL |
 | 5 | the two safeguards implemented or declined with a reason | **met** | live_check §2 C5; sourcing gap stated |
 | 6 | mutation-test the relocated counter, control GREEN first | **met** | live_check §3 + "CYCLE 2" — **13/13** killed on named assertions |
@@ -109,7 +113,11 @@ mechanism here is **STAKES FRAMING**.
 
 ---
 
-## 4. Criterion 3 is PARTIAL — and the untouched half is the LARGER one
+## 4. Criterion 3 through cycles 1-2 (SUPERSEDED by §8)
+
+> **This section is the record of what was true before the operator answered. Criterion
+> 3 is now MET end-to-end; §8 is current.** Kept because its argument — that `qa.md` is
+> the LARGER half — is exactly what the cycle-3 work had to close.
 
 The exposure reaches the judge from **two** files. This step closes the rail's half:
 
@@ -211,3 +219,57 @@ It also confirmed the two halves I could verify only indirectly:
 Criterion 3 end-to-end. Its stated route to PASS is *"the operator-gated `qa.md` edit
 removing `:665`/`:685`/`:702`, or an explicit operator decision to accept the
 duplication with the patch written out unapplied."* Both routes are the operator's.
+
+---
+
+## 8. CYCLE 3 — criterion 3 is now CLOSED end-to-end, and the executor found more than I asked
+
+**The operator chose route B: a fresh executor applies the `qa.md` edits.** All three
+sites this step owed are corrected — the 3-consecutive trigger, the F1b escalation
+consequence, and the self-count demand. **All five consequence probes against `qa.md`
+now return 0.**
+
+But the executor did not stop at the brief, and three of its findings were things I had
+missed entirely:
+
+1. **The consequence reached the judge through a TOOL, not the prose.** `qa.md` tells
+   the judge to run `verdict_history_86_21.py`, whose stdout announced
+   `auto-FAIL armed : True (a further CONDITIONAL would be the 3rd)`. **A prose scrub
+   cannot close a channel that runs through a tool.** Fixed: `--evidence-only`.
+2. **After that, the mode still printed `consecutive : 2`.** An **aggregate** hands the
+   judge the boundary's unit *and its own position within it* — "you are near a boundary
+   of shape X", the same class of information. It found this by **re-running the mode
+   rather than trusting its own earlier reading of it**. Every aggregate is now withheld;
+   the sequence, which is the evidence, is not.
+3. **The ADR filename named both units**, and `qa.md` cited the path. A path is text the
+   judge reads. Renamed to `docs/adr/0003-verdict-bound-provenance.md`.
+
+It also caught **its own** first draft quoting the suppressed line inside the warning
+that forbids it — *a warning that reproduces its payload delivers the thing to every
+reader* — and rewrote it to describe the line's shape without stating the rule.
+
+**And it pushed back on my own directive, correctly.** My change-C brief told it to
+"state plainly that the 3-consecutive-CONDITIONAL threshold is computed by the CALLER",
+which names the threshold's **shape** while withholding only its outcome. Under
+2604.15224 the operative variable is the presence of consequence information at grading
+time, so that was still a leak — *my* wording, not its execution. Now the judge is told
+only that a threshold exists, is the caller's to apply, and is deliberately undescribed
+— with the explicit rider **not** to read that silence as evidence that nothing follows.
+
+**The historical CORRECTION block moved VERBATIM** to the ADR rather than being
+rewritten: 13 lines, 980 bytes, sha256 identical, `diff` empty — and the losslessness
+was proven by **re-extracting from the finished artifact**, not by comparing against the
+buffer that wrote it.
+
+### The residual count is 5, NOT 0 — and it is reported that way on purpose
+
+Asked for the count rather than a silent zero, the executor returned **five** and ranked
+them. Its top two (the tool aggregate, the ADR filename) are now **closed**. Three
+weak ones remain and are recorded rather than zeroed: `consecutive_conditionals` as a
+caller-side **field name**, a mention that an aggregate **exists**, and the
+`"do NOT let the zero suppress the escalation"` line inside a paragraph deliberately
+left alone. None names a threshold value, unit or outcome.
+
+**The new checks are DRIVEN** — they execute the tool and assert on its real stdout,
+because a source scan cannot prove a tool's output. **51 checks (floor 49), 13/13
+cells.**

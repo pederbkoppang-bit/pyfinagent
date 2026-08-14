@@ -1,6 +1,7 @@
 # experiment_results — step 86.79
 
-> **CYCLE 3.** This file was **regenerated**, not edited. The cycle-2 Q/A found it
+> **CYCLE 4.** Criterion 4 is now CLOSED on all three members — see **§8**. This file
+> was **regenerated** at cycle 3, not edited. The cycle-2 Q/A found it
 > internally stale in five places — including a block headed *"Verbatim verification
 > output"* whose numbers no longer reproduced — and `qa.md` §4b is explicit that *"a
 > verbatim capture must be regenerated, never edited."* Every count below was read
@@ -47,8 +48,10 @@ the assertion it was aimed at. It was repointed rather than rubber-stamped.
 | `.claude/workflows/qa-verdict.js` | **modified** — the second consumer of the false claim (4 lines) |
 | `handoff/current/qa_md_patch_86.79.md` | **new** — the un-applied `qa.md` corrections, all four sites classified |
 
-**Not touched:** `.claude/agents/qa.md` (**zero-line diff**, independently verified by
-both Q/A cycles), `CLAUDE.md`, `.claude/rules/research-gate.md`.
+**`.claude/agents/qa.md`:** untouched by Main through cycles 1-3 (**zero-line diff**,
+independently verified by both Q/A cycles), then edited at cycle 4 by a **fresh
+executor** on the operator's instruction — see §8. **Not touched at all:** `CLAUDE.md`,
+`.claude/rules/research-gate.md`.
 
 ### The five changes inside `qa_wip.py`
 
@@ -125,14 +128,18 @@ The measured defect, in one table:
 | 1 | off-by-one REPRODUCED, producing line quoted | **met** | live_check §1 — line **grep-derived**; it has moved from `:315` → `:507` during this step, which is why |
 | 2 | write-first coupling demonstrated | **met** | live_check §2 |
 | 3 | pruning saturation + enumeration with command stated | **met** | live_check §3; prune has **no production caller**, re-derived by both Q/A cycles with wider filters |
-| 4 | doc and code made to agree | **PARTIAL — §4** | `qa-verdict.js` closed; `qa.md` **2 sites** operator-gated |
+| 4 | doc and code made to agree | **met (cycle 4) — §8** | all three members: `DEFAULT_KEEP`'s comment, `qa-verdict.js`'s 4 lines, and `qa.md`'s 2 sites (applied by a fresh executor on the operator's instruction) |
 | 5 | escalation still fires | **met** | live_check §5 |
 | 6 | verdict semantics unchanged; fails CLOSED | **met** | live_check §6 |
 | 7 | mutation-test, control GREEN first | **met** | live_check §7 + §12–§15 — 11/11 killed on named assertions |
 
 ---
 
-## 4. Criterion 4 is PARTIAL — the honest position, unchanged across three cycles
+## 4. Criterion 4 — the position through cycles 1-3 (SUPERSEDED by §8)
+
+> **This section is the record of what was true before the operator answered. Criterion
+> 4 is now MET; §8 is current.** Kept because the reasoning for declining to self-author
+> the `qa.md` edit is the reason a fresh executor was used.
 
 | | member | state |
 |---|---|---|
@@ -213,3 +220,29 @@ because a changing "passed" count otherwise looks like drift.
   surviving, which is direct evidence that a matrix an author writes alone is not a
   completeness proof.
 - **`attempt_budget.py` is still unwired** — step 86.71.
+
+---
+
+## 8. CYCLE 4 — criterion 4 is now CLOSED, by a fresh executor
+
+**The operator was asked and chose route B: a fresh executor applies the `qa.md`
+edits.** That resolves the separation-of-duties block — Main authored the code, so Main
+must not author the agent file it is graded against; a different author does.
+
+Both `qa.md` sites this step owed are now corrected:
+
+| site | was | now |
+|---|---|---|
+| `:622` | *"`records_retained` is the count of prior Q/A spawns … the **attempt number**"* — false on both halves | points at `attempt_number` / `prior_attempts`, states the INCLUSIVE unit, and demotes `records_retained` explicitly as a **gauge** that pruning can lower |
+| `:645` | *"if `records_retained` (auto) **>** the ledger's verdict count…"* | compares `attempt_number`, and adds the `null` branch (`sequence: UNKNOWN`, never substitute the gauge) |
+
+Deliberately **not** changed, exactly as classified: `:692` (accurate) and the dated
+`qa_wip.py 86.33` measurement (rewriting it would falsify a record). Verified in the
+diff: **0 lines containing `records_retained: 0` or `qa_wip.py 86.33` appear at all.**
+
+**So criterion 4 is now met on all THREE members**: `4a` `DEFAULT_KEEP`'s comment
+(cycle 1), `4b` `qa-verdict.js`'s four lines (cycle 2), `4c` `qa.md`'s two sites
+(cycle 4). The step is no longer blocked on anything outside itself.
+
+`verify_counter_86_79.py` re-run after the qa.md edits: **exit 0, 55 checks, 0 failed.**
+All five sibling gates re-run green.
