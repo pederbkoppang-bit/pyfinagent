@@ -444,3 +444,129 @@ undetermined set is GROWING**. Queued as **D5**. Possibly related to 86.69's
 **Three probes of mine failed in this one session, all in the same direction:** each
 was a correct measurement of the wrong thing, and each was caught by a control
 rather than by review.
+
+---
+
+# Session 3 (evening, 17:00–17:30Z / 19:00–19:30 CEST) — the harness failure is SOLVED
+
+## The headline
+
+**The Layer-3 rail drop is TURN-BUDGET EXHAUSTION.** Not a model effect, not
+prompt size, not effort, not wall-clock. The subagent spends its last permitted
+turn on ordinary work and the runtime's nudge fires with no turn left in which
+the schema call could be emitted.
+
+Measured over 572 run records / 1325 spawns
+(`python3 scripts/qa/rail_turn_cap.py --verify`, exit 0):
+
+| agentType | frontmatter cap | dropped | turn values ON DROPS |
+|---|---|---:|---|
+| `qa` | `maxTurns: 30` | 39/302 | `{30}` — all 39 |
+| `researcher` | `maxTurns: 40` | 9/93 | `{40}` — all 9 |
+| `general-purpose` | none | **0/252** | reaches 63 |
+| `Explore` | none | **0/263** | reaches 56 |
+| default workflow subagent | none | **0/414** | reaches 93 |
+
+Read the drop column as a **set**: every one of the 48 drops sat at *exactly*
+the cap. Not near it.
+
+## The operator's three hypotheses, answered
+
+- **Ran out of turns — YES**, 48/48.
+- **Ended with text instead of the tool — NO**, 0/48. And I nearly misread the
+  evidence here: 393 of 394 *successful* transcripts also end on a
+  `tool_result`, so the tail shape is not diagnostic on its own. The difference
+  is only *which* tool — `StructuredOutput` in a success, Bash/Edit/Write in a
+  drop.
+- **Tool-availability — NO.** `StructuredOutput` is emitted by 1257/1277
+  completed spawns vs 1/48 dropped. The tool is there; the agent never reaches
+  the turn.
+
+## Why this hid for three weeks
+
+The prior attribution was MODEL (`opus-5[1m]` 11.4% vs `opus-4-8[1m]` 0.0%), and
+it survived four *correct* refutations, hardening into "the mechanism is
+UNPROVEN" in three files. It was a proxy: **223 of `opus-4-8[1m]`'s 258 spawns
+were uncapped `general-purpose`**, a type that has never dropped on any model.
+Holding the model fixed at `opus-5[1m]`: **47/379 capped vs 0/417 uncapped**.
+The `opus-4-8[1m] × qa` cell is 0/9 — far too small to say anything, and the
+marginal 0/258 hid that.
+
+Every previously-refuted hypothesis stays refuted *and* is consistent with this
+one: prompt size does not change how many turns an investigation needs (which is
+exactly why the operator's lean-prompt run still dropped); byte-identical
+scripts producing both outcomes is what a cap near the workload median looks
+like; the retry works because it is a fresh turn budget.
+
+## This is a RECURRENCE
+
+`qa.md:15` — *"maxTurns 30 (phase-59.1): the old 12 cap caused mid-evaluation
+stalls"*. `researcher.md:16` — *"maxTurns 40 (phase-59.1): complex briefs hit
+the old 30 cap mid-write"*. Same defect, same roles, fixed once by raising the
+cap to a number the workload outgrew. And `qa.md` pushes the agent *into* the
+cap: *"your real bound is maxTurns … Depth is the point."*
+
+## What I did NOT do, and why
+
+**No cap was raised. No agent `.md` was edited. No remedy was applied.** Three
+reasons, and I want them on the record rather than implied:
+
+1. The right number **cannot be sized from this data**. The capped roles' turn
+   distribution is **right-censored at the cap** — the qa median of 18 is a
+   censored median and the tail beyond 30 was never observed. Picking 45 or 60
+   from these percentiles is the same inference that produced 30 and then
+   failed.
+2. The research gate on remedy options (per-call turn budget? reserve a terminal
+   turn? move the roles onto the uncapped default subagent?) **was still in
+   flight at freeze** — 7 sources read in full, 12 URLs, recency scan not yet
+   done, `brief_status: INCOMPLETE`, `gate_passed: false`. It had not grown in
+   the last ~10 minutes before freeze, so it may itself have hit its own
+   `maxTurns: 40`; I could not confirm either way before the deadline.
+3. Agent-file edits need separation-of-duties review per CLAUDE.md and take
+   effect only at the next session start regardless.
+
+So the **diagnosis** landed and is durable; the **fix** is queued as 86.84.
+
+## Filed
+
+- **86.84** (P1) — the turn-exhaustion diagnosis + remedy, criteria frozen only
+  after the verification command was run green (exit 0).
+- **86.85** (P2) — the verdict ledger is never written for the step in flight,
+  so the 3rd-CONDITIONAL auto-FAIL rule has no input. Operator-directed. **This
+  is a code/data fact, not visible in any error log.** Together with 86.71
+  (attempt budget: no caller, no persistence) **both** documented per-step
+  termination mechanisms are currently inert.
+
+## Also confirmed this session
+
+- **86.74 C4 groundwork:** backend pid **85562** confirmed with `ps -o` *without*
+  `-e`, started Fri 14 Aug 17:52:08 CEST, elapsed 1h08m, cross-checked against
+  `launchctl list` (`com.pyfinagent.backend` → 85562). **`curl /health` returned
+  404** — that path is wrong; the operator's "health 200" was on a different
+  endpoint and I did not find the right one before freeze. **C4 remains
+  unmeasured**: no autonomous cycle ran in this window, so there is still no
+  post-fix share to compare against the 0-of-129 baseline.
+- **C7 (33 UNDETERMINED) — untouched this session.** Still MINE alone; no
+  evaluator has re-measured the 19/14/0 split.
+- **D5 — untouched this session.** Still queued and still firing.
+
+## Honest limits
+
+- Turn exhaustion is proven **necessary** on 48/48 drops, and no uncapped spawn
+  has dropped in 930 tries. It is **not** proven sufficient — a second mechanism
+  that only fires at the cap is not excluded.
+- The corollary that the Agent-tool path degrades gracefully at maxTurns while
+  the schema path returns nothing is **consistent** with the operator's measured
+  "rail 0-for-4, Agent-tool 3-for-3" but I did **not** measure it.
+- **No Q/A verdict was obtained on this session's work.** The diagnosis is
+  committed as evidence, not as a passed step; 86.84 stays `pending`.
+- Stale claims still on disk, deliberately not edited during a freeze:
+  `scripts/qa/rail_drop_rate.py` and the twin comment blocks in
+  `.claude/workflows/qa-verdict.js` and `.claude/workflows/research-gate.js` all
+  still say the mechanism is unproven and split the rate by model. Correcting
+  them at source is criterion 5 of 86.84.
+
+## Pending restart list
+
+**None.** No `.env` edit, no plist change, no production code touched this
+session. The only new file is a read-only measurement script.
