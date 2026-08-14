@@ -102,8 +102,51 @@ MUTATIONS = [
              "regime the field exists to flag",
         anchor='        out["attempt_number_is_lower_bound"] = True',
         repl='        out["attempt_number_is_lower_bound"] = False  # MUTANT',
-        expect_named=("at/above the window with no loss account -> FLAGGED as a floor",
-                      "the three states are not all the same value (the field discriminates)"),
+        # Deliberately pointed at the ABOVE-the-window assertion, which M10's
+        # boundary mutation canNOT break -- so M9 and M10 stay distinguishable
+        # rather than both being scored by whichever assertion fires first.
+        expect_named=("above the window with no loss account -> FLAGGED as a floor",),
+    ),
+    # ── M10/M11 were found by the CYCLE-2 Q/A. M10 is a NEW instance of M9's class
+    # INSIDE the guard written to close M9 -- the remediation was narrower than the
+    # class, which is the whole reason it is pinned here.
+    dict(
+        id="M10-LOWER-BOUND-MISSES-THE-BOUNDARY",
+        desc="[cycle-2 Q/A survivor] >= DEFAULT_KEEP -> > DEFAULT_KEEP. At exactly "
+             "keep retained with no ledger -- the state a legacy prune leaves "
+             "behind -- the mutant claims exactness where the flag exists to warn",
+        anchor="    if lost is None and len(records) >= DEFAULT_KEEP:",
+        repl="    if lost is None and len(records) > DEFAULT_KEEP:  # MUTANT: off-by-one",
+        expect_named=("EXACTLY AT the window with no ledger -> FLAGGED (the boundary itself)",
+                      "the field discriminates (not all regimes agree)"),
+    ),
+    dict(
+        id="M11-RECORD-LOSS-AFTER-THE-UNLINK",
+        desc="[cycle-2 Q/A survivor] record the loss AFTER the unlink loop and from "
+             "what was actually removed -- a crash mid-prune then UNDER-counts, the "
+             "direction that SUPPRESSES escalation",
+        # The mutation must MOVE the call, not delete it -- deleting it is already
+        # M2, and a cell that duplicates another proves nothing new.
+        anchor=("    _record_loss(step_id, len(doomed), repo)\n"
+                "    removed = []\n"
+                "    for p in doomed:\n"
+                "        try:\n"
+                "            p.unlink()\n"
+                "            removed.append(p)\n"
+                "        except OSError:\n"
+                "            pass\n"
+                "    return removed"),
+        repl=("    removed = []  # MUTANT: account AFTER the unlink, from what survived\n"
+              "    for p in doomed:\n"
+              "        try:\n"
+              "            p.unlink()\n"
+              "            removed.append(p)\n"
+              "        except OSError:\n"
+              "            pass\n"
+              "    _record_loss(step_id, len(removed), repo)\n"
+              "    return removed"),
+        expect_named=("the loss was ALREADY recorded when the crash hit -> OVER-count, not None",
+                      "...so the derived count errs HIGH after a crash, never low"),
     ),
     dict(
         id="M6-LEAK-A-VERDICT-KEY",

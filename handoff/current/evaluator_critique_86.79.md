@@ -132,3 +132,53 @@ sibling regression gates re-run green (23 / 245 / 24-of-24 / 5-of-5 / 0-survivin
 block (*"return FAIL instead of a third"*, *"at 5+, recommend operator escalation"*) —
 that is sibling step **86.78**'s subject, and widening scope into it here would put
 the two steps' evidence in one basket.
+
+---
+
+## Cycle-2 verdict — CONDITIONAL (`wf_44776e5d-ca3`)
+
+Transcribed from the rail's captured return value; full JSON at
+`/private/tmp/.../tasks/wf218yyz5.output`. `harness_compliance_ok: true`.
+Four findings — **three fixed in cycle 3, one operator-gated.**
+
+| # | finding | disposition |
+|---|---|---|
+| 1 | **criterion 4 still unmet, and a SECOND stale `qa.md` site at `:645`** the step had not enumerated — *"inside qa.md the divergence is 2 sites, not the 1 the patch file addresses"*. It confirmed the `qa-verdict.js` half is genuinely **CLOSED** | **STILL GATED.** Whole-file enumeration now finds **4** sites and classifies them: `:622` FALSE, `:645` STALE, `:692` accurate, `:713` a dated measurement not to be rewritten. Gated work = 2 sites |
+| 2 | **surviving mutant Q-A** — `>= DEFAULT_KEEP` → `> DEFAULT_KEEP` survives all 50 checks. C3c drove retained=2 and retained=5, *"so the boundary value DEFAULT_KEEP itself is never exercised"*, and M9 killed only the always-False form | **FIXED.** C3c now drives below / **EXACTLY-AT** / above / accounted. Cell **M10**, pointed at an assertion **M9 cannot break** so the two remain distinguishable |
+| 3 | **surviving mutant Q-E** — moving `_record_loss` to after the unlink, with `unlink` patched to raise, leaves both gates green. *"a documented safety invariant with no guard is a claim, not a property"* | **FIXED.** New section **C3d** drives a simulated crash mid-prune: `read_loss == 3` and `prior_attempts == 9 > 6`. Cell **M11** **moves** the call rather than deleting it — deleting it is already M2 |
+| 4 | **`experiment_results_86.79.md` internally stale in five places**, including a block headed *"Verbatim verification output"* whose 42/30/7 do not reproduce against 50/48/9 | **FIXED.** The file was **regenerated from a live run**, per `qa.md` §4b: *"a verbatim capture must be regenerated, never edited"* |
+
+Its own summary of what it reproduced rather than read: the immutable command, both
+gates, C1/C2/C3/C5/C6 driven in its own scratch sinks, the prune enumeration re-run
+with **no** `--include` filters, and a consumer grep over `.claude/hooks` +
+`scripts/harness` + `backend` for `qa_wip|attempt_number` returning **zero** — so no
+path exists from this change to the verdict gate.
+
+---
+
+## Cycle 3 — ESCALATED TO THE OPERATOR, no third spawn
+
+**All code findings are closed:** 55 checks (floor 53), 11/11 cells killed on named
+assertions, control GREEN first, tracked subject digest unchanged, five sibling gates
+green, ruff clean on a derived non-empty scope.
+
+**A third Q/A was deliberately NOT spawned, and this is a judgement I am putting on
+the record rather than burying.** Criterion 4 cannot be met without editing
+`.claude/agents/qa.md`, which is operator-gated. A third Q/A could therefore only cap
+on criterion 4 again — and under the **3rd-CONSECUTIVE-CONDITIONAL rule that verdict
+would have to be FAIL**. That FAIL would be produced by an operator gate, not by the
+work, and spending ~200K tokens to manufacture it would misrepresent the state.
+
+**This is NOT a claim of PASS.** No verdict above CONDITIONAL has been issued, and
+Main has issued none at all. The step stays `pending`. What is owed is in
+`handoff/current/qa_md_patch_86.79.md`: 2 sites, 3 routes, recommended **B — a fresh
+executor applies it**, which preserves separation of duties. Once applied, a fresh
+Q/A can grade criterion 4 on evidence that can actually satisfy it.
+
+### Verdict ledger
+
+| cycle | rail run | verdict |
+|---|---|---|
+| 1 | `wf_61338c26-b90` | **CONDITIONAL** |
+| 2 | `wf_44776e5d-ca3` | **CONDITIONAL** |
+| 3 | *(not spawned — escalated)* | — |

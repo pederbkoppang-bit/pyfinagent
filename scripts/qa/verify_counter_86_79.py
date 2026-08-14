@@ -61,7 +61,7 @@ SID = "99.1"
 #: and that the constant's own instruction ("raise it when adding checks") had not
 #: been followed; raised to sit just under the current total so a silently-skipped
 #: block is caught rather than absorbed.
-EXPECTED_CHECKS = 48
+EXPECTED_CHECKS = 53
 
 _results: list[tuple[str, bool, str]] = []
 
@@ -236,28 +236,91 @@ shutil.rmtree(tmp)
 # invisible to every gate. A shipped output field with no guard has no guard.
 section("C3c -- attempt_number_is_lower_bound actually discriminates")
 
+# CYCLE-2 Q/A finding (its mutant Q-A): the first version of this section drove
+# retained=2 and retained=5 only, so the BOUNDARY VALUE -- exactly DEFAULT_KEEP --
+# was never exercised, and `>=` -> `>` survived. The boundary is not a detail here:
+# `retained == DEFAULT_KEEP` with no ledger is EXACTLY the state a legacy prune
+# leaves behind, i.e. the state the flag exists for. Every regime is now driven,
+# and the boundary has its own named assertion.
 tmp = pathlib.Path(tempfile.mkdtemp(prefix="c3c_"))
-for s in STAMPS[:2]:                      # below DEFAULT_KEEP, no ledger
+regimes = {}
+for s in STAMPS[:qa_wip.DEFAULT_KEEP - 1]:            # BELOW the window
     mk(tmp, SID, s)
-below = qa_wip.report(SID, repo=tmp, spawned_at=iso_of(STAMPS[1]))
-for s in STAMPS[2:5]:                     # now at/above DEFAULT_KEEP, still no ledger
+regimes["below"] = qa_wip.report(
+    SID, repo=tmp, spawned_at=iso_of(STAMPS[qa_wip.DEFAULT_KEEP - 2]))
+mk(tmp, SID, STAMPS[qa_wip.DEFAULT_KEEP - 1])         # EXACTLY at the window
+regimes["at"] = qa_wip.report(
+    SID, repo=tmp, spawned_at=iso_of(STAMPS[qa_wip.DEFAULT_KEEP - 1]))
+for s in STAMPS[qa_wip.DEFAULT_KEEP:qa_wip.DEFAULT_KEEP + 2]:   # ABOVE
     mk(tmp, SID, s)
-atwin = qa_wip.report(SID, repo=tmp, spawned_at=iso_of(STAMPS[4]))
+regimes["above"] = qa_wip.report(
+    SID, repo=tmp, spawned_at=iso_of(STAMPS[qa_wip.DEFAULT_KEEP + 1]))
 qa_wip.prune_wip_records(SID, repo=tmp, keep=qa_wip.DEFAULT_KEEP)   # writes a ledger
-accounted = qa_wip.report(SID, repo=tmp, spawned_at=iso_of(STAMPS[4]))
+regimes["accounted"] = qa_wip.report(
+    SID, repo=tmp, spawned_at=iso_of(STAMPS[qa_wip.DEFAULT_KEEP + 1]))
 
+check("precondition: the three unaccounted regimes really are below / AT / above",
+      (regimes["below"]["records_retained"] == qa_wip.DEFAULT_KEEP - 1
+       and regimes["at"]["records_retained"] == qa_wip.DEFAULT_KEEP
+       and regimes["above"]["records_retained"] > qa_wip.DEFAULT_KEEP),
+      f"retained = {regimes['below']['records_retained']} / "
+      f"{regimes['at']['records_retained']} / {regimes['above']['records_retained']}, "
+      f"keep={qa_wip.DEFAULT_KEEP}")
 check("below the retention window with no ledger -> NOT flagged a floor",
-      below["attempt_number_is_lower_bound"] is False,
-      f"retained={below['records_retained']} keep={qa_wip.DEFAULT_KEEP}")
-check("at/above the window with no loss account -> FLAGGED as a floor",
-      atwin["attempt_number_is_lower_bound"] is True,
-      f"retained={atwin['records_retained']}")
+      regimes["below"]["attempt_number_is_lower_bound"] is False)
+check("EXACTLY AT the window with no ledger -> FLAGGED (the boundary itself)",
+      regimes["at"]["attempt_number_is_lower_bound"] is True,
+      f"retained == keep == {qa_wip.DEFAULT_KEEP}; this is the state a legacy "
+      f"prune leaves behind, so `>` instead of `>=` must NOT survive")
+check("above the window with no loss account -> FLAGGED as a floor",
+      regimes["above"]["attempt_number_is_lower_bound"] is True)
 check("once the loss IS accounted -> no longer a floor",
-      accounted["attempt_number_is_lower_bound"] is False,
-      f"lost={accounted['records_pruned_known']}")
-check("the three states are not all the same value (the field discriminates)",
-      len({below["attempt_number_is_lower_bound"],
-           atwin["attempt_number_is_lower_bound"]}) == 2)
+      regimes["accounted"]["attempt_number_is_lower_bound"] is False,
+      f"lost={regimes['accounted']['records_pruned_known']}")
+check("the field discriminates (not all regimes agree)",
+      len({r["attempt_number_is_lower_bound"] for r in regimes.values()}) == 2)
+shutil.rmtree(tmp)
+
+
+# ── C3d: the ledger-before-unlink CRASH SAFETY claim. Cycle-2 Q/A finding Q-E. ──
+# qa_wip.prune_wip_records documents an explicit safety invariant: the loss is
+# recorded BEFORE the unlink so a crash mid-prune OVER-counts (escalates early,
+# safe) rather than UNDER-counts (suppresses escalation, unsafe). That was a
+# documented claim with no assertion behind it -- and a documented invariant with
+# no guard is a claim, not a property. Driven by making the unlink actually fail.
+section("C3d -- crash mid-prune OVER-counts (the documented safe direction)")
+
+tmp = pathlib.Path(tempfile.mkdtemp(prefix="c3d_"))
+for s in STAMPS[:6]:
+    mk(tmp, SID, s)
+_real_unlink = pathlib.Path.unlink
+
+
+def _exploding_unlink(self, *a, **kw):        # simulate a crash mid-prune
+    raise OSError("simulated crash mid-prune")
+
+
+pathlib.Path.unlink = _exploding_unlink
+try:
+    removed_crash = qa_wip.prune_wip_records(SID, repo=tmp, keep=qa_wip.DEFAULT_KEEP)
+finally:
+    pathlib.Path.unlink = _real_unlink
+
+survivors = len(qa_wip.list_wip_records(SID, repo=tmp))
+lost_after_crash = qa_wip.read_loss(SID, repo=tmp)
+check("precondition: the unlink really did fail (nothing was deleted)",
+      removed_crash == [] and survivors == 6,
+      f"removed={len(removed_crash)} still_on_disk={survivors}")
+check("the loss was ALREADY recorded when the crash hit -> OVER-count, not None",
+      lost_after_crash == 3,
+      f"read_loss={lost_after_crash} -- recording AFTER the unlink would give "
+      f"None (or 0), which UNDER-counts and suppresses escalation")
+crashed = qa_wip.report(SID, repo=tmp, spawned_at=iso_of(STAMPS[7]))
+check("...so the derived count errs STRICTLY HIGH after a crash, never low",
+      crashed["prior_attempts"] > 6,
+      f"prior_attempts={crashed['prior_attempts']} -- must EXCEED the 6 real "
+      f"attempts (6 survivors + 3 already-accounted). Accounting after the unlink "
+      f"gives exactly 6, so `>= 6` would not discriminate and `> 6` does")
 shutil.rmtree(tmp)
 
 print("\n  ENUMERATION -- automatic callers of prune_wip_records in the live tree.")

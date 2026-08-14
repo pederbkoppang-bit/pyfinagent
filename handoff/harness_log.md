@@ -34554,3 +34554,68 @@ is load-bearing since `all([]) is True`.
 left in phase X", but the code requires `all(st == "done")`. The masterplan carries **9**
 distinct statuses; **25 of 165** top-level phases satisfy the doc but not the code, reachable
 via a `deferred -> done` flip. Divergence is UNDER-bump, the conservative side.
+
+---
+
+## Cycle 1 -- 2026-08-14 -- phase=86.79 result=CONDITIONAL
+
+**The attempt counter was a GAUGE read as a COUNTER.** Research gate `wf_267244ab-91e`
+(10 sources / 25 URLs) named the defect at type level -- Prometheus: *"Do not use a
+counter to expose a value that can decrease"* -- and supplied the remedy the fix
+adopts, the Linux perf ring buffer's `PERF_RECORD_LOST`: *"the kernel keeps how many
+records it lost"*, retained data and loss count as SEPARATE records.
+
+**Three defects in one integer, each reproduced rather than argued.** (1)
+`records_retained` counts the CURRENT spawn -- 2 priors reports 3 -- while `qa.md`
+calls it *both* "the count of prior spawns" *and* "the attempt number" in one
+sentence. (2) It is correct ONLY because write-first, a rule in a DIFFERENT file,
+runs first: the same spawn reports **2** before its own write and **3** after, and
+the low direction is the one that SUPPRESSES escalation. (3) `prune(keep=3)`
+saturates it: 6 real attempts report 3, so F1b's ceiling reads `3/5 -> CONTINUE`
+instead of `6/5 -> ESCALATE`. **Latent, not live** -- `prune_wip_records` has zero
+production callers, re-derived by both Q/A cycles with wider filters than mine.
+
+**A THIRD off-by-one came from the gate, not from me:** `DEFAULT_KEEP`'s own comment
+promised "current + 3 priors" while `records[keep:]` retains 3 total. The DOC moved,
+not the code -- `records[keep:]` matches the k8s/journald precedents the module cites.
+
+## Cycle 2 -- 2026-08-14 -- phase=86.79 result=CONDITIONAL
+
+**The cycle-1 Q/A found the defect I had enumerated ONE member of.** The same false
+claim was duplicated in `.claude/workflows/qa-verdict.js` -- the rail that spawned it
+-- which is NOT under `.claude/agents/`, so the separation-of-duties blocker never
+applied. Enumerating the class found **four** lines, not the two it named; all fixed.
+It also executed two mutants that survived my matrix (the loss add-back on the
+`no_record_for_this_spawn` branch, and the lower-bound flag with zero coverage) and
+caught a dead import my artifacts never mentioned a lint run for.
+
+## Cycle 3 -- 2026-08-14 -- phase=86.79 result=CONDITIONAL (ESCALATED, not re-spawned)
+
+**The cycle-2 Q/A found a second stale `qa.md` site -- immediately after cycle 2 had
+been corrected for enumerating one member of a two-member class.** Enumerating the
+whole file this time: **4 sites, of different kinds** -- `:622` FALSE, `:645` STALE,
+`:692` accurate, `:713` a dated measurement that must NOT be rewritten. It also
+executed two more surviving mutants: the lower-bound BOUNDARY (`>=` -> `>` at exactly
+`DEFAULT_KEEP`, the state a legacy prune leaves behind) and the ledger-before-unlink
+crash-safety invariant, which was **documented but unguarded** -- a claim, not a
+property. Both now have guards and permanent cells. It also found this artifact set
+stale in five places; `experiment_results` was **regenerated**, not edited.
+
+**All code findings across three cycles are CLOSED: 55 checks (floor 53), 11/11
+mutation cells killed on named assertions, control GREEN first, tracked subject
+sha256 unchanged, all 5 sibling gates green, ruff clean on a derived non-empty scope.**
+
+**NOT FLIPPED, AND DELIBERATELY NOT RE-SPAWNED.** Criterion 4 requires doc and code to
+agree, and the two remaining sites are in `.claude/agents/qa.md`, which carries four
+Main-authored edits already awaiting operator review. A third Q/A could only cap on
+criterion 4 again -- and by the 3rd-CONSECUTIVE-CONDITIONAL rule that verdict would
+have to be **FAIL**, produced by an operator gate rather than by the work. Spending
+~200K tokens to manufacture that FAIL would misrepresent the state. **Escalated
+instead**, with the exact patch written out and unapplied:
+`handoff/current/qa_md_patch_86.79.md`, three routes, recommended **B (fresh
+executor)**. Step remains `pending`.
+
+**First-party evidence for sibling step 86.78, recorded here so it is not lost:** the
+cycle-1 spawn prompt supplied NO attempt number, NO prior sequence and NO consequence
+-- and the Q/A still opened its notes with "ATTEMPT NUMBER: 1", because `qa.md` tells
+it to. Suppressing the caller's prompt alone is **not sufficient**.

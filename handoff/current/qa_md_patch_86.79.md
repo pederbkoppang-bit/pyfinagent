@@ -1,6 +1,9 @@
-# PROPOSED — NOT APPLIED — one-line `qa.md` correction for step 86.79
+# PROPOSED — NOT APPLIED — the `qa.md` corrections owed by step 86.79
 
 **Status: WRITTEN OUT FOR THE OPERATOR, DELIBERATELY NOT APPLIED.**
+**Scope: TWO sites (`:622` FALSE, `:645` STALE), one optional (`:692`), one
+deliberately left alone (`:713`).** This file said "one-line" through cycles 1–2;
+that was wrong twice over and the enumeration below replaces it.
 
 `.claude/agents/qa.md` already carries **four Main-authored edits awaiting
 operator review** under CLAUDE.md's separation-of-duties rule
@@ -48,7 +51,39 @@ step's.
 
 ---
 
-## The divergence (the REMAINING member)
+---
+
+## ⚠ CYCLE-3 CORRECTION — inside `qa.md` the class is FOUR sites, not one
+
+The cycle-2 Q/A found a **second** stale `qa.md` site (`:645`) that this file did
+not enumerate — after cycle 2 had just been corrected for enumerating one member of
+a two-member class. So the enumeration was run properly this time, over the whole
+file rather than over the sites someone had named:
+
+```
+$ grep -n 'records_retained' .claude/agents/qa.md
+622:  `records_retained` is the count of prior Q/A spawns on this step — the
+645:  > if `records_retained` (auto) **>** the ledger's verdict count, **the ledger
+692:  the WIP sink does not exist, so `records_retained: 0` means **the counter
+713:  Measured: `qa_wip.py 86.33` returns `records_retained: 3` and lists
+```
+
+**Four sites, and they are not all the same kind of problem.** Classifying rather
+than pooling them, since three of the four are not false:
+
+| site | text | classification | needs changing? |
+|---|---|---|---|
+| **:622** | *"the count of prior Q/A spawns … the **attempt number**"* | **FALSE, and false on both halves.** It is `len(records)`, INCLUSIVE of the current spawn | **YES — this is the defect** |
+| **:645** | *"if `records_retained` (auto) **>** the ledger's verdict count, the ledger is STALE"* | **STALE, not false.** The comparison still works today, but it is the one whose `qa-verdict.js` counterpart (`:165`) was corrected to `attempt_number`, so the two rails now disagree | **YES — for consistency** |
+| **:692** | *"`records_retained: 0` means the counter has no input, not 'this is attempt 1'"* | **ACCURATE.** `records_retained` really is 0 there. Superseded only in the sense that `attempt_number` now fails closed automatically | optional |
+| **:713** | *"Measured: `qa_wip.py 86.33` returns `records_retained: 3`"* | **A HISTORICAL MEASUREMENT**, true when taken | **NO — rewriting a dated measurement would be falsifying a record** |
+
+**So the operator-gated work is 2 sites (`:622`, `:645`), with `:692` optional and
+`:713` deliberately left alone.**
+
+---
+
+## The divergence (site `:622` — the FALSE one)
 
 `.claude/agents/qa.md`, in the **3rd-CONDITIONAL auto-FAIL** section (anchor:
 grep for `` `records_retained` is the count of prior ``; it was at **line 622**
@@ -120,3 +155,44 @@ Criterion 4 forbids leaving the divergence **silent**. It is not silent:
 
 That is a mitigation, **not** the fix. The sentence in `qa.md` is still wrong
 until route A or B is taken, and step 86.79 should be judged on that basis.
+
+---
+
+## Site `:645` — the second gated change (cycle-3 addition)
+
+Current:
+
+```
+  > if `records_retained` (auto) **>** the ledger's verdict count, **the ledger
+  > is STALE** — say so in `notes` and treat the sequence as unreliable.
+```
+
+Proposed:
+
+```
+  > if `attempt_number` (auto) **>** the ledger's verdict count, **the ledger
+  > is STALE** — say so in `notes` and treat the sequence as unreliable. If
+  > `attempt_number` is `null`, the comparison CANNOT be made: say
+  > `sequence: UNKNOWN` rather than substituting `records_retained`, which
+  > counts files and can be lowered by pruning.
+```
+
+**Why it matters even though the current text is not false.** Its counterpart in the
+launch rail — `.claude/workflows/qa-verdict.js` — **was** corrected to
+`attempt_number` in cycle 2. Leaving `qa.md` on `records_retained` means the two
+files the Q/A reads now prescribe **different comparisons for the same decision**,
+and under pruning they give different answers. That is the same
+two-sources-one-fact hazard this whole step is about.
+
+## Site `:692` — OPTIONAL, listed for completeness
+
+Accurate as written. `attempt_number` now fails closed on that path by itself
+(`attempt_number_status = source_missing`), so the paragraph is belt-and-braces
+rather than wrong. Adding a pointer to `attempt_number_status` would be an
+improvement, not a correction.
+
+## Site `:713` — DELIBERATELY NOT CHANGED
+
+A dated measurement (`qa_wip.py 86.33` returned `records_retained: 3`) that was true
+when taken. Rewriting it would falsify a record. It is listed here so that the
+enumeration is complete and nobody has to re-derive the class a fourth time.

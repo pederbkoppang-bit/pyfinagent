@@ -4,22 +4,25 @@ Everything below is **verbatim tool output**, re-runnable by:
 
 ```
 source .venv/bin/activate
-python scripts/qa/verify_counter_86_79.py      # 50 checks, exit 0
-python scripts/qa/mutation_matrix_86_79.py     #  9 cells, exit 0
+python scripts/qa/verify_counter_86_79.py      # 55 checks, exit 0
+python scripts/qa/mutation_matrix_86_79.py     # 11 cells, exit 0
 ```
 
 Every write in both scripts goes to a temp directory. The live repo is only READ.
 `.claude/agents/qa.md` is **not modified by this step** — proof in §8.
 
-> **THESE ARE THE CURRENT NUMBERS (cycle 2).** §1–§7 below are the **cycle-1**
-> capture and read **42 checks / 7 cells** — they are kept verbatim as the record of
-> what the cycle-1 Q/A actually graded, not because they are current. The cycle-2
-> delta is §12–§14: two new checker sections (C3b, C3c) closing the two mutants that
-> survived cycle 1, both cycle-1 survivors added as permanent cells **M8/M9**, the
-> dead `datetime` import removed, and `EXPECTED_CHECKS` raised 30 → 48.
-> Line numbers quoted inside the §1–§7 capture are likewise **as of cycle 1** and
-> have since moved; the checker greps for its anchors at runtime and never relies
-> on them.
+> **THESE ARE THE CURRENT NUMBERS (cycle 3).** The captures below are kept verbatim
+> as the record of what each Q/A actually graded — **not** because they are current:
+>
+> | sections | cycle | totals AS CAPTURED |
+> |---|---|---|
+> | §1–§7 | 1 | 42 checks / floor 30 / 7 cells |
+> | §12–§14 | 2 | 50 checks / floor 48 / 9 cells — adds C3b, C3c, M8, M9; F401 removed |
+> | **§15–§17** | **3** | **55 checks / floor 53 / 11 cells** — adds the C3c boundary regime, C3d crash-safety, M10, M11 |
+>
+> **Only §15–§17 reproduce against a current run.** Line numbers inside the earlier
+> captures are likewise as-of-then and have since moved; the checker greps for its
+> anchors at runtime and never relies on them.
 
 ---
 
@@ -367,3 +370,81 @@ $ uvx ruff check --select F821,F401,F811 <the 3 files>
 All checks passed!
 ruff EXIT=0
 ```
+
+---
+
+# CYCLE 3 — evidence for the cycle-2 findings
+
+The cycle-2 Q/A executed two mutants that survived (Q-A boundary, Q-E crash
+safety) and found this artifact set internally stale. Sections 12-14 above are
+the CYCLE-2 capture; the current run is below and supersedes their totals.
+
+## §15. verify_counter_86_79.py -- the two NEW sections (verbatim)
+
+```
+C3c -- attempt_number_is_lower_bound actually discriminates
+==========================================================================
+  [PASS] precondition: the three unaccounted regimes really are below / AT / above -- retained = 2 / 3 / 5, keep=3
+  [PASS] below the retention window with no ledger -> NOT flagged a floor
+  [PASS] EXACTLY AT the window with no ledger -> FLAGGED (the boundary itself) -- retained == keep == 3; this is the state a legacy prune leaves behind, so `>` instead of `>=` must NOT survive
+  [PASS] above the window with no loss account -> FLAGGED as a floor
+  [PASS] once the loss IS accounted -> no longer a floor -- lost=2
+  [PASS] the field discriminates (not all regimes agree)
+
+==========================================================================
+C3d -- crash mid-prune OVER-counts (the documented safe direction)
+==========================================================================
+  [PASS] precondition: the unlink really did fail (nothing was deleted) -- removed=0 still_on_disk=6
+  [PASS] the loss was ALREADY recorded when the crash hit -> OVER-count, not None -- read_loss=3 -- recording AFTER the unlink would give None (or 0), which UNDER-counts and suppresses escalation
+  [PASS] ...so the derived count errs STRICTLY HIGH after a crash, never low -- prior_attempts=9 -- must EXCEED the 6 real attempts (6 survivors + 3 already-accounted). Accounting after the unlink gives exactly 6, so `>= 6` would not discriminate and `> 6` does
+
+```
+
+## §16. Full run, current (verbatim)
+
+```
+  checks run : 55   (cardinality floor 53)
+  failed     : 0
+  ALL CHECKS PASS
+
+subject : scripts/qa/qa_wip.py  sha256[:16]=146600b722a02481
+checker : scripts/qa/verify_counter_86_79.py
+
+[CONTROL] unmutated checker -> exit 0
+  ok -- GREEN control established (55 checks)
+
+==========================================================================
+MUTATION MATRIX
+==========================================================================
+  KILLED            M1-DROP-IDENTITY-GUARD         by: attempt_number REFUSES before the write-first record exists
+  KILLED            M2-PRUNE-STOPS-ACCOUNTING      by: attempt_number SURVIVES the prune and still reports 6
+  KILLED            M3-LOSS-LEDGER-CAN-DECREASE    by: the loss account is MONOTONIC across a no-op prune
+  KILLED            M4-FAIL-OPEN-WITH-ZERO         by: missing sink -> attempt_number is None, not 0
+  KILLED            M5-RESTORE-OFF-BY-ONE-COMMENT  by: the comment states the UNIT (TOTAL / INCLUSIVE), not just a name
+  KILLED            M8-DROP-LOSS-ADDBACK-ON-NO-RECORD-PATH by: prior_attempts counts PRUNED-AWAY records too, not just retained ones
+  KILLED            M9-LOWER-BOUND-FLAG-NEVER-SET  by: above the window with no loss account -> FLAGGED as a floor
+  KILLED            M10-LOWER-BOUND-MISSES-THE-BOUNDARY by: EXACTLY AT the window with no ledger -> FLAGGED (the boundary itself)
+  KILLED            M11-RECORD-LOSS-AFTER-THE-UNLINK by: the loss was ALREADY recorded when the crash hit -> OVER-count, not None
+  KILLED            M6-LEAK-A-VERDICT-KEY          by: NO report() variant ever carries a `verdict` key
+  KILLED            M7-DROP-THE-UNIT               by: records_retained_unit states it is a GAUGE, not a counter
+
+  subject sha256[:16] before=146600b722a02481 after=146600b722a02481 -> tracked file UNCHANGED
+  cells: 11   killed: 11   survived/unearned: 0
+
+  ALL CELLS KILLED
+```
+
+## §17. A cell REFUSED again, and again correctly
+
+After C3c's assertions were renamed, M9 came back RED but not on the assertion
+it was aimed at, so the matrix scored it `RED-WRONG-REASON` and exited 1:
+
+```
+  RED-WRONG-REASON  M9-LOWER-BOUND-FLAG-NEVER-SET  expected one of ('at/above the window with no loss account -> FLAGGED as a floor', ...), got ['EXACTLY AT the window with no ledger -> FLAGGED (the boundary itself)', 'above the window with no loss account -> FLAGGED as a floor', 'the field discriminates (not all regimes agree)']
+  cells: 11   killed: 10   survived/unearned: 1
+  MATRIX INCOMPLETE
+```
+
+M9 was then repointed at the ABOVE-the-window assertion specifically, which
+M10's boundary mutation cannot break -- so the two cells stay distinguishable
+instead of both being scored by whichever assertion happens to fire first.
