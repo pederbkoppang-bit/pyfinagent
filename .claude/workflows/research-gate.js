@@ -660,23 +660,66 @@ if (tierUnsupported) {
 // complete, cheap re-run" from "nothing usable". A recovered brief is EVIDENCE
 // for the re-run, exactly as phase-86.31 made a recovered Q/A record evidence
 // and never a verdict.
+// ── 2026-08-14: RETRY A STOCHASTIC StructuredOutput DROP ────────────────────
+// Full derivation of the measurement lives in the twin comment in
+// `.claude/workflows/qa-verdict.js`; the headline is that across 562 recorded
+// runs the drop rate splits by MODEL (opus-4-8 0/73, fable-5 3.0%,
+// opus-5[1m] 21.8% carrying 76 of all 80 drops), and that the mechanism is
+// UNPROVEN -- size, wall-clock, effort and the documented preamble-suppression
+// trigger were each tested and refuted.
+//
+// THIS GATE IS THE WORST-HIT CALLER: research-gate drops 39/73 = 53.4%, against
+// qa-verdict's 14.3% on the SAME model. Whatever the cause, it is amplified
+// roughly 4x here -- an open question this retry does not answer.
+//
+// maxAttempts is 3 here, not the qa default of 2, purely because the base rate
+// is so much higher: 53.4% -> 28.5% at two attempts -> 15.2% at three. The
+// worst case is ~3x a single gate's tokens, but a drop today already costs the
+// full run AND a hand-driven re-run, so three automatic attempts is at or below
+// what the failure already costs -- and it is the write-first brief on disk,
+// not the retry, that keeps a partial from being wasted.
+//
+// Retrying cannot manufacture a pass: `enforceGate` still RECOMPUTES
+// gate_passed from the brief on disk, and an exhausted retry still lands in the
+// catch below as a rail drop with gate_passed FALSE.
+// The retry is a LOOP AROUND the existing try/catch, deliberately NOT a helper
+// function. `verify_research_gate_workflow.mjs:840` locates this spawn with
+// SPAWN_RE = /(?:const\s+)?envelope\s*=\s*await agent\(PROMPT/ and then
+// proximity-pins the wrapper (nearest `try {` before, `catch` after) and the
+// tier refusal's position relative to it. Hoisting the call into a helper
+// renamed the literal and turned FIVE guards red -- the probe, not the
+// behaviour. Weakening SPAWN_RE to make them green would have blunted a guard
+// that exists to catch a real unwrap, so the retry is shaped to satisfy the
+// existing guards instead. Keep `envelope = await agent(PROMPT` verbatim.
 let envelope = null
 let railDropped = null
-try {
-  envelope = await agent(PROMPT, {
-    label: 'research-gate:' + stepId,
-    phase: 'Research',
-    schema: ENVELOPE_SCHEMA,
-    agentType: 'researcher',
-    model: 'opus',
-    effort: 'max',
-  })
-} catch (e) {
-  envelope = null
-  railDropped = { dropped: true, error: String((e && e.message) || e).slice(0, 400) }
-  log('research-gate: STAGE-1 RAIL DROPPED -- ' + railDropped.error
-      + ' | continuing to verify the brief on disk so the run returns a recovery '
-      + 'report. gate_passed will be FALSE: an errored return is a FAILED gate.')
+const STAGE1_MAX_ATTEMPTS = 3
+for (let attempt = 1; attempt <= STAGE1_MAX_ATTEMPTS; attempt++) {
+  railDropped = null
+  try {
+    envelope = await agent(PROMPT, {
+      label: 'research-gate:' + stepId,
+      phase: 'Research',
+      schema: ENVELOPE_SCHEMA,
+      agentType: 'researcher',
+      model: 'opus',
+      effort: 'max',
+    })
+    break
+  } catch (e) {
+    envelope = null
+    railDropped = { dropped: true, error: String((e && e.message) || e).slice(0, 400) }
+    const isDrop = railDropped.error.includes('without calling StructuredOutput')
+    log('research-gate: STAGE-1 RAIL DROPPED (attempt ' + attempt + '/' +
+        STAGE1_MAX_ATTEMPTS + ') -- ' + railDropped.error
+        + (isDrop && attempt < STAGE1_MAX_ATTEMPTS
+            ? ' | stochastic StructuredOutput drop -- RETRYING'
+            : ' | continuing to verify the brief on disk so the run returns a recovery '
+              + 'report. gate_passed will be FALSE: an errored return is a FAILED gate.'))
+    // Retry ONLY the stochastic drop. Any other error -- a real bug, a refusal,
+    // an abort -- must surface on the first occurrence, not be re-run 3x.
+    if (!isDrop) break
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -691,6 +734,8 @@ const claimedUrls = (envelope && Array.isArray(envelope.sources_read_in_full))
   : []
 
 let verification = null
+const STAGE2_MAX_ATTEMPTS = 2
+for (let attempt = 1; attempt <= STAGE2_MAX_ATTEMPTS; attempt++) {
 try {
   verification = await agent([
     'Verify a research brief on disk. Read-only. Do NOT edit, write or create anything.',
@@ -735,8 +780,21 @@ try {
     model: 'opus',
     effort: 'low',
   })
+  break
+  // Stage 2 is retried too. It looks harmless because its catch fails closed,
+  // but failing closed still FAILS THE GATE: `verification = null` makes
+  // enforceGate reject a brief that may be perfectly good. Measured 10.3% on
+  // the low-effort Explore path -- HIGHER than the max-effort roles, which is
+  // itself why the "effort causes drops" theory died.
 } catch (_e) {
   verification = null // fail closed in enforceGate
+  const isDrop = String((_e && _e.message) || _e).includes('without calling StructuredOutput')
+  log('research-gate: STAGE-2 brief-verify failed (attempt ' + attempt + '/' +
+      STAGE2_MAX_ATTEMPTS + ')' + (isDrop && attempt < STAGE2_MAX_ATTEMPTS
+        ? ' -- stochastic StructuredOutput drop, RETRYING'
+        : ' -- failing closed; enforceGate will reject'))
+  if (!isDrop) break
+}
 }
 
 const tierInfo = {

@@ -454,9 +454,18 @@ console.log('\n[6d] phase-86.28 cycle 3 -- BEHAVIOURAL: does the driver actually
     // transport error just as easily as of a missing StructuredOutput call; a
     // wrapper that survives only the error string the test happens to use is
     // not a wrapper. Found by the cycle-2 Q/A.
+    // 2026-08-14: keyed on agentType, NOT on call ordinal. It used to throw on
+    // `calls === 1`, which silently stopped testing exhaustion the moment stage 1
+    // gained a retry loop -- attempt 2 returned the stage-2 payload, the driver
+    // treated it as an envelope, and `rail_dropped` came back null. Two guards
+    // went red and the honest reading was that they encoded the OLD contract
+    // (one drop == a dropped run), not that the retry was wrong. Keying on the
+    // role makes the stub describe WHICH agent fails rather than WHEN, so it is
+    // correct for any retry count -- including a future change to
+    // STAGE1_MAX_ATTEMPTS, which must not silently defuse this test again.
     const throwingStage1 = async (prompt, opts) => {
       calls += 1
-      if (calls === 1) throw new Error(dropError)
+      if (opts && opts.agentType === 'researcher') throw new Error(dropError)
       // Stage 2: a PERFECT verification of a brief that clears every floor. If a
       // drop could ever pass, this is the input that would make it -- which is
       // exactly why the stage-2 answer is maximally favourable here.
@@ -483,6 +492,45 @@ console.log('\n[6d] phase-86.28 cycle 3 -- BEHAVIOURAL: does the driver actually
     check('a DROPPED run returns gate_passed === false even with a PERFECT stage-2 verification (kills QA-RESURRECT)',
       !!dropped && dropped.gate_passed === false,
       dropped ? `gate_passed=${JSON.stringify(dropped.gate_passed)} violations=${JSON.stringify(dropped.violations)}` : 'no result')
+    // ── 2026-08-14: THE RETRY ITSELF MUST BE GUARDED ────────────────────────
+    // The stage-1 retry was added because the StructuredOutput drop is
+    // STOCHASTIC (measured: the identical script dropped 39 and completed 34
+    // times, and the rate splits by model -- opus-4-8 0/73 vs opus-5[1m]
+    // 21.8%). Without this cell, deleting the retry loop leaves the suite fully
+    // green: every other drop cell simulates EXHAUSTION, which behaves
+    // identically with or without a retry. This is the only cell that fails if
+    // the retry is removed, so it is what makes the fix mutation-resistant.
+    {
+      let n = 0
+      const dropsOnceThenSucceeds = async (prompt, opts) => {
+        if (opts && opts.agentType === 'researcher') {
+          n += 1
+          if (n === 1) throw new Error('agent({schema}): subagent completed without calling StructuredOutput')
+          return goodEnvelope()
+        }
+        return {
+          brief_exists: true, brief_non_empty: true, char_count: 40000,
+          urls_checked: URLS.length, urls_present: URLS.length, urls_missing: [],
+          recency_section_present: true, distinct_urls_in_brief: 25,
+          brief_status_in_brief: 'COMPLETE',
+        }
+      }
+      let recovered, recoverThrew = null
+      try {
+        recovered = await drive({ step_id: 'BEHAVE-retry', tier: 'moderate' }, () => {}, () => {}, dropsOnceThenSucceeds)
+      } catch (e) { recoverThrew = e }
+
+      check('a SINGLE stochastic drop is RETRIED, not surfaced as a dropped run',
+        recoverThrew === null && !!recovered && n === 2,
+        `threw=${recoverThrew ? String(recoverThrew.message).slice(0, 80) : 'null'} researcher_calls=${n}`)
+      check('...and the retried run reports NO rail_dropped (the drop was recovered)',
+        !!recovered && !recovered.rail_dropped,
+        recovered ? `rail_dropped=${JSON.stringify(recovered.rail_dropped)}` : 'no result')
+      check('...and the recovered run PASSES the gate, so a retry is a real recovery not a downgrade',
+        !!recovered && recovered.gate_passed === true,
+        recovered ? `gate_passed=${JSON.stringify(recovered.gate_passed)} violations=${JSON.stringify(recovered.violations)}` : 'no result')
+    }
+
     check('the dropped run reports rail_dropped.dropped === true',
       !!dropped && !!dropped.rail_dropped && dropped.rail_dropped.dropped === true)
     check('rail_dropped carries the ERROR TEXT, so a caller can tell a drop from a floor failure',

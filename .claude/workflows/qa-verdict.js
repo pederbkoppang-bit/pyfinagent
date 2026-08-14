@@ -346,7 +346,60 @@ function enforceEscalation(verdict, sequence, opts = {}) {
   return out
 }
 
-const verdict = await agent(PROMPT, {
+// ── 2026-08-14: RETRY A STOCHASTIC StructuredOutput DROP ────────────────────
+// MEASURED over 562 recorded workflow runs on this machine. A drop is the
+// runtime throwing `agent({schema}): subagent completed without calling
+// StructuredOutput` -- the turn ends, no schema call is emitted, tokens are
+// spent, nothing returns.
+//
+//   by model:     claude-opus-4-8[1m]  0/73   0.0%
+//                 claude-fable-5       4/135  3.0%
+//                 claude-opus-5[1m]   76/348 21.8%   <- 76 of all 80 drops
+//   qa-verdict on opus-4-8: 0/41;  on opus-5: 36/252 = 14.3%  (workflow held constant)
+//   P(0 drops in 73 | true rate 14.3%) = 1.3e-5, so the model split is not chance.
+//
+// WHAT THIS IS NOT: a fix for the cause. The mechanism is UNPROVEN. Four
+// hypotheses were tested against the same data and REFUTED -- prompt/run size
+// (dropped runs are 1.1x median tokens; the >30min band has ZERO drops), wall
+// clock (1.1x), effort (max 7.8% vs low 10.3% -- low is WORSE), and Anthropic's
+// documented preamble-suppression trigger (absent from these prompts). Tool
+// count rises 5%->42% across bands but collapses to 0% above 100 calls, so it
+// is an association, not a dose-response.
+//
+// WHY A RETRY IS NONETHELESS CORRECT, AND NOT A GUESS: the failure is
+// STOCHASTIC, and that is measured rather than assumed -- the identical script
+// dropped 39 times and completed 34 times. Retry effectiveness follows from the
+// independence, not from any theory of the cause: 14.3% -> ~2.0% at one retry.
+// Cost is bounded to the failing subset; today a drop costs the whole run AND a
+// manual re-drive.
+//
+// DO NOT "SIMPLIFY" THIS TO A MODEL PIN. Pinning to claude-opus-4-8 would also
+// take the rate to ~0, and was explicitly REJECTED by the operator on
+// 2026-08-14: Opus 5's reasoning and self-evaluation are the reason it is here,
+// and the gate roles are exactly where that capability matters.
+//
+// A drop on the FINAL attempt still throws, so the caller's "empty return is NO
+// VERDICT, never PASS" rule below is untouched. Retrying a non-answer can never
+// manufacture a verdict -- it only asks the same question again.
+async function agentRetryingDrops(prompt, opts, maxAttempts = 2) {
+  let lastErr = null
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      return await agent(prompt, opts)
+    } catch (e) {
+      lastErr = e
+      const msg = String((e && e.message) || e)
+      // Retry ONLY the structured-output drop. Any other error (a real bug, a
+      // refusal, an abort) must surface immediately rather than be re-run.
+      if (!msg.includes('without calling StructuredOutput')) throw e
+      log('qa-verdict: StructuredOutput DROP on attempt ' + attempt + '/' +
+          maxAttempts + (attempt < maxAttempts ? ' -- retrying' : ' -- exhausted, NO VERDICT'))
+    }
+  }
+  throw lastErr
+}
+
+const verdict = await agentRetryingDrops(PROMPT, {
   label: 'qa-verdict:' + stepId,
   phase: 'QA',
   schema: VERDICT_SCHEMA,
