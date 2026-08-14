@@ -1,6 +1,15 @@
 # Evaluator critique -- step 86.74
 
-## STATUS: NO VERDICT WAS RETURNED. The step does NOT close.
+## VERDICT: **CONDITIONAL** (`ok: false`) -- returned by the Agent-tool FALLBACK
+
+The Workflow rail dropped twice; the documented Agent-tool `qa` fallback returned a
+real verdict on attempt 5. **CONDITIONAL does not close a step** -- 86.74 stays
+`pending`. Full verdict transcribed VERBATIM in section 0 below; the rail-drop
+record that preceded it is retained underneath as history.
+
+---
+
+## (history) The two rail drops that preceded the verdict
 
 **Two consecutive Workflow-rail spawns DROPPED**, ~758K subagent tokens, four
 agents, all four returning empty:
@@ -212,3 +221,97 @@ prior_attempts=3, attempt_number_is_lower_bound=True` for step 86.74. Under the
 F1b cumulative budget (5 attempts) this step is close to escalation. A third
 consecutive drop should go to the **Agent-tool `qa` fallback**, which CLAUDE.md
 names for exactly this case, rather than a fourth rail spawn.
+
+---
+
+## 0. THE VERDICT -- verbatim, Agent-tool fallback, 2026-08-14
+
+Returned by the `qa` subagent after two rail drops. **Transcribed verbatim; Main
+records verdicts and never authors them.**
+
+```json
+{
+  "ok": false,
+  "verdict": "CONDITIONAL",
+  "reason": "8 of 10 immutable criteria MET with executed evidence I re-derived myself (immutable cmd 37 passed exit 0; lint clean over a 6-file derived non-empty scope; mutation matrix re-run BY ME -- control GREEN, M1-M6 all KILLED, byte-identical restore confirmed by my own md5s on 4 subjects). C4 and C7 are PARTIAL and cap the verdict: C4's post-fix BQ share is unmeasured (pid 27945 started 13:30:35 CEST, before both commits -- committed but NOT in force; measuring it needs a restart the batch-to-session-end policy forbids), and C7 leaves 33 of 34 historical BUYs UNDETERMINED. Both are disclosed rather than proxied, so CONDITIONAL not FAIL. Independent WARN: the AST seam scan matches only ast.Constant==10.0 -- I verified a reintroduction written `or DEFAULT_POSITION_PCT` evades it, and sites 824/877/902 sit in _compute_swap_candidates which no test drives, so that scan is the sole regression guard for 3 of 4 sizing sites. Nothing was loosened: legacy and new sizing both max at 10.0, and 10.0 is now reachable only from ABSENT. The two rewritten tests are an inversion, not a weakening -- TestFlagOffLegacy asserted the defect, the replacement forbids the buy it required, parametrized over both flag states.",
+  "violated_criteria": ["c4_post_fix_persisted_share", "c7_paper_trades_sweep_completeness"],
+  "violation_details": [
+    {
+      "violation_type": "Missing_Assumption",
+      "action": "report the post-fix persisted-verdict share in analysis_results against the measured 0-of-129 baseline",
+      "state": "persistence write present in autonomous_loop.py and mutation-tested (M3 KILLED); baseline 0/129 measured; post-fix share NOT measured. Running backend pid 27945 started 13:30:35 CEST 2026-08-14, before commits 9d14291e (16:36:20) and a541f10c (17:05:05), so the fix is committed but not in force.",
+      "constraint": "criterion 4: 'the post-fix populated share is reported against the measured baseline of 0 of 129 rows over 2026-07-20..2026-08-13 with the query that produced each'"
+    },
+    {
+      "violation_type": "Missing_Assumption",
+      "action": "sweep paper_trades for prior buys opened under the inversion",
+      "state": "population derived from the table (34 BUYs), enumeration rule stated, positive control passes (DELL detected=True), 1 inversion confirmed, 0 permitted, 33 UNDETERMINED (2026-04-26..2026-07-31) because no joinable verdict row exists. Explicitly not claimed as a measured zero.",
+      "constraint": "criterion 7: 'report how many positions were sized at the 10%-NAV default while a completed risk verdict existed ... and report zero as a measured zero with a positive control rather than as an absence of evidence'"
+    }
+  ],
+  "certified_fallback": false,
+  "checks_run": [
+    "harness_compliance_5of5",
+    "immutable_verification_command",
+    "python_lint_F821_F401_F811",
+    "mutation_matrix_rerun_with_control_and_md5_restore",
+    "ast_recount_tests_and_asserts",
+    "diff_direction_nothing_loosened",
+    "rewritten_tests_inversion_check",
+    "guard_vacuity_seam_scan_evasion",
+    "prior_attempt_and_ledger_cross_check"
+  ],
+  "notes": "Sequence: qa_wip.py --spawned-at 2026-08-14T15:26:33Z returns attempt_number 5 (status ok, lower bound, source_present true), prior_attempts 4. verdict_history_86_21.py --evidence-only returns no_rows_for_step. qa_wip (4 prior) > ledger (0), so THE LEDGER IS STALE and its sequence is unreliable. From the WIP records the 4 prior attempts are all rail drops = NO_VERDICT; there is no prior CONDITIONAL and no prior FAIL for this step. I did not compute any aggregate over that. I read the prior COMPLETE WIP record as evidence and re-derived its three load-bearing claims independently rather than inheriting them; I reached CONDITIONAL on my own derivation, and Main's volunteered 'partial' framing neither earned nor cost anything. No live UI capture was taken and none is required -- the step's live_check demands driven-order, BQ-share and sweep evidence, and no criterion makes a UI rendering claim. One unrelated uncommitted file, backend/api/sovereign_api.py, is modified in the tree and is NOT part of this step's diff."
+}
+```
+
+### What this means
+
+**CONDITIONAL. The step does NOT close.** `.claude/masterplan.json` is untouched;
+86.74 remains `pending`.
+
+**8 of 10 criteria MET**, each re-derived by the evaluator rather than inherited:
+immutable command `37 passed` exit 0; lint clean over a 6-file derived non-empty
+scope; the mutation matrix re-run **by the evaluator** with a green control, M1-M6
+all KILLED, and byte-identical restore confirmed by **its own md5s** on all four
+subjects.
+
+**The two blockers are the two I self-reported as partial**, and the evaluator
+states explicitly that volunteering them "neither earned nor cost anything" -- it
+reached CONDITIONAL on its own derivation:
+
+- **C4** -- the post-fix BQ share is unmeasured. It confirmed the reason from the
+  process table: pid 27945 started 13:30:35 CEST, **before** both commits
+  (16:36:20 and 17:05:05), so the fix is committed but **NOT IN FORCE**, and
+  measuring it needs a restart the batch-to-session-end policy forbids.
+- **C7** -- 33 of 34 historical BUYs UNDETERMINED.
+
+Both were **disclosed rather than proxied**, which is why this is CONDITIONAL and
+not FAIL.
+
+### A NEW finding neither dropped cycle caught -- my guard has a hole
+
+> *"the AST seam scan matches only `ast.Constant==10.0` -- I verified a
+> reintroduction written `or DEFAULT_POSITION_PCT` evades it, and sites 824/877/902
+> sit in `_compute_swap_candidates` which no test drives, so that scan is the sole
+> regression guard for 3 of 4 sizing sites."*
+
+This is the strongest result of the whole EVALUATE. My criterion-3 guard was built
+to catch a **literal** `10.0`, and the constant I myself introduced
+(`DEFAULT_POSITION_PCT`) is the most natural way a future author would reintroduce
+the defect -- **and it slips straight past**. Worse, three of the four sizing sites
+have no behavioural test at all, so for those the scan is not a backstop, it is the
+*only* guard.
+
+It is a **WARN**, not a blocker: no live defect exists today. But it is a real
+weakness in the very guard that makes criterion 3 checkable, and it is fixed in the
+follow-up commit rather than left for the next reader.
+
+### Sequence / anti-shopping
+
+`attempt_number=5, prior_attempts=4` (lower bound). All four priors are **rail
+drops = NO_VERDICT**; there is no prior CONDITIONAL and no prior FAIL, so the
+3rd-CONDITIONAL auto-FAIL rule is not engaged and **no verdict was shopped for**.
+The evaluator independently flagged that `verdict_history_86_21.py` returns
+`no_rows_for_step` while `qa_wip` reports 4 priors -- **the ledger is stale for this
+step**, which is worth queueing on its own.

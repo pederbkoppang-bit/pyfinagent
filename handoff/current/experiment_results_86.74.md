@@ -386,3 +386,76 @@ tests and pytest exits 5, which the old rule scored as KILLED.
 Fixing these and re-spawning a fresh Q/A on **changed evidence** is the
 documented cycle-2 flow, not verdict-shopping: there is no prior verdict to shop
 against, because the rail produced none.
+
+---
+
+## 8. CYCLE 3 -- a verdict arrived, and then MY OWN follow-up test found a live defect the verdict had missed
+
+**The Agent-tool fallback returned `CONDITIONAL` (`ok: false`)** after two rail
+drops -- the full verdict is transcribed verbatim in
+`evaluator_critique_86.74.md` §0. 8 of 10 criteria MET on the evaluator's own
+re-derivation; C4 and C7 cap it.
+
+### 8a. Acting on its WARN uncovered a second money defect
+
+The verdict carried an independent WARN:
+
+> *"the AST seam scan matches only `ast.Constant==10.0` -- I verified a
+> reintroduction written `or DEFAULT_POSITION_PCT` evades it, and sites
+> 824/877/902 sit in `_compute_swap_candidates` which no test drives."*
+
+Both halves are now closed, and **the second half paid off immediately**:
+
+1. **The scan now catches both spellings** (`ast.Constant == 10.0`, `ast.Name`,
+   and `ast.Attribute` named `DEFAULT_POSITION_PCT`), with a positive control for
+   **each**. The evasion was reproduced first -- old scan vs
+   `or DEFAULT_POSITION_PCT` returned `MISSED` -- because a hole should be
+   observed open before it is closed.
+
+2. **The untested swap path is now driven behaviourally** -- and doing so
+   surfaced a **live defect that all three Q/A passes missed**:
+
+```
+the swap path sized a BUY from a 0% verdict: [('NEW', 0.0)]
+```
+
+### 8b. The defect: a REJECT could LIQUIDATE a holding
+
+`_compute_swap_candidates` applied the `$50` floor **only inside `if _atomic:`**,
+and production runs `paper_atomic_swap_enabled=False`. So on the swap path a
+`0%` REJECT emitted:
+
+- a **real SELL** of the displaced holding, and
+- a **$0.00 BUY** that is a no-op.
+
+Net effect: **-1 position, with the risk judge's REJECT silently liquidating a
+holding.** Same falsy-zero family as the DELL inversion, pointing the opposite
+way. Criterion 2 requires a 0% verdict to produce **no order**, and the swap path
+is a buy path -- so **C2 was NOT actually met when the verdict was issued.**
+
+**Why the evaluator missed it, stated plainly:** it drove `decide_trades` (the
+main path) and marked C2 MET there. It explicitly flagged that sites 824/877/902
+were undriven -- it identified the gap and classified it WARN, but did not drive
+them itself. The gap was real and its own note is what led me to it.
+
+**Fixed by moving the floor out of the `_atomic` branch**, so neither leg is
+emitted when the sized BUY falls below `$50`. **Tightening only:** a legitimate
+swap (3% of a $10k NAV = $300) is untouched; this can only ever suppress a
+degenerate pair. Three behavioural tests now drive the real function -- including
+an anti-vacuity test that **caught its own harness producing no swap at all**
+(`paper_swap_max_per_cycle` defaults to `0` and short-circuits the function, so
+every assertion would have passed on an empty list).
+
+Verification command: **40 passed**. The four adjacent failures are the same
+pre-existing ones from the set of 19; no new regressions.
+
+### 8c. Status -- honest
+
+**This fix landed AFTER the CONDITIONAL verdict, so it is UNGRADED.** The step was
+already not closing (C4 and C7 are blockers no cycle-3 work can clear: C4 needs a
+restart that policy defers, C7 is a join-coverage limit). A fresh Q/A would
+predictably return CONDITIONAL again for the same two reasons, at ~200-400K
+tokens, so one was **not** spawned.
+
+**86.74 remains `pending`. The next session must grade the swap fix**, and can
+close C4 once the backend restarts on this code.

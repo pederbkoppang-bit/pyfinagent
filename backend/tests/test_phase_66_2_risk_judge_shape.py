@@ -362,29 +362,44 @@ class TestSizingDefaultReachableOnlyFromAbsent:
         import ast
         import pathlib
 
+        def _defaulting_or(tree):
+            """Lines with `<x> or <the default>`, in EITHER spelling.
+
+            phase-86.74 cycle-3: this originally matched only
+            `ast.Constant == 10.0`. The Q/A demonstrated that a reintroduction
+            written `or DEFAULT_POSITION_PCT` -- i.e. using the very constant this
+            step introduced, which is the MOST natural way a future author would
+            spell it -- slipped straight past. A guard that catches only the
+            spelling the defect used to have is not a guard against the defect.
+            """
+            out = []
+            for n in ast.walk(tree):
+                if not (isinstance(n, ast.BoolOp) and isinstance(n.op, ast.Or)):
+                    continue
+                for v in n.values:
+                    literal = isinstance(v, ast.Constant) and v.value == DEFAULT_POSITION_PCT
+                    by_name = isinstance(v, ast.Name) and v.id == "DEFAULT_POSITION_PCT"
+                    by_attr = isinstance(v, ast.Attribute) and v.attr == "DEFAULT_POSITION_PCT"
+                    if literal or by_name or by_attr:
+                        out.append(n.lineno)
+            return out
+
         src = pathlib.Path(
             "backend/services/portfolio_manager.py").read_text()
-        tree = ast.parse(src)
-        offenders = [
-            n.lineno for n in ast.walk(tree)
-            if isinstance(n, ast.BoolOp) and isinstance(n.op, ast.Or)
-            and any(isinstance(v, ast.Constant) and v.value == DEFAULT_POSITION_PCT
-                    for v in n.values)
-        ]
+        offenders = _defaulting_or(ast.parse(src))
         assert offenders == [], (
-            f"`or {DEFAULT_POSITION_PCT}` sizing idiom reintroduced at lines "
+            f"a `... or <default>` sizing idiom was reintroduced at lines "
             f"{offenders}; route it through _sizing_pct instead"
         )
 
-        # POSITIVE CONTROL: the detector must be able to FIND one, else `== []`
-        # is vacuous and this test would pass on an empty or unparsed file.
-        ctl = ast.parse("x = cand.get('position_pct') or 10.0")
-        assert [
-            n.lineno for n in ast.walk(ctl)
-            if isinstance(n, ast.BoolOp) and isinstance(n.op, ast.Or)
-            and any(isinstance(v, ast.Constant) and v.value == DEFAULT_POSITION_PCT
-                    for v in n.values)
-        ], "detector is blind -- the `offenders == []` assertion above is vacuous"
+        # POSITIVE CONTROLS -- BOTH spellings must be detectable, else `== []` is
+        # vacuous. The second control is the evasion the Q/A actually exploited.
+        assert _defaulting_or(ast.parse(
+            "x = cand.get('position_pct') or 10.0")), "blind to the literal form"
+        assert _defaulting_or(ast.parse(
+            "x = cand.get('position_pct') or DEFAULT_POSITION_PCT")), (
+            "blind to the named form -- this exact evasion was demonstrated by the "
+            "86.74 Q/A and must stay detectable")
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -514,3 +529,68 @@ class TestRiskJudgeAppearsInFactorsJson:
         assertions above would pass vacuously on any input at all."""
         assert "RiskJudge" not in self._agents({
             "recommendation": "BUY", "risk_assessment": {}})
+
+
+class TestSwapPathSizingIsBehaviourallyGuarded:
+    """phase-86.74 cycle-3 -- the OTHER half of the Q/A's WARN.
+
+    Three of the four sizing sites (`:824`, `:877`, `:902`) live in
+    `_compute_swap_candidates`, **which no test drove**. So for 3 of 4 sites the
+    AST seam scan was not a backstop -- it was the ONLY guard, and the Q/A had
+    just shown that scan could be evaded by spelling the default as
+    `DEFAULT_POSITION_PCT`. A static scan as the sole guard on a money path that
+    can OPEN POSITIONS is exactly the shape this project keeps paying for.
+
+    These drive the real function, so the swap path now fails behaviourally --
+    independent of any scan.
+    """
+
+    @staticmethod
+    def _holding(ticker, sector, mv, score):
+        return {"ticker": ticker, "sector": sector, "market_value": mv,
+                "final_score": score, "quantity": 1.0, "cost_basis": mv,
+                "current_price": mv, "avg_entry_price": mv}
+
+    def _run(self, pct, state, nav=10_000.0):
+        from backend.services.portfolio_manager import _compute_swap_candidates
+        # `paper_swap_max_per_cycle` defaults to 0 and short-circuits the whole
+        # function, and `paper_swap_min_delta_pct` defaults to 25% relative -- so
+        # both must be set or every assertion here passes on an empty list. The
+        # anti-vacuity test below is what caught exactly that.
+        st = _settings(paper_swap_enabled=True, paper_swap_max_per_cycle=2,
+                       paper_swap_min_delta_pct=25.0,
+                       paper_swap_churn_fix_enabled=False,
+                       paper_atomic_swap_enabled=False)
+        cand = {"ticker": "NEW", "sector": "Technology", "final_score": 0.95,
+                "position_pct": pct, "position_pct_state": state,
+                "price": 100.0, "stop_loss_price": 92.0,
+                "risk_judge_decision": "", "analysis_id": "x", "signals": []}
+        weak = self._holding("OLD", "Technology", 1000.0, 0.20)
+        return _compute_swap_candidates(
+            sector_blocked=[cand], current_positions=[weak],
+            holding_lookup={"OLD": weak}, sector_counts={"Technology": 1},
+            sector_market_values={"Technology": 1000.0}, selling_tickers=set(),
+            settings=st, nav=nav, available_cash=5_000.0,
+        )
+
+    def test_swap_path_zero_pct_verdict_emits_no_buy(self):
+        """A 0% REJECT must not open a position via the SWAP path either."""
+        buys = [o for o in self._run(0.0, SIZE) if o.action == "BUY"]
+        assert buys == [], (
+            f"the swap path sized a BUY from a 0% verdict: "
+            f"{[(o.ticker, o.amount_usd) for o in buys]}"
+        )
+
+    def test_swap_path_honours_an_explicit_size(self):
+        """Anti-vacuity: the harness must be able to PRODUCE a swap buy, else the
+        assertion above passes simply because nothing ever swaps."""
+        buys = [o for o in self._run(3.0, SIZE) if o.action == "BUY"]
+        assert buys, "harness produced no swap BUY at all -- the 0% test is vacuous"
+        assert abs(buys[0].amount_usd - 10_000.0 * 0.03) < 1.0, (
+            f"swap sized at {buys[0].amount_usd}, expected the judge's 3% (300.0)"
+        )
+
+    def test_swap_path_absent_verdict_still_reaches_the_default(self):
+        buys = [o for o in self._run(None, ABSENT) if o.action == "BUY"]
+        assert buys, "an absent verdict should still size at the default"
+        assert abs(buys[0].amount_usd - 10_000.0 * (DEFAULT_POSITION_PCT / 100.0)) < 1.0

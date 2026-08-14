@@ -901,6 +901,30 @@ def _compute_swap_candidates(
         _atomic = bool(getattr(settings, "paper_atomic_swap_enabled", False))
         position_pct = _sizing_pct(cand)  # phase-86.74
         buy_amount = nav * (float(position_pct) / 100.0)
+
+        # phase-86.74 cycle-3: the $50 floor below was reachable ONLY under
+        # `_atomic`, and production runs paper_atomic_swap_enabled=False -- so an
+        # unfundable swap BUY was emitted with NO floor at all.
+        #
+        # MEASURED, not hypothesised: a 0% REJECT verdict produced
+        # `('NEW', 0.0)` -- a $0.00 BUY paired with a REAL SELL of the displaced
+        # holding. The SELL executes, the BUY is a no-op, and the book ends up
+        # NET -1 POSITION with the risk judge's REJECT having silently
+        # LIQUIDATED a holding. That is the same falsy-zero family as the DELL
+        # inversion, pointing the other way, and it is why criterion 2 says a 0%
+        # verdict must produce NO order -- the swap path is a buy path too.
+        #
+        # Tightening only: a legitimate swap (3% of a $10k NAV = $300) is
+        # untouched; this can only ever SUPPRESS a degenerate pair.
+        if buy_amount < 50:
+            logger.info(
+                "Swap skip %s -> %s: sized BUY $%.2f below the $50 floor "
+                "(position_pct=%s) -- emitting neither leg, so the SELL cannot "
+                "orphan.",
+                weakest["ticker"], cand["ticker"], buy_amount, position_pct,
+            )
+            continue
+
         swap_gid = None
         if _atomic:
             freed = float(weakest.get("market_value", 0.0) or 0.0)
