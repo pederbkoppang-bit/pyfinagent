@@ -34977,3 +34977,46 @@ production defaults exactly**.
 
 **Standing:** 4 Q/A attempts on the rail produced 0 verdicts; the Agent-tool
 fallback produced 2 verdicts in 2 attempts. Use the fallback.
+
+## Cycle 193 -- 2026-08-14 -- phase=86.74 result=PASS (cycle-4 work only; step still open)
+
+Agent-tool Q/A, scoped `cba60c0b^..HEAD`: **`ok: true, verdict: PASS`** on the
+orphan-SELL guard + M7 + the production-defaults correction. **This does NOT close
+86.74** -- C4 open, C7 PARTIAL, exactly as the earlier CONDITIONAL had them.
+
+**It verified more than I reported.** It rebuilt M7's two edits **in-memory from
+`MUTATIONS`** and drove the real function: `0% REJECT -> [('SELL','OLD',None)]`
+(a genuine orphan) and `legitimate 3% -> [('SELL','OLD',None), ('BUY','NEW',300.0)]`
+(**full pair intact**). The second control is the one I never ran, and it is what
+makes the kill *attributable* rather than "the harness collapsed". It also checked
+the new multi-edit normaliser for a fail-open -- `NOT_APPLIED` and continue,
+**fails closed**.
+
+**WARN 1 (fixed):** my corrected comment said *"These four values"* while **five**
+kwargs are set, and said `_settings()` *"OMITS them"* when `paper_swap_enabled` is
+**present-but-False**. An inaccurate comment written *while fixing* an inaccurate
+comment. Replacement distinguishes one override from four supplies and is
+**machine-checked** -- a script parses the call site and the `_settings` base and
+fails if either count drifts.
+
+**WARN 2 (recorded, not fixed):** the evaluator disclosed it **did not re-measure**
+the C7 decomposition, and that this is acceptable *only* because the standing claim
+is the conservative one. **19/14/0 remains MY measurement alone.**
+
+**Two scope corrections against me:** `cba60c0b..HEAD` **excludes** `cba60c0b`,
+where the orphan guard actually lives; and **the tree MOVED during its evaluation**
+because I pushed the C7 retraction while it was reading. The second is the
+freeze-the-tree rule again -- safe only because the movement was strictly more
+conservative, which is luck, not method.
+
+**C7 RETRACTION, same cycle.** I published "C7 RESOLVED", pushed it, asked the
+evaluator to attack it, then ran that attack myself and it **failed**:
+`final_synthesis` is absent in **19 of 19**, so the reports are truncated and a
+verdict may have existed and never been written. *"Key absent"* supports **not
+persisted**, never **never existed**. The 19 revert to UNDETERMINED; C7 stays
+PARTIAL. Third proxy-assertion failure of the session, and none involved a bad
+instrument -- each was a correct measurement of the wrong thing.
+
+**Standing at session end:** 86.74 `pending`. Verdicts this session --
+2 rail drops (NO VERDICT), 1 CONDITIONAL (step), 1 CONDITIONAL (swap commit),
+1 PASS (cycle-4 work). Rail 0-for-4; Agent-tool fallback 3-for-3.
