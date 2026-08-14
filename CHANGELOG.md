@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-14 | `9b4d5281` | phase-86.78/86.79: close the qa.md half via a fresh executor, and the tool-output channel it found |
 | 2026-08-14 | `a878b39f` | phase-86.74: record the operator's DO-THIS-NEXT directive -- and why P0 alone cannot carry it |
 | 2026-08-14 | `2cade52f` | phase-86.78 cycle-2: close the three mutants the Q/A left surviving; criterion 3 escalated |
 | 2026-08-14 | `fedcffff` | phase-86.78: stop telling the judge what its verdict will trigger; compute the threshold caller-side |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-14 | `722158a8` | phase-86.64 cycle-2: my A/B credited the wrong gate, and my C4 used the reasoning the contract forba |
 | 2026-08-14 | `b59a7038` | phase-86.64: transcribe the Q/A verdict VERBATIM -- CONDITIONAL, my A/B credited the wrong mechanism |
 | 2026-08-14 | `1f5fd305` | phase-86.65/86.66/86.75: the breach is THREE steps, not one -- derived, not listed |
-| 2026-08-14 | `dee3beab` | phase-86.65: DISCLOSE a protocol breach -- I did GENERATE with no gate and no contract |
 
 ---
 
