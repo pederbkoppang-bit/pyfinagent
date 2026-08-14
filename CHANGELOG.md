@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-14 | `6b40d01c` | docs(goal): D5 refutation, /api/health, cycle-3 discipline lessons |
 | 2026-08-14 | `29d1de84` | docs(goal): regenerate for 86.84 escalation + the measured D5 refutation |
 | 2026-08-14 | `b27f6aed` | docs(day-report): post-freeze section -- fix applied, 3 CONDITIONAL cycles, escalation, D5 refutatio |
 | 2026-08-14 | `0fa1566b` | fix(86.84): close cycle-3 F-A/F-B/F-C, disclose F-E, and ESCALATE on the 3rd CONDITIONAL |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-14 | `ccf154b0` | docs(goal): rewrite next-session goal around the MEASURED harness failure, under 4000 chars |
 | 2026-08-14 | `120f67f9` | docs: record the broken probe, its control, and D5 (truncation still firing) in the day report and g |
 | 2026-08-14 | `f4642435` | phase-86.74: the C7 retraction was RIGHT but reached with a BROKEN PROBE -- and the control found a  |
-| 2026-08-14 | `8be52ef9` | docs(goal): item (a) is graded PASS; flag that the C7 numbers remain unverified by any evaluator |
 
 ---
 
