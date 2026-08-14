@@ -97,3 +97,10 @@ handoff/.autonomous_loop.lock
 # that the real index at .claude/agent-memory/ never sees. Root corpus stays tracked.
 /frontend/.claude/
 /backend/.claude/
+
+# phase-86.78: test harnesses that append `export {...}` to a workflow must write
+# to a TEMP dir. One landed in .claude/workflows/ carrying `export const meta` with
+# name:'qa-verdict' -- a duplicate registered name in the dispatch directory, and
+# uncommitted, so any `git add -A` would ship it. Ignored rather than deleted: it is a
+# concurrent session's working file, not mine to remove.
+.claude/workflows/*.export.mjs
