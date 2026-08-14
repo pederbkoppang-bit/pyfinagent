@@ -36,7 +36,10 @@ platform *routes* a call to the hook, and piping bypasses routing entirely.
 CONTROL  (scratchpad copy, unmutated)  qa + tool_name=Bash   -> exit 0
 MUTANT   widen ONLY the in-script gate `tool_name in (...)` to include "Bash",
          settings.json matcher UNTOUCHED                      -> exit 2
-repo md5 unchanged: 3eb5acfea3ec356ac6b289011f49912d
+repo md5 unchanged during that run: 3eb5acfea3ec356ac6b289011f49912d
+  ^ NOTE: that digest is the guard AS IT WAS AT b59a7038 (pre-header-rewrite).
+    HEAD is f0346c5b5708815987319f3096978393. The mutation was run against the
+    pre-rewrite file; it has NOT been re-run against HEAD.
 ```
 
 **So there are TWO gates and my text conflated them:**
@@ -54,60 +57,66 @@ The contract predicted exactly this: *"even with the matcher fixed, :124 gates o
 **Log aliveness (positive control):** the Q/A's own Write appears as the log's last row, so
 the zero-for-Bash is a measured zero, not a dead log.
 
-## C2 — write-capable tools — RE-ENUMERATED from the audit stream (cycle-3)
+## C2 — write-capable tools — **STILL NOT MET after three cycles.** Read this before trusting the table.
 
-> **My cycle-1/2 table failed a known-member recall test against a member MY OWN CONTRACT
-> had already named.** `contract_86.64.md:81` reads *"the Q/A can call Bash … and
-> `browser_take_screenshot`."* Grep for `screenshot|playwright|browser_` over my artifacts
-> returned **no mention**. I typed a plausible list instead of deriving one — the exact
-> failure `qa.md` §4b calls *"a scan that cannot locate its own already-known members is a
-> FAILED gate, not a partial pass."*
+> **This criterion has failed in THREE consecutive Q/A cycles, and cycle 3 handed me the
+> missing members in cycle 2's own remediation text.** R3 read verbatim: *"extend the C2
+> table with the playwright local-FS writers (browser_take_screenshot,
+> browser_run_code_unsafe, **and the snapshot/console filename paths**)."* I added the first
+> two and **dropped the third clause.**
 
-**Scope DERIVED, with the command stated:**
+### The method was wrong, and that is the root cause
+
+I derived from `handoff/audit/pre_tool_use_audit.jsonl` — **observed usage**. The criterion
+says *"from the platform's own tool list"*. **Usage cannot answer a capability question**,
+and my own table proved it: I listed `NotebookEdit` at **0 observed events**, supplied from
+memory — i.e. **guessed**, the one thing the criterion forbids.
+
+**What actually answers it is the tool SCHEMA**, and `grep -ci schema` returned **0** across
+both artifacts — I never read one. The schemas carry the decisive parameter:
 
 ```
-handoff/audit/pre_tool_use_audit.jsonl -> 97 distinct tool names, 178,006 events
+mcp__playwright__browser_snapshot
+    filename: "Save snapshot to markdown file instead of returning it in the response"
+mcp__playwright__browser_console_messages
+    filename: "Filename to save the console messages to"
 ```
 
-**Local-filesystem writers in that derived set, by observed volume:**
+**My own falsifying evidence indicted my table.** The 307 files under `.playwright-mcp/`
+decompose as **191 `page-*.yml` + 114 `console-*.log` + 1 `.png` + 1 `.json`** — so **305 of
+the 307 files I used to disprove the "MCP writers are remote" row were written by the two
+tools I omitted**, while I attributed them to `take_screenshot` (1 `.png`) and
+`run_code_unsafe`.
 
-| tool | events | writes locally | intercepted by matcher `Write\|Edit` |
+### Local-FS writers — corrected, with the source of each claim stated
+
+| tool | events | writes locally, because | intercepted |
 |---|---:|---|---|
-| `Bash` | 82,291 | yes — any redirect, `tee`, `sed -i`, … | **NO** |
-| `Edit` | 6,026 | yes | **YES** |
-| `Write` | 5,169 | yes | **YES** |
-| `mcp__playwright__browser_run_code_unsafe` | **391** | yes — arbitrary code with Playwright API access | **NO** |
-| `mcp__playwright__browser_take_screenshot` | **91** | yes — caller-supplied filename | **NO** |
-| `mcp__paper-search-mcp__download_arxiv` | **3** | yes — downloads a PDF | **NO** |
-| `NotebookEdit` | 0 observed | yes (`.ipynb`) — capable, never used | **NO** |
+| `Bash` | 82,309 | shell redirection | **NO** |
+| `Edit` | 6,026 | by definition | **YES** |
+| `Write` | 5,170 | by definition | **YES** |
+| `mcp__playwright__browser_run_code_unsafe` | 391 | arbitrary code, Playwright API | **NO** |
+| **`mcp__playwright__browser_snapshot`** | **60** | **schema `filename` param** | **NO** |
+| **`mcp__playwright__browser_console_messages`** | **20** | **schema `filename` param** | **NO** |
+| `mcp__playwright__browser_take_screenshot` | 91 | caller-supplied filename | **NO** |
+| `mcp__paper-search-mcp__download_arxiv` | 3 | downloads a PDF | **NO** |
+| `NotebookEdit` | 0 | capability, never observed | **NO** |
+| `mcp__playwright__browser_network_requests` | 11 | **UNVERIFIED** — schema not read | unknown |
 
-**So it is 2 of 6 observed local writers intercepted, not "2 of 4".** The old denominator
-was wrong because the table asserted *"MCP writers … no — remote services"*, and that row is
-**falsified by measurement**: `find .playwright-mcp -type f` returns **307** local files
-(191 `.yml`, 114 `.log`, 1 `.png`, 1 `.json`).
+**2 of 8 confirmed local writers are intercepted** — and that denominator is still **not
+certified**, because it rests on one audit file plus schemas I hold in-session, not on an
+enumeration of the platform's full tool list.
 
-**The three MCP writers matter more than NotebookEdit**, which I had flagged: two of them are
-on the **Q/A's own declared tools line** (`qa.md:4`), so they are reachable by the very role
-this guard constrains — and `browser_run_code_unsafe` executes arbitrary code.
+> **A parser detail that matters for anyone re-deriving this:** the audit file has **two
+> record shapes** — some lines key the tool as `tool_name`, others as `tool`. A probe reading
+> only `tool_name` returns **0** for every MCP tool. My original derivation handled both; a
+> later verification probe of mine did not, and briefly reported 0 where the truth is 60.
 
-### The declared-vs-effective discrepancy the contract demanded be settled
+### The overgeneralisation, withdrawn
 
-Contract plan item 2: *"qa.md's `tools:` line lists no Write and no Edit, yet this session's
-agent listing showed both … which is exactly what this criterion exists to settle."* I never
-addressed it. Settled now:
-
-- `qa.md:4` declares `Read, Bash, Glob, Grep, SendMessage, mcp__playwright__browser_*` — **no
-  `Write`, no `Edit`**.
-- The Q/A **holds `Write` and `Edit` regardless**, because `memory: project` frontmatter makes
-  the loader auto-enable them (the reason this hook exists at all — see the WHY block at the
-  top of `qa-write-guard.sh`).
-- **Consequence:** the declared allowlist is *not* the effective tool set, so an enumeration
-  taken from `qa.md` would be wrong in both directions. The audit stream is the only honest
-  source, which is why the derivation above uses it.
-
-**Still not fixed, and now a larger gap than disclosed in cycle 1:** widening the matcher to
-`Write|Edit|NotebookEdit` would not touch the three MCP writers either. No criterion of this
-step owns a behavioural change, so this is enumerated and queued rather than slipped in.
+An earlier revision of this section stated *"The audit stream is the only honest source,
+which is why the derivation above uses it."* **That is false and it forecloses the very
+method the criterion names.** Withdrawn.
 
 ## C3 — fail direction — CORRECTED TWICE, and it splits on TRUTHINESS
 
