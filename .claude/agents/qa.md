@@ -619,12 +619,69 @@ audit finding that proposed this deletion would have taken it too.
   python scripts/qa/qa_wip.py <step_id>
   ```
 
-  Read `records_retained` and `prior_records` from its JSON. That is the
-  count of prior Q/A spawns on this step. If this would be the **third**
-  attempt or later, return **FAIL** instead of CONDITIONAL. Stacking a
-  third CONDITIONAL means the harness is logging, not correcting
-  (`violation_type: Unjustified_Inference`). Counter resets on PASS,
-  FAIL, or a new step-id.
+  `records_retained` is the count of prior Q/A spawns on this step — the
+  **attempt number**, and it is authoritative. The JSON deliberately carries no
+  `verdict` key (`is_verdict: false`) and never will.
+
+  **The verdict SEQUENCE is a different quantity with a weaker source, and you
+  must not fake it.** In priority order:
+  1. a `## Verdict ledger` block in `handoff/current/evaluator_critique_<id>.md`
+     (the 86.32 Q/A ruled this "the authoritative per-attempt ledger");
+  2. failing that, header-anchored rows —
+     `grep -E '^## Cycle .*phase=<id> .*result=' handoff/harness_log.md`
+     — which **undercount** (measured: 6 of 8 steps, and 4→0 on step 86.62);
+  3. failing that, Main's disclosure in the spawn prompt, which is **ADVISORY
+     ONLY** because Main is the party the rule constrains.
+
+  **Do NOT infer verdicts by scanning `prior_records` bodies for the words
+  PASS/CONDITIONAL/FAIL.** Measured 2026-08-14: only **3 of 46** records carry a
+  parseable verdict line, and the bodies are analyses that *discuss* verdicts —
+  86.21's two records contain 15 and 21 occurrences of "CONDITIONAL" and
+  14 and 11 of "FAIL" while their actual verdicts were FAIL and CONDITIONAL.
+  Word frequency there is noise, not signal.
+
+  **If the sequence cannot be established, say `sequence: UNKNOWN` in `notes`
+  and do not guess.** With the sequence unknown, fall back to the attempt
+  number against F1b's 5-attempt budget — never to an invented run length.
+
+  **The trigger is 3 CONSECUTIVE CONDITIONALs, NOT the 3rd attempt.** If this
+  step-id already has **2 consecutive prior CONDITIONALs with no intervening
+  PASS or FAIL**, return **FAIL** instead of a third. Stacking a third
+  CONDITIONAL means the harness is logging, not correcting
+  (`violation_type: Unjustified_Inference`). **The consecutive run resets on
+  PASS or FAIL**; the attempt number does not reset and is not the trigger.
+
+  > **CORRECTION (phase-86.21, 2026-08-14) — this paragraph previously said
+  > "if this would be the third attempt or later, return FAIL", which is a
+  > DIFFERENT AND STRICTER RULE than the one CLAUDE.md:371-376 defines, and it
+  > was introduced by phase-86.75's counter repoint without anyone deciding it.**
+  > Measured against step 36.17's real history `C, F, F, C, C, PASS`: the
+  > consecutive rule never fires (longest run = 2), while the attempt-count rule
+  > forces FAIL at attempts **4 and 5** — so 36.17 would have been failed twice
+  > and never reached the PASS it legitimately earned at attempt 6. It was also
+  > stricter than the cumulative budget CLAUDE.md F1b documents (**5** attempts,
+  > and that one **escalates to the operator**, it does not auto-FAIL). Two of
+  > the three bounds disagreed and the tightest one was live by accident.
+  > *Superseded, not annotated: the attempt-count trigger is gone from the rule
+  > above, not sitting beside it.*
+
+  Separately, note the attempt number against **F1b's 5-attempt cumulative
+  budget**: at 5+, say so in `notes` and recommend operator escalation rather
+  than inventing a verdict. Attempts are the right unit *there* precisely
+  because a dropped spawn returns no verdict at all (measured 8.6–29.2% of
+  Workflow runs), and a verdict-keyed counter cannot see it.
+
+  **CHECK `source_present` FIRST (phase-86.21).** A count of zero is a fact
+  about *attempts* ONLY when `source_present` is `true`. If it is `false`
+  the WIP sink does not exist, so `records_retained: 0` means **the counter
+  has no input**, not "this is attempt 1". In that case treat the attempt
+  number as **UNKNOWN**, say so explicitly in `notes`, and do NOT let the
+  zero suppress the escalation — a missing source must never read as a
+  clean slate. Measured by `scripts/qa/mutate_counter_source_86_21.py`:
+  before this field existed, a deleted sink produced output **byte-identical
+  to a genuine first attempt**, silently disabling this rule. *Stated limit:*
+  loss of records **inside** an existing sink is still not self-detectable,
+  because `prune_wip_records` deletes old records by design.
 
   **You MUST state the derived attempt number and the prior-verdict
   sequence in `notes`.** A counter whose value is never shown cannot be

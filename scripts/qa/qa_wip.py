@@ -158,6 +158,24 @@ def resolve_wip_path(step_id: str, repo: pathlib.Path | None = None,
     return sink / f"verdict_wip_{sid}__{stamp}.md"
 
 
+def source_present(repo: pathlib.Path | None = None) -> bool:
+    """Does the counting source itself EXIST?
+
+    phase-86.21 criterion 6. `list_wip_records` returns `[]` for a missing sink,
+    which is indistinguishable from a genuine first attempt -- and the attempt
+    counter that drives the 3rd-attempt auto-FAIL is fed by exactly that number.
+    So a deleted or unmounted sink SILENTLY disables the escalation rule, which
+    is the precise failure mode 86.21 was filed to remove from the harness_log
+    grep. Replacing the grep with a ledger did not fix it; the ledger inherited
+    it. MEASURED by scripts/qa/mutate_counter_source_86_21.py: with the sink
+    deleted, report() was BYTE-IDENTICAL to a genuine first attempt.
+
+    A count of zero is only a fact about ATTEMPTS when this returns True.
+    """
+    root = pathlib.Path(repo) if repo is not None else REPO
+    return (root / MEMORY_DIR / WIP_SUBDIR).is_dir()
+
+
 def list_wip_records(step_id: str, repo: pathlib.Path | None = None) -> list[pathlib.Path]:
     """Every retained record for `step_id`, NEWEST FIRST.
 
@@ -295,10 +313,20 @@ def report(step_id: str, repo: pathlib.Path | None = None,
         # confident wrong answer.
         "prior_records": [str(p) for p in records if p != path],
         "records_retained": len(records),
+        # phase-86.21 criterion 6. Without this, records_retained==0 conflates
+        # "no prior attempts" with "the counting source is gone", and any caller
+        # deriving an attempt number from it fails OPEN and silently.
+        "source_present": source_present(repo),
     }
     if not path.exists():
         out["guidance"] = (
             "ABSENT: nothing was recovered. Re-run the Q/A. This is NO VERDICT, never PASS."
+        ) if out["source_present"] else (
+            "SOURCE MISSING: the WIP sink " + MEMORY_DIR + WIP_SUBDIR + "/ DOES NOT EXIST, "
+            "so records_retained=0 is NOT a statement about prior attempts -- it is a "
+            "statement that the counter has no input. Do NOT derive an attempt number from "
+            "it: treat the count as UNKNOWN and say so in the verdict notes. This is NO "
+            "VERDICT, never PASS."
         )
         return out
     text = path.read_text(encoding="utf-8", errors="replace")

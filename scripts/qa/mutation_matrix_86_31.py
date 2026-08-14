@@ -129,9 +129,12 @@ MUTATIONS = [
      "a file with no marker is UNMARKED",
      "fold UNMARKED into INCOMPLETE -- a hand-written file poses as write-first output"),
 
+    # phase-86.21: anchor repointed. The original pinned '"guidance": "",\n    }',
+    # which stopped matching once later phases added keys AFTER guidance -- the
+    # cell then reported ANCHOR-BAD, i.e. it silently stopped testing anything.
     ("M3", "scripts/qa/qa_wip.py",
-     '        "guidance": "",\n    }',
-     '        "guidance": "",\n        "verdict": "PASS",\n    }',
+     '        "records_retained": len(records),\n',
+     '        "records_retained": len(records),\n        "verdict": "PASS",\n',
      "carries no key to scrape as one",
      "give the report a verdict key -- the recovery path becomes scrapable as PASS"),
 
@@ -141,9 +144,11 @@ MUTATIONS = [
      "hostile step id refused",
      "accept any step id -- path traversal out of the memory dir via the resolver"),
 
+    # phase-86.21: anchor repointed. The original pinned a one-line return that
+    # phase-86.36 refactored into a `sink` local, so this cell had been dead too.
     ("M5", "scripts/qa/qa_wip.py",
-     'return root / MEMORY_DIR / WIP_SUBDIR / f"verdict_wip_{sid}.md"',
-     'return root / MEMORY_DIR / f"verdict_wip_{sid}.md"',
+     '    sink = root / MEMORY_DIR / WIP_SUBDIR\n    if run_stamp is None:',
+     '    sink = root / MEMORY_DIR\n    if run_stamp is None:',
      "the resolved WIP path sits under",
      "revert the sink to the memory dir TOP LEVEL -- the audit_memory collision returns"),
 
@@ -184,7 +189,7 @@ MUTATIONS = [
      "region-DELETE the whole write-first section from qa.md"),
 
     ("P2", ".claude/workflows/qa-verdict.js",
-     ("  'STEP 0b (binding, phase-86.31): WRITE-FIRST FOR YOUR VERDICT FILE ONLY.",
+     ("  'STEP 0b (binding, phase-86.31, path revised by phase-86.36): WRITE-FIRST FOR YOUR VERDICT FILE ONLY.",
       "  'You are INDEPENDENT of the author"),
      "",
      ".claude/workflows/qa-verdict.js :: STEP 0b",
@@ -222,7 +227,7 @@ MUTATIONS = [
      "LONG reword-inversion: passes the length floor AND keeps the **Create** literal, so ONLY the anti-directive leg can kill it"),
 
     ("Q2", ".claude/workflows/qa-verdict.js",
-     ("  'STEP 0b (binding, phase-86.31): WRITE-FIRST FOR YOUR VERDICT FILE ONLY.",
+     ("  'STEP 0b (binding, phase-86.31, path revised by phase-86.36): WRITE-FIRST FOR YOUR VERDICT FILE ONLY.",
       "  'You are INDEPENDENT of the author"),
      # The start marker is preserved VERBATIM. The first draft of this cell
      # replaced it too, so the section became UNLOCATABLE and the cell died on
@@ -230,7 +235,7 @@ MUTATIONS = [
      # is vacuity shape #11 (mis-attributed kill mechanism) wearing a green
      # badge. Keeping the marker forces the anti-directive / imperative legs to
      # be the thing that fires.
-     ("  'STEP 0b (binding, phase-86.31): WRITE-FIRST FOR YOUR VERDICT FILE ONLY. "
+     ("  'STEP 0b (binding, phase-86.31, path revised by phase-86.36): WRITE-FIRST FOR YOUR VERDICT FILE ONLY. "
       "RETIRED -- do not create .claude/agent-memory/qa/verdicts/verdict_wip_<step_id>.md. "
       "The STATUS: INCOMPLETE and STATUS: COMPLETE markers are obsolete and there is no "
       "FINAL act.',\n"
