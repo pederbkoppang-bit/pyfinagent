@@ -97,3 +97,32 @@ Main never authors it.
 > SCOPE / GATES. Commit fedcffff is exactly 6 files, all 86.78's -- no `git add -A` cross-attribution. Zero .py, zero backend/**, zero frontend/** changed, so gates 1a/1b/1c/1d are N/A by a DERIVED empty set (git diff --name-only against the actual parent), not by assertion; no UI claims, so 1c does not bind. No unintended production change committed or uncommitted. Write-first record at .claude/agent-memory/qa/verdicts/verdict_wip_86.78__20260814T090544Z.md, marked COMPLETE; no write was blocked.
 >
 > TO REACH PASS: (i) close criterion 3 end-to-end -- the operator-gated qa.md edit removing :665/:685/:702, or an explicit operator decision to accept the duplication with the patch written out unapplied; (ii) add a guard for 'escalation alongside, never merged' (F-1); (iii) harden the consequence-removal guard against rewording, e.g. a content pin on the post-criteria prompt block (F-2); (iv) optionally compute or assert verdict_unmodified and correct the section 1b probe labels to the literal strings.
+
+---
+
+## Cycle 2 — NO VERDICT (rail drop), `wf_e618e5e3-5aa`
+
+**The rail dropped: no `StructuredOutput` call.** 173,797 tokens, 38 tool calls, 453s.
+**NO VERDICT, never PASS.** Counted as an ATTEMPT — it cost full tokens.
+
+**But write-first made this the most valuable run of the day.** Before dying it
+established, with version pinning in both directions, that **the qa.md scrub never
+reached it**: its own system prompt was `qa.md@2e40e8c7` — the PRE-FIX text — delivering
+the consequence, the threshold, the unit, and an order to compute its own position.
+
+That finding was then **confirmed independently** by a fresh probe spawn
+(5 of 5 pre-fix markers present in the system prompt, 0 of 3 post-fix markers).
+Full measurement: `handoff/current/live_check_86.78.md` **§9**.
+
+**Consequence for this step:** criterion 3 is architecturally complete and **NOT YET IN
+FORCE**. It cannot be closed from inside this session, because
+`.claude/workflows/qa-verdict.js` launches `agentType: 'qa'` and that type's definition
+snapshots at session start — so a **deletion-based** change is inert until restart.
+
+### Verdict ledger
+
+| cycle | rail run | verdict |
+|---|---|---|
+| — | `wf_0471dd22-909` | **STOPPED before any verdict** (running a snapshotted script) |
+| 1 | `wf_28f4f42f-285` | **CONDITIONAL** |
+| 2 | `wf_e618e5e3-5aa` | **NO VERDICT** (drop) — but its write-first record carried the session's decisive finding |

@@ -378,3 +378,67 @@ MUTATION MATRIX
 
   ALL CELLS KILLED
 ```
+
+---
+
+# §9. THE SCRUB IS INERT THIS SESSION — measured, and it invalidates a documented claim
+
+**Found by the cycle-3 Q/A run that DROPPED**, preserved only because write-first made it
+write its findings before it died, and then **confirmed independently** by a fresh probe.
+
+## The measurement
+
+A minimal `agentType: 'qa'` subagent was spawned and asked, without letting it read any
+file, which strings were in **its own system prompt**:
+
+| marker | in qa.md at session start (pre-fix) | on disk NOW (post-fix) | in the fresh Q/A's SYSTEM PROMPT |
+|---|---|---|---|
+| `return **FAIL** instead of a third` | yes | **0** | **yes** |
+| `recommend operator escalation` | yes | **0** | **yes** |
+| `You MUST state the derived attempt number` | yes | **0** | **yes** |
+| `3rd-CONDITIONAL auto-FAIL` | yes | **0** | **yes** |
+| `and it is authoritative` | yes | **0** | **yes** |
+| `--evidence-only` | no | 4 | **no** |
+| `attempt_number_is_lower_bound` | no | 1 | **no** |
+| `--spawned-at` | no | 2 | **no** |
+
+**5 of 5 pre-fix markers present; 0 of 3 post-fix markers present.** The judge's system
+prompt IS `qa.md` as it stood at session start.
+
+## Why this defeats the fix, specifically
+
+`.claude/workflows/qa-verdict.js` launches with **`agentType: 'qa'`** — it *is* the
+Agent-tool `qa` type, and that type's definition is snapshotted at session start. The
+prompt's STEP 0 makes the judge *read* `qa.md` at runtime, which is why the rail was
+believed live. But:
+
+> **A runtime read can only ADD text. It cannot RETRACT text already in the system
+> prompt.** So an ADDITIVE qa.md change is live immediately on this rail, and a
+> **DELETION-based** change — which is exactly what phase-86.78 is — is **INERT until
+> the session restarts.**
+
+The judge therefore still received, as binding system-level instruction: the
+**consequence** ("return FAIL instead of a third"), the **threshold** (3 consecutive; 5
+attempts), the **unit**, and an **order to compute its own position**.
+
+## The documented claim this falsifies
+
+`.claude/workflows/qa-verdict.js:13-16` and `CLAUDE.md` both state that the Workflow
+launch *"has the Q/A read `qa.md` from disk at runtime, so a `qa.md` edit is live
+immediately on this path; only the Agent-tool roster snapshots at session start."*
+
+**That is false as written**, and falsified by its own `agentType: 'qa'`. It is true only
+for ADDITIONS. This is the second snapshot defect found today — §7 is the same class one
+level up (the workflow SCRIPT snapshots on a `name:` launch).
+
+## What it means for this step's status
+
+**Criterion 3 is architecturally complete and NOT YET IN FORCE.** Every artifact on disk
+is correct; the running session is still serving the old instructions. This is the
+`committed is NOT in force` class in its sharpest form yet — the commit is real, the
+file is right, the probe agrees, and the judge is still being told the consequence.
+
+**It cannot be closed from inside this session.** The remedy is a session restart, after
+which `scripts/qa/verify_qa_roster_live.sh` (which exists for exactly this, and quotes
+Anthropic's *"Subagents are loaded at session start… restart your session to load it"*)
+should be run before the next Q/A is trusted on this step.

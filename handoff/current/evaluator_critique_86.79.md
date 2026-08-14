@@ -182,3 +182,65 @@ Q/A can grade criterion 4 on evidence that can actually satisfy it.
 | 1 | `wf_61338c26-b90` | **CONDITIONAL** |
 | 2 | `wf_44776e5d-ca3` | **CONDITIONAL** |
 | 3 | *(not spawned — escalated)* | — |
+
+---
+
+## Cycle 3 — NO VERDICT (rail drop), `wf_303908bd-83a`
+
+**The rail dropped: the subagent completed without calling `StructuredOutput`.**
+195,566 tokens, 47 tool calls, 1,024s, no verdict returned. **This is NO VERDICT, and
+it is never PASS.** It is recorded as an ATTEMPT because it cost full tokens.
+
+The peer session's drop-retry wrapper (`agentRetryingDrops`, commit `6b4df8f9`) was
+committed at **12:15**; this run launched at **12:10**, so it was **not covered**.
+
+### What write-first preserved — EVIDENCE for the next spawn, never a verdict
+
+The run wrote 5,193 bytes before dying. Its findings, recorded here so they are not
+lost, and NOT treated as a grade:
+
+1. **The 86.79 gate does not guard criterion 4's members 4b and 4c.**
+   `verify_counter_86_79.py` mentions `qa.md` only at `:378/:379/:381`, and asserts
+   merely that `qa_md_patch_86.79.md` **exists** and contains the string
+   `records_retained`. There are **zero** assertions on `.claude/agents/qa.md` or
+   `.claude/workflows/qa-verdict.js` **content**, and `mutation_matrix_86_79.py`'s
+   subject is the single file `scripts/qa/qa_wip.py`. **So 4b and 4c could be reverted
+   with the gate still green.**
+2. **A stale label, created by the cycle-4 fix itself.** The C4 assertion
+   *"the un-applied qa.md correction is written out for the operator"* and the comment
+   *"The residual divergence (qa.md) must be LOUD"* were true through cycle 3 and became
+   false at cycle 4, when the correction was applied.
+3. **Two unguarded fields:** `records_pruned_known` has zero assertions that it is
+   `None` where it should be; and the unit (`records_retained_unit`) is guarded only on
+   the `no_record_for_this_spawn` path — **the `ok` path, which every healthy spawn
+   reads, has none.**
+
+### What it verified INDEPENDENTLY before dropping
+
+- **4a MET** — `DEFAULT_KEEP`'s comment states TOTAL/INCLUSIVE and measured retention
+  equals `keep`.
+- **4b MET** — `qa-verdict.js:176-180` now say `attempt_number`/`prior_attempts`,
+  *"null is NEVER 0"*, and *"records_retained is NOT the attempt number … a gauge, not
+  a counter."*
+- **4c MET** — both `qa.md` regions corrected; the diff contains **0** lines matching
+  the two deliberately-untouched sites.
+- **Both exclusions judged CORRECT**, and it went further than I did: the dated
+  measurement at `:784` **still reproduces today** (`qa_wip.py 86.33` → 3 records,
+  `source_present` true, 2 priors), so leaving it was right on the facts and not only
+  on principle.
+- `ruff F821,F401,F811` over a derived, non-empty commit-range scope: `All checks
+  passed!`, exit 0.
+- `enforceEscalation`: no PASS-producing path.
+
+**Status: the step remains `pending` with NO verdict at cycle 3.** Attempts to date: 3
+(2 graded CONDITIONAL, 1 dropped). The three findings above are the concrete work the
+next cycle must do — and it must run in a session where the qa.md scrub is actually in
+force (see `live_check_86.78.md` §9).
+
+### Verdict ledger
+
+| cycle | rail run | verdict |
+|---|---|---|
+| 1 | `wf_61338c26-b90` | **CONDITIONAL** |
+| 2 | `wf_44776e5d-ca3` | **CONDITIONAL** |
+| 3 | `wf_303908bd-83a` | **NO VERDICT** (drop, uncovered by the retry) |
