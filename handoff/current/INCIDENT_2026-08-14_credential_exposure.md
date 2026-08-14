@@ -42,8 +42,28 @@ clean files written AFTER the last leak: 6  (08-11 x2, 08-12 x2, 08-13 x2)
 the token. **This narrows the incident to a bounded 3-day window — it does not reduce
 the urgency of rotation**, because the token was public for six days regardless.
 
-**Not verified:** *why* it stopped. I did not find the producer change that fixed it, so
-"fixed" is inferred from six clean outputs, not demonstrated. Treat as unconfirmed.
+**~~Not verified: why it stopped.~~ ANSWERED 2026-08-14, and the answer inverts this
+paragraph.** There was no producer change. `scripts/away_ops/run_away_session.sh:165-171`
+wrote the Claude CLI's raw `--output-format json` **straight to the git-tracked, pushed
+path**, with **zero redaction anywhere in the producer**. The vector is an API error that
+echoes the header verbatim: `API Error: Header 'Authorization' has invalid value:
+'Bearer <TOKEN>...`. So the leak was **DORMANT, NOT CLOSED** — it stopped only because
+that error stopped occurring, and the next one of that shape would have published a fresh
+credential.
+
+**Now closed at source** (commit `cd9774e3`): the CLI writes to a temp file,
+`scripts/away_ops/redact_secrets.py` filters it, and only redacted bytes reach the tracked
+path. Fails CLOSED. `rc` is captured before filtering so the 401 latch still fires.
+
+**A SECOND false-clean was found during that work**, and it is the more instructive one:
+the first redactor reported the real file clean while leaving **29 characters of the token
+behind**. The credential **wraps across a newline**, the character class stopped there, and
+the check *"does the pattern still match? no"* called that success. Continuations are now
+swallowed and the wrapped shape is a pinned test case.
+
+**THIS CHANGES NOTHING ABOUT ROTATION.** The five tracked files are untouched, the token is
+still live on `origin/main` and on a fork, and **rotation remains the only action that
+revokes**. What is now guaranteed is only that there will be no SIXTH file.
 
 ## 3. Why my earlier scan reported CLEAN — the failure is instructive
 
