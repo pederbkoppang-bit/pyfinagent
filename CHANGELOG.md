@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-14 | `2cade52f` | phase-86.78 cycle-2: close the three mutants the Q/A left surviving; criterion 3 escalated |
 | 2026-08-14 | `fedcffff` | phase-86.78: stop telling the judge what its verdict will trigger; compute the threshold caller-side |
 | 2026-08-14 | `5e95ffbe` | phase-86.79 cycle-3: close every code finding from two Q/A cycles; criterion 4 escalated |
 | 2026-08-14 | `dc6575b6` | phase-86.79: the attempt counter was a gauge read as a counter -- split the field, account the loss, |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-14 | `1f5fd305` | phase-86.65/86.66/86.75: the breach is THREE steps, not one -- derived, not listed |
 | 2026-08-14 | `dee3beab` | phase-86.65: DISCLOSE a protocol breach -- I did GENERATE with no gate and no contract |
 | 2026-08-14 | `adf3e2d6` | phase-86.77: queue the two CLAUDE.md classifier-doc divergences the 86.68 Q/A found while PASSING it |
-| 2026-08-14 | `383ef54b` | phase-86.68: the version number counts ATTEMPTS, not shipped work -- two steps that shipped nothi... |
 
 ---
 
