@@ -162,13 +162,38 @@ if [ "${AWAY_SESSION_DRY_RUN:-0}" = "1" ]; then
     printf '{"result":"dry-run-ok","total_cost_usd":0}\n' > "$OUT_JSON"
     rc=0
 else
+    # phase-86.79/INCIDENT-2026-08-14: REDACT BEFORE THE TRACKED FILE EXISTS.
+    #
+    # This used to write the CLI's raw JSON straight to $OUT_JSON, which is a
+    # GIT-TRACKED, PUSHED path. On 2026-08-08..08-10 that put a live
+    # `sk-ant-oat01...` OAuth token on a public remote for six days, in the
+    # `result` field, via an API error that echoes the header verbatim:
+    #   "API Error: Header 'Authorization' has invalid value: 'Bearer <TOKEN>..."
+    # The incident record inferred the leak was "fixed" because six later files
+    # came out clean. It was not fixed -- it was DORMANT. There was no redaction
+    # anywhere in this producer, so the channel stayed wide open and the next
+    # auth error of that shape would have leaked a fresh credential.
+    #
+    # Written to a temp file first so the tracked path NEVER holds an
+    # unredacted byte, not even briefly.
+    RAW_JSON="$(mktemp "${TMPDIR:-/tmp}/away_session_raw.XXXXXX")"
     "$GTIMEOUT" -k 60 "$CAP" "$CLAUDE_BIN" -p \
         --dangerously-skip-permissions \
         --model claude-opus-4-8 \
         --max-turns "$MAX_TURNS" \
         --output-format json \
-        < "$PROMPT_FILE" > "$OUT_JSON" 2>> "$SLOG"
+        < "$PROMPT_FILE" > "$RAW_JSON" 2>> "$SLOG"
     rc=$?
+    # rc is captured from the CLI ABOVE, before any filtering. It drives the 401
+    # latch below, and `rc=$?` after a pipe would read the filter instead.
+    if python3 "$REPO/scripts/away_ops/redact_secrets.py" "$RAW_JSON" > "$OUT_JSON" 2>> "$SLOG"; then
+        :
+    else
+        # FAIL CLOSED ON SECRECY. Losing telemetry beats publishing a credential.
+        slog "REDACTION FAILED -- writing a stub instead of the raw session JSON"
+        printf '{"result":"REDACTION_FAILED -- raw output withheld deliberately","total_cost_usd":0}\n' > "$OUT_JSON"
+    fi
+    shred -u "$RAW_JSON" 2>/dev/null || rm -f "$RAW_JSON"
 fi
 
 case "$rc" in
