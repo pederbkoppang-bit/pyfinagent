@@ -244,6 +244,58 @@ truncation defect is still firing (D5). **C7 stays PARTIAL.** Independent
 *third-party* confirmation is a Q/A's job, not a second derivation by the same
 author -- that limit is stated here rather than papered over.
 
+### 2h. A SECOND VERDICT SOURCE cuts undetermined from 33 to 14 (cycle-6 Q/A, WARN)
+
+**The "33 UNDETERMINED" figure was a property of my enumeration rule, not of the
+data.** Every version of this section enumerated verdict-existence from ONE source —
+the `analysis_results.full_report_json` blob. `paper_trades` carries its own
+per-trade column, **`risk_judge_decision`**, written on the BUY row itself. Measured:
+
+```
+paper_trades BUY rows                         : 34
+... with risk_judge_decision populated        : 19   (15 APPROVE_REDUCED, 3 REJECT, 1 APPROVE_HEDGED)
+```
+
+**Cross-tabulated against my own buckets, the mapping is exact:**
+
+| my bucket | `paper_trades` verdict | n |
+|---|---|---:|
+| `AR_verdict_known` (DELL, the inversion) | absent | 1 |
+| `UNDET_no_row_within_2s` | absent | **14** |
+| `UNDET_truncated_no_final_synthesis` | **PRESENT** | **19** |
+
+**All 19 rows I called undetermined have a persisted verdict after all.** The
+truncation defect (2e/D5) destroyed the *blob* copy; the per-trade column survived.
+So the honest count is **14 undetermined, not 33** — and 2c's reasoning is
+vindicated in the strongest possible way: "key absent" really did mean *not
+persisted here*, never *never existed*, and the verdict was recoverable from
+somewhere else entirely.
+
+**Does this create new inversions? No — inversion stays 1.** C7 asks for positions
+*sized at the 10%-NAV default while a completed verdict existed*. The three REJECTs
+are the only inversion candidates on the verdict leg:
+
+| ticker | date | notional |
+|---|---|---:|
+| HPE | 2026-06-02 | $245.04 |
+| DELL | 2026-06-03 | $246.67 |
+| 066570.KS | 2026-06-09 | $238.40 |
+
+All three are **~$240 against a ~$24k book (~1% of NAV)** — an order of magnitude
+below the 10% default, which on this book is $2,392.26 (the DELL inversion's exact
+size). These are the known phase-57.1 away-week trio, sized at a reduced pct.
+**RESIDUAL, stated rather than papered over:** I anchored "~$24k" on the
+2026-08-13 NAV because `paper_portfolio` holds current state only and the June
+snapshot table lives in a different BigQuery *location*, so a single-query join was
+not available. The conclusion is robust — NAV would have to have been ~$2,400 for
+$240 to be the 10% default, against a $25,000 starting capital — but the ratio is
+not precise, and a per-date NAV join is queued rather than claimed.
+
+**Method lesson.** Two independent operationalizations of "a verdict existed"
+disagreed by 19 rows, and I only ever ran one. Where a second source exists, the
+symmetric difference IS the measurement; a single-source enumeration reports the
+rule as if it were the territory.
+
 ### 2f. The in-system precedent for 2c's reasoning
 
 2c argues *"key absent supports not-persisted, never never-existed"* on principle.

@@ -543,11 +543,12 @@ So the **diagnosis** landed and is durable; the **fix** is queued as 86.84.
   `-e`, started Fri 14 Aug 17:52:08 CEST, elapsed 1h08m, cross-checked against
   `launchctl list` (`com.pyfinagent.backend` → 85562). **`curl /health` returned
   404** — that path is wrong; the operator's "health 200" was on a different
-  endpoint and I did not find the right one before freeze. **C4 remains
-  unmeasured**: no autonomous cycle ran in this window, so there is still no
-  post-fix share to compare against the 0-of-129 baseline.
-- **C7 (33 UNDETERMINED) — untouched this session.** Still MINE alone; no
-  evaluator has re-measured the 19/14/0 split.
+  endpoint and I did not find the right one before freeze. **C4 was unmeasured
+  AT THIS POINT IN THE DAY** — superseded later the same evening; see the
+  late-session section below.
+- **C7 (33 UNDETERMINED) — untouched at this point.** Also superseded: two
+  independent evaluators later re-measured the 19/14/0 split, and a second
+  verdict source cut undetermined to **14**.
 - **D5 — untouched this session.** Still queued and still firing.
 
 ## Honest limits
@@ -762,7 +763,9 @@ monthly average spans the regime break.
 
 `/api/health` is the endpoint (200); `/health` 404s. A `000` on the portfolio
 endpoint was transient — 200 in 3 ms on retry, no defect. Backend v6.93.222,
-NAV 23,920.63 (+19.6% vs benchmark +9.09%). **C4 remains unmeasured**: no
-autonomous cycle ran in this window. C7 untouched.
+NAV 23,920.63 (+19.6% vs benchmark +9.09%). **C4 was unmeasured in this window**
+— superseded the same evening: cycle `68925781` ran 18:00:00Z->19:33:13Z and C4
+measured **6 of 6 (100%)** against the 0-of-129 baseline. C7 likewise superseded
+(undetermined 33 -> 14). See the session-4 section.
 
 **Pending restarts: none.** No `.env`, no plist, no production code.

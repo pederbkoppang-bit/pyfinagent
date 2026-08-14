@@ -453,3 +453,119 @@ non-reads -- an env-var mapping entry (`settings_api.py:283`) and a docstring li
 PASS reset the run, so consecutive = **1**; the 3rd-CONDITIONAL auto-FAIL is **not**
 armed. A fresh Q/A on the changed evidence is the documented cycle-2 flow, not
 verdict-shopping: the artifact the BLOCK was about has materially changed.
+
+---
+
+## Cycle 6 -- Workflow rail `wf_5feacec3-a76` -- verdict CONDITIONAL
+
+Return value **VERBATIM**. Main records the verdict, never authors it.
+
+```json
+{
+  "ok": false,
+  "verdict": "CONDITIONAL",
+  "reason": "All 10 immutable criteria are substantively MET on evidence I re-derived myself, and I found NO code defect: immutable cmd exit=0 (41 passed); ruff F821/F401/F811 clean over a DERIVED 10-file scope; all 4 changed backend modules import and /api/health=200. My own 8-cell mutation matrix (in-memory sys.modules injection, zero repo writes, md5 of portfolio_manager.py fe6f4366 and autonomous_loop.py bf56d8d0 identical before/after) had control GREEN at 41 and NO SURVIVORS: M1 helper falsy-zero=7 red, M2a legacy `or DEFAULT`=11 red, M2b SIZE-branch falsy=9 red, M3 persistence kwargs deleted=3 red, plus my own M4 (revert the unconditional nested-first resolution -- the ACTUAL DELL mechanism) = 9 red in BOTH flag states, M5 ABSENT-branch = 4 red, M6 blocks_buy=False = 2 red. C2 driven through the real path: decide_trades on a nested REJECT/0% with the flag OFF returns []. C4 re-derived in BigQuery: 129/0/0/0 baseline vs 6/6/6/6 post-fix with the per-ticker table matching to the second. C5 verified LIVE in backend.log (six `Risk debate complete: ticker=` lines matching the six BQ rows to the second) -- elimination-based attribution genuinely retired. C7's headline reproduces exactly (34/1/0/14/19/0, sum=34, DELL positive control detected). C8: 9->38 tests, 17->62 asserts, grep 64 with both inflating lines named; and I EXECUTED the both-flag-states claim by forcing shape_fix=True on every test (41 passed either way). C10: zero diff in settings/kill_switch/risk_engine/paper_trader, DELL still held at 4.806437sh/$2392.26. Harness compliance 5/5 clean. THE CAP IS PROSE, AND IT IS THE SAME CROSS-FILE CONTRADICTION THIS CYCLE WAS CONVENED TO CLOSE. Answering ask (a) directly: you fixed the pair you were graded on and left the FORWARD-LOOKING artifact standing. handoff/current/goal_next_2026-08-15.md:24 -- binding on the next session by its own line 1 -- still says \"C4 STILL UNMEASURED. No cycle ran 08-14 evening. ... Run one cycle, measure vs the 0-of-129 baseline\"; both clauses are false as of 21:41 (cycle 68925781 ran 18:00:00Z-19:33:13Z), and it directs an action the same file's section 6 forbids (\"no manual cycles\"). Also day_report_2026-08-14.md:547 and :765 (\"C4 remains unmeasured\") and queued_defects_from_86.74.md:71 (\"the running process still holds pre-fix code\"), whose D3 deliverable is now done. Two further WARNs I measured that you did not have: (i) C7's enumeration is SINGLE-SOURCE -- paper_trades.risk_judge_decision is a second per-trade verdict column populated on 19 of 34 BUY rows (3 of them REJECT: HPE 2026-06-02 $245.04, DELL 2026-06-03 $246.67, 066570.KS 2026-06-09 -- the known phase-57.1 away-week trio, sized at a reduced pct not the 10% default, so inversion=1 stands as worded), which means \"33 UNDETERMINED\" overstates undeterminability; (ii) two operator-visible PRODUCTION docstrings still describe the pre-86.74 semantics and UNDERSTATE the protection now in force -- settings.py:352 \"OFF = byte-identical top-level reads\" and settings.py:348 \"the True-path REJECT only actually blocks the BUY when shape_fix (full path) ... is ALSO on\". Asks (c) and (d) both come back in your favour, verified not taken on trust: the only two surviving flag references are a _FIELD_TO_ENV mapping entry and a docstring, with zero `settings.paper_risk_judge_shape_fix_enabled` reads anywhere in production -- and the forced-ON differential corroborates that by EXECUTION, not grep; and f0c4ad0c's portfolio_manager.py change is provably comment-only (ast.dump identical before==after==worktree, 740 code lines list-identical). Ask (b): a disclosed C6 residual IS compatible with C6 satisfied, and it is narrower than you claimed -- I drove a gated buy and order.signals carries {\"agent\":\"RiskJudge\",\"role\":\"gate\"}, leaving only json.dumps at autonomous_loop.py:3717; the 0%-REJECT half is structurally undemonstrable end-to-end because a 0% REJECT yields no order at all, so the attribution seam is the only place that clause can ever be tested.",
+  "violated_criteria": [
+    "cross_file_stale_C4_claims_in_forward_looking_artifacts",
+    "C7_enumeration_single_source",
+    "stale_production_flag_docstrings"
+  ],
+  "violation_details": [
+    {
+      "violation_type": "Contradiction",
+      "action": "grep the whole tree for surviving 'C4 unmeasured' / 'pre-fix code' claims after remediation commit f0c4ad0c",
+      "state": "f0c4ad0c touched ONLY experiment_results_86.74.md, evaluator_critique_86.74.md and portfolio_manager.py. Still standing at HEAD 3c6c0236, re-confirmed 2026-08-14T20:16Z: goal_next_2026-08-15.md:24 'C4 STILL UNMEASURED. No cycle ran 08-14 evening. ... Run one cycle, measure vs the 0-of-129 baseline'; day_report_2026-08-14.md:547 and :765 'C4 remains unmeasured'; queued_defects_from_86.74.md:71 'the running process still holds pre-fix code'. Measured timeline (CEST): restart d6a1500a 17:52:58 -> queued_defects 18:03:27 -> day_report 20:27:29 -> goal_next 20:42:48 -> C4 MEASURED 9034ddfb 21:41:03 -> experiment_results 21:59:49. goal_next is BINDING on the next session by its own line 1 and its instruction contradicts its own section 6 'no manual cycles'.",
+      "constraint": "SEVERITY BLOCK. V1's own lesson, in the commit message of f0c4ad0c: 'I applied the rule WITHIN a file and missed the CROSS-FILE half'. A correction that lives in only some of the files carrying the claim leaves live contradictory claims -- and the one left standing here is the forward-looking artifact that directs the next session's actions."
+    },
+    {
+      "violation_type": "Overgeneralization",
+      "action": "re-derive the criterion-7 paper_trades sweep independently and look for a second operationalization",
+      "state": "My query reproduces the artifact exactly: total=34, inversion=1 (DELL, dec=REJECT pct=0, dsec=0), permitted=0, no_row_within_2s=14, joined_but_fs_absent=19, fs_present_no_ra=0, summing to 34. BUT paper_trades.risk_judge_decision -- a per-trade verdict column on the BUY row itself -- is populated on 19 of 34 BUY rows (15 APPROVE_REDUCED, 3 REJECT, 1 APPROVE_HEDGED) and is used nowhere in the sweep or the artifact.",
+      "constraint": "SEVERITY WARN. Criterion 7: 'state the enumeration rule'. The stated rule enumerates from one source (the analysis_results JSON blob); a second populated per-trade source resolves the verdict-existence question for 19 of the 34 rows, so '33 UNDETERMINED' is a property of the chosen enumeration rather than of the data. qa.md 4b: where two independent operationalizations exist, compare them by symmetric difference and report the residual."
+    },
+    {
+      "violation_type": "Invalid_Precondition",
+      "action": "grep every surviving reference to paper_risk_judge_shape_fix_enabled and read the neighbouring Field descriptions",
+      "state": "backend/config/settings.py:352 still reads 'OFF = byte-identical top-level reads (the lite path is already flat, so lite is unaffected either way)' -- false since portfolio_manager.py:331-333 made the nested-first resolution unconditional. backend/config/settings.py:348 still reads 'NOTE the True-path REJECT only actually blocks the BUY when shape_fix (full path) or reject_binding (lite path) is ALSO on; on the all-OFF default even a REJECT verdict may not bind' -- false on the full path: I drove decide_trades with a nested REJECT/0%, shape_fix OFF and reject_binding OFF, and it returned [].",
+      "constraint": "SEVERITY WARN. Criterion 1 requires the fix to hold with the flag OFF, which it does; but these are operator-visible Settings-UI field descriptions in production source that now mis-describe the gate, both in the direction of UNDERSTATING the protection in force. Same class as the step's own 'fixing the code does not fix the prose' lesson."
+    }
+  ],
+  "certified_fallback": false,
+  "checks_run": [
+    "harness_compliance_audit_5_items",
+    "immutable_verification_command_exit_0_41_passed",
+    "python_lint_gate_ruff_F821_F401_F811_derived_scope",
+    "backend_runtime_smoke_imports_and_api_health",
+    "bigquery_rederivation_C4_baseline_and_postfix",
+    "bigquery_rederivation_C7_sweep_with_positive_control",
+    "second_operationalization_paper_trades_risk_judge_decision",
+    "live_log_observation_C5_ticker_attribution",
+    "driven_buy_path_C2_zero_pct_no_order",
+    "driven_order_signals_C6_plumbing",
+    "source_derivation_C3_default_reachable_set",
+    "assertion_count_rederivation_38_62_64_and_baseline_9",
+    "flag_state_differential_forced_ON_41_vs_41",
+    "mutation_matrix_8_cells_control_green_no_survivors",
+    "ast_proof_comment_only_portfolio_manager_change",
+    "commit_file_list_audit_no_unintended_production_change",
+    "C10_no_threshold_loosened_DELL_untouched",
+    "code_review_heuristics",
+    "evaluator_critique",
+    "guard_vacuity_check",
+    "claim_audit_of_prose"
+  ],
+  "harness_compliance_ok": true,
+  "notes": "SEQUENCE: UNKNOWN. verdict_history_86_21.py --step 86.74 --evidence-only returns status=no_rows_for_step, verdicts=(none) -- the authoritative ledger has no rows for this step. qa_wip.py 86.74 --spawned-at 2026-08-14T20:01:33Z returns source_present=true, attempt_number=9 (status ok, is_lower_bound=true), prior_attempts=8, records_retained=9 (a gauge, not a counter), records_pruned_known=null. CROSS-CHECK per qa.md: attempt_number (9) > ledger verdict count (0), so THE LEDGER IS STALE and the sequence is unreliable. Secondary cross-check only: harness_log carries Cycle 190 NO-VERDICT, 191 CONDITIONAL, 192 CONDITIONAL, 193 PASS (scoped) for phase=86.74. Main's advisory disclosure of \"194 CONDITIONAL\" does NOT reproduce -- there is no `Cycle 194 -- phase=86.74` row; Cycle 194 in that file is a 2026-08-09 phase=36.17 row and Cycle 193 is the last 86.74 entry. The cycle-5 CONDITIONAL itself is real and transcribed in evaluator_critique_86.74.md; only the log citation is wrong. I report the rows and their status and derive no aggregate from them. NO UI CLAIMS in this step, so the 1c live-capture gate does not bind; I took no Playwright capture and none was needed. WRITE-FIRST: my record is .claude/agent-memory/qa/verdicts/verdict_wip_86.74__20260814T200133Z.md, opened INCOMPLETE on my first tool calls, appended throughout, closed COMPLETE at 2026-08-14T20:16:19Z. No write was blocked; I wrote nothing outside that path. TREE HYGIENE (NOTE, not attributable to this step): uncommitted production edits were present in the tree while I graded -- backend/api/sovereign_api.py plus 5 frontend components, adding a `1y` red-line window. I verified they are in NEITHER 86.74 commit (9034ddfb = {live_check_86.74.md, research_brief_86.85.md}; f0c4ad0c = {portfolio_manager.py, evaluator_critique_86.74.md, experiment_results_86.74.md}), so no unintended production change is attributable to 86.74 -- but the tree was not frozen during EVALUATE. Separately, 9034ddfb carried a DIFFERENT step's artifact (research_brief_86.85.md) under a phase-86.74 subject. NOTE on C4: risk_level is uniformly 'HIGH' across all six post-fix rows, so at n=6 that column alone is not distinguishable from a literal; the artifact does not overclaim (it cites the two distinct DECISIONS and two distinct PCTS), but criterion 4 names risk_level explicitly and a second cycle would settle it. NOTE on the flag differential: test_lite_path_byte_identical_across_flag compares OFF vs ON and becomes trivially true under the forced-ON patch, and test_settings_flag_default_off reads Settings.model_fields and is unaffected -- 39 of the 41 are genuinely re-exercised. TO CLEAR THIS CONDITIONAL: replace (do not annotate) goal_next_2026-08-15.md:24, day_report_2026-08-14.md:547 and :765, and queued_defects_from_86.74.md:71 D3; add the paper_trades.risk_judge_decision source to C7's enumeration rule and restate the undetermined count against it; and correct the two settings.py field descriptions. None of these is a code change and none touches the money path.",
+  "escalation": {
+    "sequence_supplied": null,
+    "sequence_status": "not_supplied",
+    "consecutive_conditionals": null,
+    "would_auto_fail": null,
+    "attempt_number": null,
+    "budget_exhausted": null,
+    "max_attempts": 5,
+    "burden_on": "the party departing from the computed escalation",
+    "override": null,
+    "override_reason": null,
+    "judge_was_told_consequence": false
+  },
+  "verdict_unmodified": true
+}```
+
+### Main's remediation of cycle 6
+
+**It caught me in the same class of error twice, and it was right to.** Cycle 5's
+BLOCK was a cross-file contradiction; I fixed the two files I was graded on and left
+the FORWARD-LOOKING one standing -- `goal_next_2026-08-15.md`, which is binding on
+the next session by its own line 1, still ordered *"C4 STILL UNMEASURED ... Run one
+cycle"*, an instruction that was false AND that the same file's section 6 forbids.
+
+**Why my own verification missed it, which is the real lesson.** After cycle 5 I ran
+a grep to prove the correction was complete. It returned clean. But I had built the
+pattern out of the exact phrasings I had just edited -- `not yet in BQ`, `holds the
+pre-fix code`, `has not been restarted` -- so it could only ever find the things I
+had already fixed. `C4 STILL UNMEASURED` and `C4 remains unmeasured` matched none of
+them. **A probe assembled from the strings you just changed cannot discover the ones
+you did not.** Enumerate the CLAIM, not your own list of its wordings.
+
+| # | Finding | Severity | Fix |
+|---|---|---|---|
+| V1 | Stale C4 claims in 4 forward-looking locations | **BLOCK** | `goal_next_2026-08-15.md:24` rewritten (and it now says explicitly: do NOT run a cycle for this, the old instruction contradicted "no manual cycles"); `day_report_2026-08-14.md:547,:765` marked superseded in place; `queued_defects_from_86.74.md` D3 CLOSED with the measurement |
+| V2 | C7 enumeration single-source | WARN | Measured the second source myself: `paper_trades.risk_judge_decision` is populated on **19/34** and maps EXACTLY onto my 19 "truncated" rows. **Undetermined 33 -> 14.** Inversion stays 1 (the 3 REJECTs are ~$240 vs a ~$24k book). New `live_check` §2h, with the NAV-anchoring residual disclosed |
+| V3 | `settings.py` docstrings understate the gate | WARN | `:348` and `:352` rewritten -- both had gone false in the UNDERSTATING direction since the fix became unconditional |
+
+**What the evaluator gave me that I did not have:** C7's second source is a genuine
+improvement to the step's central number, not a cosmetic fix, and it *vindicates*
+2c -- "key absent" meant not-persisted-here, and the verdict was recoverable from
+somewhere else entirely. It also narrowed my own C6 disclosure in my favour by
+DRIVING a gated buy (`order.signals` carries `{"agent":"RiskJudge","role":"gate"}`),
+leaving only `json.dumps` at `autonomous_loop.py:3717`, and established that the
+0%-REJECT half is **structurally undemonstrable end-to-end** -- a 0% REJECT yields
+no order at all, so the attribution seam is the only place that clause can be tested.
+
+**COUNTER STATE -- READ THIS BEFORE THE NEXT SPAWN.** 191 C, 192 C, 193 PASS,
+194 C, 195 C. The PASS reset the run, so consecutive is now **2**. Per CLAUDE.md F1
+and `qa.md`, **a third consecutive CONDITIONAL must be returned as FAIL.** The next
+Q/A on this step therefore has two outcomes only: PASS, or FAIL. That is the correct
+design and I am not seeking to avoid it -- but it means the next spawn must not be
+made until the remediation is believed complete, and it must not be made to fish.

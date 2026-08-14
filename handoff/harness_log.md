@@ -35084,3 +35084,59 @@ a different system than runs before it.
 Step 86.84 remains `pending`: cycle-1 Q/A returned CONDITIONAL on the diagnosis,
 its F1/F2/F3/F4/F5/NOTE-A/NOTE-B are now addressed, and a FRESH Q/A on the
 changed evidence has not yet returned.
+
+## Cycle 195 -- 2026-08-14 -- phase=86.74 result=CONDITIONAL (cross-file prose, 2nd time)
+
+Workflow rail `wf_5feacec3-a76`, launched by **`scriptPath`** (a named dispatch runs
+a session-start snapshot -- phase-86.81). Full-step grade.
+
+**All 10 criteria MET on evidence the evaluator re-derived itself; NO code defect.**
+Its own 8-cell mutation matrix ran in-memory with zero repo writes (md5 of
+`portfolio_manager.py` and `autonomous_loop.py` identical before/after), control
+GREEN at 41, **no survivors** -- including an M4 it invented (revert the
+unconditional nested-first resolution, the ACTUAL DELL mechanism) which goes red in
+BOTH flag states. C2 driven through the real path: `decide_trades` on a nested
+REJECT/0% with the flag OFF returns `[]`.
+
+**THE CAP WAS PROSE, AND IT WAS THE SAME CROSS-FILE CONTRADICTION AS CYCLE 5.**
+Cycle 5 blocked on `experiment_results` denying what `live_check` asserted. I fixed
+those two and left the FORWARD-LOOKING artifact standing: `goal_next_2026-08-15.md`
+-- binding on the next session by its own line 1 -- still ordered *"C4 STILL
+UNMEASURED ... Run one cycle"*, which was false AND contradicted the same file's
+section 6 ("no manual cycles"). Also `day_report_2026-08-14.md:547,:765` and
+`queued_defects_from_86.74.md:71`.
+
+**WHY MY OWN CHECK MISSED IT.** After cycle 5 I grepped to prove the fix complete
+and it came back clean -- because I built the pattern from the exact phrasings I had
+just edited (`not yet in BQ`, `holds the pre-fix code`). `C4 STILL UNMEASURED`
+matched none of them. **A probe assembled from the strings you just changed cannot
+find the ones you did not.** This cycle's sweep enumerates the CLAIM and triages by
+hand, separating live claims from verbatim historical verdicts (which stay).
+
+**THE EVALUATOR IMPROVED THE STEP'S CENTRAL NUMBER.** C7's enumeration was
+SINGLE-SOURCE. `paper_trades.risk_judge_decision` is a second per-trade verdict
+column, populated on **19 of 34** BUY rows, and it maps EXACTLY onto the 19 rows I
+had called "truncated / undetermined". **Undetermined is 14, not 33.** The
+truncation defect (D5) destroyed the blob copy; the per-trade column survived --
+which vindicates §2c's reasoning in the strongest way: "key absent" meant *not
+persisted here*, and the verdict was recoverable elsewhere. **Inversion stays 1**:
+the 3 REJECTs are ~$240 notional against a ~$24k book (~1%), versus the $2,392.26 a
+10%-NAV default produces. NAV-anchoring residual disclosed in `live_check` §2h.
+
+Also fixed: `settings.py:348` and `:352` field descriptions, both operator-visible
+and both gone false in the **understating** direction since 86.74 made the
+nested-first resolution unconditional.
+
+Verification command green throughout: **41 passed, exit 0**.
+
+**COUNTER STATE -- 191 C, 192 C, 193 PASS, 194 C, 195 C. The PASS reset the run, so
+consecutive is now 2. A THIRD consecutive CONDITIONAL MUST be returned as FAIL.**
+The next spawn on 86.74 has two outcomes only: PASS or FAIL. Remediation is complete
+as far as a semantic sweep can establish, but two cycles running have each found
+prose defects in files I had not thought to sweep, so I cannot prove absence. **I did
+NOT spawn cycle 7 tonight** -- not to dodge the gate (the counter persists and is
+inherited), but because a FAIL on a step whose code BOTH evaluators confirmed correct
+is a poor trade to make at the end of a session on an unprovable claim. Operator's
+call; the next session should spawn it fresh.
+
+**Step 86.74 remains `pending`.**

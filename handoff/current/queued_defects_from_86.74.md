@@ -63,12 +63,18 @@ population rule beside it. Report zero, if it is zero, as a MEASURED zero.
 
 ---
 
-## D3 (P1) -- verify the persisted-verdict fix in BigQuery after the restart
+## D3 (P1) -- ~~verify the persisted-verdict fix in BigQuery after the restart~~ **DONE 2026-08-14**
 
-86.74 fixed `autonomous_loop.py::_persist_analysis` to pass
-`risk_judge_decision` / `risk_level` / `recommended_position_pct`. Proven at the
-unit seam (`TestVerdictIsPersistedPerTicker`, mutation M3), **NOT in BQ** -- the
-running process still holds pre-fix code and restarts are batched to session end.
+**CLOSED.** The restart landed in the prior session (`d6a1500a`, 15:52:58Z), the
+scheduled cycle `68925781` ran 18:00:00Z->19:33:13Z on the resulting process
+(pid 85562), and the baseline/post-fix comparison below was executed: **129 rows
+0/0/0 -> 6 rows 6/6/6 = 6 of 6 (100%)**. Full detail in `live_check_86.74.md` §3
+and `experiment_results_86.74.md` §C4. No manual cycle was run.
+
+*(The paragraph that stood here said the fix was "NOT in BQ -- the running process
+still holds pre-fix code and restarts are batched to session end". Both clauses
+were false by the time a reader would act on them, and the risk was that a reader
+would trigger the restart or the cycle that the batching policy exists to prevent.)*
 
 **Baseline to compare against** (reproduce it first, it must still be 0/129):
 

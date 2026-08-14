@@ -218,9 +218,19 @@ corrected in place.
 ```
 INVERSION (REJECT or 0% yet a BUY executed)  :  1   <- DELL, and only DELL
 verdict PERMITTED the buy                    :  0
-UNDETERMINED                                 : 33
+UNDETERMINED                                 : 14   <- was 33; see the second source below
 POSITIVE CONTROL -- DELL detected            : True
 ```
+
+**UNDETERMINED CORRECTED 33 -> 14 (cycle-6 Q/A).** The 33 was a property of the
+ENUMERATION RULE, not of the data: every prior version read verdict-existence from
+one source, the `analysis_results` JSON blob. `paper_trades.risk_judge_decision` is
+a second, per-trade column, populated on **19 of 34** BUY rows, and it maps
+**exactly** onto the 19 rows I had called "truncated / undetermined". The truncation
+defect destroyed the blob copy; the per-trade column survived. Inversion stays **1**
+— the 3 REJECTs are ~$240 notional against a ~$24k book (~1% of NAV) versus the
+$2,392.26 that the 10% default produces. Detail, including the NAV-anchoring
+residual: `live_check_86.74.md` §2h.
 
 Population = 34 `paper_trades` BUYs, all time. Join = `ticker` +
 `|analysis_date - TIMESTAMP(analysis_id)| < 2s`. Verdict read nested-first then
