@@ -230,14 +230,41 @@ def parse_cap(agent_type: str | None) -> int | None:
         except (TypeError, ValueError):
             return SENTINEL_UNPARSEABLE_CAP
 
-    # Fallback when PyYAML is unavailable or the block did not parse: strip any
-    # trailing comment before matching, so the M7b shape is still caught.
+    # FALLBACK PATH -- and it must not be quietly weaker than the YAML path.
+    # phase-86.84 cycle-3 finding F-C: bare `python3` on this machine is
+    # /usr/bin/python3, which has NO PyYAML, so the SHIPPED verification command
+    # takes this branch. The first version matched a digit-shaped value, so
+    # `!!int 30`, `&anchor 30`, `*alias` and `0x1e` all read as UNCAPPED -- live
+    # pins the guard would have missed on the only path that actually runs. A
+    # fix that does not execute under its own verification command is not a fix.
+    #
+    # So this branch does NOT try to interpret the value. ANY top-level
+    # `maxTurns` key with a non-empty, non-null value is treated as A PIN. Over-
+    # detection is the safe direction: it can only make the remediation check
+    # redder, never greener, and the only cost of a false positive is a loud
+    # failure a human then reads.
     for line in m.group(1).splitlines():
-        head = line.split("#", 1)[0]
-        mm = re.match(r"""\s*maxTurns\s*:\s*['"]?(\d+)['"]?\s*$""", head)
-        if mm:
-            return int(mm.group(1))
+        head = line.split("#", 1)[0].rstrip()
+        if not re.match(r"[ \t]*maxTurns[ \t]*:", head):
+            continue
+        if re.match(r"[ \t]+maxTurns", head):  # indented => nested, not a pin
+            continue
+        value = head.split(":", 1)[1].strip().strip("'\"")
+        if value in ("", "null", "~", "None"):
+            return None
+        mm = re.search(r"(\d+)", value)
+        return int(mm.group(1)) if mm else SENTINEL_UNPARSEABLE_CAP
     return None
+
+
+def cap_parser_path() -> str:
+    """Which branch parse_cap() will actually take, so it is never silent."""
+    try:
+        import yaml  # noqa: F401, PLC0415
+
+        return "yaml"
+    except ImportError:
+        return "fallback"
 
 
 def count_turns(transcript: Path) -> tuple[int, int]:
@@ -479,6 +506,11 @@ def analyse(data: dict) -> dict:
         "live_caps": {r: parse_cap(r) for r in sorted(HISTORICAL_CAPS)},
         "historical_caps": dict(HISTORICAL_CAPS),
         "all_pins_removed": all(parse_cap(r) is None for r in HISTORICAL_CAPS),
+        # F-C: which branch parse_cap actually took. Never leave this implicit --
+        # the shipped command resolves `python3` to an interpreter without
+        # PyYAML, and a guard whose strength depends on an undisclosed
+        # interpreter is a guard nobody can audit.
+        "cap_parser": cap_parser_path(),
     }
 
     return {
@@ -597,6 +629,12 @@ def render(a: dict) -> str:
     w(f"  in force before : {r['historical_caps']}  (phase-59.1 pins)")
     w(f"  live now        : {r['live_caps']}")
     w(f"  all pins removed: {r['all_pins_removed']}  (must be True)")
+    w(f"  cap parser used : {r['cap_parser']}  "
+      f"({'PyYAML' if r['cap_parser'] == 'yaml' else 'no PyYAML on this interpreter'})")
+    w("    Both paths detect every pin shape probed (bare, trailing comment,")
+    w("    quoted, !!int, anchor, hex, float, tab, zero). The fallback does not")
+    w("    interpret the value: any top-level maxTurns key with a non-null value")
+    w("    is a pin. Over-detection is the safe direction.")
     w("  Runs are scored against the cap in force WHEN THEY RAN, not against")
     w("  today's file -- otherwise removing the caps would erase the evidence")
     w("  for removing them.")

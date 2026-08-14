@@ -25,16 +25,25 @@ role.
 - **"ended with text instead of the tool" — REFUTED.** 0 of 48 dropped
   transcripts end on an assistant text turn; all 48 end on a `tool_result`.
   **The tail shape is not diagnostic on its own** and I nearly misread it as
-  such: **347 of 347** completed qa/researcher spawns end on a `tool_result`
+  such: **343 of 343** completed qa/researcher spawns end on a `tool_result`
   too. The difference is only *which* tool — `StructuredOutput` in a success,
   and in a drop Bash (37), Edit (4), Write (2), Read (2), WebFetch (1),
   WebSearch (1). **That is 47 of the 48**; the 48th (`wf_d4e2e794-567`) had
   `StructuredOutput` as its last `tool_use` and is the lone counterexample to
   this sentence's own contrast.
-  *(An earlier revision said "393 of 394". That was a mis-scoped enumeration —
-  my script globbed every `agent-*.jsonl` per run directory and swept in the
-  stage-2 `Explore` spawns `research-gate.js` launches beside the researcher.
-  347/347 is the reproducible figure and it makes the argument stronger.)*
+  *(This figure has been wrong twice and the second time is the more
+  instructive. It first read **393 of 394** — a mis-scoped enumeration that
+  globbed every `agent-*.jsonl` per run directory and swept in the stage-2
+  `Explore` spawns `research-gate.js` launches beside the researcher. I then
+  corrected it to **347 of 347**, which was still wrong: 347 is the
+  `not dropped` population, and that includes 4 spawns from `killed` runs which
+  do **not** end on a `tool_result` — they end on a `user` line. So 347/347 is
+  false under either reading. The reproducible figure is **343 of 343**
+  completed spawns. This is the very `killed`-is-a-third-status defect I had
+  already fixed **inside the script** as F4, then carried forward **in prose
+  without re-deriving it** — into a file whose own header says it was
+  regenerated from the live measurement. Fixing a defect in code does not fix
+  the sentences you wrote from the old code.)*
 - **"tool-availability problem" — REFUTED.** `StructuredOutput` is emitted by
   **1257 of 1267** completed spawns against **1 of 48** dropped. The tool is
   present and callable; the agent never reaches the turn that would call it.
@@ -166,7 +175,27 @@ Using the edit instant would score those as uncapped and, if one exhausted, the
 verifier would go red blaming the *diagnosis* rather than the boundary.
 
 **The same command checks the remediation.** Restoring any pin turns
-`--verify` red.
+`--verify` red — on **both** Python interpreters on this machine, which is not
+where that started. Cycle-3 finding **F-C**: bare `python3` here resolves to
+`/usr/bin/python3`, which has **no PyYAML**, so the shipped verification command
+was silently taking a regex fallback that read `!!int 30`, `&anchor 30` and
+`0x1e` as *uncapped*. My "parse the YAML" fix was not executing under the
+command the masterplan freezes. The fallback no longer interprets the value at
+all: **any top-level `maxTurns` key with a non-null value is a pin**, because
+over-detection can only make the check redder. The output now prints which
+parser it used, so the guard's strength is never an undisclosed property of the
+interpreter. Verified across 13 shapes on the no-PyYAML path and 21 mutation
+cells on both.
+
+**Open, disclosed, and not fixed — cycle-3 finding F-E.** `CAP_REMOVED_AT` is
+`2026-08-15T00:00:00Z` as a stand-in for "first session after the edit". A spawn
+of *this* session after midnight UTC is still capped by the roster snapshot but
+would be scored `cap=None`, and an exhausted drop in that window makes
+`--verify` exit 1 with *"CLAIM BROKEN … the diagnosis must be revisited"* —
+loud, but blaming the diagnosis rather than the boundary. **The window is open
+tonight.** The real fix is to key the boundary on the first post-restart run
+actually present on disk rather than a hardcoded midnight; it is named here
+rather than papered over.
 
 ## 5. Mutation matrix — `python3 scripts/qa/mutate_rail_turn_cap.py --verify`
 
@@ -223,11 +252,18 @@ cell that merely errors is recorded as ERROR rather than counted as a kill.
 - **That the uncapped qa/researcher distribution will look like the uncapped
   distribution measured here.** The 930 uncapped spawns are *different roles with
   different workloads*, so "uncapped agents self-terminate" is **empirical, not
-  structural** — the cycle-2 Q/A's caveat, and I am adopting it. The observed
-  uncapped ceiling is ~93 turns / ~259K tokens (p50 9, p90 23, p95 32, p99 53).
-  The trade is paying up to ~2–3× tokens on the ~13% of evaluations needing >30
-  turns instead of losing 100% of those tokens — favourable, but the qa/researcher
-  uncapped tail is genuinely unobserved until it runs.
+  structural** — the cycle-2 Q/A's caveat, and I am adopting it.
+
+  **Cost tail, corrected after cycle-3 finding F-B.** Turns: p50 9, p90 23,
+  p95 32, p99 53, **max 93**. Tokens across the 808 uncapped spawns carrying a
+  token figure: p50 80,499, p95 191,887, p99 259,390, **max 416,614**. An
+  earlier revision called "~93 turns / ~259K tokens" the *ceiling*; 259,390 is
+  the **p99**, and quoting it as a ceiling understated the disclosed tail by
+  1.6× — inside the very paragraph that states the residual risk of removing
+  the cap. The honest ceiling is **416,614 tokens**. The trade is paying that
+  tail on the ~13% of evaluations needing >30 turns instead of losing 100% of
+  those tokens, which is still clearly favourable — but it should be argued
+  against the real maximum, not a percentile that flatters it.
 - **Anything behavioural about the uncapped rail from this session.** The roster
   snapshots at session start, so the removal is committed but **NOT IN FORCE**
   until the next session. Verify with `scripts/qa/verify_qa_roster_live.sh`.
@@ -248,12 +284,43 @@ branch throws while the **non-schema** branch returns its text unconditionally,
 so degradation does exist off the schema path. The doc I cited describes a
 different surface.
 
-End state: **degradation exists off the schema path in the Workflow rail;
-whether the Agent tool behaves identically at its own cap is still not directly
-measured**, and "rail 0-for-4, Agent-tool 3-for-3" remains adequately explained
-by those spawns finishing inside 30 turns. This rests on a peer's decompilation
-of the installed binary, not on documentation, and should be re-verified before
-it is load-bearing.
+End state on the degradation question: **degradation exists off the schema path
+in the Workflow rail; whether the Agent tool behaves identically at its own cap
+is still not directly measured.** That rests on a peer's decompilation of the
+installed binary, not on documentation, and should be re-verified before it is
+load-bearing.
+
+**But the explanation I attached to it was wrong, and is now measured.** I wrote
+that "rail 0-for-4, Agent-tool 3-for-3" was "adequately explained by those
+spawns finishing inside 30 turns." **It is not — they did not finish inside 30.**
+
+| dispatch path | role | n | max turns | over the nominal cap |
+|---|---|---:|---:|---:|
+| **Agent-tool** | qa (cap 30) | 39 | **67** | **24 of 39** |
+| **Agent-tool** | researcher (cap 40) | 24 | **59** | 1 of 24 |
+| **Workflow** | qa (cap 30) | 302 | 30 | **0 of 302** |
+| **Workflow** | researcher (cap 40) | 93 | 40 | **0 of 93** |
+
+**`maxTurns` is enforced on the Workflow rail and is NOT enforced on the
+Agent-tool dispatch path.** 24 of 39 Agent-tool `qa` spawns ran past 30 turns,
+one reaching 67; not one of 302 Workflow `qa` spawns ever did. This reproduces
+anthropics/claude-code **#41143** (closed as not planned) on this machine, and
+it is the real reason the Agent-tool fallback keeps working while the rail
+drops: **the cap never bound there.**
+
+Three consequences, and the third is the uncomfortable one:
+
+1. It **sharpens the diagnosis** — the cap binds exactly and only where the 48
+   drops occurred.
+2. It **confirms the remediation is aimed correctly** — removing the pin changes
+   behaviour on the Workflow rail and changes nothing on the Agent-tool path,
+   which never honoured it.
+3. It means **every Agent-tool Q/A in this project has been running uncapped all
+   along**, including the three that evaluated this very step (67, 34+, 17
+   turns). So the "uncapped agents self-terminate" claim has more support than
+   §6 credits — but it is support from a path whose cap was *never* enforced,
+   which is not the same as evidence that removing an *enforced* cap is safe.
+   §6's caveat stands.
 
 ## 8. Scope
 

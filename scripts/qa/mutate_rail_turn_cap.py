@@ -113,6 +113,21 @@ CELLS = [
      lambda m, a: _write_pin(a, "qa", "maxTurns: 30  # restored"), "KILL"),
     ("M7", "quoted scalar, `maxTurns: \"30\"`",
      lambda m, a: _write_pin(a, "qa", 'maxTurns: "30"'), "KILL"),
+    # F-C (cycle 3): these read as UNCAPPED on the regex fallback, which is the
+    # branch the SHIPPED command takes -- bare `python3` here has no PyYAML.
+    # They must be killed on BOTH paths, so they are permanent cells now.
+    ("M15", "YAML tag, `maxTurns: !!int 30`",
+     lambda m, a: _write_pin(a, "qa", "maxTurns: !!int 30"), "KILL"),
+    ("M16", "anchor, `maxTurns: &cap 30`",
+     lambda m, a: _write_pin(a, "qa", "maxTurns: &cap 30"), "KILL"),
+    ("M17", "hex, `maxTurns: 0x1e`",
+     lambda m, a: _write_pin(a, "qa", "maxTurns: 0x1e"), "KILL"),
+    ("M18", "tab separator, `maxTurns:\\t30`",
+     lambda m, a: _write_pin(a, "qa", "maxTurns:\t30"), "KILL"),
+    ("M19", "float, `maxTurns: 30.0`",
+     lambda m, a: _write_pin(a, "qa", "maxTurns: 30.0"), "KILL"),
+    ("M20", "zero is still a pin, `maxTurns: 0`",
+     lambda m, a: _write_pin(a, "qa", "maxTurns: 0"), "KILL"),
     # Timeline constants must be load-bearing.
     ("M11", "CAP_REMOVED_AT moved before the corpus (2026-01-01)",
      lambda m, a: setattr(m, "CAP_REMOVED_AT", "2026-01-01T00:00:00Z"), "KILL"),
