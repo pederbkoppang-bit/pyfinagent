@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-14 | `8bd129b9` | docs: CORRECT 14 artifacts -- every wall-clock time I narrated was fabricated |
 | 2026-08-14 | `8c4aa92c` | docs: day report addendum -- 86.64 FAILED on attempt 3, escalated at 3 of 5 |
 | 2026-08-14 | `948e6e93` | phase-86.64: ESCALATE after 3 attempts -- criterion 2 failed three times, each smaller than the last |
 | 2026-08-14 | `10e6135f` | phase-86.64: FAIL on attempt 3 -- criterion 2 missed members the PRIOR VERDICT had named in writing |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-14 | `56418ebc` | phase-86.66: the step names ONE bug; there are TWO, and the named one has no traceback anywhere -- s |
 | 2026-08-14 | `1603c67b` | phase-86.65: the broken CLAUDE.md path is 1 of 61, and the three naming conventions are BY DIRECTORY |
 | 2026-08-14 | `30b1b08a` | phase-86.64: the guard is a CONVENTION CHECK, not a boundary -- corrected in both places, with zero  |
-| 2026-08-14 | `06c3265f` | phase-86.68: experiment_results + live_check -- the shipped rule VERIFIED by replay |
 
 ---
 
