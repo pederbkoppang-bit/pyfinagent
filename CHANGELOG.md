@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-14 | `f88f8190` | fix(harness): correct the drop-rate measurement -- the probe was matching its own comment text |
 | 2026-08-14 | `6b4df8f9` | fix(harness): retry the stochastic StructuredOutput drop -- ~22% of runs return nothing |
 | 2026-08-14 | `61e359b4` | phase-86.78/86.79: mark the superseded PARTIAL sections; the zero-diff claim on qa.md is no longer t |
 | 2026-08-14 | `9b4d5281` | phase-86.78/86.79: close the qa.md half via a fresh executor, and the tool-output channel it found |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-14 | `10e6135f` | phase-86.64: FAIL on attempt 3 -- criterion 2 missed members the PRIOR VERDICT had named in writing |
 | 2026-08-14 | `e37c51f8` | docs: day report part 3 -- the evaluate loop ran and caught me four more times |
 | 2026-08-14 | `363175e1` | phase-86.64 cycle-3: I claimed I had corrected settings.json and I had not |
-| 2026-08-14 | `722158a8` | phase-86.64 cycle-2: my A/B credited the wrong gate, and my C4 used the reasoning the contract forba |
 
 ---
 
