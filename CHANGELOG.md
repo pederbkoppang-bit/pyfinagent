@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-14 | `f0c4ad0c` | phase-86.74: remediate the cycle-5 CONDITIONAL -- the artifact of record denied its own measurement |
 | 2026-08-14 | `9034ddfb` | phase-86.74: C4 MEASURED and satisfied; the 19/14/0 split independently re-derived |
 | 2026-08-14 | `d59cf424` | phase-86.84: key the cap boundary on the first post-restart run on disk (F-E) |
 | 2026-08-14 | `bab78790` | docs(goal): restore the 3964-char goal a cp installed over |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-14 | `89efc7d8` | fix(86.84): correct F1/F2/F3/NOTE-A/NOTE-B from the cycle-1 Q/A |
 | 2026-08-14 | `d9e9a35b` | docs(86.84): CONDITIONAL verdict transcribed verbatim + contract; gate PASSED |
 | 2026-08-14 | `ddc08396` | docs(86.84): retract the graceful-degradation corollary, refuted by the research gate |
-| 2026-08-14 | `577adcdf` | docs(harness): day report + next-session goal for the 86.84 turn-cap diagnosis |
 
 ---
 
