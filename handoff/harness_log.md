@@ -34800,3 +34800,82 @@ agents 1/5 and this multiplies on top -- up to 10 attempts at ~185K tokens each,
 Google SRE's explicit warning); the duplicate `qa-verdict` name still on disk; and
 `research-gate.js`'s "10.3% on the low-effort Explore path" comment, which does not
 reproduce (measured 0/377 by agentType, confound stated).
+
+---
+
+## Cycle 190 -- 2026-08-14 -- phase=86.74 result=NO-VERDICT (rail dropped x2)
+
+**Step 86.74 (P0, live money): the risk judge REJECTED DELL at 0% and the book bought
+it at 10% of NAV.** Code complete across `9d14291e` + `a541f10c`. **NOT CLOSED --
+status remains `pending`.**
+
+**THE FINDING OF THE CYCLE: the falsy-zero fix did NOT fix DELL.** After correcting
+`_extract_position_pct`, the test asserting *"a REJECT still buys"* **still passed**.
+Two defects wore one name:
+
+- **falsy-zero** -- a *visible* `0.0` collapses to `None` via `if pct:`
+- **nesting** -- with `shape_fix` OFF the verdict is **not visible at all**
+
+With the flag OFF the full-path judge nests under `risk_assessment["judge"]`, so the
+resolver **correctly** returned `ABSENT` and the 10% default was legitimately reached.
+DELL was a *nesting* casualty. Criterion 3 requires the default be reachable only from a
+genuinely absent verdict, so nested-first resolution is now **unconditional**.
+**Stopping at the falsy-zero would have shipped a P0 fix that left the reported incident
+live, with a green suite.**
+
+`Optional[float]` cannot carry three states -- that IS the defect. Now
+`PositionVerdict{SIZE|ABSENT|UNPARSEABLE}`, and the 10%-NAV default is reachable from
+**one function** instead of four drifted seams (`:507` flag-guarded; `:800`/`:853`/`:878`
+unguarded under **every** flag state). AST `or 10.0` sizing idioms: **4 -> 0**.
+
+**Criterion 4's root cause was not where the step assumed.** `tasks/analysis.py` does pass
+the three columns -- that is the API path. The **autonomous loop**'s `_persist_analysis`
+called `save_report` **without them at all**, while `save_report` had accepted them all
+along. Hence 0/129. The verdict was never lost -- it sits in the JSON blob, and reading it
+there matches the incident's inferred table **6 of 6**, so DELL's `REJECT/0%` is now
+**directly measured** and the elimination-based attribution is retired.
+
+**EVALUATE: two consecutive rail drops, no verdict.**
+
+| cycle | run | tokens | outcome |
+|---|---|---|---|
+| 1 | `wf_2e5ddb63-de9` | 385,807 | no StructuredOutput after nudge |
+| 2 | `wf_929b36e7-c8a` | 372,372 | same |
+
+A leaner cycle-2 prompt dropped too, so "long prompt" does **not** explain it.
+
+**Write-first earned its keep twice.** Cycle 1's records found **four defects in Main's
+work**, all fixed: (1) **the mutation harness could certify itself** -- `pytest` exits 5 on
+an empty `-k` and cells scored `killed = rc != 0`, so a typo'd selector scored KILLED;
+(2) criterion 3's enumeration was **false as written** -- three default-yielding families,
+one of which **overrode an explicit 0.0**; (3) the assert count `51` came from **grep
+matching a comment**; (4) "two adjacent failures" was hand-narrowed -- the derived set is
+**seven** by affected scope and **nineteen** tree-wide (three populations, three numbers,
+all stated with their rule).
+
+Cycle 2's record **COMPLETED its analysis** (`COMPLETED: 2026-08-14T15:27:41Z`) and
+computed **CONDITIONAL** -- sole blocker C4's unmeasured post-fix BQ share, plus C7 at
+1-of-34 determined. It re-derived C3 over a **larger** grid than Main's (15x15 incl. `nan`,
+`inf`, `[]`, `{}`), discriminated C2 to the **sizing** path rather than the binding gate,
+proved the vacuity fix by injecting a typo'd selector, and verified C10 **live** (DELL
+still held, unchanged). That is recorded as evidence, **not** claimed as a verdict.
+
+**Restart deliberately HELD.** pid 27945 (13:30:35 CEST, no `--reload`) predates both
+commits, so the fix is committed but **NOT IN FORCE**. Restarting to make C4 measurable
+would put ungraded trading-path code into the live process -- exactly backwards.
+
+**RAIL DATAPOINT (the goal's open question).** `wf_2e5ddb63-de9` was a **genuine,
+non-injected drop**; the StructuredOutput retry **FIRED** on it (RETRIED 1 -> 3) and the
+run **still EXHAUSTED** (44 -> 45). **The retry reaches wild drops, but firing is not
+recovering** -- materially weaker than "the retry works". No rate called; far under 20
+post-fix runs. 86.81 not re-opened; 86.82/86.83 stay parked.
+
+**Main's own process errors, recorded rather than smoothed:** narrated the clock from
+arithmetic (~19:20) when `date` said 17:08, nearly truncating a session with 2h20m left;
+and attempted a file revert **during EVALUATE**, which was neutralised by the zsh
+no-word-splitting bug rather than by discipline -- verified afterwards that the tree was
+never contaminated (mtimes predate the window, sha256 matches, `git diff` empty).
+
+**Attempt accounting:** `attempt_number=4, prior_attempts=3` (lower bound). Under F1b's
+5-attempt budget this step is near escalation; a third consecutive drop must use the
+**Agent-tool `qa` fallback** that CLAUDE.md names for this case.
