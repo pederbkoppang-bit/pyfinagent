@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-14 | `b27f6aed` | docs(day-report): post-freeze section -- fix applied, 3 CONDITIONAL cycles, escalation, D5 refutatio |
 | 2026-08-14 | `0fa1566b` | fix(86.84): close cycle-3 F-A/F-B/F-C, disclose F-E, and ESCALATE on the 3rd CONDITIONAL |
 | 2026-08-14 | `24c57a47` | fix(86.84): close the cycle-2 blockers, incl. a REAL survivor in my own guard |
 | 2026-08-14 | `38ddf013` | docs(86.84): transcribe the cycle-2 CONDITIONAL verdict verbatim |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-14 | `f4642435` | phase-86.74: the C7 retraction was RIGHT but reached with a BROKEN PROBE -- and the control found a  |
 | 2026-08-14 | `8be52ef9` | docs(goal): item (a) is graded PASS; flag that the C7 numbers remain unverified by any evaluator |
 | 2026-08-14 | `d32bd0a9` | docs(harness-log): cycle 193 -- cycle-4 work PASS, C7 retracted, step still open |
-| 2026-08-14 | `7e23e3e2` | phase-86.74 cycle-5: cycle-4 work graded PASS; fix a count that did not reproduce inside a comment f |
 
 ---
 
