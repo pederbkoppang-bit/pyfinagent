@@ -348,3 +348,28 @@ so the operator-reserved `bootout`+`bootstrap` verb is not needed.
 post-fix share needs an **autonomous cycle to run afterwards**. That is next
 session's measurement, and the baseline to compare against is in
 `experiment_results_86.74.md` §C4.
+
+### 9a. Restart PERFORMED and verified
+
+```
+old pid 27945  started 2026-08-14 13.30.35   (predated every 86.74 commit)
+new pid 85562  started 2026-08-14 17.52.08   (AFTER the graded commit, 17:35:32)
+PID CHANGED -> a real restart, not a no-op
+health HTTP 200 ; launchctl last-exit-status -15 (the expected SIGTERM)
+```
+
+`launchctl kickstart -k` on `com.pyfinagent.backend`. Verified with
+`ps -o pid,lstart -p <pid>` **without `-e`**, and by asserting the pid **changed** --
+`ps -e` overrides `-p` and would have reported a different process entirely.
+
+**No `.env` write and no flag promotion.** Read from the restarted process:
+`paper_risk_judge_shape_fix_enabled=False` (unchanged -- 79.1 remains the
+operator's), `reject_binding=True` (pre-existing, `.env:81`-era),
+`paper_atomic_swap_enabled=False`. Also confirmed `paper_swap_enabled=True` and
+`paper_swap_max_per_cycle=2` -- **the swap path is LIVE by default**, so the
+orphan-SELL guard added today is protecting a live path, not a hypothetical one.
+
+**I briefly wrote "the session restarted the backend" into the next-session goal
+BEFORE doing it.** Caught and corrected in the same turn, then re-asserted only
+after the pid change was measured. A past-tense claim about my own action is
+exactly the class this project has been burned by.
