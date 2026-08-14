@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-14 | `adf3e2d6` | phase-86.77: queue the two CLAUDE.md classifier-doc divergences the 86.68 Q/A found while PASSING it |
 | 2026-08-14 | `383ef54b` | phase-86.68: the version number counts ATTEMPTS, not shipped work -- two steps that shipped nothi... |
 | 2026-08-14 | `0ec1c347` | phase-86.68 cycle-2: the Q/A was right -- my "20 rows" was the CAP, not a census |
 | 2026-08-14 | `75c04ad5` | phase-86.68: transcribe the Q/A verdict VERBATIM -- CONDITIONAL on attempt 1 |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-14 | `0d1171f7` | phase-86.75: live_check -- 6 of 8 criteria measured, and 2 defects in my own audit |
 | 2026-08-14 | `9dd026a4` | phase-86.63: partial GENERATE -- criteria 1/2/5 by measurement, 3/4/6 NOT done |
 | 2026-08-14 | `34e5d0c6` | chore: commit the session's evidence trail -- scanned for secrets BEFORE publishing |
-| 2026-08-14 | `a6cd61ee` | phase-86.68: contract -- verify a change that already ships and governs every commit |
 
 ---
 
