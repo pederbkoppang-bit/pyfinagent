@@ -143,44 +143,41 @@ const PROMPT = [
   'Return the verdict AS YOUR RETURN VALUE using the schema. This captured object IS the deliverable -- Main',
   'transcribes it VERBATIM into evaluator_critique.md (it is NOT a human-facing message). verdict=PASS only if',
   'EVERY immutable criterion is met AND harness compliance is clean AND no unintended production change. Use',
-  'CONDITIONAL for fixable gaps, FAIL for a criterion miss. Before issuing CONDITIONAL, count your own prior',
-  'attempts by running `python scripts/qa/qa_wip.py <step_id> --spawned-at <your-WRITTEN-stamp>` and reading',
-  'attempt_number / prior_attempts (phase-86.79). PASS --spawned-at: without it attempt_number is null by',
-  'design, because no record can be shown to belong to THIS spawn. null is NEVER 0 -- read',
-  'attempt_number_guidance and report the number as UNKNOWN rather than substituting another field --',
-  'NOT by grepping harness_log, which is written in the LOG phase AFTER the verdict and so never contains the',
-  'in-flight cycle (measured phase-86.75: qa_wip says 3 for step 86.33 where harness_log says 0). If this would',
-  'The TRIGGER is 3 CONSECUTIVE CONDITIONALs, NOT the 3rd attempt (corrected phase-86.21): if this step-id',
-  'already has 2 consecutive prior CONDITIONALs with no intervening PASS or FAIL, return FAIL instead of a',
-  'third. The consecutive run RESETS on PASS or FAIL. attempt_number gives the ATTEMPT number and is INCLUSIVE',
-  'of the current attempt (a first attempt is 1). records_retained is NOT the attempt number: it counts retained',
-  'record FILES, it includes your own write-first record, and pruning can LOWER it -- a gauge, not a counter',
-  '(phase-86.79; its records_retained_unit field says so in the payload).',
-  'for the verdict SEQUENCE use the purpose-built counter, do NOT hand-roll one:',
-  '`python scripts/qa/verdict_history_86_21.py --step <step_id>` (phase-86.21). It reads',
-  'handoff/verdict_ledger.jsonl, prints the sequence, computes consecutive WITH reset-on-PASS/FAIL, states',
-  'auto-FAIL armed, and returns a STATUS -- ok / no_rows_for_step / ledger_missing / ledger_empty /',
-  'unparseable -- where the last three report None and FAIL CLOSED rather than printing 0.',
-  'CROSS-CHECK THE TWO SOURCES: qa_wip is written automatically by every spawn, the ledger is appended BY HAND',
-  'and nothing writes it automatically yet. If attempt_number > the ledger verdict count, the LEDGER IS STALE',
-  '-- say so in notes and treat the sequence as unreliable. Measured 2026-08-14 on step 86.62: qa_wip=4, ledger',
-  'no_rows_for_step=0, i.e. four graded cycles invisible. Main\'s own disclosure is ADVISORY ONLY, since Main is',
-  'the constrained party. Do NOT infer verdicts by',
-  'scanning prior_records bodies for the words PASS/CONDITIONAL/FAIL -- only 3 of 46 records carry a parseable',
-  'verdict line and the bodies DISCUSS verdicts at length (86.21: 15x "CONDITIONAL" in a record whose verdict',
-  'was FAIL). If the sequence cannot be established, write sequence: UNKNOWN in notes and do NOT guess -- fall',
-  'back to the attempt number against the 5-attempt budget, never to an invented run length.',
-  'Measured on step 36.17 (C,F,F,C,C,PASS): an attempt-count trigger forces FAIL at attempts 4 and 5 and would',
-  'have denied the PASS it earned at attempt 6, so do NOT use the attempt number as the CONDITIONAL trigger.',
-  'Do report the attempt number against F1b\'s 5-attempt cumulative budget: at 5+, recommend operator',
-  'escalation in notes rather than inventing a verdict. State the derived attempt number and prior-verdict',
-  'sequence in notes. harness_log is a secondary cross-check only; if the two disagree, the ledger governs.',
-  'CHECK source_present FIRST (phase-86.21): a count of 0 is a fact about ATTEMPTS only when source_present is',
-  'true. If it is false the sink does not exist, so 0 means the counter has NO INPUT, not "attempt 1" -- report',
-  'the attempt number as UNKNOWN in notes and do not let the zero suppress escalation. attempt_number already',
-  'fails CLOSED here (null + attempt_number_status=source_missing, phase-86.79); also read',
-  'attempt_number_is_lower_bound -- when true, records were or may have been pruned and the number is a FLOOR,',
-  'so treat any threshold as possibly already crossed.',
+  'CONDITIONAL for fixable gaps, FAIL for a criterion miss.',
+  '',
+  '// phase-86.78: THE CONSEQUENCE OF YOUR VERDICT IS DELIBERATELY NOT STATED HERE.',
+  'Grade the evidence on its merits. What happens as a RESULT of your verdict -- any',
+  'threshold, any escalation, any loop-termination rule -- is computed by the CALLER',
+  'AFTER you return, and it is not your concern while grading. This is not an oversight:',
+  'arXiv 2604.15224 held content constant, varied a single consequence sentence across',
+  '18,240 judgments, and measured judges becoming LENIENT in 58 of 72 cells (p<0.001,',
+  'peak -9.8pp) -- and REWARD framing was as lenient as punishment framing, so a',
+  'reassuring consequence is no safer than a threatening one. The effect is invisible in',
+  'chain-of-thought (ERRJ=0.000), so you would not be able to tell it had happened.',
+  'The shape is the sibling research-gate rail\'s, and clinical trials\': the board',
+  'RECOMMENDS, the sponsor DECIDES.',
+  '',
+  'You still need the prior-verdict EVIDENCE to reason about this step, and you should',
+  'gather it -- just not as a trigger. `python scripts/qa/verdict_history_86_21.py',
+  '--step <step_id>` reads handoff/verdict_ledger.jsonl, prints the sequence, and returns',
+  'a STATUS -- ok / no_rows_for_step / ledger_missing / ledger_empty / unparseable --',
+  'where the last three report None and FAIL CLOSED rather than printing 0. Do NOT',
+  'hand-roll a sequence, and do NOT infer verdicts by scanning prior_records bodies for',
+  'the words PASS/CONDITIONAL/FAIL: only 3 of 46 records carry a parseable verdict line',
+  'and the bodies DISCUSS verdicts at length (86.21: 15x "CONDITIONAL" in a record whose',
+  'verdict was FAIL). If the sequence cannot be established, write sequence: UNKNOWN and',
+  'do NOT guess. Main\'s own disclosure is ADVISORY ONLY, since Main is the constrained',
+  'party. harness_log is a secondary cross-check only, and it is written in the LOG phase',
+  'AFTER the verdict, so it never contains the in-flight cycle.',
+  '',
+  'CHECK source_present FIRST (phase-86.21): a count of 0 is a fact about ATTEMPTS only',
+  'when source_present is true. If it is false the sink does not exist, so 0 means the',
+  'counter has NO INPUT, not "attempt 1". `python scripts/qa/qa_wip.py <step_id>',
+  '--spawned-at <your-WRITTEN-stamp>` reports attempt_number / prior_attempts',
+  '(phase-86.79); PASS --spawned-at, or attempt_number is null by design because no',
+  'record can be shown to belong to THIS spawn. null is NEVER 0. records_retained is NOT',
+  'the attempt number: it counts retained record FILES, includes your own write-first',
+  'record, and pruning can LOWER it -- a gauge, not a counter.',
   'NEVER return PASS on a loop-prevention / errored exit.',
 ].join('\n')
 
@@ -262,6 +259,93 @@ if (inputHealth.blind) {
 // because a DROPPED run produces no return object for the field to live in.
 // Main verifies compliance from disk instead -- the path is deterministic from
 // step_id (`python scripts/qa/qa_wip.py <step_id>`).
+/**
+ * phase-86.78 -- THE THRESHOLD IS COMPUTED HERE, AFTER THE VERDICT IS IN HAND.
+ *
+ * WHY THIS IS NOT INSIDE THE JUDGE
+ * --------------------------------
+ * Telling a judge what its verdict will TRIGGER shifts the verdict. arXiv 2604.15224
+ * held content strictly constant, varied one consequence sentence, and over 18,240
+ * judgments measured LENIENCY in 58 of 72 cells (p<0.001, peak -9.8pp). Reward framing
+ * ("high scores will be deployed") was as lenient as punishment framing, so the fix is
+ * not a gentler consequence -- it is NO consequence at grading time. And the effect is
+ * invisible in chain-of-thought (ERRJ = 0.000; corroborated by CAR = 0 in 2509.26072v2
+ * and Anthropic's >99%-exploited / <2%-verbalised), so it cannot be audited by reading
+ * the judge's own `notes`. Score inside, threshold outside -- the DSMB shape (the board
+ * RECOMMENDS, the sponsor DECIDES) and the shape `research-gate.js::enforceGate`
+ * already uses on the sibling rail.
+ *
+ * PURE BY NECESSITY AND BY DESIGN. The Workflow runtime has no filesystem access, so
+ * this cannot read handoff/verdict_ledger.jsonl -- the sequence must arrive as data via
+ * `args.verdict_sequence`. That is also the honest shape: the caller supplies its input
+ * and this function echoes it back, so the input is auditable rather than implicit.
+ *
+ * IT CANNOT CHANGE A VERDICT. The result is returned ALONGSIDE the verdict, never
+ * merged into it. There is no branch here that writes `verdict`, and in particular no
+ * path from any input to turning a FAIL into a PASS.
+ *
+ * FAILS CLOSED. An absent or unusable sequence yields `null`, never `0` -- a spurious
+ * zero would silently report "no consecutive run" and suppress termination.
+ *
+ * NOT `export`ed, deliberately. The shipped workflow exports ONLY `meta` -- the
+ * sibling `research-gate.js` keeps `enforceGate` as a plain function for the same
+ * reason. The checker drives the REAL function (never a copy) by appending an
+ * `export {...}` line to a temp copy of this file and importing that, exactly as
+ * `scripts/qa/verify_research_gate_workflow.mjs` does.
+ */
+function enforceEscalation(verdict, sequence, opts = {}) {
+  const maxAttempts = opts.max_attempts ?? 5
+  const out = {
+    // What the caller was given, echoed back so the input is auditable.
+    sequence_supplied: Array.isArray(sequence) ? sequence.slice() : null,
+    sequence_status: 'ok',
+    consecutive_conditionals: null,
+    would_auto_fail: null,
+    attempt_number: opts.attempt_number ?? null,
+    budget_exhausted: null,
+    max_attempts: maxAttempts,
+    // Criterion 5, safeguard 1: the burden sits on the party seeking to depart from
+    // the computed result, not on the result. The judge's verdict stands by default
+    // (law of the case: the prior decision "should continue to govern").
+    burden_on: 'the party departing from the computed escalation',
+    // Criterion 5, safeguard 2: VERDICT_SCHEMA is additionalProperties:false, so the
+    // JUDGE cannot record an override -- correct, it is not the party that should.
+    // The CALLER records it here and in the ledger row's free-text `note`.
+    override: null,
+    override_reason: null,
+    judge_was_told_consequence: false,
+  }
+
+  if (!Array.isArray(sequence)) {
+    out.sequence_status = sequence === undefined || sequence === null
+      ? 'not_supplied' : 'unusable'
+    return out
+  }
+  const VALID = new Set(['PASS', 'CONDITIONAL', 'FAIL', 'NO_VERDICT'])
+  if (sequence.some(v => !VALID.has(v))) {
+    out.sequence_status = 'unparseable'
+    return out          // null, NOT 0 -- see FAILS CLOSED above
+  }
+
+  // Consecutive CONDITIONALs at the END, RESET on PASS or FAIL. Same rule as
+  // verdict_history_86_21.py::consecutive_conditionals. NO_VERDICT is a dropped
+  // attempt: it is not a verdict, so it neither extends nor resets the run.
+  let n = 0
+  for (let i = sequence.length - 1; i >= 0; i--) {
+    const v = sequence[i]
+    if (v === 'NO_VERDICT') continue
+    if (v === 'CONDITIONAL') n++
+    else break
+  }
+  out.consecutive_conditionals = n
+  // A THIRD consecutive CONDITIONAL is the terminating one, so two priors arms it.
+  out.would_auto_fail = n >= 2 && verdict?.verdict === 'CONDITIONAL'
+  if (typeof out.attempt_number === 'number') {
+    out.budget_exhausted = out.attempt_number >= maxAttempts
+  }
+  return out
+}
+
 const verdict = await agent(PROMPT, {
   label: 'qa-verdict:' + stepId,
   phase: 'QA',
@@ -270,4 +354,17 @@ const verdict = await agent(PROMPT, {
   model: 'opus',
   effort: 'max',
 })
-return verdict
+
+// A DROPPED RAIL IS NO VERDICT, NEVER PASS. Wrapping a null/errored return in an
+// object that carries an `escalation` key would make a drop LOOK like a result, so the
+// null case is returned unmistakably empty-of-verdict and the caller's own
+// "empty return is NO VERDICT" rule still applies unchanged.
+if (verdict == null || typeof verdict !== 'object') {
+  return verdict
+}
+// The verdict is returned UNCHANGED. `escalation` sits beside it, never inside it.
+const escalation = enforceEscalation(verdict, args?.verdict_sequence, {
+  attempt_number: args?.attempt_number,
+  max_attempts: args?.max_attempts,
+})
+return { ...verdict, escalation, verdict_unmodified: true }
