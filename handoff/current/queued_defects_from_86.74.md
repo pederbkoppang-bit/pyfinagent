@@ -35,11 +35,29 @@ SELLs and gets 1, which could legitimately be either.
 
 ---
 
-## D2 (P1) -- the historical inversion sweep is 33/34 UNDETERMINED
+## D2 (P1) -- the historical inversion sweep is **14**/34 UNDETERMINED (was 33; corrected 2026-08-14)
 
 86.74 criterion 7 asked how many prior positions were opened under the
-falsy-zero/nesting inversion. Answer obtained: **1 confirmed (DELL 2026-08-13),
-33 of 34 BUYs undetermined** -- NOT a clean bill.
+falsy-zero/nesting inversion. Answer: **1 confirmed (DELL 2026-08-13), 14 of 34
+BUYs undetermined** -- NOT a clean bill, but far better than first reported.
+
+**THE "33" WAS A PROPERTY OF THE ENUMERATION RULE, NOT OF THE DATA.** Every earlier
+version read verdict-existence from ONE source, the `analysis_results` JSON blob.
+`paper_trades.risk_judge_decision` is a **second, per-trade** verdict column written
+on the BUY row itself; it is populated on **19 of 34** BUY rows (15
+`APPROVE_REDUCED`, 3 `REJECT`, 1 `APPROVE_HEDGED`) and cross-tabulates **exactly**
+onto the 19 rows the blob-based rule called "truncated / undetermined". D5's
+truncation destroyed the blob copy of the verdict; the per-trade column survived it.
+Only the 14 with no `analysis_results` row within 2s are absent in both sources.
+
+**Inversion count is unchanged at 1.** The 3 `REJECT` BUYs (HPE 2026-06-02 $245.04,
+DELL 2026-06-03 $246.67, 066570.KS 2026-06-09 $238.40) are ~1% of a ~$24k book,
+against the $2,392.26 a 10%-NAV default produces there -- reduced sizing, not the
+default. **Residual for the executor:** that ratio is anchored on the 2026-08-13
+NAV, because `paper_portfolio` holds current state only and the historical snapshot
+table (`pyfinagent_pms`, US) is in a different BigQuery *location* from
+`financial_reports` (us-central1), so a per-date notional/NAV join needs two queries.
+Doing that join properly is the remaining D2 work.
 
 **Enumeration rule used** (reuse it): population = `paper_trades` rows with
 `UPPER(action)='BUY'`, all time = 34 (`COUNT(*)=66`, `COUNTIF(BUY)=34`,
@@ -112,6 +130,61 @@ definition that it must never be used for sizing. Low urgency, real trap.
 ---
 
 ## D5 (P1) -- `analysis_results` rows persisted with NO `final_synthesis` subtree, and it is STILL FIRING
+
+### D5 archaeology, 2026-08-14 -- the break is 06-11, and it is NOT a commit that removed a key
+
+The prior goal recorded *"ONE change ~06-11/06-14 fits; COMMIT NOT IDENTIFIED"*.
+Four findings, all measured, that reframe what is being looked for.
+
+**1. The break is 2026-06-11, not 06-15.** Daily (not monthly -- monthly hides it):
+
+| date | rows | missing `final_synthesis` | % |
+|---|---:|---:|---:|
+| 2026-06-05 | 9 | 9 | 100.0 |
+| 2026-06-08 | 5 | 5 | 100.0 |
+| 2026-06-09 | 5 | 5 | 100.0 |
+| 2026-06-10 | 5 | 5 | 100.0 |
+| **2026-06-11** | **8** | **1** | **12.5** |
+| 2026-06-12 | 5 | 2 | 40.0 |
+| 2026-06-15 | 7 | 0 | 0.0 |
+| 2026-06-17 | 5 | 1 | 20.0 |
+| 2026-06-22 | 7 | 0 | 0.0 |
+
+**2. It is NOT a step function at row level -- so "a commit flipped it" is the wrong
+shape.** Within the autonomous cycles: 06-10 (18:03-18:38Z) is 5/5 missing; 06-11
+(18:35-19:09Z) is 5/5 present; **06-12 is MIXED** -- 18:03:27Z and 18:04:14Z missing,
+then 18:35:23Z / 18:36:22Z / 18:39:05Z present. A per-deploy cause cannot produce a
+split inside one cycle. The mechanism is **per-analysis**: an analysis that does not
+reach synthesis persists a report with no such key.
+
+**3. NO commit in the window touches `final_synthesis` by name.** Checked all five
+candidates that touch the pipeline (`78b264bf` 03:41Z, `fa62b5fe` 11:06Z,
+`7f0de140` 11:51Z, `6a4fc351` 13:41Z, `b0fe1983` 14:30Z): added/removed
+`final_synthesis` lines under `backend/` = **0 / 0 on every one**. So the cause is
+indirect and no textual search for the key will find it.
+
+**4. The four phase-60 commits are COLLINEAR and timing cannot separate them.** All
+four land 11:06Z-14:30Z, i.e. before the 06-11 18:35Z cycle that flipped. The
+best-fitting candidate by NAME is `fa62b5fe` *"phase-60.1: deep-pipeline restoration
++ honest-degradation alarm"* (+161 lines in `orchestrator.py`), and a restored deep
+pipeline reaching synthesis where a degraded one did not fits every row above -- but
+that is a hypothesis consistent with the data, **not an attribution**, and the two
+06-11 morning rows (10:17Z, 10:44Z) already carry synthesis BEFORE `fa62b5fe`
+landed, so even the timing is not clean (those are off-cycle, likely API-triggered).
+
+**5. THE DISCRIMINATING TELEMETRY DOES NOT EXIST FOR THE BREAK WINDOW.** The obvious
+test -- correlate missing-synthesis against the per-cycle degradation rate -- cannot
+be run: `handoff/cycle_history.jsonl` carries `degradation` as `None` for every June
+cycle. The instrument was itself added by the phase-60.1 "honest-degradation alarm",
+so **it postdates the thing it would have measured.**
+
+**Conclusion for whoever picks this up:** stop looking for the commit that removed a
+key; there isn't one. The question is *"what made analyses stop reaching synthesis
+so often"*, the answer is a RATE not a flip, and the June telemetry to attribute it
+is absent. The tractable path is forward-looking: D5 is **still firing** (8.8% in
+2026-08), so instrument the CURRENT truncation with the degradation fields that now
+exist, rather than trying to attribute a June regime change from data that cannot
+support it.
 
 **Surfaced 2026-08-14** while adding a positive control the Q/A asked for. Named by
 the Q/A as absent from the masterplan: it searched the pending steps for
