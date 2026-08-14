@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-14 | `98eafb90` | chore(masterplan): queue the two defects 86.81 found and deliberately did not fix |
 | 2026-08-14 | `8b520f6c` | phase-86.81: prove the StructuredOutput drop retry actually fires, and stop the metric counting its  |
 | 2026-08-14 | `f237bb8d` | chore: stop a stray workflow test-copy from being committable |
 | 2026-08-14 | `73520bbc` | docs(goal): rotation is the blocking item, so it is now section 0 |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-14 | `2cade52f` | phase-86.78 cycle-2: close the three mutants the Q/A left surviving; criterion 3 escalated |
 | 2026-08-14 | `fedcffff` | phase-86.78: stop telling the judge what its verdict will trigger; compute the threshold caller-side |
 | 2026-08-14 | `5e95ffbe` | phase-86.79 cycle-3: close every code finding from two Q/A cycles; criterion 4 escalated |
-| 2026-08-14 | `dc6575b6` | phase-86.79: the attempt counter was a gauge read as a counter -- split the field, account the loss, |
 
 ---
 
