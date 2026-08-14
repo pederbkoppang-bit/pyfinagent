@@ -180,41 +180,34 @@ A stale comment there asserted *"`recommended_position_pct` is always > 0 by
 construction"*. **That is false and was falsified in production** (DELL = 0);
 corrected in place.
 
-### C7 -- `paper_trades` swept ✅ RESOLVED (was PARTIAL; superseded in cycle 4)
-
-**Enumeration rule.** Population = every `paper_trades` row with
-`UPPER(action)='BUY'`, all time = **34**. Joined on `ticker` +
-`|analysis_date - TIMESTAMP(analysis_id)| < 2s`. Verdict read **nested-first then
-flat** -- the earlier sweep read **nested only**, which is why it under-reported.
+### C7 -- `paper_trades` swept ⚠️ PARTIAL (a cycle-4 "RESOLVED" claim was WRONG)
 
 ```
-INVERSION (REJECT or 0% yet a BUY executed)          :  1   <- DELL only
-verdict PERMITTED the buy                            :  0
-joined, but NO risk verdict in the row               : 19
-NO joinable analysis row (permanently unattributable): 14
-                                                sum  : 34
-POSITIVE CONTROL -- DELL detected                    : True
+INVERSION (REJECT or 0% yet a BUY executed)  :  1   <- DELL, and only DELL
+verdict PERMITTED the buy                    :  0
+UNDETERMINED                                 : 33
+POSITIVE CONTROL -- DELL detected            : True
 ```
 
-**The 19 are a MEASURED not-an-inversion.** The `risk_assessment` key is **absent
-entirely** in 19 of 19, so no verdict existed and the 10% default was legitimate --
-the inversion is impossible for those rows, not merely unobserved. (4 are
-`_path='lite'`, which skips risk assessment by design; 15 predate the `_path` stamp.)
+Population = 34 `paper_trades` BUYs, all time. Join = `ticker` +
+`|analysis_date - TIMESTAMP(analysis_id)| < 2s`. Verdict read nested-first then
+flat.
 
-**The 14 are PERMANENTLY unrecoverable, with a measured cause.** All fall in
-2026-04-26..2026-05-01 and the nearest analysis row per ticker is **15-20 days
-away**, so no join tolerance helps. `analysis_results` holds **zero rows between
-2026-04-20 and 2026-05-15** while the table dates to 2025-11-23 -- the gap is
-specific, and the code names it: phase-24.2 F-2, *"full pipeline previously
-evaporated without persistence"*, closed by phase-25.A2 (`autonomous_loop.py:3382`).
-Those analyses were never written.
+**What improved:** the 33 now carry a cause decomposition -- **19** join but their
+`full_report_json` has **no `final_synthesis` subtree** (truncated report), and
+**14** have no row within 2s, nearest 15-20 DAYS away, from the window where
+`analysis_results` holds zero rows (2026-04-20..2026-05-15; phase-24.2 F-2
+"full pipeline previously evaporated without persistence", closed by 25.A2).
 
-**Answer to the criterion's question -- "how many positions were sized at the
-10%-NAV default while a completed risk verdict existed": exactly ONE (DELL).**
-Determined 20 of 34; unrecoverable 14 of 34 with a stated cause. **This supersedes
-the "1 confirmed + 33 UNDETERMINED" reported earlier in this file** -- that figure
-conflated "did not join" with "joined but carried no verdict", and read only one of
-the two verdict shapes.
+**What did NOT improve, and I claimed it had:** I asserted the 19 were a *measured
+not-an-inversion* because the `risk_assessment` key was absent, so "no verdict
+existed". **Refuted by one query** -- `final_synthesis` is absent in **19 of 19**,
+so the report is truncated and a verdict may have existed and simply never been
+persisted. "Key absent" supports *not persisted*, not *never existed*. **The 19
+revert to UNDETERMINED and C7 stays PARTIAL**, as the Q/A's CONDITIONAL had it.
+
+Recorded rather than deleted, because I committed and pushed the wrong claim before
+running the check that kills it. Full detail: `live_check_86.74.md` §2c.
 
 ### C8 -- flag-ON-only blindness closed ✅
 

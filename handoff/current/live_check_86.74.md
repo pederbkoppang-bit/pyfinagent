@@ -25,64 +25,66 @@ For reference, the defect executed: BUY 4.8064 x DELL @ 497.72 = 2392.26
 The pre-fix code produced a **$2,392.26 BUY = exactly 10.00% of NAV** on this
 input. Both flag states now produce **no order**.
 
-## 2. The paper_trades sweep -- RESOLVED (supersedes the earlier PARTIAL)
+## 2. The paper_trades sweep -- PARTIAL (a "RESOLVED" claim here was WRONG; see 2c)
 
 **Enumeration rule.** Population = every `paper_trades` row with
 `UPPER(action)='BUY'`, all time = **34** (`COUNT(*)=66`, `COUNTIF(BUY)=34`,
 `COUNT(DISTINCT trade_id)=66`, taken from the table). Joined to
 `analysis_results` on `ticker` AND
 `ABS(TIMESTAMP_DIFF(analysis_date, TIMESTAMP(analysis_id), SECOND)) < 2`.
-Verdict read **nested-first then flat** (`$.final_synthesis.risk_assessment.judge`
-then `$.final_synthesis.risk_assessment`) -- the lite path is flat, and an earlier
-version of this sweep read **nested only**, which is why it under-reported.
+Verdict read **nested-first then flat** (the lite path is flat).
 
 ```
-INVERSION -- a verdict of REJECT or 0% yet a BUY executed :  1
+INVERSION -- a verdict of REJECT or 0% yet a BUY executed :  1   <- DELL, and only DELL
 verdict PERMITTED the buy                                 :  0
-joined, but the row carries NO risk verdict at all        : 19
-NO joinable analysis row (permanently unattributable)     : 14
-                                                     sum  : 34
+UNDETERMINED                                              : 33
 POSITIVE CONTROL -- DELL detected                         : True
 ```
 
-### The criterion's actual question, answered
+### 2a. The criterion's question, answered as far as the data allows
 
 > *"report how many positions were sized at the 10%-NAV default while a completed
 > risk verdict existed"*
 
-**Exactly ONE: DELL, 2026-08-13, $2,392.26 = 10.00% of NAV against REJECT/0%.**
+**One position is CONFIRMED: DELL, 2026-08-13, $2,392.26 = 10.00% of NAV against
+REJECT/0%.** For the other 33 the question **cannot be answered from persisted
+data** -- and that is reported as a limit, not as a zero.
 
-### The 19 are a MEASURED not-an-inversion, not a gap
+### 2b. What DID improve: the 33 now have a cause decomposition
 
-For all 19, the **`risk_assessment` key is ABSENT ENTIRELY** from the persisted
-report (verified by `JSON_VALUE(...,'$.final_synthesis.risk_assessment') IS NULL`
-returning true for 19 of 19). **No verdict existed**, so the 10% default was
-legitimately applied -- the inversion is not merely unobserved, it is impossible
-for these rows. 4 carry `_path='lite'` (the lite path skips risk assessment by
-design, `orchestrator.py:1736`); 15 predate the `_path` provenance stamp.
+Previously one undifferentiated bucket. Now:
 
-### The 14 are PERMANENTLY unattributable, with a measured cause
+| n | shape | why unrecoverable |
+|---:|---|---|
+| 19 | an `analysis_results` row EXISTS and joins | its `full_report_json` has **no `final_synthesis` subtree at all** -- the report is truncated |
+| 14 | no row within 2s | nearest row per ticker is **15-20 DAYS** away; `analysis_results` holds **zero rows 2026-04-20..2026-05-15** while the table dates to 2025-11-23. Cause named in code: phase-24.2 F-2, *"full pipeline previously evaporated without persistence"*, closed by phase-25.A2 |
 
-All 14 fall in **2026-04-26 .. 2026-05-01**, and the nearest analysis row for each
-ticker is **15-20 DAYS away** -- so this is not a join-tolerance problem and no
-widening can rescue them:
+Both are persistence gaps of different shapes. **Neither is recoverable by widening
+the join.**
+
+### 2c. AN OVERCLAIM I MADE AND THEN REFUTED MYSELF -- recorded, not quietly deleted
+
+An earlier revision of this section claimed **"C7 RESOLVED"**, on the reasoning that
+the 19 were a *measured not-an-inversion* because *"the `risk_assessment` key is
+absent entirely, so no verdict existed and the 10% default was legitimate"*.
+
+**That reasoning is unsound, and the test that kills it is one query:**
 
 ```
-analysis_results rows, 2026-04-20 .. 2026-05-20 :  none until 2026-05-16
-earliest analysis_results row overall            :  2025-11-23
+final_synthesis PRESENT but risk_assessment absent :  0
+final_synthesis ALSO absent (report truncated)     : 19
 ```
 
-The table existed and was being written months earlier, so the gap is specific:
-**full-path runs were not persisted at all** in that window -- documented in the
-code as phase-24.2 F-2, *"full pipeline previously evaporated without
-persistence"*, and closed by phase-25.A2's `_persist_analysis`
-(`autonomous_loop.py:3382`). The analyses these 14 BUYs acted on were **never
-written**, so no join can ever recover them.
+`final_synthesis` is absent in **all 19**. So the pipeline did **not** "reach
+synthesis and attach no risk assessment" -- **the persisted report is truncated.**
+A verdict may well have existed and simply never been written. "Key absent" only
+supports *"not persisted"*; I read it as *"never existed"*, which is a strictly
+stronger claim the data does not carry.
 
-**Determined: 20 of 34. Permanently unrecoverable: 14 of 34, with a stated cause.
-Inversions: exactly 1.** This supersedes the earlier "33 UNDETERMINED", which
-under-reported because it read only the nested verdict shape and did not
-decompose the join failures.
+**The 19 therefore revert to UNDETERMINED**, and C7 stays **PARTIAL** exactly as
+the Q/A's CONDITIONAL had it. I caught this by running the attack I had asked the
+evaluator to run, *after* committing and pushing the wrong claim -- so the
+correction is recorded here rather than the claim being silently removed.
 
 ## 3. Post-fix persisted-verdict share vs the 0-of-129 baseline -- **NOT SATISFIED**
 
