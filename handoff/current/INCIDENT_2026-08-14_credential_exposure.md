@@ -246,3 +246,39 @@ producer change — both windows are docs/masterplan/handoff commits only. **So 
 if any, was NOT in git**: a plist edit, an env change, or the malformed token simply
 ceasing to produce the echoing failure mode. §5 item 3 remains open, but the search space
 is now much smaller: look outside the repo.
+
+---
+
+## STATUS UPDATE — end of 2026-08-14 session
+
+**Three things were done. NONE of them revokes the credential.**
+
+| # | action | commit | effect |
+|---|---|---|---|
+| 1 | **Leak channel closed at source** — the producer had NO redaction; the leak was DORMANT, not fixed | `cd9774e3` | no SIXTH file can be created |
+| 2 | **Class-level guard added** — scans every tracked file, not one directory; fails closed | `255329ce` | recurrence from ANY producer is caught |
+| 3 | **Token removed from the DEFAULT BRANCH** — the five files redacted at HEAD | `e91c711e` | off GitHub code search and casual browsing |
+
+The guard now reports `CLEAN -- no tracked file carries real credential material`,
+exit 0. It read exit 1 before step 3.
+
+### ⚠ ROTATION IS STILL REQUIRED AND STILL UNPERFORMED
+
+**Step 3 reduces DISCOVERABILITY. It does not revoke.** The token remains:
+
+- in **git history** on `origin/main`;
+- on the **fork**, which history rewriting cannot reach;
+- **valid** until rotated.
+
+**Rotation is the only action that revokes**, and it is the operator's:
+`claude /login`, or `claude setup-token` for a 1-year credential, on the host.
+Asks **06-2** and **#20** are this same credential — one fix closes both.
+
+### Scope, re-derived rather than inherited
+
+The exposure is **exactly these 5 files** — established by scanning the whole tracked
+tree (`git ls-files`), not the one directory the original report covered. A naive scan
+flags 45 files; 40 are test fixtures, briefs *about* this incident, and pattern lists.
+`research_brief_86.67.md` looked like a sixth: a 26-char match that genuinely IS a
+substring of the live token. It is `sk-ant-oat01-` **twice** — the token is doubled —
+with the body already redacted. **No secret material.**
