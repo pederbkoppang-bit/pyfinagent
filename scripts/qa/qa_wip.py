@@ -118,10 +118,31 @@ class BadStepId(ValueError):
 #: retaining exactly one prior -- a path component plus BOUNDED retention, never
 #: locking.
 _RUN_STAMP_RE = re.compile(r"\A[0-9]{8}T[0-9]{6}Z\Z")
-#: Current record + this many prior attempts. Bounded on the k8s/journald
-#: precedent: nobody retains every attempt, and this directory is read by the
-#: memory tooling.
+#: TOTAL records retained, **INCLUSIVE of the current one** -- so `keep=3` leaves
+#: the current record plus TWO priors, not three priors. Bounded on the
+#: k8s/journald precedent: nobody retains every attempt, and this directory is
+#: read by the memory tooling.
+#:
+#: phase-86.79: this comment previously read "Current record + this many prior
+#: attempts", which promises FOUR retained while `prune_wip_records` does
+#: `records[keep:]` and delivers THREE. THE DOC MOVED, NOT THE CODE:
+#: `records[keep:]` is the standard keep-N semantics and matches the very
+#: precedents cited above, so changing the arithmetic would silently widen live
+#: retention for no benefit. This is the same hazard the module now guards
+#: against in `report()` -- Temporal's `MaximumAttempts` is INCLUSIVE while Step
+#: Functions' `MaxAttempts` is EXCLUSIVE, two official docs, same word, off by
+#: one -- so the unit is written next to the number rather than left to the name.
 DEFAULT_KEEP = 3
+
+#: phase-86.79. The `PERF_RECORD_LOST` shape, from the Linux perf ring buffer:
+#: "the kernel keeps how many records it lost and generates the PERF_RECORD_LOST
+#: records" -- the retained window and the count of what fell out of it are
+#: SEPARATE records. A pruner that deletes without recording the deletion turns a
+#: known quantity into an unknown one and then reports the unknown as a number.
+#:
+#: Dot-prefixed deliberately: invisible to `list_wip_records`' `verdict_wip_*`
+#: globs AND to `audit_memory.py`'s non-recursive top-level glob.
+LOSS_LEDGER_PREFIX = ".attempt_lost_"
 
 
 def _sid_or_raise(step_id: str) -> str:
@@ -203,13 +224,71 @@ def list_wip_records(step_id: str, repo: pathlib.Path | None = None) -> list[pat
     return sorted(set(found), key=_key, reverse=True)
 
 
+def resolve_loss_ledger_path(step_id: str,
+                             repo: pathlib.Path | None = None) -> pathlib.Path:
+    """Where the per-step count of PRUNED-AWAY records lives."""
+    sid = _sid_or_raise(step_id)
+    root = pathlib.Path(repo) if repo is not None else REPO
+    return root / MEMORY_DIR / WIP_SUBDIR / f"{LOSS_LEDGER_PREFIX}{sid}.json"
+
+
+def read_loss(step_id: str, repo: pathlib.Path | None = None) -> int | None:
+    """Records known to have been pruned away, or None if nothing accounts for it.
+
+    `None` is NOT zero and must not be rendered as zero. "No ledger" means "no
+    account of loss exists", which is a different fact from "no loss occurred" --
+    the distinction `source_present()` already draws for a missing sink, applied
+    to a lossy window inside a present one.
+    """
+    p = resolve_loss_ledger_path(step_id, repo)
+    if not p.is_file():
+        return None
+    try:
+        val = json.loads(p.read_text(encoding="utf-8")).get("lost")
+    except Exception:
+        return None
+    return val if isinstance(val, int) and val >= 0 else None
+
+
+def _record_loss(step_id: str, n_lost: int,
+                 repo: pathlib.Path | None = None) -> int:
+    """Raise the per-step loss high-water mark. MONOTONIC: never decreases.
+
+    Prometheus, *Metric types*: a counter "can only increase or be reset to zero
+    on restart" and "Do not use a counter to expose a value that can decrease."
+    The retained-record count is a GAUGE; this is the counter beside it.
+    """
+    p = resolve_loss_ledger_path(step_id, repo)
+    prior = read_loss(step_id, repo) or 0
+    total = max(prior, prior + max(0, int(n_lost)))
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text(
+        json.dumps({"lost": total,
+                    "updated": datetime.datetime.now(datetime.timezone.utc)
+                    .strftime("%Y-%m-%dT%H:%M:%SZ"),
+                    "note": "phase-86.79 PERF_RECORD_LOST-shaped loss account; "
+                            "monotonic, never decremented"},
+                   indent=2) + "\n",
+        encoding="utf-8")
+    return total
+
+
 def prune_wip_records(step_id: str, repo: pathlib.Path | None = None,
                       keep: int = DEFAULT_KEEP) -> list[pathlib.Path]:
     """Delete all but the `keep` newest records. Returns what was removed.
 
-    Retention is BOUNDED on purpose: an unbounded sink is a slow leak in a
-    directory the memory tooling reads. `keep < 1` is refused -- keeping zero
-    records would reintroduce exactly the data loss this step removes.
+    `keep` is the TOTAL retained, INCLUSIVE of the current record -- see
+    `DEFAULT_KEEP`. Retention is BOUNDED on purpose: an unbounded sink is a slow
+    leak in a directory the memory tooling reads. `keep < 1` is refused --
+    keeping zero records would reintroduce exactly the data loss this step
+    removes.
+
+    phase-86.79: THE LOSS IS RECORDED BEFORE IT HAPPENS. Without this, the count
+    derived from the retained set SATURATES at `keep`, so F1b's 5-attempt
+    escalation becomes unreachable the moment anyone schedules pruning -- a
+    counter that silently stops rising exactly where the budget is supposed to
+    bite. The ledger is written BEFORE the unlink on purpose: a crash mid-prune
+    then OVER-counts, which escalates early (safe) rather than late (unsafe).
     """
     if keep < 1:
         raise ValueError(
@@ -217,8 +296,11 @@ def prune_wip_records(step_id: str, repo: pathlib.Path | None = None,
             f"phase-86.36 exists to remove, not a configuration of it"
         )
     records = list_wip_records(step_id, repo)
+    doomed = records[keep:]
+    # BEFORE the unlink. Over-count on crash beats under-count on crash.
+    _record_loss(step_id, len(doomed), repo)
     removed = []
-    for p in records[keep:]:
+    for p in doomed:
         try:
             p.unlink()
             removed.append(p)
@@ -261,6 +343,108 @@ def headers(text: str) -> dict:
     return {m.group(1): m.group(2) for m in _HEADER_RE.finditer(text)}
 
 
+#: phase-86.79. A `None` with no explanation invites the reader to fall back to
+#: `records_retained` -- which is the exact defect this step removes. So every
+#: refusal states WHY and what to do instead.
+_ATTEMPT_GUIDANCE = {
+    "ok": (
+        "attempt_number is INCLUSIVE of the current attempt (a first attempt is 1). "
+        "Use it, and prior_attempts, in preference to records_retained."
+    ),
+    "source_missing": (
+        "UNKNOWN, not zero: the WIP sink " + MEMORY_DIR + WIP_SUBDIR + "/ does not "
+        "exist, so the counter has NO INPUT. Do NOT derive an attempt number from "
+        "records_retained -- report the count as UNKNOWN in the verdict notes."
+    ),
+    "no_spawn_identity": (
+        "UNKNOWN, not zero: no spawned_at was passed, so no record can be shown to "
+        "belong to THIS spawn and no position among the priors can be established. "
+        "Re-run with --spawned-at. Do NOT substitute records_retained: it counts "
+        "the current spawn's own record and is a gauge, not a counter."
+    ),
+    "no_record_for_this_spawn": (
+        "UNKNOWN, not zero: no retained record belongs to this spawn -- either the "
+        "write-first record has not been written yet, or this run dropped before "
+        "its first write. prior_attempts IS reported and is trustworthy; "
+        "attempt_number is withheld because it would be wrong. Do NOT fall back "
+        "to records_retained here -- it counts retained FILES, none of which is "
+        "yours, so it reports one LESS than your attempt and a low number "
+        "SUPPRESSES escalation. If you are the current Q/A, write your "
+        "write-first record and re-run: your attempt number is prior_attempts + 1."
+    ),
+}
+
+
+def _attempt_counts(step_id: str, repo, records: list[pathlib.Path],
+                    path: pathlib.Path, matched_current: bool,
+                    had_spawned_at: bool) -> dict:
+    """The attempt arithmetic, split out so it is testable on its own.
+
+    phase-86.79. THREE RULES, and each is a criterion:
+
+    1. **Unit stated.** `attempt_number` is INCLUSIVE of the current attempt --
+       a first attempt is 1 (Temporal's convention, not Step Functions').
+    2. **Fail CLOSED.** Every path that cannot compute the number returns
+       ``None``, never 0, copying `verdict_history_86_21.py`. Zero is a claim
+       about attempts; ``None`` is the absence of one, and a threshold compared
+       against 0 silently suppresses escalation.
+    3. **No temporal coupling.** The number is computed ONLY when a record
+       belonging to THIS spawn was positively identified. Previously the count
+       was right only because an ordering rule in a DIFFERENT file
+       (`qa.md`'s write-first) guaranteed the current record existed when the
+       count was taken -- and `qa_wip.py` cannot observe whether that happened.
+       Seemann's remedy for temporal coupling is structural: make the invalid
+       state unrepresentable rather than documenting the required order.
+       `prior_attempts` is still reported when identity fails, because it
+       genuinely IS knowable; only the number that would be WRONG is withheld.
+    """
+    out = {"attempt_number": None, "prior_attempts": None,
+           "attempt_number_status": "ok",
+           "attempt_number_is_lower_bound": False,
+           "records_pruned_known": None,
+           "attempt_number_guidance": ""}
+
+    def _done(status: str) -> dict:
+        out["attempt_number_status"] = status
+        out["attempt_number_guidance"] = _ATTEMPT_GUIDANCE[status]
+        return out
+
+    if not source_present(repo):
+        return _done("source_missing")
+
+    lost = read_loss(step_id, repo)
+    out["records_pruned_known"] = lost
+    # With no ledger there is no ACCOUNT of loss -- which is not the same fact as
+    # "no loss occurred". Assume 0 for the arithmetic (the only automated deleter
+    # now writes a ledger) but flag the number as a FLOOR whenever the retained
+    # set has reached the size at which the default prune would have removed
+    # something. Records deleted BY HAND remain undetectable at any size: stated,
+    # not papered over.
+    lost_n = lost if isinstance(lost, int) else 0
+    if lost is None and len(records) >= DEFAULT_KEEP:
+        out["attempt_number_is_lower_bound"] = True
+
+    if not had_spawned_at:
+        return _done("no_spawn_identity")
+
+    if not matched_current:
+        # No record belongs to this spawn: write-first has not run yet, or the
+        # run dropped before its first write. Every retained record is a PRIOR.
+        out["prior_attempts"] = lost_n + len(records)
+        return _done("no_record_for_this_spawn")
+
+    # Position of THIS spawn's record among the retained set, oldest-first.
+    oldest_first = list(reversed(records))
+    try:
+        idx = oldest_first.index(path)
+    except ValueError:  # pragma: no cover -- path always comes from `records`
+        return _done("no_record_for_this_spawn")
+
+    out["prior_attempts"] = lost_n + idx
+    out["attempt_number"] = out["prior_attempts"] + 1
+    return _done("ok")
+
+
 def report(step_id: str, repo: pathlib.Path | None = None,
            spawned_at: str | None = None) -> dict:
     """Machine-readable recovery report.
@@ -279,6 +463,10 @@ def report(step_id: str, repo: pathlib.Path | None = None,
     records = list_wip_records(step_id, repo)
     spawn_dt_sel = _parse_ts(spawned_at) if spawned_at else None
     path = resolve_wip_path(step_id, repo)
+    # phase-86.79: did we positively identify a record belonging to THIS spawn?
+    # Without this the fallback `records[0]` silently hands back a PRIOR cycle's
+    # file and any number derived from its position is a different spawn's.
+    matched_current = False
     if records:
         path = records[0]
         if spawn_dt_sel is not None:
@@ -294,7 +482,11 @@ def report(step_id: str, repo: pathlib.Path | None = None,
                               .get(WRITTEN_KEY, ""))
                 if w is not None and w >= spawn_dt_sel:
                     path = cand
+                    matched_current = True
                     break
+
+    attempt = _attempt_counts(step_id, repo, records, path,
+                              matched_current, bool(spawned_at))
 
     out = {
         "step_id": str(step_id).strip(),
@@ -313,6 +505,27 @@ def report(step_id: str, repo: pathlib.Path | None = None,
         # confident wrong answer.
         "prior_records": [str(p) for p in records if p != path],
         "records_retained": len(records),
+        # phase-86.79. E1 from the gate brief: a NAME IS NOT A UNIT. Temporal's
+        # `MaximumAttempts` is inclusive, Step Functions' `MaxAttempts` is
+        # exclusive -- two official docs, same word, off by one. So the unit
+        # travels WITH the number, in the payload the reader actually reads,
+        # instead of in a sentence in another file that can rot independently.
+        "records_retained_unit": (
+            "record FILES currently retained on disk for this step, INCLUSIVE of "
+            "the current spawn's own write-first record. This is a GAUGE (pruning "
+            "can lower it), NOT an attempt counter. Do not compare it to an "
+            "escalation threshold -- use attempt_number / prior_attempts, which "
+            "are unit-stated and fail closed."
+        ),
+        # phase-86.79. Two separately-named integers replace one overloaded one.
+        # `attempt_number` is INCLUSIVE of the current attempt: a first attempt
+        # is 1. Both are None -- never 0 -- when they cannot be computed.
+        "attempt_number": attempt["attempt_number"],
+        "prior_attempts": attempt["prior_attempts"],
+        "attempt_number_status": attempt["attempt_number_status"],
+        "attempt_number_is_lower_bound": attempt["attempt_number_is_lower_bound"],
+        "attempt_number_guidance": attempt["attempt_number_guidance"],
+        "records_pruned_known": attempt["records_pruned_known"],
         # phase-86.21 criterion 6. Without this, records_retained==0 conflates
         # "no prior attempts" with "the counting source is gone", and any caller
         # deriving an attempt number from it fails OPEN and silently.
