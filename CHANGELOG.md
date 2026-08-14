@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-14 | `b59a7038` | phase-86.64: transcribe the Q/A verdict VERBATIM -- CONDITIONAL, my A/B credited the wrong mechanism |
 | 2026-08-14 | `1f5fd305` | phase-86.65/86.66/86.75: the breach is THREE steps, not one -- derived, not listed |
 | 2026-08-14 | `dee3beab` | phase-86.65: DISCLOSE a protocol breach -- I did GENERATE with no gate and no contract |
 | 2026-08-14 | `adf3e2d6` | phase-86.77: queue the two CLAUDE.md classifier-doc divergences the 86.68 Q/A found while PASSING it |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-14 | `2e40e8c7` | phase-86.21/86.76: restore the artifact I overwrote, and point the rails at the counter this step al |
 | 2026-08-14 | `89e254fc` | phase-86.21: the counter fix inherited the defect it replaced, and 86.75 silently swapped the rule f |
 | 2026-08-14 | `ad7e4c20` | phase-86.76: FILE the root cause of the operator's "redoing the same thing" |
-| 2026-08-14 | `0d1171f7` | phase-86.75: live_check -- 6 of 8 criteria measured, and 2 defects in my own audit |
 
 ---
 
