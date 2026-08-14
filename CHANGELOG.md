@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-14 | `56418ebc` | phase-86.66: the step names ONE bug; there are TWO, and the named one has no traceback anywhere -- s |
 | 2026-08-14 | `1603c67b` | phase-86.65: the broken CLAUDE.md path is 1 of 61, and the three naming conventions are BY DIRECTORY |
 | 2026-08-14 | `30b1b08a` | phase-86.64: the guard is a CONVENTION CHECK, not a boundary -- corrected in both places, with zero  |
 | 2026-08-14 | `06c3265f` | phase-86.68: experiment_results + live_check -- the shipped rule VERIFIED by replay |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-14 | `3c25d2d3` | SECURITY: incident addenda -- ONE token not five, repo is PUBLIC WITH A FORK, window bounded both si |
 | 2026-08-14 | `144d54ad` | phase-86.64: contract -- the premise is refuted, so criterion 4 must rest on decidability |
 | 2026-08-14 | `55e524c8` | docs(goal): the SECOND stale 91 my first sweep missed |
-| 2026-08-14 | `5ccadd34` | docs: correct a stale commit count in my own day report (91 -> re-derived at push time) |
 
 ---
 
