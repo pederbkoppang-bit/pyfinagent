@@ -1,7 +1,14 @@
 # live_check — 86.84: the Layer-3 rail drop is TURN-BUDGET EXHAUSTION
 
 Measured 2026-08-14, 17:00–17:05Z (19:00–19:05 CEST), by Main, on this machine.
-Re-runnable form of every number below: `python3 scripts/qa/rail_turn_cap.py --verify`.
+
+**Provenance of the numbers, corrected after the cycle-1 Q/A (finding F1).** An
+earlier revision of this line said "re-runnable form of **every** number below",
+which was false. `python3 scripts/qa/rail_turn_cap.py --verify` is the
+re-runnable form of **§1's table and §2's model × agentType cross-tab only**. The
+tail-shape figures in §0 and the 11.4 / 3.0 / 0.0 model rates quoted in §2 come
+from `scripts/qa/rail_drop_rate.py` and from an ad-hoc scan; the script computes
+no tail-shape figure at all.
 
 ## 0. The question the operator asked
 
@@ -17,10 +24,22 @@ The other two hypotheses are refuted by the same data:
 - **"ended with text instead of the tool" — REFUTED.** 0 of 48 dropped
   transcripts end on an assistant text turn. All 48 end on a `tool_result`.
   **This tail shape is NOT by itself diagnostic** and I nearly misread it as
-  one: 393 of 394 *successful* qa/researcher transcripts end on a `tool_result`
+  one: **347 of 347** *successful* qa/researcher spawns end on a `tool_result`
   too — the difference is only *which* tool. In a success the last `tool_use` is
   `StructuredOutput`; in a drop it is Bash (37), Edit (4), Write (2), Read (2),
-  WebFetch (1), WebSearch (1).
+  WebFetch (1), WebSearch (1) — **that is 47 of the 48. The 48th
+  (`wf_d4e2e794-567`) had `StructuredOutput` as its last `tool_use` and is the
+  lone counterexample to this sentence's own contrast**; it is the same spawn
+  counted as "1 of 48" in the tool-availability bullet below.
+
+  **Corrected after the cycle-1 Q/A (finding F2).** This bullet previously read
+  "393 of 394", which does not reproduce. The error was mine and mechanical: my
+  ad-hoc script selected *runs* containing a qa/researcher agent and then
+  globbed **every** `agent-*.jsonl` in that run directory, sweeping in the
+  stage-2 `Explore` spawns that `research-gate.js` launches alongside the
+  researcher. The "1 exception" was one of those, not a qa/researcher spawn.
+  **The corrected figure makes this argument stronger, not weaker** — 347/347,
+  no exception at all.
 - **"tool-availability problem" — REFUTED.** The same `agentType` emits the tool
   fine: `StructuredOutput` appears as a `tool_use` block in **1257 of 1277**
   completed spawns against **1 of 48** dropped ones. The tool is present and
@@ -65,7 +84,29 @@ Exactly at it, every time.
 - `.claude/agents/researcher.md:6` — `maxTurns: 40`
 - `general-purpose`, `Explore` and the default workflow subagent (`None`) carry
   **no** `maxTurns` frontmatter. They reach 63, 56 and **93** turns respectively
-  and have dropped **0 times in 930 spawns**.
+  and have dropped **0 times in 930 spawns** (929 across those three types plus
+  1 `claude-code-guide`).
+
+  **Requalified after the cycle-1 Q/A (NOTE-A/NOTE-B).** The bare 0/930 is
+  rhetorically inflated: only **50** of those 930 spawns ever exceeded 30 turns
+  and only 25 exceeded 40, so most of that denominator was never at risk of the
+  failure at all. **The honest comparison is 0/50 at-risk against a 12.2% capped
+  rate** — still decisive, but not 930-strong, and 0/930 should not be quoted
+  without this qualifier.
+
+- **The at-cap non-emitter population is 50, not 48** (Q/A finding F5, which I
+  had missed). Two *completed* research-gate runs (`wf_a6ea31e7-9b9`,
+  `wf_078f4125-57a`) each contain a researcher spawn sitting at exactly 40/40
+  that never emitted `StructuredOutput` — exhaustions absorbed by the phase-86.81
+  retry rather than surfacing as a failed run. They strengthen the mechanism.
+
+- **A free negative control, also from the Q/A and also unclaimed by me:** the 6
+  `killed` runs ("Workflow aborted") sit at 6/3/5/4/16/2/2/1/1 turns — nowhere
+  near any cap, which is exactly what a non-exhaustion termination should look
+  like. Relatedly (F4), `killed` is a **third** run status and the script
+  currently buckets it into the `ok*` columns and the 1277 denominator;
+  `not dropped` is not the same as `completed`. It does not affect the claim —
+  no killed run carries the drop error — but the script should separate it.
 
 The mechanism: the subagent spends its final permitted turn on ordinary work.
 The runtime's in-conversation nudge fires, but there is no turn left in which

@@ -474,7 +474,7 @@ the cap. Not near it.
 
 - **Ran out of turns — YES**, 48/48.
 - **Ended with text instead of the tool — NO**, 0/48. And I nearly misread the
-  evidence here: 393 of 394 *successful* transcripts also end on a
+  evidence here: **347 of 347** *successful qa/researcher* spawns also end on a
   `tool_result`, so the tail shape is not diagnostic on its own. The difference
   is only *which* tool — `StructuredOutput` in a success, Bash/Edit/Write in a
   drop.
@@ -588,3 +588,78 @@ though it never flipped to COMPLETE (7 sources read in full, gate NOT passed):
 
 **None.** No `.env` edit, no plist change, no production code touched this
 session. The only new file is a read-only measurement script.
+
+## Cycle-1 Q/A: CONDITIONAL — and it was right
+
+Spawned via the **Agent-tool fallback** (the rail is the subject under repair).
+Verdict transcribed verbatim in `handoff/current/evaluator_critique_86.84.md`.
+
+**It confirmed the diagnosis and broke my arithmetic.** It reproduced
+`--verify` at exit 0, ran a 4-cell mutation matrix with the control observed
+green and **0 survivors** (including an adversarial mutant that pins the turn
+count to a constant 30 — killed only by the *researcher* row, so the two-role
+corpus is what saves it), and confirmed C2 is genuinely independent.
+
+Then it found a real overclaim, **F2**, and the direction is against my own
+case: my "393 of 394 successful transcripts end on a tool_result" does not
+reproduce. The correct figure is **347/347**. My script had selected *runs*
+containing a qa/researcher agent and then globbed **every** `agent-*.jsonl` in
+the run directory, sweeping in `research-gate.js`'s stage-2 `Explore` spawns.
+The "1 exception" was one of those. Corrected in all three places it had
+propagated to. **The right number makes the argument stronger — no exception at
+all.**
+
+It also gave me three things I had not earned:
+
+- **F5:** the at-cap non-emitter population is **50, not 48** — two exhaustions
+  absorbed by the phase-86.81 retry inside runs that completed.
+- **NOTE-A:** "0 drops in 930 uncapped" is inflated. Only **50** of those 930
+  ever exceeded 30 turns, so the honest comparison is **0/50 at-risk vs a 12.2%
+  capped rate**. Decisive, but not 930-strong.
+- **A free negative control:** the 6 `killed` runs sit at 1–16 turns, nowhere
+  near a cap — exactly what non-exhaustion terminations should look like.
+
+**Fixed before freeze:** F1 (provenance of which numbers the script actually
+re-runs), F2, F3 (the 48th drop, `wf_d4e2e794-567`, whose last tool_use *was*
+StructuredOutput), NOTE-A, NOTE-B, plus F4/F5 disclosed in the write-up.
+**Not fixed:** F4's actual code change (`killed` is a third status the script
+buckets as "ok"). **No fresh Q/A spawned** — 86.84 stays `pending`, cycle 1 of
+1, CONDITIONAL, no escalation pressure.
+
+## Research gate: PASSED after freeze-adjacent completion
+
+11 sources read in full, 19 URLs, recency scan done, `gate_passed: true`. It
+**kills two of the three remedy options** I had assumed existed: there is **no
+per-call turn budget** in Workflow `agent()` opts, so "reserve the last turn" is
+not expressible; and **forcing the schema call was requested and closed as not
+planned** (#20625). Absent `maxTurns` means literally **"No limit."**
+
+**So the remedy is to REMOVE the caps, not raise them** — and raising is
+additionally exposed to #41143 (`maxTurns` silently *not enforced* on the
+Agent-tool path, closed as not planned), while removing the key is immune.
+Sharpest form of the censoring argument: *a run that used exactly N turns under
+a cap of N proves the requirement was ≥N, never that N sufficed.* The only
+uncensored evidence is the uncapped types at **63 and 56 turns — both above 40.**
+
+One correction to my own framing, from the gate: **keep `agentType: 'qa'`.**
+`general-purpose` re-expands to Edit/Write/Bash plus the full deferred MCP
+surface that phase-75.20 deliberately pinned away. Cap and agentType are
+independent settings; change only the cap. Plan recorded in
+`handoff/current/contract_86.84.md`. **Nothing applied.**
+
+## A process breach I am disclosing rather than burying
+
+I edited `live_check_86.84.md` and the day report at ~17:10Z to land the
+graceful-degradation retraction — **after** spawning the Q/A at 17:09:06Z. That
+is a freeze-the-tree breach: a gap noticed mid-evaluation belongs in the next
+cycle, not in the tree being graded. The Q/A's §6 reads the retraction as
+present so it appears to have picked up the newer tree, but its verdict should
+be read against the HEAD it recorded at spawn.
+
+And the retraction itself was **wrong in scope** — the gate's reading of the
+installed 2.1.232 binary shows the workflow *non-schema* branch returns text
+unconditionally while the *schema* branch throws, so degradation does exist off
+the schema path. My doc-based retraction over-generalised from a different
+surface. That correction is recorded in `contract_86.84.md` and is owed to
+`live_check_86.84.md` in the next cycle. It rests on a peer's decompilation, not
+on documentation, and should be re-verified before it is load-bearing.
