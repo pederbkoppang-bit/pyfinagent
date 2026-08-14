@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-14 | `120f67f9` | docs: record the broken probe, its control, and D5 (truncation still firing) in the day report and g |
 | 2026-08-14 | `f4642435` | phase-86.74: the C7 retraction was RIGHT but reached with a BROKEN PROBE -- and the control found a  |
 | 2026-08-14 | `8be52ef9` | docs(goal): item (a) is graded PASS; flag that the C7 numbers remain unverified by any evaluator |
 | 2026-08-14 | `d32bd0a9` | docs(harness-log): cycle 193 -- cycle-4 work PASS, C7 retracted, step still open |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-14 | `76ac89ee` | phase-86.74 cycle-3: verdict CONDITIONAL -- and acting on its WARN found a live defect where a REJEC |
 | 2026-08-14 | `2f7a6ee6` | docs(day-report): final session-end rail reading -- 572/46/5, all four retries still exhausted |
 | 2026-08-14 | `86dd587c` | phase-86.74 EVALUATE: two rail drops, NO VERDICT -- step stays pending, and the Q/A's completed work |
-| 2026-08-14 | `8d58b532` | docs(day-report): 2026-08-14 -- credential CLOSED by measurement; 86.74 held open with no verdict |
 
 ---
 
