@@ -406,3 +406,41 @@ evaluator to grade it. Both are corrected (`38ba13ad`, and a retraction message 
 the evaluator). The failure is the same one this session already recorded twice --
 **asserting a proxy**: "key absent" was a proxy for "no verdict existed", and it
 survives exactly the case that matters.
+
+
+### 8b. The retraction was RIGHT — but reached with a BROKEN PROBE, and the control found a live defect
+
+The Q/A pointed out that 8a's decisive number was a **zero with no positive
+control** — the exact standard criterion 7 sets. Adding the control found an error
+in my instrument:
+
+```
+JSON_VALUE(full_report_json,'$.final_synthesis') IS NULL  ->  TRUE for 567 of 567 rows
+```
+
+**`JSON_VALUE` extracts scalars only and returns NULL for an object.** So it called
+*every row in the table* truncated — including DELL's, from which I had already read
+`judge.decision = 'REJECT'`. Re-measured with `JSON_QUERY`: **absent in 19 of 19**,
+so **8a's conclusion stands and C7 stays PARTIAL**. But I got the right answer for
+the wrong reason. Had the data gone the other way, the broken probe would have
+hidden it and I would have "confirmed" the retraction just as confidently.
+
+**And the control surfaced a defect that is STILL FIRING:**
+
+| month | rows | truncated | % |
+|---|---:|---:|---:|
+| 2025-11 .. 2026-03 | 54 | 0 | 0.0% |
+| 2026-05 | 174 | 58 | 33.3% |
+| 2026-06 | 134 | 68 | **50.7%** |
+| 2026-07 | 137 | 12 | 8.8% |
+| 2026-08 | 68 | 6 | **8.8% — still firing** |
+
+A row with no `final_synthesis` carries no verdict, no recommendation and no
+rationale, so **no trade can be audited against its risk verdict**. That is *why*
+C7 is unclosable by measurement — and because it is still firing, **C7's
+undetermined set is GROWING**. Queued as **D5**. Possibly related to 86.69's
+06-12/06-15 break (the 50.7% June peak overlaps); flagged as unestablished.
+
+**Three probes of mine failed in this one session, all in the same direction:** each
+was a correct measurement of the wrong thing, and each was caught by a control
+rather than by review.
