@@ -296,6 +296,55 @@ class TestSizingDefaultReachableOnlyFromAbsent:
     def test_specified_size_is_returned_verbatim(self):
         assert _sizing_pct({"position_pct": 3.0, "position_pct_state": SIZE}) == 3.0
 
+    def test_default_is_reachable_from_ABSENT_AND_NOTHING_ELSE(self):
+        """Criterion 3, DERIVED by exhaustive sweep rather than asserted in prose.
+
+        The first version of this step ASSERTED "the default is reachable from
+        ABSENT and only ABSENT". The 86.74 Q/A executed the function over its
+        state/pct grid and found that FALSE: `(SIZE, pct=None)` and any
+        UNRECOGNISED state also returned the default -- and the latter OVERRODE
+        an explicit 0.0. Both were unreachable in production, so it was a false
+        CLAIM rather than a live defect; the function now fails closed on both,
+        and this test derives the set instead of restating it.
+        """
+        states = [SIZE, ABSENT, UNPARSEABLE, None, "BOGUS", ""]
+        # DELIBERATELY EXCLUDES pct == DEFAULT_POSITION_PCT. The return value is
+        # only a PROXY for which branch ran, and a judge that explicitly says
+        # "10%" returns the same number as the default branch -- so including it
+        # would report a legitimate explicit size as a default-reach. Caught by
+        # this very test on its first run.
+        pcts = [None, 0.0, 3.0, 7.5]
+        assert DEFAULT_POSITION_PCT not in pcts, "a probe value collides with the default"
+        defaulting = []
+        for st in states:
+            for pc in pcts:
+                cand = {"position_pct": pc}
+                if st is not None:
+                    cand["position_pct_state"] = st
+                if _sizing_pct(cand) == DEFAULT_POSITION_PCT:
+                    defaulting.append((st, pc))
+        # Every surviving default-yielding cell must be a genuinely absent
+        # verdict: an explicit ABSENT, or the legacy no-state/no-pct shape that
+        # `_sizing_pct` derives to ABSENT.
+        offenders = [
+            (st, pc) for st, pc in defaulting
+            if not (st == ABSENT or (st is None and pc is None))
+        ]
+        assert offenders == [], (
+            f"the 10% default is reachable from non-absent verdicts: {offenders}"
+        )
+        # The sweep must actually FIND the legitimate ones, else `offenders == []`
+        # could pass simply because nothing ever returned the default.
+        assert (ABSENT, 0.0) in defaulting and (None, None) in defaulting, (
+            f"sweep found no legitimate default path -- probe is vacuous: {defaulting}"
+        )
+
+    def test_contradictory_SIZE_with_no_number_fails_closed(self):
+        assert _sizing_pct({"position_pct": None, "position_pct_state": SIZE}) == 0.0
+
+    def test_unrecognised_state_never_overrides_an_explicit_zero(self):
+        assert _sizing_pct({"position_pct": 0.0, "position_pct_state": "BOGUS"}) == 0.0
+
     def test_legacy_candidate_without_state_key_still_safe_on_zero(self):
         """Defensive branch: a cand built by a path predating the state key must
         still treat an explicit 0.0 as a size, not as silence."""

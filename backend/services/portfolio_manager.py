@@ -1018,10 +1018,25 @@ def _sizing_pct(cand: dict) -> float:
         state = ABSENT if pct is None else SIZE
 
     if state == SIZE:
-        return float(pct) if pct is not None else DEFAULT_POSITION_PCT
+        # phase-86.74 follow-up: `SIZE` with no number is CONTRADICTORY -- the
+        # state asserts a size was given while the value says otherwise. Falling
+        # back to the default here would let a corrupted verdict buy at maximum
+        # size, so it fails CLOSED instead.
+        return float(pct) if pct is not None else 0.0
     if state == UNPARSEABLE:
         return 0.0
-    return DEFAULT_POSITION_PCT
+    if state == ABSENT:
+        return DEFAULT_POSITION_PCT
+    # An UNRECOGNISED state is not a licence to size at the maximum -- and it
+    # must never override an explicit 0.0. Fails CLOSED, like UNPARSEABLE.
+    #
+    # WHY THIS BRANCH EXISTS AT ALL. It is unreachable today (`position_pct_state`
+    # is written at exactly one site from `_verdict.kind`, which is only ever one
+    # of the three constants). It is here so the enumeration this function
+    # promises is TRUE BY CONSTRUCTION rather than true by a reachability
+    # argument that a future caller could silently invalidate: the default is now
+    # returned for ABSENT and for nothing else.
+    return 0.0
 
 
 def _coerce_pct(raw: object) -> Optional[PositionVerdict]:

@@ -46,6 +46,31 @@ def run(*args: str) -> tuple[int, str]:
     return r.returncode, (r.stdout + r.stderr)[-400:]
 
 
+def selected(target: str) -> int:
+    """How many tests does `-k <target>` actually SELECT?
+
+    THE VACUITY HOLE THIS CLOSES (found by the 86.74 Q/A, not by me):
+    mutant cells are scored `killed = rc != 0`, and **pytest exits 5 when `-k`
+    selects NOTHING**. So a renamed, typo'd or since-deleted target would select
+    zero tests, exit 5, and be scored **KILLED** -- a cell that ran no assertions
+    at all reported as proof the guard works. Every cell must therefore prove its
+    selector is live BEFORE its verdict is believed.
+    """
+    r = subprocess.run(
+        [str(ROOT / ".venv" / "bin" / "python"), "-m", "pytest", SUITE,
+         "-k", target, "--collect-only", "-q"],
+        capture_output=True, text=True, cwd=ROOT, timeout=120,
+    )
+    if r.returncode == 5:  # "no tests ran" -- the selector matches nothing
+        return 0
+    for line in reversed((r.stdout or "").strip().splitlines()):
+        if "test" in line and "collected" in line:
+            for tok in line.split():
+                if tok.isdigit():
+                    return int(tok)
+    return sum(1 for ln in (r.stdout or "").splitlines() if "::" in ln)
+
+
 #: (id, description, old, new, the test that must go RED)
 MUTATIONS = [
     (
@@ -150,15 +175,26 @@ def main() -> int:
             print(f"  {mid}: NOT_APPLIED -- target absent, cell not scored")
             continue
 
+        # The selector must select something, or `killed` is vacuous (pytest
+        # exits 5 on an empty -k selection, and 5 != 0 scores as KILLED).
+        n_sel = selected(target)
+        if n_sel == 0:
+            results.append((mid, "UNSCORABLE", f"-k {target!r} selected 0 tests"))
+            print(f"  {mid}: UNSCORABLE -- selector matches nothing, cell not scored")
+            continue
+
         try:
             subject.write_text(original.replace(old, new, 1))
             assert sha(subject) != original_sha, "mutation did not change the file"
             rc_m, tail_m = run(SUITE, "-k", target)
-            killed = rc_m != 0
+            # rc 5 would mean "no tests ran"; the selector was proven live above,
+            # so treat only a genuine test failure (1) as a kill.
+            killed = rc_m == 1
+            verdict = "KILLED" if killed else ("UNSCORABLE" if rc_m == 5 else "SURVIVED")
             results.append((
-                mid, "KILLED" if killed else "SURVIVED", f"{subject.name}: {desc}",
+                mid, verdict, f"{subject.name} [{n_sel} sel]: {desc}",
             ))
-            print(f"  {mid}: {'KILLED' if killed else '** SURVIVED **'}  ({desc})")
+            print(f"  {mid}: {verdict:<10} ({n_sel} tests selected)  {desc}")
         finally:
             subject.write_text(original)
             back = sha(subject)

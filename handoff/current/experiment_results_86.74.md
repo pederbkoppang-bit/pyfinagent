@@ -1,7 +1,8 @@
 # Experiment results -- step 86.74
 
 **Step:** falsy-zero check inverts a 0% REJECT into the 10%-NAV default.
-**Date:** 2026-08-14. **Verification command:** GREEN, `34 passed`.
+**Date:** 2026-08-14. **Verification command:** GREEN, `37 passed`
+(was `34 passed` at commit 9d14291e, before the cycle-1 corrections).
 
 ---
 
@@ -24,7 +25,7 @@ did **not** fix DELL -- see §2, which is the most important section here.
 | `backend/services/autonomous_loop.py` | `_persist_analysis` now passes `risk_judge_decision`, `risk_level`, `recommended_position_pct` |
 | `backend/services/signal_attribution.py` | nested-first judge resolution; RiskJudge row emitted when `pos_pct is not None` |
 | `backend/agents/risk_debate.py` | completion log line carries `ticker=` |
-| `backend/tests/test_phase_66_2_risk_judge_shape.py` | 9 -> 31 tests, 17 -> 51 asserts |
+| `backend/tests/test_phase_66_2_risk_judge_shape.py` | 9 -> 34 test functions, 17 -> 55 asserts (AST; see C8 -- an earlier `51` came from grep matching a comment) |
 | `scripts/qa/mutation_matrix_86_74.py` | **new** -- 6-cell mutation harness |
 
 ---
@@ -78,9 +79,38 @@ Enumeration rule: every `ast.BoolOp(Or)` whose right operand is the constant
 `:800`, `:853`, `:878` (**unguarded under every flag state**). The research brief
 found `:878`; `:800` and `:853` are additional.
 
-**Post-fix: 0.** All four route through `_sizing_pct`, whose branches are:
-`SIZE -> the pct` / `UNPARSEABLE -> 0.0` / `ABSENT -> the default`. The default is
-reachable from ABSENT and only ABSENT.
+**Post-fix: 0.** All four route through `_sizing_pct`.
+
+**CORRECTED after cycle 1 -- my first enumeration of this function was FALSE.**
+I wrote *"the default is reachable from ABSENT and only ABSENT"* as prose. The
+cycle-1 Q/A **executed** `_sizing_pct` over its state/pct grid and found **three**
+default-yielding families, not one:
+
+| family | pre-correction result | why it was wrong |
+|---|---|---|
+| `(ABSENT, any)` | default | legitimate |
+| `(SIZE, pct=None)` | **default** | contradictory -- the state asserts a size was given |
+| `(<unrecognised state>, any)` | **default** | worse: it **overrode an explicit 0.0** |
+
+Both residual families were **unreachable in production** (`position_pct_state`
+is written at exactly one site from `_verdict.kind`, which only ever holds the
+three constants), so this was a **false claim, not a live defect** -- but
+criterion 3 demands the set be *derived*, and mine was asserted.
+
+**Fixed at the function**, so the enumeration is now true by construction rather
+than by a reachability argument a future caller could invalidate: `SIZE` with no
+number and any unrecognised state both **fail closed to 0.0**. The default is
+returned for `ABSENT` and nothing else.
+
+**And it is now derived, not asserted**:
+`test_default_is_reachable_from_ABSENT_AND_NOTHING_ELSE` sweeps 6 states x 4 pct
+values, asserts every default-yielding cell is a genuinely absent verdict, and
+carries a vacuity check that the sweep found the legitimate cells at all.
+
+*That sweep failed on its first run and caught a bug in itself*: it treated the
+**return value** as a proxy for **which branch ran**, so `(SIZE, pct=10.0)` -- an
+explicit 10% verdict -- looked like a default-reach. The probe now excludes
+`pct == DEFAULT_POSITION_PCT` and asserts that exclusion holds.
 
 The in-suite check is AST-based, **not grep** -- grep matched my own explanatory
 comments containing the phrase `or 10.0`, i.e. the probe matched its own
@@ -179,13 +209,22 @@ correct population is 34, taken from the table directly.)*
 ### C8 -- flag-ON-only blindness closed ✅
 
 ```
-test functions : 9  -> 31    (pytest -q prints this count)
-assert stmts   : 17 -> 51    (grep -c 'assert ')
+test functions (ast.FunctionDef test_*) :  9 -> 34    <- the criterion's "9"
+assert stmts   (ast.Assert)             : 17 -> 55    <- the real count
+'assert ' lines (grep -c)               : 17 -> 56    <- INFLATED by 1
 ```
 
 **The "9" in the criterion is the TEST count, not the assertion count** -- both
 are reported with the rule so a net removal is visible in either denominator and
 the two are never conflated.
+
+**CORRECTED after cycle 1.** I first reported `17 -> 51` from `grep -c 'assert '`.
+The cycle-1 Q/A re-derived it with the AST and found the grep count **inflated by
+one**: line 83 is a *comment* -- `"...They now assert the corrected behaviour and"`
+-- so the probe matched its own documentation. Exactly the trap I had explicitly
+guarded against for `or 10.0` by using an AST check, and then walked into here.
+The AST count is authoritative; the grep-only hit is named above so the
+discrepancy is auditable rather than merely asserted.
 
 **Two tests asserted the DEFECT and were rewritten, not deleted:**
 
@@ -203,17 +242,36 @@ comment block in the file so the inversion is visible in review.
 Control observed **GREEN first**; all 4 subject files snapshotted up front and
 restored byte-identically (sha256-verified).
 
-| cell | subject | mutation | verdict |
-|---|---|---|---|
-| M1 | portfolio_manager | restore `if pct:` | **KILLED** |
-| M2 | portfolio_manager | restore `or 10.0` at the sizing seam | **KILLED** |
-| M3 | autonomous_loop | delete the persistence write | **KILLED** |
-| M4 | portfolio_manager | default reachable from UNPARSEABLE | **KILLED** |
-| M5 | signal_attribution | drop RiskJudge row when pct is 0 | **KILLED** |
-| M6 | risk_debate | remove ticker from the log line | **KILLED** |
+| cell | subject | mutation | tests selected | verdict |
+|---|---|---|---:|---|
+| M1 | portfolio_manager | restore `if pct:` | 7 | **KILLED** |
+| M2 | portfolio_manager | restore `or 10.0` at the sizing seam | 6 | **KILLED** |
+| M3 | autonomous_loop | delete the persistence write | 3 | **KILLED** |
+| M4 | portfolio_manager | default reachable from UNPARSEABLE | 9 | **KILLED** |
+| M5 | signal_attribution | drop RiskJudge row when pct is 0 | 4 | **KILLED** |
+| M6 | risk_debate | remove ticker from the log line | 1 | **KILLED** |
 
 A cell whose target text is absent scores `NOT_APPLIED`, never KILLED -- a
 no-match `str.replace` looks exactly like success.
+
+**VACUITY HOLE FOUND BY THE CYCLE-1 Q/A AND CLOSED.** Cells were scored
+`killed = rc != 0`, and **`pytest` exits 5 when `-k` selects nothing** -- so a
+renamed or typo'd selector would have selected zero tests, exited 5, and been
+scored **KILLED**: a cell that ran no assertions reported as proof the guard
+works. My mutation harness could have certified itself.
+
+Measured directly rather than reasoned about:
+
+```
+real selector  TestRejectBindsInBothFlagStates  -> 6 tests selected
+bogus selector TestThisNameDoesNotExistAnywhere -> 0 tests selected, pytest exit 5
+old rule `killed = rc != 0` would score the bogus cell : KILLED  (VACUOUS)
+new rule `killed = rc == 1`                            : NOT killed  (correct)
+```
+
+Now every cell proves its selector is live (`--collect-only`) **before** its
+verdict is believed, scores `UNSCORABLE` on an empty selection, and reports the
+selected count -- shown in the table above, so no cell can be vacuous unseen.
 
 ### C10 -- nothing loosened, DELL untouched ✅
 
@@ -238,17 +296,37 @@ operator's. The flag's sizing half is now vestigial.
 
 ## 5. Pre-existing failures -- NOT caused by this step
 
-Two tests in adjacent suites fail:
+**CORRECTED after cycle 1: I said "two"; the derived set is SEVEN.** The cycle-1
+Q/A ran the whole tree (55 files) instead of the two suites I had picked by hand,
+and found five more pre-existing failures -- **two of them in the very file I
+cited**:
 
 ```
 test_portfolio_swap.py::test_swap_framework_fills_zero_buy_gap
 test_phase_57_1_reject_binding.py::test_reject_binding_swap_path_off_emits_on_blocks
+test_phase_57_1_reject_binding.py::test_reject_binding_main_path_off_emits_on_blocks   <- missed
+test_phase_57_1_reject_binding.py::test_off_identity_prompts_are_verbatim_constants    <- missed
+test_phase_60_3_data_integrity.py::test_60_3_flag_defaults_off                         <- missed
+test_phase_75_prompt_contracts.py::test_operator_decision_note_exists_with_token        <- missed
+test_phase_23_2_6_sector_cap_emit.py::..._skipping_buy_evidence                          <- missed
 ```
 
-**Measured, not assumed.** Both were re-run with `portfolio_manager.py` reverted
-to `HEAD` (via `git show HEAD:<path> >`, my copy restored byte-identically and
-sha-verified): **both already failed at HEAD.** They are pre-existing and
-unrelated. Queued as their own step rather than fixed inline.
+**The substance holds and the direction is unchanged: all seven are
+pre-existing**, verified independently by the Q/A, and the code-attributable
+failure set is **identical pre and post** 86.74 -- no regression. But **the SET
+was hand-narrowed rather than derived**, which is the same
+count-the-class-not-your-list failure this project has paid for repeatedly. My
+original method (revert `portfolio_manager.py` via `git show HEAD:<path> >`,
+re-run, restore byte-identically with sha256 verification) was sound; **the scope
+I applied it to was not**.
+
+Several of the newly-surfaced failures are `*_off_*` / `*_defaults_off` tests,
+which is worth flagging: **86.74 deliberately changed flag-OFF behaviour** (§4).
+Their pre-existence was verified against `HEAD`, so they are not mine -- but the
+executor of the queued step should confirm that independently rather than
+inheriting my claim.
+
+Queued as its own step rather than fixed inline.
 
 ## 6. What I could NOT verify
 
@@ -259,3 +337,52 @@ unrelated. Queued as their own step rather than fixed inline.
    analysis row persisted no verdict -- untraced, as the step notes.
 4. **Nothing was driven through a live browser or the running backend**; the
    running process still holds the pre-fix code.
+
+---
+
+## 7. CYCLE 1 -- the Q/A rail DROPPED (no verdict) and I fixed what it found
+
+**Run `wf_2e5ddb63-de9` -- 385,807 tokens, 2 agents, both returned empty.** Error:
+`subagent completed without calling StructuredOutput (after in-conversation
+nudge)`. Per CLAUDE.md an errored/empty rail return is **NO VERDICT, NEVER PASS**,
+and it still costs an attempt. **86.74 was NOT graded by that run.**
+
+**Write-first saved the work.** Both agents left records under
+`.claude/agent-memory/qa/verdicts/`, and `qa_wip.py` correctly classified them
+`INCOMPLETE: ... Treat as EVIDENCE FOR THE NEXT SPAWN ONLY.` Neither transcript
+contained a verdict -- one assistant text block each ("I'll start by reading my
+operating instructions"), then ~400KB of tool calls and silence. That is the
+long-prompt drop shape; my cycle-1 prompt carried 10 criteria plus a 7-point
+`extra`, and the next spawn goes out **leaner**.
+
+### What the dropped Q/A CONFIRMED (re-derived independently, not taken from me)
+
+- Immutable command reproduced: `34 passed`, exit 0. Lint clean over a scope
+  **derived** from `git diff --name-only 9d14291e^ 9d14291e -- '*.py'` (6 files).
+- Harness compliance 5/5, including contract-before-generate by file birth times
+  (`research 10:24:44Z < contract 14:19:46Z < first code file 14:23:27Z`).
+- `or 10.0` sites **4 -> 0**, re-derived by its own AST sweep. Test functions
+  **9 -> 31** at that commit. Mutation matrix **6/6 KILLED**, re-run by the Q/A,
+  with its own pre/post sha256 on all four subjects matching.
+- The two rewritten tests are an **inversion, not a weakening**: "The new
+  assertions are STRICTLY STRONGER: they forbid a buy the old ones REQUIRED."
+  Verified from the diff rather than from my summary.
+- Working tree dirty set identical to the session-start snapshot; nothing
+  unintended in the commit.
+
+### The four defects it found in MY work -- all now fixed
+
+| # | finding | severity | fix |
+|---|---|---|---|
+| 1 | `_sizing_pct` default reachable from **three** families, not one; an unrecognised state **overrode an explicit 0.0** | WARN (unreachable in prod -> false claim, not live defect) | function now fails closed on both; claim is **derived by an exhaustive sweep** |
+| 2 | assert count `51` came from grep matching a **comment** on line 83 | NOTE | AST is authoritative: **55**; grep-only hit named |
+| 3 | "two adjacent failures" was hand-narrowed; the derived set is **seven** | WARN (scope honesty) | full set listed in §5 |
+| 4 | mutation harness scored `killed = rc != 0`, and **pytest exits 5 on an empty `-k`** -- a typo'd selector would score KILLED | -- (found by its harness-vacuity probe) | selector proven live via `--collect-only`; `killed = rc == 1`; per-cell selected counts published |
+
+Finding 4 is the one that matters most: **my own verification harness could have
+certified itself.** It is measured now, not argued -- a bogus selector selects 0
+tests and pytest exits 5, which the old rule scored as KILLED.
+
+Fixing these and re-spawning a fresh Q/A on **changed evidence** is the
+documented cycle-2 flow, not verdict-shopping: there is no prior verdict to shop
+against, because the rail produced none.
