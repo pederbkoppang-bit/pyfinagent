@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-14 | `9db8027c` | docs(goal): regenerate HARNESS-FIRST per the operator instruction |
 | 2026-08-14 | `4ac079fa` | phase-86.75 cycle-2 + 86.79: my count reproduced under NO rule, and the counter I repointed counts t |
 | 2026-08-14 | `77eda15d` | phase-86.75: GENERATE re-derived under the contract -- 6 of 8 criteria, every figure re-run |
 | 2026-08-14 | `d43d1c8f` | phase-86.75: contract written AFTER the repair gate -- and it binds the RE-DERIVATION, not the work  |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-14 | `0ec1c347` | phase-86.68 cycle-2: the Q/A was right -- my "20 rows" was the CAP, not a census |
 | 2026-08-14 | `75c04ad5` | phase-86.68: transcribe the Q/A verdict VERBATIM -- CONDITIONAL on attempt 1 |
 | 2026-08-14 | `a2c46988` | docs(goal): regenerate at 09:20 -- six steps carry artifacts and zero Q/A verdicts |
-| 2026-08-14 | `3e5d481f` | docs: day report -- session 2 part 2, five steps advanced, four probe errors caught |
 
 ---
 
