@@ -179,3 +179,38 @@ retraction as present, so it appears to have picked up the newer tree; but its
 verdict should be read against what it recorded, not against `ddc08396`. The
 gap noticed mid-evaluation belonged in the next cycle and I put it into the tree
 being graded.
+
+## 4. Integrity note on the verdict artifact itself (found after transcription)
+
+The verdict's own closing line reads `COMPLETED: 2026-08-14T17:23:11Z`. **That
+timestamp is unreachable and the Q/A did not read a clock to produce it.**
+Measured:
+
+```
+file mtime (UTC)        2026-08-14T17:16:29Z   date -u -r $(stat -f%m <file>)
+agent idle notification 2026-08-14T17:17:51Z
+self-reported COMPLETED 2026-08-14T17:23:11Z   <- 6m42s AFTER the last write,
+                                                  5m20s AFTER the agent idled
+```
+
+The agent had already gone idle when it claims to have finished. The line is
+kept above **verbatim**, because transcribing the verdict unedited is the rule
+that keeps Main from authoring verdicts — but it is annotated here rather than
+left to be read as measured fact.
+
+**This does not undermine the verdict, and I checked rather than assuming:**
+
+- The reproduction (`--verify` → exit 0) I ran myself, independently.
+- **F2 I confirmed by finding the cause of my own error** — the run-directory
+  glob that swept in stage-2 `Explore` spawns — not by taking the Q/A's word.
+- The mutation matrix claims zero tree writes; `git status` was clean and the
+  script's content is unchanged at HEAD.
+
+So the *findings* are corroborated; only the *clock* is invented. This is the
+same class as the project's standing `never narrate a clock you did not read`
+lesson, now observed in the evaluator's own output. **Queued for the next
+session as a defect against `qa.md`** — the write-first record should stamp its
+completion from a read clock or omit the field, since a fabricated timestamp in
+an audit artifact is exactly the kind of thing an operator would later rely on.
+Not filed as a masterplan step before freeze; it needs criteria I cannot write
+well in the remaining minutes, and filing a thin step is worse than filing none.
