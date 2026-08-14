@@ -134,13 +134,45 @@ MUTATIONS = [
         "        f\"Risk debate complete: \"  # MUTANT",
         "test_risk_debate_completion_log_carries_the_ticker",
     ),
+    (
+        # phase-86.74 cycle-4. THE CELL THAT CAUGHT A PROXY ASSERTION.
+        # The fix claims "emitting neither leg, so the SELL cannot orphan". This
+        # deletes the early floor and re-applies it AFTER the SELL append, so the
+        # SELL is emitted alone -- the exact net -1 harm. Against the original
+        # BUY-subset assertion this SURVIVED (rc 0, 3 passed); against the
+        # whole-order-list assertion it is KILLED. TWO edits, because a guard for
+        # the BUY is not a guard for the harm and the difference is two lines apart.
+        "M7",
+        "let the SELL orphan: floor re-applied AFTER the SELL append",
+        [
+            ('        if buy_amount < 50:\n'
+             '            logger.info(\n'
+             '                "Swap skip %s -> %s: sized BUY $%.2f below the $50 floor "\n'
+             '                "(position_pct=%s) -- emitting neither leg, so the SELL cannot "\n'
+             '                "orphan.",\n'
+             '                weakest["ticker"], cand["ticker"], buy_amount, position_pct,\n'
+             '            )\n'
+             '            continue\n',
+             ''),
+            ('        swap_orders.append(TradeOrder(\n'
+             '            ticker=cand["ticker"],\n'
+             '            action="BUY",',
+             '        if buy_amount < 50:\n'
+             '            continue  # MUTANT: SELL already appended -> ORPHANED\n'
+             '        swap_orders.append(TradeOrder(\n'
+             '            ticker=cand["ticker"],\n'
+             '            action="BUY",'),
+        ],
+        None,  # `old` carries the (old,new) pairs for multi-edit cells
+        "TestSwapPathSizingIsBehaviourallyGuarded",
+    ),
 ]
 
 #: Cells M3/M5/M6 mutate files OTHER than portfolio_manager.py, so the harness
 #: below must snapshot and restore each subject independently -- restoring only
 #: the primary file would leave a mutation live in the tree.
 SUBJECTS = {
-    "M1": PM, "M2": PM, "M4": PM,
+    "M1": PM, "M2": PM, "M4": PM, "M7": PM,
     "M3": ROOT / "backend" / "services" / "autonomous_loop.py",
     "M5": ROOT / "backend" / "services" / "signal_attribution.py",
     "M6": ROOT / "backend" / "agents" / "risk_debate.py",
@@ -162,6 +194,9 @@ def main() -> int:
 
     results = []
     for mid, desc, old, new, target in MUTATIONS:
+        # A cell may carry ONE (old,new) or a LIST of them -- M7 needs two edits
+        # because emitting the SELL and suppressing the BUY are two lines apart.
+        edits = old if isinstance(old, list) else [(old, new)]
         subject = SUBJECTS[mid]
         original, original_sha = baseline[subject]
 
@@ -169,7 +204,7 @@ def main() -> int:
             results.append((mid, "UNSCORABLE", "control was not green"))
             continue
 
-        if old not in original:
+        if any(o not in original for o, _ in edits):
             # A no-match replace looks exactly like success. Never score it.
             results.append((mid, "NOT_APPLIED", f"target absent in {subject.name}"))
             print(f"  {mid}: NOT_APPLIED -- target absent, cell not scored")
@@ -184,7 +219,10 @@ def main() -> int:
             continue
 
         try:
-            subject.write_text(original.replace(old, new, 1))
+            mutated = original
+            for o, n in edits:
+                mutated = mutated.replace(o, n, 1)
+            subject.write_text(mutated)
             assert sha(subject) != original_sha, "mutation did not change the file"
             rc_m, tail_m = run(SUITE, "-k", target)
             # rc 5 would mean "no tests ran"; the selector was proven live above,

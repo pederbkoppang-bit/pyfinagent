@@ -553,10 +553,21 @@ class TestSwapPathSizingIsBehaviourallyGuarded:
 
     def _run(self, pct, state, nav=10_000.0):
         from backend.services.portfolio_manager import _compute_swap_candidates
-        # `paper_swap_max_per_cycle` defaults to 0 and short-circuits the whole
-        # function, and `paper_swap_min_delta_pct` defaults to 25% relative -- so
-        # both must be set or every assertion here passes on an empty list. The
+        # These four values are set explicitly because `_settings()` builds a
+        # SimpleNamespace stub that OMITS them, so `getattr(settings, ..., 0)` at
+        # portfolio_manager.py:719 falls back to 0 and short-circuits the whole
+        # function -- every assertion here would then pass on an empty list. The
         # anti-vacuity test below is what caught exactly that.
+        #
+        # CORRECTED (86.74 cycle-4, Q/A WARN): an earlier version of this comment
+        # said the setting "defaults to 0", which MISDESCRIBED PRODUCTION and in
+        # the dangerous direction -- a reader could conclude the swap path is dark
+        # by default when it is LIVE by default. Production `Settings` defaults are
+        # `paper_swap_enabled=True` (settings.py:368) and
+        # `paper_swap_max_per_cycle=2` (:378). The 0 is a TEST-STUB artifact only.
+        # All four values below match the production defaults exactly, so this
+        # scenario is production-representative -- which is what makes the
+        # orphan-SELL harm guarded here a LIVE concern, not a hypothetical.
         st = _settings(paper_swap_enabled=True, paper_swap_max_per_cycle=2,
                        paper_swap_min_delta_pct=25.0,
                        paper_swap_churn_fix_enabled=False,
@@ -573,12 +584,32 @@ class TestSwapPathSizingIsBehaviourallyGuarded:
             settings=st, nav=nav, available_cash=5_000.0,
         )
 
-    def test_swap_path_zero_pct_verdict_emits_no_buy(self):
-        """A 0% REJECT must not open a position via the SWAP path either."""
-        buys = [o for o in self._run(0.0, SIZE) if o.action == "BUY"]
-        assert buys == [], (
-            f"the swap path sized a BUY from a 0% verdict: "
-            f"{[(o.ticker, o.amount_usd) for o in buys]}"
+    def test_swap_path_zero_pct_verdict_emits_NEITHER_LEG(self):
+        """A 0% REJECT must emit NEITHER leg -- so the SELL cannot orphan.
+
+        phase-86.74 cycle-4. This previously asserted only the BUY subset
+        (`[o for o in orders if o.action == "BUY"] == []`), which is a PROXY for
+        the property the fix actually claims. The Q/A mutated the code to suppress
+        ONLY the BUY append -- leaving the SELL to execute alone, which is the
+        exact net -1 harm -- and all three tests in this class still PASSED.
+
+        The harm is the ORPHANED SELL, not the zero-dollar BUY. So assert on the
+        whole order list: a 0% verdict emits nothing at all.
+        """
+        orders = self._run(0.0, SIZE)
+        assert orders == [], (
+            f"a 0% REJECT emitted swap orders -- an orphaned SELL is a NET -1 "
+            f"POSITION: {[(o.action, o.ticker, o.amount_usd) for o in orders]}"
+        )
+
+    def test_swap_path_zero_pct_emits_no_SELL_specifically(self):
+        """The orphan named explicitly, so a future edit that reintroduces a
+        SELL-only pair names its own harm in the failure output."""
+        sells = [o for o in self._run(0.0, SIZE) if o.action == "SELL"]
+        assert sells == [], (
+            f"the swap path emitted a SELL with no funded BUY from a 0% REJECT "
+            f"-- the holding is liquidated and nothing replaces it: "
+            f"{[(o.ticker, o.reason) for o in sells]}"
         )
 
     def test_swap_path_honours_an_explicit_size(self):
