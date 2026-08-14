@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-14 | `86dd587c` | phase-86.74 EVALUATE: two rail drops, NO VERDICT -- step stays pending, and the Q/A's completed work |
 | 2026-08-14 | `8d58b532` | docs(day-report): 2026-08-14 -- credential CLOSED by measurement; 86.74 held open with no verdict |
 | 2026-08-14 | `a541f10c` | phase-86.74 cycle-2: fix the four defects the dropped Q/A found -- including one in my own mutation  |
 | 2026-08-14 | `9d14291e` | phase-86.74: a 0% REJECT can no longer become the largest position -- and the falsy-zero was only ha |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-14 | `f88f8190` | fix(harness): correct the drop-rate measurement -- the probe was matching its own comment text |
 | 2026-08-14 | `6b4df8f9` | fix(harness): retry the stochastic StructuredOutput drop -- ~22% of runs return nothing |
 | 2026-08-14 | `61e359b4` | phase-86.78/86.79: mark the superseded PARTIAL sections; the zero-diff claim on qa.md is no longer t |
-| 2026-08-14 | `9b4d5281` | phase-86.78/86.79: close the qa.md half via a fresh executor, and the tool-output channel it found |
 
 ---
 
