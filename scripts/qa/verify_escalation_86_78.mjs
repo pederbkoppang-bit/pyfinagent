@@ -18,6 +18,7 @@
  * `sourceOverride` is the mutation seam: mutation_matrix_86_78.mjs passes mutated
  * source so the RED half of criterion 6 is provable without writing to the tracked file.
  */
+import { execFileSync } from 'node:child_process'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -27,7 +28,7 @@ const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '.
 const WORKFLOW = path.join(REPO, '.claude/workflows/qa-verdict.js')
 const QA_MD = path.join(REPO, '.claude/agents/qa.md')
 
-const EXPECTED_CHECKS = 41
+const EXPECTED_CHECKS = 49
 const results = []
 const check = (label, ok, detail = '') => {
   results.push([label, !!ok, detail])
@@ -165,17 +166,64 @@ check('verdict_unmodified is COMPUTED, not a hardcoded attestation',
   SRC.includes('const untouched = Object.keys(verdict).every(')
   && !SRC.includes('verdict_unmodified: true }'))
 
-// The other half of the exposure -- measured, not assumed, and NOT claimed fixed.
+// ── THE OTHER HALF OF THE EXPOSURE. This check has been INVERTED.
+//
+// Through cycles 1-2 it asserted the residual STILL EXISTS, because `qa.md` was
+// operator-gated and honesty required the checker to fail if anyone edited it
+// quietly. The operator has since directed a FRESH EXECUTOR to apply those edits
+// (separation of duties: Main authored the code, so Main must not author the agent
+// file it is graded against). The residual is gone, so the check now asserts the
+// opposite -- and it is a stronger check than the old one, because a regression in
+// either direction is now visible.
 const QA = fs.readFileSync(QA_MD, 'utf8')
-const qaHits = [
+const CONSEQUENCE_IN_QA_MD = [
   'return **FAIL** instead of a third',
   'recommend operator escalation',
   'You MUST state the derived attempt number',
-].filter(s => QA.includes(s))
-check('qa.md STILL carries the consequence (disclosed, operator-gated, NOT fixed here)',
-  qaHits.length > 0,
-  `${qaHits.length} of 3 probes hit -- this check asserts the residual EXISTS, so it ` +
-  'goes red if someone quietly edits qa.md without the operator')
+]
+const qaHits = CONSEQUENCE_IN_QA_MD.filter(s => QA.includes(s))
+check('qa.md no longer states the CONSEQUENCE of the verdict to the judge',
+  qaHits.length === 0,
+  `${qaHits.length} of ${CONSEQUENCE_IN_QA_MD.length} probes hit` +
+  (qaHits.length ? `: ${JSON.stringify(qaHits)}` : ''))
+// Positive control: the file must still exist and still be the Q/A's instructions.
+// Without this, deleting qa.md entirely would satisfy the check above.
+check('positive control: qa.md is still present and still the Q/A operating doc',
+  QA.length > 10000 && QA.includes('verdict_history_86_21'),
+  `${QA.length} bytes -- a check for ABSENCE is satisfied by an empty file, so the ` +
+  'subject has to be shown to exist')
+// ── The consequence also reached the judge through the TOOL's stdout, not only prose
+// -- found by the fresh executor, twice. First the `auto-FAIL armed` line; then, after
+// that was suppressed, the `consecutive : N` AGGREGATE, which hands the judge the
+// boundary's unit and its own position in it. Both are now closed, and both are checked
+// BEHAVIOURALLY here by running the command, because a prose edit cannot close a
+// channel that runs through a tool and a source scan cannot prove a tool's output.
+check('the judge-facing verdict_history invocation carries --evidence-only',
+  QA.includes('--evidence-only'),
+  'qa.md must not tell the judge to run the default (threshold-printing) form')
+check('...and no flagless judge-facing invocation survives',
+  !/verdict_history_86_21\.py\s+--step\s+<step_id>\s*$/m.test(QA))
+
+const EV = execFileSync('python3',
+  [path.join(REPO, 'scripts/qa/verdict_history_86_21.py'), '--step', '86.21',
+    '--evidence-only'], { cwd: REPO, encoding: 'utf8' })
+check('DRIVEN: evidence-only output states no threshold and no armed flag',
+  !/auto-FAIL armed/.test(EV))
+check('DRIVEN: evidence-only output states no AGGREGATE over the sequence either',
+  !/^consecutive\s*:/m.test(EV),
+  'an aggregate reveals the boundary unit and the judge\'s position in it')
+check('DRIVEN positive control: the SEQUENCE itself is still delivered',
+  /verdicts\s*:\s*\S+\s*->\s*\S+/.test(EV),
+  'withholding the aggregate must not withhold the evidence')
+const DEF = execFileSync('python3',
+  [path.join(REPO, 'scripts/qa/verdict_history_86_21.py'), '--step', '86.21'],
+  { cwd: REPO, encoding: 'utf8' })
+check('DRIVEN: the DEFAULT output is unchanged for operators (who decide, not grade)',
+  /auto-FAIL armed/.test(DEF) && /^consecutive\s*:/m.test(DEF),
+  'the flag must scope the suppression to the judge, not remove the capability')
+check('the ADR filename cited to the judge does not itself name the bound',
+  !/adr\/[^\s`)]*(attempt|consecutive)/i.test(QA),
+  'a path is text the judge reads; naming both units in it re-opens the channel')
 
 // ══════════════════════════════════════════════════ CRITERION 3 (relocation)
 section('C3 -- the threshold is computed caller-side, from data the judge never sees')

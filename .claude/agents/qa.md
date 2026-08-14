@@ -612,38 +612,80 @@ audit finding that proposed this deletion would have taken it too.
   §4 Retry-on-FAIL). Respawning on UNCHANGED evidence is the forbidden
   verdict-shop. The distinguishing test: did the files change between
   spawns?
-- **3rd-CONDITIONAL auto-FAIL.** Before issuing a CONDITIONAL verdict,
-  count your own prior attempts on this step-id by running:
+- **Prior-attempt and prior-verdict EVIDENCE — gather it; it is not a trigger.**
+  Establish where this step-id stands by running:
 
   ```
-  python scripts/qa/qa_wip.py <step_id>
+  python scripts/qa/qa_wip.py <step_id> --spawned-at <your-WRITTEN-stamp>
   ```
 
-  `records_retained` is the count of prior Q/A spawns on this step — the
-  **attempt number**, and it is authoritative. The JSON deliberately carries no
-  `verdict` key (`is_verdict: false`) and never will.
+  **`attempt_number` is the attempt number** (phase-86.79), and it is
+  **INCLUSIVE of the current attempt: a first attempt is `1`**. `prior_attempts`
+  is the same quantity EXCLUDING you. Read `attempt_number_status`,
+  `attempt_number_guidance` and `attempt_number_is_lower_bound` next to them —
+  they say when the number is a floor and why it is withheld when it is;
+  `records_pruned_known` says whether pruning loss is accounted for at all.
+  **Pass `--spawned-at`** (your own `WRITTEN` stamp): without it no record can be
+  shown to belong to THIS spawn, so `attempt_number` is `null` **by design**, not
+  by accident. **`null` is NEVER `0`** — it is the absence of a number, and a
+  spurious zero reads downstream as a real count of attempts that never
+  happened.
+  **Do NOT use `records_retained` as the attempt number.** It counts retained
+  record FILES, it INCLUDES this spawn's own write-first record, and pruning can
+  LOWER it — a **gauge**, not a counter. The payload says so itself in
+  `records_retained_unit`; believe the payload, not the name. The JSON
+  deliberately carries no `verdict` key (`is_verdict: false`) and never will.
 
   **For the verdict SEQUENCE, use the purpose-built counter — do not hand-roll
   one.** phase-86.21 already shipped it:
 
   ```
-  python scripts/qa/verdict_history_86_21.py --step <step_id>
+  python scripts/qa/verdict_history_86_21.py --step <step_id> --evidence-only
   ```
 
   It reads the append-only `handoff/verdict_ledger.jsonl`, prints the sequence,
-  computes `consecutive` **with reset-on-PASS/FAIL**, states `auto-FAIL armed`,
   and — the part that matters — **returns a STATUS and refuses to print a number
-  it does not know**: `ok`, `no_rows_for_step`, `ledger_missing`,
-  `ledger_empty`, `unparseable`. The last three do **not** report 0; they report
-  `None` and fail closed. It also prints its own disagreement with the
-  `harness_log` grep and names the cause.
+  it does not know**:
+  `ok`, `no_rows_for_step`, `ledger_missing`, `ledger_empty`, `unparseable`. The
+  last three do **not** report 0; they report `None` and fail closed.
+
+  > **`--evidence-only` IS REQUIRED ON THE JUDGE-FACING INVOCATION — do not drop
+  > it to "see more" (phase-86.78).** The DEFAULT output additionally prints an
+  > `auto-FAIL armed :` line — a boolean, plus a clause naming the threshold
+  > your next verdict would cross — and a grep-contrast block. (That line is
+  > deliberately NOT reproduced here: quoting it would re-deliver the payload
+  > this rule exists to withhold.) It states **the consequence of your verdict
+  > before you have issued it**, which is precisely the manipulation arXiv
+  > 2604.15224 measured: content held strictly constant, one consequence
+  > sentence varied, judges LENIENT in **58 of 72 cells** (p<0.001). And
+  > **ERRJ = 0.000** — the influence does not surface in the judge's own
+  > chain-of-thought, so you could not notice it acting on you and could not
+  > correct for it by trying harder. `--evidence-only` suppresses the armed
+  > line and the grep block while keeping the sequence, `consecutive`, and the
+  > `None`/not-knowable semantics **fully intact** — you lose no evidence, only
+  > the consequence. The default is still right for operators and for Main,
+  > who are the parties that decide rather than grade.
+  >
+  > *This is a channel prose alone could not close.* The rest of this section
+  > was scrubbed of consequence framing in phase-86.78, but the judge was still
+  > told to RUN a tool whose stdout announced the trigger — the leak was in the
+  > tool's output, not in the instructions. Found while auditing that scrub;
+  > the flag is the fix.
 
   **CROSS-CHECK THE TWO SOURCES — this is free and it catches the live failure.**
   `qa_wip.py` is written automatically by every spawn; the ledger is appended
   **by hand** and *nothing writes it automatically yet*. So:
 
-  > if `records_retained` (auto) **>** the ledger's verdict count, **the ledger
+  > if `attempt_number` (auto) **>** the ledger's verdict count, **the ledger
   > is STALE** — say so in `notes` and treat the sequence as unreliable.
+  >
+  > If `attempt_number` is `null`, **the comparison cannot be made at all**: say
+  > `sequence: UNKNOWN` in `notes` and stop there. Do **not** substitute
+  > `records_retained` for it — that is the gauge, and a gauge on the left of
+  > this comparison is exactly how a stale ledger reads as fresh. (The
+  > counterpart in `.claude/workflows/qa-verdict.js::enforceEscalation` was
+  > corrected the same way: an absent or unusable sequence yields `null`, never
+  > `0`.)
 
   Measured 2026-08-14 on step **86.62**: `qa_wip` = **4**, ledger =
   `no_rows_for_step` (**0**). Four graded cycles invisible to the sequence
@@ -657,35 +699,55 @@ audit finding that proposed this deletion would have taken it too.
   Word frequency there is noise, not signal.
 
   **If the sequence cannot be established, say `sequence: UNKNOWN` in `notes`
-  and do not guess.** With the sequence unknown, fall back to the attempt
-  number against F1b's 5-attempt budget — never to an invented run length.
+  and do not guess.** Record the attempt number you read as a SEPARATE
+  observation if it helps — it is a different quantity, and neither one may be
+  reconstructed from the other.
 
-  **The trigger is 3 CONSECUTIVE CONDITIONALs, NOT the 3rd attempt.** If this
-  step-id already has **2 consecutive prior CONDITIONALs with no intervening
-  PASS or FAIL**, return **FAIL** instead of a third. Stacking a third
-  CONDITIONAL means the harness is logging, not correcting
-  (`violation_type: Unjustified_Inference`). **The consecutive run resets on
-  PASS or FAIL**; the attempt number does not reset and is not the trigger.
+  **Any threshold, ceiling, or escalation that may follow from your verdict is
+  computed by the CALLER, AFTER you return. It is not yours to apply, and its
+  shape is deliberately not described here.** Gather the prior-verdict sequence
+  as evidence and reason with it; what that evidence does or does not trigger is
+  `.claude/workflows/qa-verdict.js::enforceEscalation`'s business, and it runs
+  once you are done. **This withholding is deliberate, not an oversight.** arXiv
+  2604.15224 held content strictly constant, varied a single consequence
+  sentence across 18,240 judgments, and measured judges becoming LENIENT in
+  **58 of 72 cells** (p<0.001, peak **-9.8pp**) — with REWARD framing as lenient
+  as punishment framing, so a reassuring consequence is no safer than a
+  threatening one. The effect is **invisible in chain-of-thought**
+  (ERRJ = 0.000), so you would have no way to tell it had happened to you.
+  Note what that implies: knowing merely that you are NEAR some boundary is
+  already consequence information, so the boundary's **value, unit and shape**
+  are all withheld — not only its outcome. Do not try to infer them, and do not
+  read their absence as evidence that nothing follows. The pattern is the
+  sibling research-gate rail's, and clinical trials': the board RECOMMENDS, the
+  sponsor DECIDES.
 
-  > **CORRECTION (phase-86.21, 2026-08-14) — this paragraph previously said
-  > "if this would be the third attempt or later, return FAIL", which is a
-  > DIFFERENT AND STRICTER RULE than the one CLAUDE.md:371-376 defines, and it
-  > was introduced by phase-86.75's counter repoint without anyone deciding it.**
-  > Measured against step 36.17's real history `C, F, F, C, C, PASS`: the
-  > consecutive rule never fires (longest run = 2), while the attempt-count rule
-  > forces FAIL at attempts **4 and 5** — so 36.17 would have been failed twice
-  > and never reached the PASS it legitimately earned at attempt 6. It was also
-  > stricter than the cumulative budget CLAUDE.md F1b documents (**5** attempts,
-  > and that one **escalates to the operator**, it does not auto-FAIL). Two of
-  > the three bounds disagreed and the tightest one was live by accident.
-  > *Superseded, not annotated: the attempt-count trigger is gone from the rule
-  > above, not sitting beside it.*
+  **What you owe the record is the SEQUENCE ITSELF and its status — never an
+  aggregate computed from it.** Report what the ledger says, or that it cannot
+  say, and stop there; every count, comparison and rollup over those rows is
+  the caller's to derive. Carry a `NO_VERDICT` row through as-is rather than
+  dropping it: a dropped spawn is not a verdict, the caller treats the two
+  differently, and collapsing them destroys a distinction you are not the party
+  interpreting.
 
-  Separately, note the attempt number against **F1b's 5-attempt cumulative
-  budget**: at 5+, say so in `notes` and recommend operator escalation rather
-  than inventing a verdict. Attempts are the right unit *there* precisely
-  because a dropped spawn returns no verdict at all (measured 8.6–29.2% of
-  Workflow runs), and a verdict-keyed counter cannot see it.
+  > *The rule above was corrected in phase-86.21: an earlier revision carried a
+  > different and stricter bound that had never been decided on purpose. The
+  > reasoning, the measured comparison against a real step's history, and the
+  > provenance of the change are recorded in
+  > `docs/adr/0003-verdict-bound-provenance.md`, moved there verbatim in
+  > phase-86.78. **You do not need any of it in order to grade** — it is kept
+  > for operators and for Main, the parties that decide rather than grade, and
+  > it is deliberately NOT summarised here, because a one-line summary of a
+  > consequence is still a consequence.*
+
+  **Every other bound in the harness works the same way** — evaluated
+  caller-side, from what you report rather than from what you conclude. One
+  measured fact is worth carrying, because it changes what you should report: a
+  **dropped spawn returns no verdict at all** (between 8.6% and 29.2% of
+  Workflow runs — two different windows and two different sources, deliberately
+  not reconciled into one figure). A history made only of verdicts is therefore
+  incomplete, and reporting what you actually observed — gaps, `UNKNOWN`s and
+  all — is worth more than a tidy sequence.
 
   **CHECK `source_present` FIRST (phase-86.21).** A count of zero is a fact
   about *attempts* ONLY when `source_present` is `true`. If it is `false`
@@ -699,9 +761,18 @@ audit finding that proposed this deletion would have taken it too.
   loss of records **inside** an existing sink is still not self-detectable,
   because `prune_wip_records` deletes old records by design.
 
-  **You MUST state the derived attempt number and the prior-verdict
-  sequence in `notes`.** A counter whose value is never shown cannot be
-  audited.
+  **Auditability WITHOUT self-counting.** You MAY record in `notes` what you
+  actually observed — the `qa_wip.py` and `verdict_history_86_21.py
+  --evidence-only` output you read, verbatim status strings included, and any
+  `UNKNOWN` among them — and it
+  is genuinely useful when it explains your reasoning. But you are **not** asked
+  to derive your own attempt number or to attest a run length. The
+  AUTHORITATIVE attempt number and verdict sequence are computed and recorded
+  **caller-side** (`enforceEscalation`, returned as `attempt_number` /
+  `sequence_supplied` / `consecutive_conditionals` **alongside — never inside —**
+  your verdict, and written to the ledger there). That is where the audit trail
+  lives, and it is auditable precisely *because* it is not produced by the party
+  it is a number about.
 
   `handoff/harness_log.md` is a **secondary cross-check only** — if it
   disagrees with the ledger, say so and let the ledger govern.

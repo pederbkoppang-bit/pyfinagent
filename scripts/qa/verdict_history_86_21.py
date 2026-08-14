@@ -198,12 +198,48 @@ def prescribed_grep_count(step_id: str, path: Path = HARNESS_LOG) -> int:
     return len(pat.findall(path.read_text(encoding="utf-8")))
 
 
-def _report(step_id: str, h: VerdictHistory) -> int:
+def _report(step_id: str, h: VerdictHistory, evidence_only: bool = False) -> int:
+    """Print the history. With `evidence_only`, print NO threshold and NO
+    consequence -- only the sequence itself.
+
+    phase-86.78. Scrubbing the consequence out of `qa.md` and out of the rail
+    prompt does NOT stop it reaching the judge, because the judge is instructed
+    to RUN this tool and then reads `auto-FAIL armed : True (a further
+    CONDITIONAL would be the 3rd)` in its stdout. That is a consequence stated
+    to the judge before it grades, through a channel prose edits cannot close --
+    found by the fresh executor that applied the qa.md edits, not by the author.
+
+    arXiv 2604.15224: consequence framing makes judges LENIENT (58/72 cells,
+    p<0.001), and ERRJ=0.000 means the judge will not report having been
+    influenced. The threshold is computed caller-side now
+    (`qa-verdict.js::enforceEscalation`), so the JUDGE-facing invocation has no
+    need of it at all. Default stays unchanged so existing human/operator use is
+    untouched; the judge is told to pass the flag.
+    """
     print(f"step            : {step_id}")
     print(f"source          : {LEDGER.relative_to(REPO_ROOT)}")
     print(f"status          : {h.status}")
     print(f"detail          : {h.detail}")
     print(f"verdicts        : {' -> '.join(h.verdicts) if h.verdicts else '(none)'}")
+    if evidence_only:
+        # The SEQUENCE is evidence and the judge needs it. EVERY AGGREGATE OVER IT
+        # IS WITHHELD -- including `consecutive`.
+        #
+        # The first version of this mode printed `consecutive : 2`. That was still a
+        # leak, and a bad one: an aggregate hands the judge the boundary's UNIT and
+        # its own position within it, which is "you are near a boundary of shape X"
+        # -- exactly the consequence information the prose scrub removed. Caught by
+        # the fresh executor re-running the mode instead of trusting its own earlier
+        # reading of it, and it is strictly worse than anything that was left in the
+        # prose. The caller recomputes every aggregate from the same rows, so the
+        # judge loses no evidence by not seeing them.
+        print("aggregates      : NOT SHOWN -- evidence-only mode (phase-86.78). The "
+              "sequence above is the evidence; every count, comparison and rollup "
+              "over it -- and any threshold, ceiling or escalation that follows -- is "
+              "computed by the CALLER after your verdict returns. Their value, unit "
+              "and shape are all withheld, not merely their outcome. Do not infer "
+              "them, and do not read their absence as evidence that nothing follows.")
+        return 0 if h.status in (OK, NO_ROWS_FOR_STEP) else 1
     if h.status == LEDGER_EMPTY:
         print("\nNOTE: the ledger file exists but is EMPTY. Treat this as a")
         print("TRUNCATED source, not as an ungraded step -- the two are")
@@ -461,12 +497,20 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--step")
     ap.add_argument("--self-test", action="store_true")
+    ap.add_argument("--evidence-only", action="store_true",
+                    help="print the verdict SEQUENCE but NOT the threshold or "
+                         "whether auto-FAIL is armed. Use this for any Q/A-facing "
+                         "invocation (phase-86.78): stating the consequence of a "
+                         "verdict before it is issued measurably biases the judge "
+                         "toward leniency, and the threshold is computed "
+                         "caller-side after the verdict returns.")
     args = ap.parse_args()
     if args.self_test:
         return self_test()
     if not args.step:
         ap.error("--step is required (or use --self-test)")
-    return _report(args.step, read_ledger(args.step))
+    return _report(args.step, read_ledger(args.step),
+                   evidence_only=args.evidence_only)
 
 
 if __name__ == "__main__":
