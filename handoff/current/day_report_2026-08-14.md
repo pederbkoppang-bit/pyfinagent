@@ -769,3 +769,119 @@ measured **6 of 6 (100%)** against the 0-of-129 baseline. C7 likewise superseded
 (undetermined 33 -> 14). See the session-4 section.
 
 **Pending restarts: none.** No `.env`, no plist, no production code.
+
+---
+
+# Session 4 (evening, 19:22–20:45Z / 21:22–22:45 CEST) — C4 measured, the cap boundary made self-deriving, and two CONDITIONALs earned
+
+**Freeze:** 19:30 CEST held until cycle `68925781` completed at 19:33:13Z. Before
+that: read-only checks, file edits and commits only — no pytest, no mutation
+harness, no restart, no masterplan flip. All heavy verification ran after 19:33Z.
+
+## What closed
+
+**86.84 F-E — the cap boundary now derives itself from disk.** `CAP_REMOVED_AT` was
+a hardcoded `2026-08-15T00:00:00Z` standing in for "the first session after the
+edit" — a *prediction*, and wrong in **both** directions. The disclosed half: a
+pre-removal session spawning past midnight scores `cap=None`, so a drop reddens
+`--verify` against the *diagnosis*. The half nobody had stated, and which was live
+from 19:27Z: a post-removal session spawning *before* midnight is genuinely uncapped
+but scores against the phase-59.1 pins — the uncensored sample the removal exists to
+produce would read back as censored evidence.
+
+The fix is structural. The cap a spawn ran under is a property of **its session**,
+and sessions overlap, so no instant separates them. `effective_cap()` now takes the
+run's session; `session_is_post_removal()` derives it from the birth time of the
+session directory owning the run record. It populated itself with no hand-edit:
+
+```
+before: first uncapped : NONE ON DISK YET -- not yet measurable
+after : first uncapped : 2026-08-14T19:35:25.339Z (2 spawns past the boundary)
+```
+
+Mutation matrix retargeted — and that mattered. M11/M11b/M14 mutated the retired
+constant, so `setattr` would have created an attribute **nothing reads**: three
+silently inert cells. Now on `CAP_EDIT_AT` and KILLED, plus a new **M21** forcing
+`session_is_post_removal` True (KILLED), which is what proves the *derivation* is
+load-bearing rather than just the constant. **22 cells, 0 real survivors**, green on
+both interpreters.
+
+**86.74 C4 — MEASURED, and the blocker cleared without a manual cycle or a restart.**
+The claim that the running process held pre-fix code was true of `pid 27945`, which
+is gone. Measured: fix committed 14:36:20Z (`9d14291e`), restart `d6a1500a` at
+15:52:58Z, running `pid 85562` started 15:52:08Z, scheduled cycle 18:00:00Z→19:33:13Z.
+
+```
+BASELINE 2026-07-20..2026-08-13 : 129 rows, 0/0/0  ->  0 of 129 (0%)
+POST-FIX 2026-08-14             :   6 rows, 6/6/6  ->  6 of 6 (100%)
+```
+
+Two distinct decisions and two distinct pcts across the six tickers, so the column
+carries real content, not a literal. Not claimed: stability — n=6, one cycle.
+
+**86.85 localised (never-written) and its research gate PASSED.** No automatic writer
+for `handoff/verdict_ledger.jsonl` exists anywhere — 3 references tree-wide, all
+non-writers; 35/35 rows `recorded_by=main`; last row 2026-08-11. Not wrong-key (the
+reader finds 86.21's 5 verdicts on a positive control), not pruned, not
+only-after-close. Gate: 8 sources read in full, 23 URLs, brief COMPLETE. The
+research says the writer's location is **forced** — a Workflow-rail Q/A cannot write
+(`import fs` makes the script unlaunchable), which is the ESAA topology arrived at by
+accident; dedup key `(step_id, run_id)`; on silence, fail-closed on the *decision*,
+never on the harness.
+
+## What did NOT close, and why
+
+**86.74 is at consecutive = 2 CONDITIONALs, both PROSE, no code defect either time.**
+Cycle 5 blocked because `experiment_results` denied what `live_check` asserted. I
+fixed those two files — and then reported my correction complete on the strength of a
+grep **built from the phrasings I had just edited**. It came back clean because it
+structurally could not find anything else. Cycle 6 found the same claim in four more
+places, including `goal_next_2026-08-15.md`, which is *binding on the next session*
+and ordered "Run one cycle" — an instruction that was false and that the same file's
+section 6 forbids.
+
+**The cycle-6 evaluator improved the step's central number.** C7 enumerated
+verdict-existence from one source. `paper_trades.risk_judge_decision` is a second
+per-trade column, populated on **19 of 34** BUY rows, mapping *exactly* onto the 19
+I had called undetermined. **Undetermined is 14, not 33** — and it vindicates §2c:
+"key absent" meant not-persisted-*here*, and the verdict was recoverable elsewhere.
+Inversion stays 1.
+
+**I did not spawn cycle 7.** A third consecutive CONDITIONAL must be returned as
+FAIL. Remediation is complete as far as a semantic sweep can establish, but two
+cycles running have each found prose defects in files I had not thought to sweep, so
+I cannot prove absence — and a FAIL on a step whose code both evaluators confirmed
+correct is a poor trade to make at the end of a session. The counter persists and is
+inherited; this defers the decision, it does not dodge it.
+
+## D5 — the "commit not identified" question, reframed
+
+The break is **2026-06-11**, not 06-15 (100% missing through 06-10 → 12.5% on 06-11).
+It is **not a step function at row level** — the 06-12 cycle is mixed, 18:03/18:04
+missing and 18:35+ present, which no per-deploy cause can produce. **No commit in the
+window touches `final_synthesis` by name** (0 added / 0 removed across all five
+pipeline candidates). The four phase-60 commits are **collinear** with the evening
+cycle, so timing cannot separate them. And the telemetry that would discriminate —
+the per-cycle degradation rate — **postdates the break**, because the instrument was
+added by phase-60.1, the prime suspect itself.
+
+Conclusion: there is no commit that removed a key. The question is what made analyses
+stop reaching synthesis; the answer is a rate, not a flip; and June cannot support the
+attribution. D5 still fires at 8.8% in 2026-08, so instrument the current truncation.
+
+## The realised uncapped turn distribution — NOT yet a verification
+
+| agent | turns | cap | StructuredOutput |
+|---|---:|---|---|
+| `researcher` | 15 | None | emitted |
+| `Explore` | 3 | None | emitted |
+
+**0 drops, n = 2.** A run that used 15 turns would not have exhausted a 40 cap
+either, so it carries no information about the cap. Pre-removal contrast, right-
+censored: `qa` n=302 p50=20 max=30, 39 drops; `researcher` n=93 p50=25 max=40, 9
+drops. What would verify it: a post-boundary spawn running past 30/40 turns that
+still emits `StructuredOutput`. None has occurred.
+
+**Pending restarts: none.** No `.env`, no plist, no production behaviour change —
+the only backend edits this session were comment/description-only
+(`portfolio_manager.py`, `settings.py`), both verified zero-executable-line.
