@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-14 | `f85746cc` | docs: record the CONDITIONAL verdict and the swap-path liquidation defect it led to |
 | 2026-08-14 | `76ac89ee` | phase-86.74 cycle-3: verdict CONDITIONAL -- and acting on its WARN found a live defect where a REJEC |
 | 2026-08-14 | `2f7a6ee6` | docs(day-report): final session-end rail reading -- 572/46/5, all four retries still exhausted |
 | 2026-08-14 | `86dd587c` | phase-86.74 EVALUATE: two rail drops, NO VERDICT -- step stays pending, and the Q/A's completed work |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-14 | `4ecba45a` | docs: day report + regenerated goal -- 0 steps closed, and why that is the honest outcome |
 | 2026-08-14 | `ccb29804` | phase-86.78/86.79: record both rail drops as NO VERDICT, and the finding one of them died carrying |
 | 2026-08-14 | `f49089da` | phase-86.80: queue the arXiv rate-limiting that silently thins every nightly research memo |
-| 2026-08-14 | `f88f8190` | fix(harness): correct the drop-rate measurement -- the probe was matching its own comment text |
 
 ---
 
