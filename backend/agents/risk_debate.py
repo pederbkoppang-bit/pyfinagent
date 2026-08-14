@@ -347,8 +347,15 @@ def run_risk_debate(
         "total_risk_rounds": max_risk_rounds,
     }
 
+    # phase-86.74: the ticker is REQUIRED here. Without it, concurrent debates
+    # are unattributable -- this step's own evidence had to pair six completions
+    # to their tickers by exact-second matching against BQ `analysis_date`, and
+    # DELL could only be identified BY ELIMINATION against the one remaining
+    # completion. That inference is no longer necessary: the line now names the
+    # ticker it belongs to.
     logger.info(
-        f"Risk debate complete: decision={judge_result.get('decision')}, "
+        f"Risk debate complete: ticker={ticker}, "
+        f"decision={judge_result.get('decision')}, "
         f"risk_level={judge_result.get('risk_level')}, "
         f"position={judge_result.get('recommended_position_pct')}%, "
         f"rounds={max_risk_rounds}"

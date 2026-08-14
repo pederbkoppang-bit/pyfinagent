@@ -1,0 +1,186 @@
+#!/usr/bin/env python3
+"""phase-86.74 mutation matrix -- prove the guards can actually FAIL.
+
+    python3 scripts/qa/mutation_matrix_86_74.py
+
+Criterion 9: "mutation-test with the control observed GREEN first and a
+byte-identical restore: (M1) restore `if pct:` in the helper -- a 0% verdict must
+go red; (M2) restore `or 10.0` at the sizing seam -- the same; (M3) delete the
+persistence write -- criterion 4's check must go red; each cell scored
+UNSCORABLE if its control was not green".
+
+WHY EACH RULE IS HERE, all of them paid for previously:
+
+* **Control green FIRST.** A cell whose control was already red proves nothing --
+  the mutant "failing" is then indistinguishable from the suite being broken.
+  Such a cell is scored UNSCORABLE, never KILLED.
+* **Byte-identical restore, verified by sha256.** Not "looks restored".
+* **The probe must DISCRIMINATE.** A cell is only KILLED when the control passed
+  AND the mutant failed. If a mutation cannot even be APPLIED (its target text is
+  absent) that is scored NOT_APPLIED -- a no-match `str.replace` looks exactly
+  like success and would silently score a mutation that never happened.
+* **Mutate the SUBJECT, not a copy.** Each mutation edits the real module the
+  tests import.
+"""
+from __future__ import annotations
+
+import hashlib
+import pathlib
+import subprocess
+import sys
+
+ROOT = pathlib.Path(__file__).resolve().parents[2]
+PM = ROOT / "backend" / "services" / "portfolio_manager.py"
+SUITE = "backend/tests/test_phase_66_2_risk_judge_shape.py"
+
+
+def sha(p: pathlib.Path) -> str:
+    return hashlib.sha256(p.read_bytes()).hexdigest()
+
+
+def run(*args: str) -> tuple[int, str]:
+    r = subprocess.run(
+        [str(ROOT / ".venv" / "bin" / "python"), "-m", "pytest", *args, "-q"],
+        capture_output=True, text=True, cwd=ROOT, timeout=300,
+    )
+    return r.returncode, (r.stdout + r.stderr)[-400:]
+
+
+#: (id, description, old, new, the test that must go RED)
+MUTATIONS = [
+    (
+        "M1",
+        "restore the falsy-zero `if pct:` in the helper",
+        "    for source in (\n"
+        "        risk_assessment.get(\"recommended_position_pct\"),\n"
+        "        analysis.get(\"risk_judge_position_pct\"),\n"
+        "    ):\n"
+        "        verdict = _coerce_pct(source)\n"
+        "        if verdict is not None:\n"
+        "            return verdict\n"
+        "    return PositionVerdict(ABSENT)",
+        "    for source in (\n"
+        "        risk_assessment.get(\"recommended_position_pct\"),\n"
+        "        analysis.get(\"risk_judge_position_pct\"),\n"
+        "    ):\n"
+        "        if source:  # MUTANT: falsy -- 0.0 falls through\n"
+        "            verdict = _coerce_pct(source)\n"
+        "            if verdict is not None:\n"
+        "                return verdict\n"
+        "    return PositionVerdict(ABSENT)",
+        "TestHelperDistinguishesZeroFromAbsent",
+    ),
+    (
+        "M2",
+        "restore `or 10.0` at the main sizing seam",
+        "        position_pct = _sizing_pct(cand)\n"
+        "        target_amount = nav * (position_pct / 100.0)",
+        "        position_pct = cand[\"position_pct\"] or 10.0  # MUTANT\n"
+        "        target_amount = nav * (position_pct / 100.0)",
+        "TestRejectBindsInBothFlagStates",
+    ),
+    (
+        "M3",
+        "delete the persistence write (criterion 4 must go red)",
+        "            risk_judge_decision=str(_rj.get(\"decision\") or \"\"),\n"
+        "            risk_level=str(_rj.get(\"risk_level\") or \"\"),\n"
+        "            recommended_position_pct=_rj_pct,",
+        "            # MUTANT: persistence write deleted",
+        "TestVerdictIsPersistedPerTicker",
+    ),
+    (
+        "M4",
+        "make the sizing default reachable from an UNPARSEABLE verdict",
+        "    if state == UNPARSEABLE:\n        return 0.0",
+        "    if state == UNPARSEABLE:\n        return DEFAULT_POSITION_PCT  # MUTANT",
+        "TestSizingDefaultReachableOnlyFromAbsent",
+    ),
+    (
+        "M5",
+        "drop the RiskJudge row again when pct is 0 (criterion 6)",
+        "        if decision or reasoning or pos_pct is not None:",
+        "        if decision or reasoning:  # MUTANT",
+        "TestRiskJudgeAppearsInFactorsJson",
+    ),
+    (
+        "M6",
+        "remove the ticker from the completion log line (criterion 5)",
+        "        f\"Risk debate complete: ticker={ticker}, \"",
+        "        f\"Risk debate complete: \"  # MUTANT",
+        "test_risk_debate_completion_log_carries_the_ticker",
+    ),
+]
+
+#: Cells M3/M5/M6 mutate files OTHER than portfolio_manager.py, so the harness
+#: below must snapshot and restore each subject independently -- restoring only
+#: the primary file would leave a mutation live in the tree.
+SUBJECTS = {
+    "M1": PM, "M2": PM, "M4": PM,
+    "M3": ROOT / "backend" / "services" / "autonomous_loop.py",
+    "M5": ROOT / "backend" / "services" / "signal_attribution.py",
+    "M6": ROOT / "backend" / "agents" / "risk_debate.py",
+}
+
+
+def main() -> int:
+    # Snapshot EVERY subject up front, so a crash mid-run cannot leave a mutation
+    # live in a file this run never got around to restoring.
+    baseline = {p: (p.read_text(), sha(p)) for p in set(SUBJECTS.values())}
+    for p, (_, s) in sorted(baseline.items(), key=lambda kv: str(kv[0])):
+        print(f"subject : {p.relative_to(ROOT)}  sha={s[:12]}")
+    print()
+
+    print("=== CONTROL (must be GREEN before any cell is scorable) ===")
+    rc, tail = run(SUITE)
+    control_green = rc == 0
+    print(f"  control: {'GREEN' if control_green else 'RED'}\n")
+
+    results = []
+    for mid, desc, old, new, target in MUTATIONS:
+        subject = SUBJECTS[mid]
+        original, original_sha = baseline[subject]
+
+        if not control_green:
+            results.append((mid, "UNSCORABLE", "control was not green"))
+            continue
+
+        if old not in original:
+            # A no-match replace looks exactly like success. Never score it.
+            results.append((mid, "NOT_APPLIED", f"target absent in {subject.name}"))
+            print(f"  {mid}: NOT_APPLIED -- target absent, cell not scored")
+            continue
+
+        try:
+            subject.write_text(original.replace(old, new, 1))
+            assert sha(subject) != original_sha, "mutation did not change the file"
+            rc_m, tail_m = run(SUITE, "-k", target)
+            killed = rc_m != 0
+            results.append((
+                mid, "KILLED" if killed else "SURVIVED", f"{subject.name}: {desc}",
+            ))
+            print(f"  {mid}: {'KILLED' if killed else '** SURVIVED **'}  ({desc})")
+        finally:
+            subject.write_text(original)
+            back = sha(subject)
+            if back != original_sha:
+                print(f"  !!! RESTORE FAILED for {mid}: {back[:16]} != {original_sha[:16]}")
+                return 3
+
+    all_restored = all(sha(p) == s for p, (_, s) in baseline.items())
+    print(f"\nrestore verified byte-identical for all {len(baseline)} subjects: {all_restored}")
+    if not all_restored:
+        return 3
+    print("\n=== MATRIX ===")
+    for mid, verdict, note in results:
+        print(f"  {mid:<4} {verdict:<12} {note}")
+
+    bad = [m for m, v, _ in results if v != "KILLED"]
+    if bad:
+        print(f"\nRESULT: cells not KILLED: {bad}")
+        return 1
+    print("\nRESULT: every cell KILLED -- the guards can fail, so green means something.")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

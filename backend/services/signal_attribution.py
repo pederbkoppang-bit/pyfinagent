@@ -206,6 +206,18 @@ def extract_signals_from_analysis(analysis: dict) -> list[dict]:
     # ── Risk layer ────
     risk = analysis.get("risk_assessment") or {}
     if isinstance(risk, dict):
+        # phase-86.74 (criterion 6): resolve the judge NESTED-FIRST. Reading only
+        # the top level meant that on the FULL path -- where the verdict nests
+        # under risk_assessment['judge'] -- both `decision` and `reasoning` came
+        # back empty, the `if decision or reasoning:` guard below was False, and
+        # the RiskJudge contribution was DROPPED FROM factors_json entirely.
+        # Measured: DELL 2026-08-13 persisted 3 agents / 517 chars with no
+        # RiskJudge row, against NTAP 2026-07-31's 4 agents / 1232 chars which
+        # included `RiskJudge (gate)`. That missing row in the Agent Rationale UI
+        # is the ONLY reason the operator caught this incident at all.
+        _nested = risk.get("judge")
+        if isinstance(_nested, dict) and _nested:
+            risk = _nested
         decision = risk.get("decision") or ""
         # phase-23.1.7: lite shape uses {"reason": "..."}; add as fallback alongside reasoning/rationale.
         reasoning = (
@@ -215,10 +227,20 @@ def extract_signals_from_analysis(analysis: dict) -> list[dict]:
             or ""
         )
         pos_pct = risk.get("recommended_position_pct")
-        if decision or reasoning:
+        # phase-86.74 (criterion 6): `pos_pct is not None` joins the guard, so a
+        # judge that returned an explicit 0% -- a REJECT, the STRONGEST signal it
+        # can emit -- is recorded rather than omitted. A 0% verdict that leaves no
+        # trace in factors_json is precisely the evidence an auditor most needs.
+        #
+        # The phase-25.B comment below asserted `recommended_position_pct is
+        # always > 0 by construction`. That is FALSE and was falsified in
+        # production: DELL 2026-08-13 carried recommended_position_pct = 0, read
+        # directly from the persisted blob at
+        # $.final_synthesis.risk_assessment.judge.recommended_position_pct.
+        # Same falsy-zero family as the sizing defect this step fixes.
+        if decision or reasoning or pos_pct is not None:
             # phase-25.B: post-25.A, RiskJudge runs as an independent LLM call;
-            # its `reasoning` is structurally distinct from the trader's and
-            # `recommended_position_pct` is always > 0 by construction. The
+            # its `reasoning` is structurally distinct from the trader's. The
             # lite-path duplicate-detection block that lived here was dead
             # code after cycle 69 (25.A) -- removed.
             risk_rationale = _trim(reasoning) or f"Decision: {decision}"

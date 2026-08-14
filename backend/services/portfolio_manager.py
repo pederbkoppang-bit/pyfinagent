@@ -7,7 +7,7 @@ Implements sell-first-then-buy logic with Risk Judge position sizing.
 import logging
 import uuid
 from dataclasses import dataclass, field
-from typing import Optional
+from typing import NamedTuple, Optional
 
 from backend.config.settings import Settings
 from backend.services import risk_overrides
@@ -313,21 +313,42 @@ def decide_trades(
         # judge (matching api/analysis.py:158 + tasks/analysis.py:162). OFF ->
         # _rj_view IS risk_assessment == current top-level behavior (lite
         # already flat, so lite is byte-identical either way).
+        # phase-86.74: the nested-first resolution is now UNCONDITIONAL.
+        #
+        # WHY THIS HAD TO STOP BEING FLAG-GATED. Fixing only the falsy-zero left
+        # DELL's actual case broken. With the flag OFF the full-path verdict is
+        # nested and therefore INVISIBLE, so `_resolve_position_pct` correctly
+        # returned ABSENT and the 10% default was legitimately reached -- the
+        # falsy-zero fix never got a chance to fire. Two different defects were
+        # being conflated:
+        #   falsy-zero : a VISIBLE 0.0 collapsed to None      (fixed in the helper)
+        #   nesting    : the verdict is not visible at all    (fixed HERE)
+        # Criterion 3 requires the default be reachable only from a GENUINELY
+        # ABSENT verdict; a nested 0% verdict is present, so it must not reach it.
+        # Resolving nested-first can only ever reveal a verdict that was already
+        # there -- it never invents one, and an absent `judge` key is unchanged.
         _rj_view = risk_assessment
-        if getattr(settings, "paper_risk_judge_shape_fix_enabled", False):
-            _judge = risk_assessment.get("judge")
-            if isinstance(_judge, dict):
-                _rj_view = _judge
-        position_pct = _extract_position_pct(_rj_view, analysis)
-        # Respect an explicit 0.0 pct as no-buy (the zero-falsy `if pct:` in
-        # _extract_position_pct otherwise falls through to the 10% default).
-        if getattr(settings, "paper_risk_judge_shape_fix_enabled", False):
-            _raw_pct = _rj_view.get("recommended_position_pct")
-            if _raw_pct is not None:
-                try:
-                    position_pct = float(_raw_pct)
-                except (ValueError, TypeError):
-                    pass
+        _judge = risk_assessment.get("judge")
+        if isinstance(_judge, dict):
+            _rj_view = _judge
+        # phase-86.74: resolve the THREE-state verdict. The pre-86.74 code called
+        # `_extract_position_pct` (which collapsed 0.0 -> None) and then, ONLY
+        # under the flag, re-read the raw value at :325-330 to recover the zero
+        # the helper had just destroyed. That workaround is gone: the helper is
+        # correct now, so the recovery has nothing left to recover and the fix
+        # holds with the flag OFF -- which is the shipped production state.
+        _verdict = _resolve_position_pct(_rj_view, analysis)
+        position_pct = _verdict.pct if _verdict.kind == SIZE else None
+        if _verdict.kind == UNPARSEABLE:
+            logger.warning(
+                "phase-86.74: %s risk verdict present but UNPARSEABLE "
+                "(recommended_position_pct=%r) -- treating as no-buy, NOT as the "
+                "%.1f%% default. A verdict we cannot read is not evidence of safety.",
+                ticker,
+                _rj_view.get("recommended_position_pct",
+                             analysis.get("risk_judge_position_pct")),
+                DEFAULT_POSITION_PCT,
+            )
         stop_loss = _extract_stop_loss(risk_assessment, analysis, settings=settings)
         final_score = analysis.get("final_score", 0)
 
@@ -382,6 +403,10 @@ def decide_trades(
             "ticker": ticker,
             "recommendation": rec,
             "position_pct": position_pct,
+            # phase-86.74: carry the VERDICT STATE alongside the number, so the
+            # sizing seams can tell "the judge said zero" from "the judge said
+            # nothing". Without this the two are the same `None` downstream.
+            "position_pct_state": _verdict.kind,
             "stop_loss_price": stop_loss,
             # phase-66.2 RJ-shape fix: record the resolved judge decision so
             # full-path BUYs no longer persist risk_judge_decision='' (66.2
@@ -497,14 +522,13 @@ def decide_trades(
                 continue
 
         # Position size: min(risk_judge_pct * NAV, available_cash)
-        # phase-66.2 RJ-shape fix: under the flag, an explicit 0.0 pct means
-        # no-buy (falls below the $50 floor below) instead of inverting to the
-        # 10% default via `or`. OFF -> `or 10.0` byte-identical. A genuinely
-        # absent pct (None, judge didn't specify) still defaults to 10%.
-        if getattr(settings, "paper_risk_judge_shape_fix_enabled", False):
-            position_pct = cand["position_pct"] if cand["position_pct"] is not None else 10.0
-        else:
-            position_pct = cand["position_pct"] or 10.0  # Default 10% if Risk Judge didn't specify
+        # phase-86.74: routed through the single `_sizing_pct` seam. This is NO
+        # LONGER flag-conditional -- the flag branch used to make an explicit 0.0
+        # mean no-buy only when ON, while OFF (production) inverted it to 10%.
+        # A 0% REJECT now yields 0.0 -> below the $50 floor -> no order, in BOTH
+        # flag states. That is a deliberate behaviour change under flag-OFF; see
+        # contract_86.74.md section 5a.
+        position_pct = _sizing_pct(cand)
         target_amount = nav * (position_pct / 100.0)
         buy_amount = min(target_amount, available_cash)
 
@@ -797,7 +821,7 @@ def _compute_swap_candidates(
                     if _cross_rotation_safe(
                         cand_sector=cand_sector, weakest=_w,
                         sector_counts=sector_counts, sector_market_values=sector_market_values,
-                        buy_amount=nav * (float(cand.get("position_pct") or 10.0) / 100.0),
+                        buy_amount=nav * (_sizing_pct(cand) / 100.0),  # phase-86.74
                         nav=nav, settings=settings,
                     ):
                         logger.info(
@@ -850,7 +874,7 @@ def _compute_swap_candidates(
             ) or 0.0
         )
         if max_sector_nav_pct > 0 and nav > 0:
-            position_pct = float(cand.get("position_pct") or 10.0)
+            position_pct = _sizing_pct(cand)  # phase-86.74
             buy_amount = nav * (position_pct / 100.0)
             existing = sector_market_values.get(cand_sector, 0.0)
             projected_sector_value = existing - weakest["market_value"] + buy_amount
@@ -875,7 +899,7 @@ def _compute_swap_candidates(
         # persist while its paired BUY drops). OFF -> legacy nav*pct sizing, untagged
         # SELL-then-BUY (byte-identical). SELL-first append order preserved either way.
         _atomic = bool(getattr(settings, "paper_atomic_swap_enabled", False))
-        position_pct = cand.get("position_pct") or 10.0
+        position_pct = _sizing_pct(cand)  # phase-86.74
         buy_amount = nav * (float(position_pct) / 100.0)
         swap_gid = None
         if _atomic:
@@ -936,23 +960,117 @@ def _compute_swap_candidates(
     return swap_orders
 
 
+#: phase-86.74 -- the three states a position-size verdict can be in.
+#:
+#: `Optional[float]` CANNOT carry three states, and that is the whole defect:
+#: `None` meant both "the judge said nothing" and "the judge said zero", so every
+#: downstream `or 10.0` resolved the ambiguity in the most dangerous direction --
+#: a REJECT at 0% became the LARGEST default position (DELL, 2026-08-13, 10.00%
+#: of NAV against a REJECT/HIGH/0% verdict).
+SIZE = "SIZE"                # the judge specified a size; `pct` is it (0.0 included)
+ABSENT = "ABSENT"            # no verdict present -- the default is legitimate here
+UNPARSEABLE = "UNPARSEABLE"  # a verdict WAS present but is malformed -- fail closed
+
+
+class PositionVerdict(NamedTuple):
+    """A position-size verdict that can say "zero" without meaning "nothing"."""
+
+    kind: str
+    pct: Optional[float] = None
+
+    @property
+    def blocks_buy(self) -> bool:
+        """True when this verdict must NOT produce an order.
+
+        An explicit 0.0 is the strongest risk signal there is, and a malformed
+        verdict is not evidence of safety -- both block. Only ABSENT permits the
+        sizing default, because only ABSENT means no one expressed an opinion.
+        """
+        return (self.kind == SIZE and self.pct == 0.0) or self.kind == UNPARSEABLE
+
+
+#: The sizing default. phase-86.74 made this reachable from EXACTLY ONE place
+#: (`_sizing_pct`), so "which paths can reach the 10% default?" is answerable by
+#: reading one function instead of auditing four seams that drifted apart.
+DEFAULT_POSITION_PCT = 10.0
+
+
+def _sizing_pct(cand: dict) -> float:
+    """THE single seam at which the 10%-NAV sizing default can be reached.
+
+    phase-86.74. Before this, four sites sized a buy with `or 10.0`
+    (`:507`, `:800`, `:853`, `:878`) and only ONE of them was flag-guarded, so
+    three inverted a 0% REJECT into a maximum position under every flag setting.
+    They now all route through here.
+
+    The default is returned for ABSENT and **only** for ABSENT -- the one state
+    that genuinely means "no one expressed an opinion". A 0% verdict returns 0.0
+    (which falls below the $50 floor -> no order) and a malformed verdict returns
+    0.0 as well, because a verdict we could not read is not evidence of safety.
+    """
+    state = cand.get("position_pct_state")
+    pct = cand.get("position_pct")
+
+    if state is None:
+        # Defensive: a candidate built by a path that predates the state key.
+        # Mirrors legacy behaviour EXCEPT the falsy-zero -- an explicit 0.0 is a
+        # size, not a silence.
+        state = ABSENT if pct is None else SIZE
+
+    if state == SIZE:
+        return float(pct) if pct is not None else DEFAULT_POSITION_PCT
+    if state == UNPARSEABLE:
+        return 0.0
+    return DEFAULT_POSITION_PCT
+
+
+def _coerce_pct(raw: object) -> Optional[PositionVerdict]:
+    """One source -> a verdict, or None when this source has nothing to say.
+
+    Note `raw is not None` rather than `if raw:` -- that truthiness check IS the
+    defect (0.0 is falsy). A present-but-garbage value returns UNPARSEABLE rather
+    than falling through, so a parse failure can never be mistaken for silence.
+    """
+    if raw is None:
+        return None
+    try:
+        return PositionVerdict(SIZE, float(raw))
+    except (ValueError, TypeError):
+        return PositionVerdict(UNPARSEABLE)
+
+
+def _resolve_position_pct(risk_assessment: dict, analysis: dict) -> PositionVerdict:
+    """Resolve the judge's position size into an explicit three-state verdict.
+
+    phase-86.74. Both sources are checked with `is not None`; the pre-86.74 code
+    guarded BOTH with `if pct:`, so the second source kept the falsy-zero defect
+    under EVERY flag setting -- the phase-66.2 flag only ever worked around the
+    first one.
+    """
+    for source in (
+        risk_assessment.get("recommended_position_pct"),
+        analysis.get("risk_judge_position_pct"),
+    ):
+        verdict = _coerce_pct(source)
+        if verdict is not None:
+            return verdict
+    return PositionVerdict(ABSENT)
+
+
 def _extract_position_pct(risk_assessment: dict, analysis: dict) -> Optional[float]:
-    """Extract recommended position % from risk assessment."""
-    # Try risk_judge output
-    pct = risk_assessment.get("recommended_position_pct")
-    if pct:
-        try:
-            return float(pct)
-        except (ValueError, TypeError):
-            pass
-    # Fall back to analysis-level field
-    pct = analysis.get("risk_judge_position_pct")
-    if pct:
-        try:
-            return float(pct)
-        except (ValueError, TypeError):
-            pass
-    return None
+    """Extract recommended position % from risk assessment.
+
+    Legacy `Optional[float]` shim over `_resolve_position_pct`. **The falsy-zero
+    is fixed here, unconditionally** -- an explicit 0.0 now returns `0.0` and not
+    `None`, with `paper_risk_judge_shape_fix_enabled` OFF as well as ON, because
+    OFF is the shipped production state and OFF is the broken one.
+
+    Callers that must distinguish "zero" from "absent" -- i.e. anything that
+    sizes an order -- MUST use `_resolve_position_pct` instead; this signature
+    still cannot express three states.
+    """
+    verdict = _resolve_position_pct(risk_assessment, analysis)
+    return verdict.pct if verdict.kind == SIZE else None
 
 
 def _extract_stop_loss(

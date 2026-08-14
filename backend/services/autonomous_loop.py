@@ -3411,9 +3411,39 @@ async def _persist_analysis(analysis: dict, bq: BigQueryClient) -> None:
                 "_degraded_reason": str(analysis.get("_degraded_reason") or "")[:500],
             }
         market_data = full_report.get("market_data") or {}
+        # phase-86.74 (criterion 4): persist the RiskJudge verdict into its own
+        # columns. This writer -- the one the AUTONOMOUS LOOP actually uses --
+        # never passed them, so `risk_judge_decision`, `risk_level` and
+        # `recommended_position_pct` were empty on 129 of 129 rows across
+        # 2026-07-20..2026-08-13 while `save_report` accepted all three the whole
+        # time (bigquery_client.py:119,148,149). The rich write in
+        # tasks/analysis.py:273,302,303 is a DIFFERENT path (API-triggered), which
+        # is why tracing that one did not explain the empty columns.
+        #
+        # The verdict itself was never lost -- it sits in the JSON blob at
+        # $.final_synthesis.risk_assessment.judge -- but a JSON path is not an
+        # auditable column, which is exactly why this incident had to be
+        # reconstructed from log timestamps by elimination.
+        #
+        # Resolution is nested-first, matching portfolio_manager and
+        # api/analysis.py:158; `or {}` guards a present-but-null `judge` key,
+        # which `.get(k, {})` alone would not.
+        _ra = (analysis.get("risk_assessment") or {})
+        _judge = (_ra.get("judge") or {}) if isinstance(_ra, dict) else {}
+        if not isinstance(_judge, dict):
+            _judge = {}
+        _rj = _judge or (_ra if isinstance(_ra, dict) else {})
+        _rj_pct = _rj.get("recommended_position_pct")
+        try:
+            _rj_pct = float(_rj_pct) if _rj_pct is not None else None
+        except (ValueError, TypeError):
+            _rj_pct = None
         await asyncio.to_thread(
             bq.save_report,
             ticker=ticker,
+            risk_judge_decision=str(_rj.get("decision") or ""),
+            risk_level=str(_rj.get("risk_level") or ""),
+            recommended_position_pct=_rj_pct,
             # phase-61.2 (criterion 3, ungated pure fix): full-path reports
             # carry no market_data key (lite-only), so every full-path
             # autonomous row persisted NULL company_name; the quant dict is
