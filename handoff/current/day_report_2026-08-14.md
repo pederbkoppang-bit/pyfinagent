@@ -565,7 +565,9 @@ So the **diagnosis** landed and is durable; the **fix** is queued as 86.84.
   inside 30 turns.
 
 **The research gate did land three remedy-shaping findings before freeze**, even
-though it never flipped to COMPLETE (7 sources read in full, gate NOT passed):
+and which subsequently DID complete: the envelope reads `brief_status: COMPLETE`,
+11 sources read in full, 19 URLs, `gate_passed: true`. (An earlier line above says
+"7 sources, gate NOT passed" — true when written, superseded now.) The findings:
 
 1. **`maxTurns` counts tool-use turns only, and `StructuredOutput` is itself a
    tool call.** Emitting the schema costs a turn, so the budget must be
@@ -579,12 +581,14 @@ though it never flipped to COMPLETE (7 sources read in full, gate NOT passed):
 - **No Q/A verdict was obtained on this session's work.** The diagnosis is
   committed as evidence, not as a passed step; 86.84 stays `pending`.
 - ~~Stale claims still on disk, deliberately not edited during a freeze.~~
-  **SUPERSEDED — see "Session 4" below.** The operator lifted the freeze and
-  criterion 5 was completed: `scripts/qa/rail_drop_rate.py` and the twin comment
-  blocks in `.claude/workflows/qa-verdict.js` and
-  `.claude/workflows/research-gate.js` no longer say the mechanism is unproven,
-  and each now carries the confound correction at source rather than a note
-  beside it.
+  **SUPERSEDED — see the post-freeze section at the end of this report.** The
+  operator lifted the freeze and criterion 5 was worked. NOTE the cycle-2 Q/A
+  judged it only PARTIALLY met on the first pass: `qa-verdict.js` still carried a
+  surviving `the model split SURVIVES` line, and `rail_drop_rate.py`'s RUNTIME
+  output still printed the confounded split uncaveated — correcting a docstring
+  while the program keeps printing the old claim is not correcting it at source.
+  Both are now fixed, and the earlier "at source rather than a note beside it"
+  wording was itself an overclaim.
 
 ## Pending restart list
 

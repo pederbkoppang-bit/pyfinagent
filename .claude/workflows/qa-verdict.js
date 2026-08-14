@@ -388,7 +388,19 @@ function enforceEscalation(verdict, sequence, opts = {}) {
 //   by workflow:  qa-verdict          34/367  9.3%
 //                 research-gate        6/73   8.2%
 //   overall                           43/563  7.6%
-//   P(0 drops in 73 | true rate 11.2%) = 2e-4 -- the model split SURVIVES.
+//
+// THE "MODEL SPLIT" IS AN ARTEFACT -- RETRACTED phase-86.84 (2026-08-14). This
+// line used to read: `P(0 drops in 73 | true rate 11.2%) = 2e-4 -- the model
+// split SURVIVES.` The arithmetic was right and the conclusion was wrong,
+// because the test asked whether opus-4-8[1m]'s zero could be chance while
+// assuming those 73 spawns were exchangeable with the other model's. They were
+// not: 223 of opus-4-8[1m]'s 258 spawns were uncapped `general-purpose`, an
+// agent type that has dropped 0 times in 930 spawns on EVERY model. The zero is
+// explained by WHAT THAT MODEL RAN, so a p-value against a pooled rate is
+// testing a hypothesis nobody should have entertained. Hold the model fixed at
+// opus-5[1m] and the real split appears: 47/379 on the two agent types that
+// carried a `maxTurns` cap, 0/417 on the three that did not. Do not requote the
+// 2e-4 or any per-model rate above as evidence about a MODEL.
 //
 // WHAT DID NOT SURVIVE, and must not be requoted from anywhere: an overall
 // "21.8%", a research-gate "53.4%", a "4x amplification" between the two
@@ -419,7 +431,7 @@ function enforceEscalation(verdict, sequence, opts = {}) {
 // change how many turns an investigation needs, which is why a lean prompt
 // still dropped). Turn count is a FIFTH hypothesis those four never tested.
 //
-// THE MODEL SPLIT REPORTED BELOW IS CONFOUNDED, and this is the correction that
+// THE MODEL SPLIT REPORTED ABOVE IS CONFOUNDED, and this is the correction that
 // matters most for anyone re-reading the old numbers: 223 of
 // claude-opus-4-8[1m]'s 258 spawns were uncapped `general-purpose`, a type that
 // has never dropped on any model, so its clean 0.0% measured what it RAN.

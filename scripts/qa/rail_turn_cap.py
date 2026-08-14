@@ -109,7 +109,7 @@ import json
 import os
 import re
 import sys
-from collections import Counter, defaultdict
+from collections import defaultdict
 from pathlib import Path
 
 PROJECT_SLUG = "-Users-ford--openclaw-workspace-pyfinagent"
@@ -147,8 +147,23 @@ def projects_root() -> Path:
 # RAN. The corpus spans exactly one cap change, so the timeline is two entries
 # per role. Extend it -- do not edit the historical numbers -- if a cap is ever
 # reintroduced.
-CAP_REMOVED_AT = "2026-08-14T17:35:00Z"  # phase-86.84 removed both pins
+# V-7 (cycle-2 Q/A): the boundary is NOT the file-edit instant. The Agent-tool
+# roster snapshots at session start, so a cap removed at 17:35Z is still IN FORCE
+# for every spawn of the session that was already running. Using the edit instant
+# would score those spawns as uncapped and, if one of them exhausted, the
+# verifier would go red with "CLAIM BROKEN: a dropped spawn is not at its cap" --
+# indicting the diagnosis when the real fault was the boundary. Fails loud, but
+# misdiagnoses. So the boundary is the START OF THE NEXT SESSION, and until an
+# actual post-restart run exists on disk the honest value is "no run is past it".
+# Bump this to the real timestamp once the next session starts; the verifier's
+# own remediation check is what proves the pins are gone in the meantime.
+CAP_REMOVED_AT = "2026-08-15T00:00:00Z"  # phase-86.84: first session after the edit
 HISTORICAL_CAPS = {"qa": 30, "researcher": 40}  # set by phase-59.1
+
+# A frontmatter cap that parses to something non-integral is neither "absent"
+# nor a usable number. Treat it as a pin so the guard reddens rather than
+# silently reporting the role uncapped.
+SENTINEL_UNPARSEABLE_CAP = -1
 
 
 def effective_cap(agent_type: str | None, run_timestamp: str | None) -> int | None:
@@ -181,8 +196,45 @@ def parse_cap(agent_type: str | None) -> int | None:
     m = re.match(r"^---\n(.*?)\n---\n", text, re.S)
     if not m:
         return None
+
+    # PARSE THE YAML; DO NOT PATTERN-MATCH THE LINE. The first version of this
+    # used `^\s*maxTurns\s*:\s*(\d+)\s*$` and the phase-86.84 cycle-2 Q/A killed
+    # it: `maxTurns: 30  # restored` is a LIVE integer pin that the regex misses,
+    # so the remediation guard reported "all pins removed: True" over a restored
+    # cap. That shape is not exotic -- every other line of these frontmatter
+    # blocks is a `#` comment, so "restore the pin with a note" is the most
+    # likely way it would come back. A quoted `"30"` slipped through too.
+    # The loader reads YAML, so the guard must read YAML.
+    try:
+        import yaml  # noqa: PLC0415 -- optional dep, fall back below
+
+        block = yaml.safe_load(m.group(1))
+    except ImportError:
+        block = None
+    except yaml.YAMLError:
+        # A frontmatter block that does not parse is a LOUD problem, not a
+        # licence to report "uncapped". Fall through to the scan below.
+        block = None
+
+    if isinstance(block, dict):
+        if "maxTurns" not in block:
+            return None
+        raw = block["maxTurns"]
+        if raw is None:
+            return None
+        try:
+            # Coerce quoted scalars: `maxTurns: "30"` is still a pin as far as
+            # this guard is concerned. Over-detecting a pin is the safe
+            # direction -- it can only make the check redder, never greener.
+            return int(str(raw).strip())
+        except (TypeError, ValueError):
+            return SENTINEL_UNPARSEABLE_CAP
+
+    # Fallback when PyYAML is unavailable or the block did not parse: strip any
+    # trailing comment before matching, so the M7b shape is still caught.
     for line in m.group(1).splitlines():
-        mm = re.match(r"\s*maxTurns\s*:\s*(\d+)\s*$", line)
+        head = line.split("#", 1)[0]
+        mm = re.match(r"""\s*maxTurns\s*:\s*['"]?(\d+)['"]?\s*$""", head)
         if mm:
             return int(mm.group(1))
     return None

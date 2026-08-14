@@ -232,6 +232,19 @@ def main() -> int:
     for r in rows:
         by[r["model"]].append(r)
     table("by model", by)
+    # phase-86.84, cycle-2 Q/A finding V-4: correcting the header was not enough
+    # while the RUNTIME still printed this table uncaveated -- a reader takes the
+    # output, not the docstring. The per-model rates below are CONFOUNDED with
+    # agent type and must not be read as a model effect. See the caveat printed
+    # under the table.
+    print("    ^ CONFOUNDED -- NOT a model effect. Each model's rate measures the")
+    print("      MIX OF AGENT TYPES it happened to run: 223 of claude-opus-4-8[1m]'s")
+    print("      258 spawns were uncapped `general-purpose`, which has dropped 0")
+    print("      times in 930 spawns on every model. Holding the model fixed at")
+    print("      claude-opus-5[1m]: 47/379 on capped agent types vs 0/417 uncapped.")
+    print("      The cause is TURN-BUDGET EXHAUSTION, fixed in phase-86.84 by")
+    print("      removing the maxTurns pins. Key on agent type, not model:")
+    print("      `python3 scripts/qa/rail_turn_cap.py --verify`")
 
     by = collections.defaultdict(list)
     for r in rows:

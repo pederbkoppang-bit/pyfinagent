@@ -1,65 +1,55 @@
 # live_check — 86.84: the Layer-3 rail drop is TURN-BUDGET EXHAUSTION
 
-Measured 2026-08-14, 17:00–17:05Z (19:00–19:05 CEST), by Main, on this machine.
+**REWRITTEN 2026-08-14 after the cycle-2 Q/A (findings V-1 and V-2).** The prior
+revision was written before the remediation and was never brought forward, so it
+asserted "No agent `.md` was edited. No cap was changed", quoted `qa.md:6 —
+maxTurns: 30` in the present tense, said the gate was still in flight, and
+carried three figures that no longer reproduced. All of that is now false and
+patching eight fragments would have left a ninth. This file is regenerated from
+the live measurement instead.
 
-**Provenance of the numbers, corrected after the cycle-1 Q/A (finding F1).** An
-earlier revision of this line said "re-runnable form of **every** number below",
-which was false. `python3 scripts/qa/rail_turn_cap.py --verify` is the
-re-runnable form of **§1's table and §2's model × agentType cross-tab only**. The
-tail-shape figures in §0 and the 11.4 / 3.0 / 0.0 model rates quoted in §2 come
-from `scripts/qa/rail_drop_rate.py` and from an ad-hoc scan; the script computes
-no tail-shape figure at all.
+Re-runnable, both of them:
+- `python3 scripts/qa/rail_turn_cap.py --verify` — diagnosis **and** remediation
+- `python3 scripts/qa/mutate_rail_turn_cap.py --verify` — the mutation matrix
+
+---
 
 ## 0. The question the operator asked
 
-> Read the 46 records (`~/.claude/projects/*/workflows/wf_*.json`, `error` field):
 > did the agent run out of turns, end with text instead of the tool, or hit a
 > tool-availability problem?
 
-**Answer: it ran out of turns.** Not sometimes — on every single observed drop,
-with no exceptions in either role.
-
-The other two hypotheses are refuted by the same data:
+**It ran out of turns** — on every observed drop, with no exceptions in either
+role.
 
 - **"ended with text instead of the tool" — REFUTED.** 0 of 48 dropped
-  transcripts end on an assistant text turn. All 48 end on a `tool_result`.
-  **This tail shape is NOT by itself diagnostic** and I nearly misread it as
-  one: **347 of 347** *successful* qa/researcher spawns end on a `tool_result`
-  too — the difference is only *which* tool. In a success the last `tool_use` is
-  `StructuredOutput`; in a drop it is Bash (37), Edit (4), Write (2), Read (2),
-  WebFetch (1), WebSearch (1) — **that is 47 of the 48. The 48th
-  (`wf_d4e2e794-567`) had `StructuredOutput` as its last `tool_use` and is the
-  lone counterexample to this sentence's own contrast**; it is the same spawn
-  counted as "1 of 48" in the tool-availability bullet below.
-
-  **Corrected after the cycle-1 Q/A (finding F2).** This bullet previously read
-  "393 of 394", which does not reproduce. The error was mine and mechanical: my
-  ad-hoc script selected *runs* containing a qa/researcher agent and then
-  globbed **every** `agent-*.jsonl` in that run directory, sweeping in the
-  stage-2 `Explore` spawns that `research-gate.js` launches alongside the
-  researcher. The "1 exception" was one of those, not a qa/researcher spawn.
-  **The corrected figure makes this argument stronger, not weaker** — 347/347,
-  no exception at all.
-- **"tool-availability problem" — REFUTED.** The same `agentType` emits the tool
-  fine: `StructuredOutput` appears as a `tool_use` block in **1257 of 1277**
-  completed spawns against **1 of 48** dropped ones. The tool is present and
-  callable; the agent never reaches the turn in which it would be called.
+  transcripts end on an assistant text turn; all 48 end on a `tool_result`.
+  **The tail shape is not diagnostic on its own** and I nearly misread it as
+  such: **347 of 347** completed qa/researcher spawns end on a `tool_result`
+  too. The difference is only *which* tool — `StructuredOutput` in a success,
+  and in a drop Bash (37), Edit (4), Write (2), Read (2), WebFetch (1),
+  WebSearch (1). **That is 47 of the 48**; the 48th (`wf_d4e2e794-567`) had
+  `StructuredOutput` as its last `tool_use` and is the lone counterexample to
+  this sentence's own contrast.
+  *(An earlier revision said "393 of 394". That was a mis-scoped enumeration —
+  my script globbed every `agent-*.jsonl` per run directory and swept in the
+  stage-2 `Explore` spawns `research-gate.js` launches beside the researcher.
+  347/347 is the reproducible figure and it makes the argument stronger.)*
+- **"tool-availability problem" — REFUTED.** `StructuredOutput` is emitted by
+  **1257 of 1267** completed spawns against **1 of 48** dropped. The tool is
+  present and callable; the agent never reaches the turn that would call it.
 
 ## 1. The measurement
 
-Population rule, stated beside the ratios rather than left implicit: one row per
-`workflowProgress` entry with `type == "workflow_agent"` across every
-`*/workflows/wf_*.json` record under this project's `~/.claude/projects/` tree
-(572 records, 1325 spawns, 0 transcripts missing). **Turns = distinct
-`requestId` over `type == "assistant"` lines** of that spawn's
-`subagents/workflows/<runId>/agent-<agentId>.jsonl` — one requestId is one API
-round-trip, which is what a turn is. **Dropped = the run's named `status` field
-== `failed`**, never a scan of the record (a run record embeds the dispatched
-workflow SOURCE, and both workflow files quote the drop string in comments, so a
-blob predicate matches itself — that trap produced 38 phantom drops out of 81
-once, commit `f88f8190`, and is not reopened here). **Cap = `maxTurns:` parsed
-from the YAML frontmatter block of `.claude/agents/<type>.md` only** — qa.md
-also discusses maxTurns in body prose and that line must not be read as a pin.
+Population rule, stated beside the ratios: one row per `workflowProgress` entry
+with `type == "workflow_agent"` across every `*/workflows/wf_*.json` record under
+this project's `~/.claude/projects/` tree — **572 records, 1325 spawns, 0
+transcripts missing**. **Turns = distinct `requestId` over `type == "assistant"`
+lines** of that spawn's transcript; one requestId is one API round-trip.
+**Dropped = the run's named `status` field == `failed`**, never a blob scan (the
+record embeds the workflow source, which quotes the drop string — the trap that
+produced 38 phantom drops out of 81 in `f88f8190`). **Cap = the `maxTurns` in
+force WHEN THE RUN RAN**, not what the file says today; see §4.
 
 ```
   agentType           cap     n  drop  @cap  >cap  ok p50  ok max  ok@cap
@@ -68,69 +58,17 @@ also discusses maxTurns in body prose and that line must not be read as a pin.
   claude-code-guide     -     1     0     0     0       7       7       0
   general-purpose       -   252     0     0     0      12      63       0
   qa                   30   302    39    39     0      18      30       6
-  researcher           40    93     9     9     0      23      40       3
+  researcher           40    93     9     9     0      24      40       3
 
 Turn counts observed on dropped spawns, per role:
   qa                 cap=30  observed=[30]
   researcher         cap=40  observed=[40]
 ```
 
-Read the `observed=` line carefully: it is the **set** of distinct turn counts
-seen on dropped spawns. For `qa` that set is `{30}` — all 39 drops, no other
-value. For `researcher` it is `{40}` — all 9. Not "near the cap", not "mostly".
-Exactly at it, every time.
+`observed=` is the **set** of distinct turn counts on dropped spawns: `{30}` for
+all 39 qa drops, `{40}` for all 9 researcher drops. Not near the cap — at it.
 
-- `.claude/agents/qa.md:6` — `maxTurns: 30`
-- `.claude/agents/researcher.md:6` — `maxTurns: 40`
-- `general-purpose`, `Explore` and the default workflow subagent (`None`) carry
-  **no** `maxTurns` frontmatter. They reach 63, 56 and **93** turns respectively
-  and have dropped **0 times in 930 spawns** (929 across those three types plus
-  1 `claude-code-guide`).
-
-  **Requalified after the cycle-1 Q/A (NOTE-A/NOTE-B).** The bare 0/930 is
-  rhetorically inflated: only **50** of those 930 spawns ever exceeded 30 turns
-  and only 25 exceeded 40, so most of that denominator was never at risk of the
-  failure at all. **The honest comparison is 0/50 at-risk against a 12.2% capped
-  rate** — still decisive, but not 930-strong, and 0/930 should not be quoted
-  without this qualifier.
-
-- **The at-cap non-emitter population is 49, not 48** (Q/A finding F5, which I
-  had missed). Two *completed* research-gate runs (`wf_a6ea31e7-9b9`,
-  `wf_078f4125-57a`) each contain a researcher spawn sitting at exactly 40/40
-  that never emitted `StructuredOutput` — exhaustions absorbed by the phase-86.81
-  retry rather than surfacing as a failed run. They strengthen the mechanism.
-
-  **The Q/A said 50 and that is one too many; I am not adopting it.** It added
-  its 2 to the 48 dropped spawns without subtracting the one drop it had itself
-  identified in F3 — `wf_d4e2e794-567`, whose last `tool_use` *was*
-  `StructuredOutput`. So `(48 − 1) + 2 = 49`, now computed by the script rather
-  than argued: `at_cap_non_emitters` = 49, of which 2 sit in completed runs.
-  Taking an evaluator's arithmetic on trust is the same failure as taking my
-  own on trust.
-
-- **A free negative control, also from the Q/A and also unclaimed by me:** the 6
-  `killed` runs ("Workflow aborted") sit at 6/3/5/4/16/2/2/1/1 turns — nowhere
-  near any cap, which is exactly what a non-exhaustion termination should look
-  like. Relatedly (F4), `killed` is a **third** run status and the script
-  currently buckets it into the `ok*` columns and the 1277 denominator;
-  `not dropped` is not the same as `completed`. It does not affect the claim —
-  no killed run carries the drop error — but the script should separate it.
-
-The mechanism: the subagent spends its final permitted turn on ordinary work.
-The runtime's in-conversation nudge fires, but there is no turn left in which
-the schema call could be emitted, so the run dies with the tokens spent and
-nothing returned.
-
-## 2. The previously-reported MODEL split is confounded, and this is why it held up
-
-`scripts/qa/rail_drop_rate.py` and the twin comment blocks in both workflow
-files report the rate splitting by model — `claude-opus-5[1m]` 11.4%,
-`claude-fable-5` 3.0%, `claude-opus-4-8[1m]` 0.0% — and conclude "the mechanism
-is UNPROVEN: size, wall-clock, effort and the documented preamble-suppression
-trigger were each tested and refuted."
-
-Those refutations were all correct. The model attribution was not, because model
-and agentType are near-collinear in this corpus:
+## 2. The previously-reported MODEL split is confounded
 
 ```
   claude-opus-4-8[1m]   Explore=0/24, general-purpose=0/223, qa=0/9, researcher=0/2
@@ -139,104 +77,192 @@ and agentType are near-collinear in this corpus:
 ```
 
 **223 of the 258 `claude-opus-4-8[1m]` spawns were uncapped `general-purpose`** —
-a type that has never dropped on any model. Its clean 0.0% measures what it ran,
-not what it is. Holding the model fixed at `claude-opus-5[1m]`, the separation is
-total: 47/379 on the two capped roles, **0/417** on the three uncapped ones.
+a type that has never dropped on any model. Its clean 0.0% measures what it ran.
+Holding the model fixed at `claude-opus-5[1m]`: **47/379 capped vs 0/417
+uncapped**. The `opus-4-8[1m] × qa` cell is 0/9 and proves nothing about the
+model; I am not claiming it does.
 
-The `claude-opus-4-8[1m]` qa cell is 0/9 — too small to say anything about the
-model, and I am not claiming it does.
+The four hypotheses refuted by earlier work — prompt size, wall-clock, effort,
+preamble-suppression — **stay refuted**, and each is *consistent* with turn
+exhaustion. Prompt size does not change how many turns an investigation needs,
+which is exactly why the operator's lean-prompt run still dropped. Eight
+byte-identical scripts producing both outcomes is what a cap near the workload
+median looks like. A retry works because it is a fresh turn budget.
 
-Every other refuted hypothesis is also *consistent* with turn exhaustion, which
-is why none of them pointed here:
+## 3. Controls
 
-- **Prompt size — correctly refuted.** A lean prompt does not reduce how many
-  turns an investigation needs. The operator re-confirmed this on 2026-08-14
-  with a lean prompt that still dropped; that observation stands and this
-  diagnosis explains it.
-- **Stochastic across byte-identical scripts — explained.** phase-86.81 found
-  eight byte-identical script versions producing both outcomes, the largest
-  dropping 17 and completing 179. Whether a given evaluation happens to need 28
-  or 31 turns is exactly the kind of thing that varies run to run at a fixed
-  script.
-- **Retry helps — explained.** A retry is a fresh turn budget.
+- **C1, turn counter alive:** 1325/1325 spawns return a positive turn count; **0**
+  transcripts have assistant lines but zero counted turns.
+- **C2, the cap is a real ceiling, not an artefact of my counter:** **0** capped
+  spawns of any outcome exceed their cap. Derived from the completed population,
+  about which the hypothesis predicts nothing.
+- **Detector positive control:** 1257/1267 completed vs 1/48 dropped.
+- **C3, negative control** (contributed by the cycle-1 Q/A, now computed by the
+  script): the 10 spawns in `killed` runs sit at turns
+  `[1, 1, 2, 2, 2, 3, 4, 5, 6, 16]` — **0 at a cap**. A termination that is not
+  exhaustion lands nowhere near one, which is what stops "at cap" from being a
+  generic property of long runs.
+- **Cardinality floors with no opt-out** (≥200 spawns, ≥5 drops, ≥1 capped type,
+  ≥10 at-risk uncapped spawns).
 
-## 3. Controls — because a separation this clean is also what a broken probe produces
+**At-risk denominator, not the flattering one:** the raw "0 drops in 930 uncapped
+spawns" is inflated — only **50** of those 930 ever exceeded 30 turns. The honest
+comparison is **0/50 at-risk against a 12.2% capped rate**, and the script prints
+that instruction in its own output.
 
-- **C1, turn counter is alive:** 1325 of 1325 spawns return a positive turn
-  count; **0** transcripts have assistant lines but zero counted turns.
-- **C2, the cap is a real ceiling and not an artefact of my counter:** **0**
-  capped spawns of *any* outcome exceed their cap. Derived from the completed
-  population, about which the hypothesis predicts nothing — so it is not a
-  control built from the pattern it tests. If the counter were inflating turns,
-  successful spawns would breach the cap too.
-- **Detector positive control:** `StructuredOutput` emitted by **1257/1277**
-  completed spawns vs **1/48** dropped. The zero side is not vacuous.
-- **Cardinality floors with no opt-out** in `--verify` (≥200 spawns, ≥5 drops,
-  ≥1 capped type), so the check cannot pass over an empty or truncated corpus.
+**The at-cap non-emitter population is 49, not 48.** 57 spawns sit at a cap; 49
+never emitted `StructuredOutput`; **2 of those are inside runs that COMPLETED**
+(`wf_078f4125-57a`, `wf_a6ea31e7-9b9`) because the phase-86.81 retry absorbed
+them. Run status is a proxy for the mechanism, and it understates it.
+*(The cycle-1 Q/A said 50. It added its 2 to the 48 dropped spawns without
+subtracting the one drop it had itself identified as an emitter: (48−1)+2 = 49.
+The cycle-2 Q/A independently re-derived 49 and confirmed the correction. Taking
+an evaluator's arithmetic on trust is the same failure as taking my own.)*
 
-## 4. This is a RECURRENCE of a defect phase-59.1 already fixed once
+## 4. The remedy: BOTH CAPS REMOVED
 
-- `.claude/agents/qa.md:15` — "maxTurns 30 (phase-59.1): the old 12 cap caused
-  mid-evaluation stalls (20-26 tool-uses per evaluation); 30 gives headroom."
-- `.claude/agents/researcher.md:16` — "maxTurns 40 (phase-59.1): complex briefs
-  hit the old 30 cap mid-write; 40 gives headroom."
+`maxTurns` is **gone** from `.claude/agents/qa.md` (was 30) and
+`.claude/agents/researcher.md` (was 40).
 
-Same failure, same roles, answered by raising the cap to a number the workload
-has since outgrown. And `qa.md` actively pushes the agent *into* the cap: its
-"Verification budget" bullet says "your real bound is maxTurns … Depth is the
-point — do not truncate verification to chase a clock."
+**Why removed rather than raised** — phase-59.1 already raised these same caps
+for this same failure (`qa.md`: *"the old 12 cap caused mid-evaluation stalls…
+30 gives headroom"*; `researcher.md`: *"complex briefs hit the old 30 cap
+mid-write"*) and it recurred:
 
-**So a fix that only raises the number again is on a clock.** Worse, the number
-cannot be sized from this data: the capped roles' turn distribution is
-**right-censored** at the cap. The observed `qa` median of 18 is a censored
-median; the tail beyond 30 was never observed, only truncated. Choosing 45 or 60
-from these percentiles repeats exactly the inference that produced 30.
+1. **`maxTurns` counts tool-use turns only, and `StructuredOutput` is itself a
+   tool call.** The budget must be `work_turns + 1` — a cap sized to the work
+   cannot terminate.
+2. **Right-censoring.** A run that used exactly N turns under a cap of N proves
+   the requirement was **≥N**, never that N sufficed. Both 12→30 and 30→40 were
+   fit to a distribution the previous cap had created. The only uncensored
+   evidence is the uncapped types, at **63 and 93 turns — both above 40**.
+3. **No per-call turn budget exists** in Workflow `agent()` opts, and forcing the
+   schema call was requested and **closed as not planned** (#20625) — so
+   "reserve the last turn" is not expressible today.
+4. **Raising is exposed to #41143** (`maxTurns` silently *not enforced* on the
+   Agent-tool path, closed as not planned); removing the key is immune.
+5. **`agentType: 'qa'` is unchanged.** Cap and agentType are independent;
+   `general-purpose` would re-expand Edit/Write/Bash plus the deferred MCP
+   surface phase-75.20 pinned away.
 
-## 5. What is NOT established
+Research gate: `handoff/current/research_brief_86.84.md`, **`brief_status:
+COMPLETE`, 11 sources read in full, 19 URLs, recency scan performed,
+`gate_passed: true`.** Plan: `handoff/current/contract_86.84.md`.
 
-- That the cap is the **whole** cause. Proven: exhaustion is **necessary** on
+**The removal broke the verifier first, and that was the right outcome.** The
+script had been reading *today's* frontmatter to score *historical* runs, so
+removing the caps turned it red ("nothing to test"; 48 drops reclassified as
+uncapped). Each run is now scored against the cap in force when it ran, via a
+two-entry timeline (`HISTORICAL_CAPS` = qa 30 / researcher 40, `CAP_REMOVED_AT`).
+The cycle-2 Q/A corroborated those constants independently **from git history**
+(`git rev-list -1 --before=<d>` then parsing the frontmatter: 2026-06-12 onward
+reads 30/40 across the whole corpus window), so the hardcode is correct — a
+maintainability note, not an honesty problem.
+
+Per **V-7**, `CAP_REMOVED_AT` is the **first session after the edit**, not the
+file-edit instant: the Agent-tool roster snapshots at session start, so a cap
+removed at 17:35Z is still in force for spawns of the session already running.
+Using the edit instant would score those as uncapped and, if one exhausted, the
+verifier would go red blaming the *diagnosis* rather than the boundary.
+
+**The same command checks the remediation.** Restoring any pin turns
+`--verify` red.
+
+## 5. Mutation matrix — `python3 scripts/qa/mutate_rail_turn_cap.py --verify`
+
+**V-1: this used to exist only as three lines of commit-message prose.** It is
+now executable code with a recorded control, per-cell results, and a
+byte-identical-restore proof. 15 cells, **control observed GREEN first**,
+**0 real survivors**, real tree md5-unchanged (mutations run against a temp
+mirror of `.claude/agents`).
+
+```
+  M4r   qa pin restored, bare `maxTurns: 30`                          KILLED
+  M5r   qa pin restored at a different value, 60                      KILLED
+  M9    researcher pin restored alone, 40                             KILLED
+  M8    no space after the colon, `maxTurns:30`                       KILLED
+  M7c   space before the colon, `maxTurns : 30`                       KILLED
+  M7b   pin with a trailing YAML comment, `maxTurns: 30  # restored`  KILLED
+  M7    quoted scalar, `maxTurns: "30"`                               KILLED
+  M11   CAP_REMOVED_AT moved before the corpus (2026-01-01)           KILLED
+  M11b  CAP_REMOVED_AT moved mid-corpus (2026-08-01)                  KILLED
+  M12   HISTORICAL_CAPS qa 30 -> 31                                   KILLED
+  M12b  HISTORICAL_CAPS qa 30 -> 29                                   KILLED
+  M13   HISTORICAL_CAPS researcher 40 -> 41                           KILLED
+  M14   CAP_REMOVED_AT moved far future (2027)                        SURVIVED (equivalent)
+  M6    qa.md deleted entirely                                        SURVIVED (known gap)
+  M6b   both agent files deleted                                      SURVIVED (known gap)
+```
+
+**M7b and M7 were REAL survivors found by the cycle-2 Q/A (V-5), and they are
+fixed.** My first guard matched `^\s*maxTurns\s*:\s*(\d+)\s*$`, so
+`maxTurns: 30  # restored` — a live integer pin — read as "all pins removed:
+True". That shape is not exotic: every other line of those frontmatter blocks is
+a `#` comment, so "restore the pin with a note" is the most likely way it would
+come back. The guard now **parses the YAML** rather than pattern-matching the
+line, and coerces quoted scalars, because over-detecting a pin can only make the
+check redder. My own cycle-1 matrix had two cells and reported 0 survivors; it
+was too narrow, not sound.
+
+The three surviving cells are labelled rather than dropped: **M14** is
+behaviourally equivalent (the whole corpus already precedes any later boundary),
+and **M6/M6b** are an accepted absent-subject gap (a vanished `qa.md` breaks the
+roster loudly elsewhere).
+
+The harness itself avoids two probe defects, both measured: it re-runs
+`collect()` per cell (the cap is resolved at collect time — the cycle-2 Q/A's
+first pass reused one cached corpus and *every* timeline cell falsely survived),
+and it scores a KILL only on `verify()==False` **with** a problem string, so a
+cell that merely errors is recorded as ERROR rather than counted as a kill.
+
+## 6. What is NOT established
+
+- **That the cap is the whole cause.** Exhaustion is proven **necessary** on
   every observed drop (48/48) and no uncapped spawn has dropped in 930 tries. A
   second mechanism that only fires at the cap is not excluded.
-- The right replacement cap, for the censoring reason above. Sizing needs an
-  uncensored sample (raise it, re-measure) or a mechanism that does not depend
-  on guessing the tail — e.g. reserving a terminal turn for the schema call, or
-  moving these roles onto the uncapped default workflow subagent. Which of those
-  Claude Code actually supports is the open question the 86.84 research gate is
-  running against; **it was still in flight at session freeze and no remedy has
-  been chosen or applied.**
-- ~~Whether the Agent-tool path degrades gracefully at the same cap.~~
-  **RETRACTED before this artifact was ever acted on.** I had written that a
-  non-schema spawn hitting maxTurns probably still returns its partial text
-  while a schema spawn returns nothing, labelled as a hypothesis. The 86.84
-  research gate **refuted it from the docs the same hour**: the agent-loop
-  result-subtype table gives `error_max_turns` → *"`result` field available?
-  **No**"*, and the one documented partial-return path applies when "a rate
-  limit, overload, or server error cuts off a subagent that already produced
-  text output" — an **API error, not a turn-limit stop**. So there is no partial
-  output to salvage at the cap on **either** path, and the operator's measured
-  "rail 0-for-4, Agent-tool 3-for-3" must have another explanation (most likely
-  that the Agent-tool spawns simply finished inside 30 turns). The replacement
-  claim, not the original, is what stands.
+- **That the uncapped qa/researcher distribution will look like the uncapped
+  distribution measured here.** The 930 uncapped spawns are *different roles with
+  different workloads*, so "uncapped agents self-terminate" is **empirical, not
+  structural** — the cycle-2 Q/A's caveat, and I am adopting it. The observed
+  uncapped ceiling is ~93 turns / ~259K tokens (p50 9, p90 23, p95 32, p99 53).
+  The trade is paying up to ~2–3× tokens on the ~13% of evaluations needing >30
+  turns instead of losing 100% of those tokens — favourable, but the qa/researcher
+  uncapped tail is genuinely unobserved until it runs.
+- **Anything behavioural about the uncapped rail from this session.** The roster
+  snapshots at session start, so the removal is committed but **NOT IN FORCE**
+  until the next session. Verify with `scripts/qa/verify_qa_roster_live.sh`.
+- **The right cap, if anyone ever reinstates one.** Same censoring argument.
 
-Three findings from that gate change the REMEDY and are recorded here because
-they arrived before freeze (`handoff/current/research_brief_86.84.md`,
-`brief_status: INCOMPLETE`, 7 sources read in full, gate NOT passed):
+**Re-measure next:** the realised turn distribution once uncapped is the
+uncensored sample nobody has ever had, and it is what turns this from a reasoned
+fix into a verified one.
 
-- **`maxTurns` counts tool-use turns only, and `StructuredOutput` is itself a
-  tool call** — so emitting the schema *costs a turn*. The budget must be
-  `work_turns + 1`. **A cap sized to the work is a cap that cannot terminate.**
-  This makes the remedy arithmetic rather than a guess, and it is the strongest
-  argument yet against simply picking a bigger number.
-- **The documented default for an absent `maxTurns` is "No limit"** — a real
-  absence of a cap, not a high default. That corroborates the 0/930 measured
-  above from the vendor side.
-- **The throw may not be catchable at script level** (issue #65500, OPEN), which
-  is adversarial to the phase-86.81 retry loop already shipped in both workflow
-  files. Not yet verified against the version in use here.
+## 7. Retraction — corrected twice, and the second correction stands
 
-## 6. Scope discipline
+I originally wrote that the Agent-tool path probably degrades gracefully at
+maxTurns while the schema path returns nothing, labelled as a hypothesis. I then
+**retracted it on the docs** (`error_max_turns` → "result field available? No").
+**That retraction was wrong in scope** and is itself withdrawn: the research
+gate's reading of the installed 2.1.232 runtime shows the workflow **schema**
+branch throws while the **non-schema** branch returns its text unconditionally,
+so degradation does exist off the schema path. The doc I cited describes a
+different surface.
 
-No agent `.md` was edited. No cap was changed. No gate was loosened. The only
-file added is the read-only measurement script
-`scripts/qa/rail_turn_cap.py`, which writes nothing and reads only Claude Code's
-own run records and transcripts.
+End state: **degradation exists off the schema path in the Workflow rail;
+whether the Agent tool behaves identically at its own cap is still not directly
+measured**, and "rail 0-for-4, Agent-tool 3-for-3" remains adequately explained
+by those spawns finishing inside 30 turns. This rests on a peer's decompilation
+of the installed binary, not on documentation, and should be re-verified before
+it is load-bearing.
+
+## 8. Scope
+
+Agent files: only the `maxTurns` pin removed — `qa.md`'s body is byte-identical
+(45,398 == 45,398, verified by the cycle-2 Q/A), `researcher.md` lost only the
+pin line. Both workflow-file diffs are **comment-only**. No threshold, no gate,
+no verdict semantics touched. `verify_research_gate_workflow.mjs` 124/0 and
+`verify_rail_retry.mjs` 38/0 both green — the latter's section **[F]** is the
+executed evidence for criterion 4 (an exhausted retry yields no value, rethrows,
+still RECOMPUTES `gate_passed`, and assigns no verdict field), cited here per
+**V-10** because it was previously proven but unmapped. None of the concurrent
+peer session's files are in any commit.
