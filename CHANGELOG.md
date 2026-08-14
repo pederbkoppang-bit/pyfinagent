@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-14 | `b0eebea2` | docs: regenerate the goal -- 86.76 is the new P1, the picker is closed by Q1's answer |
 | 2026-08-14 | `084a3e2f` | docs: day report -- session 2, the harness was rebuilding work it had already shipped |
 | 2026-08-14 | `2e40e8c7` | phase-86.21/86.76: restore the artifact I overwrote, and point the rails at the counter this step al |
 | 2026-08-14 | `89e254fc` | phase-86.21: the counter fix inherited the defect it replaced, and 86.75 silently swapped the rule f |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-14 | `24fbcf9f` | SECURITY: open incident -- sk-ant OAuth token published on origin/main in 5 tracked files |
 | 2026-08-14 | `3ddc97bc` | phase-86.64: gate PASSED and it REFUTES the step's premise -- the gap is a matcher, not a platform l |
 | 2026-08-14 | `194a8047` | docs(goal): 86.68 -- shipped and live with ZERO artifacts; tonight is a natural experiment for it |
-| 2026-08-14 | `fbc7745e` | docs(goal): 86.66 census -- the AttributeError is the ONLY current failure, and my count-ranked firs |
 
 ---
 
