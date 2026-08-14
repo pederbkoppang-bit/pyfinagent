@@ -1056,10 +1056,22 @@ def _sizing_pct(cand: dict) -> float:
     #
     # WHY THIS BRANCH EXISTS AT ALL. It is unreachable today (`position_pct_state`
     # is written at exactly one site from `_verdict.kind`, which is only ever one
-    # of the three constants). It is here so the enumeration this function
-    # promises is TRUE BY CONSTRUCTION rather than true by a reachability
-    # argument that a future caller could silently invalidate: the default is now
-    # returned for ABSENT and for nothing else.
+    # of the three constants). It is here so that an UNRECOGNISED state can never
+    # reach the default: within this function, the default is returned for ABSENT
+    # and for nothing else.
+    #
+    # WHAT THIS DOES **NOT** PROMISE (corrected phase-86.74 cycle 5; the previous
+    # wording claimed the enumeration was "TRUE BY CONSTRUCTION rather than true by
+    # a reachability argument that a future caller could silently invalidate", and
+    # that overstated it in exactly the direction this step spent a cycle
+    # correcting). The cells (ABSENT, pct=0.0) and (ABSENT, pct=3.0) DO return the
+    # default while an explicit number sits in the candidate dict. They are
+    # unreachable only because the single write site at :341 forces
+    # `position_pct=None` whenever `_verdict.kind != SIZE` -- which IS a
+    # reachability argument, and one a future caller could invalidate by writing
+    # `position_pct_state` from anywhere else. The guarantee is local to this
+    # function; the ABSENT-with-an-explicit-pct case is held safe by the CALL SITE,
+    # not by construction here. Anyone adding a second write site must re-check it.
     return 0.0
 
 

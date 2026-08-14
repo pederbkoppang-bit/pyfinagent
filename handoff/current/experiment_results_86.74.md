@@ -1,8 +1,10 @@
 # Experiment results -- step 86.74
 
 **Step:** falsy-zero check inverts a 0% REJECT into the 10%-NAV default.
-**Date:** 2026-08-14. **Verification command:** GREEN, `37 passed`
-(was `34 passed` at commit 9d14291e, before the cycle-1 corrections).
+**Date:** 2026-08-14. **Verification command:** GREEN, `41 passed`
+(was `34 passed` at commit 9d14291e, before the cycle-1 corrections; the header
+previously said `37` and was stale by two cycles -- re-measured, not carried
+forward).
 
 ---
 
@@ -25,7 +27,7 @@ did **not** fix DELL -- see §2, which is the most important section here.
 | `backend/services/autonomous_loop.py` | `_persist_analysis` now passes `risk_judge_decision`, `risk_level`, `recommended_position_pct` |
 | `backend/services/signal_attribution.py` | nested-first judge resolution; RiskJudge row emitted when `pos_pct is not None` |
 | `backend/agents/risk_debate.py` | completion log line carries `ticker=` |
-| `backend/tests/test_phase_66_2_risk_judge_shape.py` | 9 -> 34 test functions, 17 -> 55 asserts (AST; see C8 -- an earlier `51` came from grep matching a comment) |
+| `backend/tests/test_phase_66_2_risk_judge_shape.py` | 9 -> 38 test functions, 17 -> 62 asserts (AST; see C8 -- an earlier `51` came from grep matching a comment, and `34/55` was stale by the cycle-4 swap-path additions) |
 | `scripts/qa/mutation_matrix_86_74.py` | **new** -- 6-cell mutation harness |
 
 ---
@@ -152,12 +154,43 @@ tickers, which also **retires this step's elimination-based attribution**:
 
 **6 of 6 match.** The inference was correct and is now unnecessary.
 
-**Post-fix populated share is NOT reported as a live number.** Criterion 4 asks
-for the post-fix share against the 0-of-129 baseline; that requires an autonomous
-cycle to run with the new code, and **the backend has not been restarted**
-(restarts are batched to session end). The write is proven at the unit seam
-(`TestVerdictIsPersistedPerTicker` + mutation M3), **not yet in BQ**. Reporting a
-post-fix share now would be reporting a number I did not measure.
+**Post-fix populated share -- MEASURED 2026-08-14.**
+
+*(This paragraph previously read "NOT reported as a live number ... the backend has
+not been restarted ... not yet in BQ". Every clause of that is now false. It is
+REPLACED, not annotated: the cycle-5 Q/A returned a BLOCK because live_check §3 had
+been corrected while this file still carried the denial, so the two artifacts of one
+step disagreed about the criterion the cycle exists to close. A correction that
+lives in only one of two files is the same defect as a correction that merely
+accompanies the old text.)*
+
+The restart did happen -- in the prior session, not at this session's end:
+commit **`d6a1500a`** (2026-08-14T15:52:58Z) *"session-end backend restart,
+verified -- the 86.74 fix is now IN FORCE"*, matching the running process
+**pid 85562, started 15:52:08Z**, which is **76 minutes after** the C4 fix commit
+`9d14291e` (14:36:20Z). The ordinary scheduled cycle `68925781` then ran
+**18:00:00Z -> 19:33:13Z**. No manual cycle and no restart were performed to obtain
+this number.
+
+```
+BASELINE 2026-07-20..2026-08-13 : total=129  decision=0  risk_level=0  pct=0  ->  0 of 129 (0%)
+POST-FIX 2026-08-14             : total=  6  decision=6  risk_level=6  pct=6  ->  6 of 6 (100%)
+```
+
+| ticker | `risk_judge_decision` | `pct` | `analysis_date` |
+|---|---|---:|---|
+| PANW | REJECT | 0 | 18:35:23Z |
+| WDAY | REJECT | 0 | 18:36:27Z |
+| HPE | REJECT | 0 | 18:37:54Z |
+| STX | APPROVE_REDUCED | 2 | 19:02:32Z |
+| MRVL | REJECT | 0 | 19:04:26Z |
+| NTAP | APPROVE_REDUCED | 2 | 19:32:26Z |
+
+Two distinct decisions and two distinct pcts, so the column carries real per-ticker
+content rather than a literal. The unit seam (`TestVerdictIsPersistedPerTicker` +
+mutation M3) still holds the regression guard; BigQuery now corroborates it
+end-to-end. **NOT CLAIMED:** stability -- n = 6 rows, one cycle. Full detail and the
+queries: `live_check_86.74.md` §3.
 
 ### C5 -- the log line carries its ticker ✅
 
@@ -212,14 +245,24 @@ running the check that kills it. Full detail: `live_check_86.74.md` §2c.
 ### C8 -- flag-ON-only blindness closed ✅
 
 ```
-test functions (ast.FunctionDef test_*) :  9 -> 34    <- the criterion's "9"
-assert stmts   (ast.Assert)             : 17 -> 55    <- the real count
-'assert ' lines (grep -c)               : 17 -> 56    <- INFLATED by 1
+test functions (ast.FunctionDef test_*) :  9 -> 38    <- the criterion's "9"
+assert stmts   (ast.Assert)             : 17 -> 62    <- the real count
+'assert ' lines (grep -c)               : 17 -> 64    <- INFLATED by 2
 ```
 
 **The "9" in the criterion is the TEST count, not the assertion count** -- both
 are reported with the rule so a net removal is visible in either denominator and
 the two are never conflated.
+
+**RE-MEASURED cycle 5, and the staleness mattered.** This block read `34 / 55 / 56`
+until now -- correct when written, stale by exactly the cycle-4 swap-path additions
+(34+4=38, 55+7=62). The drift direction was UP, so no net removal was being hidden
+*today*; but criterion 8's stated purpose is *"so a net removal is visible"*, and a
+stale-LOW denominator is precisely what would let a future removal of up to 4 tests
+and 7 asserts pass unnoticed. A number whose job is to be a tripwire has to be
+re-derived every cycle, not carried forward. Re-measured with the same AST command
+quoted above; the grep inflation is now **2**, not 1 (a second comment line has
+since joined line 83).
 
 **CORRECTED after cycle 1.** I first reported `17 -> 51` from `grep -c 'assert '`.
 The cycle-1 Q/A re-derived it with the AST and found the grep count **inflated by
@@ -333,13 +376,36 @@ Queued as its own step rather than fixed inline.
 
 ## 6. What I could NOT verify
 
-1. **The post-fix persisted share in BQ** (C4) -- needs an autonomous cycle after
-   a restart; restarts are batched to session end. Proven at the unit seam only.
-2. **33 of 34 historical BUYs** (C7) -- undetermined, not clean.
+*(Items 1 and 4 previously claimed the post-fix share was unmeasurable and that
+"the running process still holds the pre-fix code". Both are now FALSE and are
+replaced. A section titled "What I could NOT verify" that has gone stale is
+dangerous in the OPPOSITE direction from an overclaim -- a reader could trigger a
+manual cycle or a restart believing a shipped fix is not in force, which is the
+exact action the batched-restart policy exists to prevent.)*
+
+1. ~~The post-fix persisted share in BQ (C4)~~ -- **RESOLVED, see §C4 above.**
+   Measured 6 of 6 (100%) against the 0-of-129 baseline, from scheduled cycle
+   `68925781` on a process (pid 85562, 15:52:08Z) that post-dates the fix.
+2. **33 of 34 historical BUYs** (C7) -- undetermined, not clean. **Still open**,
+   and structurally so: the two causes are persistence gaps (19 truncated reports,
+   14 with no row within 2s), queued as D5.
 3. **Why `NTAP` carries `risk_judge_position_pct=4.0` from 2026-07-31** while its
    analysis row persisted no verdict -- untraced, as the step notes.
-4. **Nothing was driven through a live browser or the running backend**; the
-   running process still holds the pre-fix code.
+4. ~~Nothing was driven through the running backend~~ -- **superseded.** The
+   running process (pid 85562) holds **post-fix** code, and that is established by
+   observation rather than by inference from the commit clock: the live
+   `backend.log` carries six `Risk debate complete: ticker=` lines from the 18:00Z
+   cycle matching the six BigQuery rows, and `/api/paper-trading/portfolio` answers
+   on that same process.
+5. **NEW, and previously undisclosed (cycle-5 Q/A, WARN):** criterion 6 asks that
+   the RiskJudge contribution appear in `signals_log.factors_json` **for a gated
+   buy**. Cycle `68925781` executed **`n_trades=0`**, so **no post-fix
+   `signals_log` row for a gated buy exists yet** and C6 rests on the unit seam
+   alone. The seam is proven (real `extract_all_signals` emits RiskJudge on DELL's
+   nested REJECT/0% shape, with a discrimination control and a killing mutation);
+   the end-to-end is not. This is the same shape C4 carried until today, and it is
+   recorded here rather than graded silently. It clears on the first post-fix cycle
+   that actually places a buy.
 
 ---
 
