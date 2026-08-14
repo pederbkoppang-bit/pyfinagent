@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-14 | `24c57a47` | fix(86.84): close the cycle-2 blockers, incl. a REAL survivor in my own guard |
 | 2026-08-14 | `38ddf013` | docs(86.84): transcribe the cycle-2 CONDITIONAL verdict verbatim |
 | 2026-08-14 | `85127353` | fix(harness): REMOVE the maxTurns caps that were dropping the Layer-3 rail |
 | 2026-08-14 | `28be64f1` | docs(86.84): flag a fabricated completion timestamp in the Q/A verdict artifact |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-14 | `d32bd0a9` | docs(harness-log): cycle 193 -- cycle-4 work PASS, C7 retracted, step still open |
 | 2026-08-14 | `7e23e3e2` | phase-86.74 cycle-5: cycle-4 work graded PASS; fix a count that did not reproduce inside a comment f |
 | 2026-08-14 | `a33a5117` | docs(day-report): record the C7 retraction alongside the claim, not instead of it |
-| 2026-08-14 | `38ba13ad` | phase-86.74: RETRACT the "C7 RESOLVED" claim -- I refuted it myself, one commit later |
 
 ---
 
