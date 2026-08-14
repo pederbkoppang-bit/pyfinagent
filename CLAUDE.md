@@ -202,7 +202,14 @@ python scripts/harness/run_harness.py --dry-run --cycles 1
 
 Canonical reference: https://www.anthropic.com/engineering/harness-design-long-running-apps
 plus "How We Built Our Multi-Agent Research System" and "Building
-Effective Agents." Project implementation: `.claude/agents/per-step-protocol.md`.
+Effective Agents." Project implementation: `docs/runbooks/per-step-protocol.md`.
+*(phase-86.65: this line used to point at the same filename under the
+.claude/agents directory, which has never existed. The dead path is deliberately
+NOT written in backticks here — a path-checking sweep matches its own correction
+note otherwise, which is how this fix first appeared to fail. Swept 2026-08-14:
+of 61 distinct path-shaped references in this file, 39 resolve, 4 are globs, and
+this was the **only** broken one; the same runbook is cited correctly at lines
+28, 55 and 377.)*
 
 Every masterplan step (`phase-X` → `phase-X.Y`) MUST follow the full
 loop below. The workflow is load-bearing for phase-4 go-live — skipping
