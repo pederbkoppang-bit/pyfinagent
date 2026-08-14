@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-14 | `73d42267` | docs(goal): C7 resolved; C4 reduced to confirm-restart-then-measure |
 | 2026-08-14 | `4e610437` | docs(day-report): C7 resolved, and the restart precondition is now met |
 | 2026-08-14 | `97832063` | phase-86.74 cycle-4: C7 RESOLVED -- 33 "undetermined" was 19 determined + 14 provably unrecoverable |
 | 2026-08-14 | `791865b5` | docs(harness-log): cycle 192 -- the swap-fix grade and the proxy-assertion it caught |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-14 | `8b520f6c` | phase-86.81: prove the StructuredOutput drop retry actually fires, and stop the metric counting its  |
 | 2026-08-14 | `f237bb8d` | chore: stop a stray workflow test-copy from being committable |
 | 2026-08-14 | `73520bbc` | docs(goal): rotation is the blocking item, so it is now section 0 |
-| 2026-08-14 | `846fb371` | docs(incident): record what was done and what emphatically was NOT |
 
 ---
 
