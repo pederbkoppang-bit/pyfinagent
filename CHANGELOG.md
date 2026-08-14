@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-14 | `ba896969` | docs(86.74): record the cycle-4 grade, the proxy-assertion fix, and a wrong count in cba60c0b |
 | 2026-08-14 | `cba60c0b` | phase-86.74 cycle-4: assert the HARM, not the BUY -- an orphaned SELL was unmeasured |
 | 2026-08-14 | `d0366a00` | docs(goal): remove a self-contradiction and a superseded count |
 | 2026-08-14 | `4d9294c9` | docs(goal): next-session goal reflects the CONDITIONAL verdict and the three items blocking 86.74 |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-14 | `e91c711e` | security: take the credential off the DEFAULT BRANCH -- this does NOT revoke it |
 | 2026-08-14 | `255329ce` | fix(security): guard the CLASS, not the one producer -- scan every tracked file |
 | 2026-08-14 | `1159059a` | docs(incident): the 'why did it stop' question is answered, and the answer inverts the finding |
-| 2026-08-14 | `cd9774e3` | fix(security): the credential leak was DORMANT, not closed -- redact before the tracked file exists |
 
 ---
 
