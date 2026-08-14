@@ -34932,3 +34932,48 @@ measured set of 19.
 spawned: the step cannot close regardless (C4/C7 unresolvable this session), so
 another ~200-400K-token cycle would predictably return CONDITIONAL for the same
 two reasons. **Next session must grade it, and can close C4 after the restart.**
+
+## Cycle 192 -- 2026-08-14 -- phase=86.74 result=CONDITIONAL (swap-fix grade, scoped)
+
+The Agent-tool Q/A graded commit `76ac89ee` -- the swap-path fix its OWN previous
+WARN had led me to. **CONDITIONAL**, scoped to that commit; the step's C4/C7
+CONDITIONAL is undisturbed and **86.74 still does not close**.
+
+**CONFIRMED, re-derived rather than taken on my word:** the defect is real (floor
+excised -> `[('SELL','OLD',None), ('BUY','NEW',0.0)]` vs `[]` as shipped);
+**tightening only**, with the suppression set exactly `nav*pct/100 < 50` -- **parity
+with the identical floor the MAIN buy path already carries at `:536`**, so the fix
+aligns two paths rather than inventing a constraint; the atomic path provably
+untouched (`:932` runs after `min(buy_amount, cash+freed)`); **no swap that should
+fire is suppressed**; C2 now holds behaviourally on the swap path; no new
+regressions (adjacent failures reclassified against the PARENT module, and the
+zero-buy-gap failure's swap BUYs are `$1000` -- twenty times the floor).
+
+**WHAT CAPPED IT, and it is the lesson of the day repeating:** my commit CLAIMED
+*"emitting neither leg, so the SELL cannot orphan"* -- **and that property had no
+guard.** The Q/A suppressed only the BUY append, leaving the SELL to execute alone
+(the exact net -1 harm), and **all three of my new tests PASSED (rc 0)**, because I
+filtered `o.action == "BUY"`. **The harm is the orphaned SELL, not the $0 BUY.**
+I asserted a proxy and called it the property -- the same failure as the criterion-3
+enumeration earlier in this very step.
+
+Fixed as named: assert the WHOLE order list is empty, plus a test naming the
+orphaned SELL. **Proven:** the orphan mutant SURVIVED the old assertion (rc 0) and
+is KILLED by the new one (rc 1). Permanent cell **M7**, needing TWO edits because
+emitting the SELL and suppressing the BUY are two lines apart; harness now
+normalises single- and multi-edit cells. **Matrix 7/7 KILLED**, control green
+first, byte-identical restore. **41 passed** (commit `cba60c0b`'s message says 42 --
+wrong; superseded in `experiment_results_86.74.md` §9d rather than rebased, with a
+peer session active).
+
+**Second finding, pointing the dangerous way:** my comment said
+`paper_swap_max_per_cycle` *"defaults to 0 and short-circuits the whole function"*.
+**Production defaults it to 2 with `paper_swap_enabled=True` -- the swap path is
+LIVE BY DEFAULT.** The 0 was my test stub's missing attribute. A reader could have
+concluded the path was dark when it is live, which makes the orphan-SELL harm live
+rather than hypothetical. The Q/A separately checked whether I had over-configured
+into an unreachable scenario and found the opposite: all four values **match
+production defaults exactly**.
+
+**Standing:** 4 Q/A attempts on the rail produced 0 verdicts; the Agent-tool
+fallback produced 2 verdicts in 2 attempts. Use the fallback.
