@@ -34521,3 +34521,36 @@ against its author, not laxer**, and did not consider its independence compromis
   Sequence 86.69 first.
 - **Review of the `.claude/agents/qa.md` edit (phase-86.75) is still owed** -- separation
   of duties; this session authored it and used it.
+
+## Cycle 1230 -- 2026-08-14 -- phase=86.68 result=PASS
+
+**The version number counted ATTEMPTS, not shipped work.** Verified by replay, not by
+reading: over 500 commits the retired subject-only rule bumps **193** times, the shipped
+flip-detection rule **8**. Steps 86.9 and 86.44 -- both still `pending`, neither ever a PASS
+-- replay **13/13 OLD -> 0/0 NEW**.
+
+**Two Q/A cycles, and cycle 1 was right to fail it.** My criterion-4 demonstration ("20
+commits, 20 rows") was confounded: 20 is `MAX_ROWS=20`, the trim cap I never named. Of 88
+commits dated 08-14, 44 are row-eligible, 20 rows survive, **24 were trimmed**. A count
+identical to the cap cannot show coverage. Cycle 2 closed the direction I could not: **all
+8 bumping commits have rows (8/8)**, and `git log --all -S<hash> -- CHANGELOG.md` over every
+eligible commit returns **44/44 ever present, 0 never**.
+
+**The cycle-2 Q/A also found a confound in my own fix**: "20 of 20 surviving rows belong to
+zero-bump commits" is *logically entailed* by "0 of 44 eligible bumped", so it is a
+restatement rather than a second measurement -- and a zero-bump day structurally cannot show
+that a *bumping* commit still gets a row. It measured that separately.
+
+**The ledger staleness cross-check fired in production**, one day after being wired:
+`qa_wip` prior count (1) > `verdict_history` count (0) -> ledger STALE -> the Q/A recovered
+the prior verdict from the verbatim transcription instead of guessing. Exactly its purpose.
+
+**Mutation, 3 cells against the hardened harness:** CONTROL exit=0; MUTANT A (flip gate dead
+in both arms) exit=1; MUTANT B (mutant arm neutered) **now exit=1** -- cycle-1's residual
+closed; and the Q/A's own **MUTANT C** (zero cells scored) exit=1, proving `cells_scored > 0`
+is load-bearing since `all([]) is True`.
+
+**Queued, not charged (N1):** CLAUDE.md says *major* when a flip leaves "no pending steps
+left in phase X", but the code requires `all(st == "done")`. The masterplan carries **9**
+distinct statuses; **25 of 165** top-level phases satisfy the doc but not the code, reachable
+via a `deferred -> done` flip. Divergence is UNDER-bump, the conservative side.

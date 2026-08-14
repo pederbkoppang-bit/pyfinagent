@@ -64,3 +64,9 @@
 {"ts": "2026-08-09T13:08:40.510286+00:00", "event": "sod_snapshot", "nav": 23833.94, "date": "2026-08-09", "provisional": false}
 {"ts": "2026-08-10T18:00:02.590180+00:00", "event": "sod_snapshot", "nav": 23833.94, "date": "2026-08-10", "provisional": true}
 {"ts": "2026-08-10T19:15:08.534749+00:00", "event": "sod_snapshot", "nav": 23897.88, "date": "2026-08-10", "provisional": false}
+{"ts": "2026-08-11T18:00:03.170511+00:00", "event": "sod_snapshot", "nav": 23897.88, "date": "2026-08-11", "provisional": true}
+{"ts": "2026-08-11T19:21:06.276402+00:00", "event": "sod_snapshot", "nav": 23881.12, "date": "2026-08-11", "provisional": false}
+{"ts": "2026-08-12T18:00:02.555589+00:00", "event": "sod_snapshot", "nav": 23881.12, "date": "2026-08-12", "provisional": true}
+{"ts": "2026-08-12T18:23:01.623744+00:00", "event": "sod_snapshot", "nav": 23900.66, "date": "2026-08-12", "provisional": false}
+{"ts": "2026-08-13T18:00:03.230491+00:00", "event": "sod_snapshot", "nav": 23900.18, "date": "2026-08-13", "provisional": true}
+{"ts": "2026-08-13T19:31:11.872075+00:00", "event": "sod_snapshot", "nav": 23922.61, "date": "2026-08-13", "provisional": false}

@@ -1,6 +1,6 @@
 ---
 name: screener-turnover-86-59
-description: Step 86.59 — near-zero screener turnover is STRUCTURAL (trailing-window arithmetic); declared composite weights are not the effective weights; _zscore is at :532 NOT :541-553; residual-momentum branch now CLOSED; a summed-vs-per-side turnover convention mismatch reverses the naive conclusion
+description: Step 86.59 — near-zero screener turnover is STRUCTURAL (trailing-window arithmetic); declared composite weights are not the effective weights; _zscore is at :532 NOT :541-553; residual-momentum branch CLOSED; a summed-vs-per-side turnover convention mismatch reverses the naive conclusion; residualisation can INVERT the ordering where a z-score cannot; bare arXiv IDs are not URLs and cost a gate
 metadata:
   type: project
 ---
@@ -69,6 +69,52 @@ eight overlay slices at `autonomous_loop.py:749,769,833,860,884,910,938,967` rea
 sort anywhere before it), so an overlay can never be an entry path — a new signal must enter the
 composite at `:299-305`, not become a ninth overlay. **Step 86.59 is BLOCKED behind 86.69** (81.2%
 of analyses persist as an empty placeholder scored 0.0/HOLD): no ranking change can pay off first.
+
+6. **THE MECHANISM THAT SEPARATES THE TWO CANDIDATE FIXES: affine vs non-affine in the
+   cross-section.** Z-scoring the three trailing returns is a **per-horizon affine** transform —
+   it corrects the effective weights (real bug, see 1) but leaves the ordering a monotone
+   function of the *same slow state*, so the slate stays sticky. **Subtracting a common factor
+   component is NOT affine cross-sectionally**: it removes the co-moving part that makes all
+   names' trailing returns rise and fall together, which is exactly what lets two names CROSS.
+   Measured instance: in the weekly FF5F horse race (arXiv:1910.13115, read via ar5iv), raw
+   cumulative returns produce a **contrarian** result while residualised returns produce
+   **momentum** — *"tells a completely different story… all the portfolios achieve statistically
+   positive profits."* So residualisation is the only surveyed mechanism that attacks stickiness
+   at its source. **Never promise a z-score will vary the slate; it won't.**
+
+7. **The literature is UNANIMOUS AGAINST treating daily stickiness as a defect** — every
+   residual-momentum result is measured at weekly (1910.13115), monthly (CXO/Blitz-Hanauer-
+   Vidojevic) or **semi-annual** rebalance, and Alkshaik's *Auto-Residual Factor Model*
+   (`wp.lancs.ac.uk/fofi2026/...` — same host family as the H&W paper in §4) deliberately slows
+   residual momentum to semi-annual as its **"turnover aware"** variant, independently
+   re-deriving Novy-Marx & Velikov's banding result. **Split the step's premise into three
+   defects and make the contract name which it buys:** (a) declared≠effective weights
+   [correctness, supported]; (b) no signal orthogonal to the common factor [supported]; (c) the
+   slate repeats daily [**NOT a defect** — correct behaviour for a slow predictor; it only bites
+   because `paper_analyze_top_n=5` (`settings.py:407`) makes the window onto the ordering as
+   narrow as it can be]. Widening the slice is cheaper than changing the signal and is a
+   slate-composition change, so DSR/PBO still measure the signal.
+
+8. **Turnover buys a bigger cost budget than it spends (the F8-vs-F1 reconciliation).** Aalto
+   thesis, regex-verified: *"break-even transaction costs for the volatility-scaled residual
+   momentum stay on a higher level (0.93-1.49) for every single holding period compared to the
+   highest one of the traditional momentum (0.87, K=3)"* — turnover rises, the affordable cost
+   rises **by more**. Corroborates §5's convention-normalised conclusion by a second route.
+   Separately, Graef-Hoechle-Schmid (EFMA 2022) rebut the "industry/factor momentum explains
+   stock momentum" school: *"persistence in the … firm-specific part drives momentum"* and
+   *"Industry-neutral momentum strategies deliver similar outperformance"* — external support
+   for residualising rather than sector-neutralising (our own hard-neutral replay is -0.166).
+
+**ACCOUNTING lesson (this is what failed the v1 gate, not the research).** `enforceGate`
+cross-checks that **every claimed URL literally appears in the brief**, so a **bare arXiv ID is
+not a URL**: v1 claimed `urls_collected: 30` while only **13 distinct URL strings** existed in
+the file — the other 18 were `arXiv:2601.04062`-style IDs. The fix is mechanical: expand each ID
+to `https://arxiv.org/abs/<id>`, curl it for **HTTP 200 + a title matching your description**
+(all 18 passed), and put it in a visible table. Then state the count as **arithmetic over table
+rows** and re-derive it with `grep -oE 'https?://[^ )|<>]+' | sort -u | wc -l` before flipping
+the marker. Also **never claim a prior session's reads as your own** — either re-fetch and
+re-verify them in-session (cheap: the 3 NBER papers re-extracted and 8/8 quotes re-matched) or
+put them in a separate carried-forward table that the envelope counts as snippet-only.
 
 **Rail lesson (cost me two failed gates).** A born-inert envelope's counts go **STALE** when a run
 drops mid-way, and the wreck is *internally contradictory*, not merely incomplete: the seed said

@@ -1,6 +1,6 @@
 # Researcher Agent Memory Index
 
-- [away_ops session gitignore 86.67](project_away_ops_session_gitignore_86_67.md) — sole consumer globs from a `--ops` DISK path keyed on mtime; `session.log` is the live ignored-and-still-consumed precedent; `sk-[A-Za-z0-9]{20,}` CANNOT match `sk-ant-oat01-` (hyphens) — 5 tracked files on origin/main carry a token
+- [away_ops session gitignore 86.67](project_away_ops_session_gitignore_86_67.md) — a SOUND brief fails the gate on a missing `sources_read_in_full` array; `sk-[A-Za-z0-9]{20,}` can't cross `sk-ant-oat01-` hyphens; `.git/hooks/pre-commit` already exists and is fail-CLOSED; 73.5% of agent leaks are stdout capture
 
 - [Write-guard channels 86.64](project_write_guard_channels_86_64.md) — "hooks can't intercept Bash" is FALSE (PreToolUse fires for every tool but EndConversation); the gap is the MATCHER; bypassPermissions skips PROMPTS not DENY; the log's 307 Bash records are all synthetic
 

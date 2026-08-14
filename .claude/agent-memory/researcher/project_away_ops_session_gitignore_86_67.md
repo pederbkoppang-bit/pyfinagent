@@ -1,6 +1,6 @@
 ---
 name: away-ops-session-gitignore-86-67
-description: 86.67 away_ops session_*.json -- sole consumer reads from DISK so gitignore is safe; session.log is the live precedent; and `sk-[A-Za-z0-9]{20,}` CANNOT match sk-ant-oat01- tokens (hyphens)
+description: 86.67 away_ops session_*.json -- sole consumer reads from DISK so gitignore is safe; `sk-[A-Za-z0-9]{20,}` CANNOT match sk-ant-oat01- tokens (hyphens); a sound brief still fails the gate without a sources_read_in_full array; .git/hooks/pre-commit already exists and is fail-CLOSED; redaction-at-write beats scanning (73.5% of agent leaks are stdout capture)
 metadata:
   type: project
 ---
@@ -75,3 +75,63 @@ acute here given concurrent sessions + hook auto-push. OWASP orders
 Revocation -> Rotation and says secrets must *"never be logged"*. GitGuardian
 2026: **>64% of credentials leaked in 2022 were still valid in Jan 2026** -- never
 assume a published token is dead, even a malformed-looking one.
+
+---
+
+# Re-run additions (2026-08-14, second researcher pass)
+
+## A sound brief can FAIL the gate on pure artifact accounting
+The first 86.67 brief was 40,839 bytes, 6 genuine full reads, recency scan done,
+38 real URLs -- and the gate FAILED because its closing envelope carried **no
+`sources_read_in_full` array**. `enforceGate` cross-checks claimed URLs against
+the brief text; with no array there is nothing to corroborate, so the count is
+unverifiable regardless of how good the prose is.
+
+**Why:** the script never trusts `gate_passed`; it RECOMPUTES from the array +
+the file. Research quality and gate-passing are separate properties.
+
+**How to apply:** the envelope's URL array is a deliverable, not decoration.
+Before returning, run the cross-check yourself:
+`while read u; do grep -cF "$u" $BRIEF; done` over every URL you intend to
+claim. Also: sources read by a PRIOR run are not yours -- re-fetch them, or the
+claim is inherited rather than made.
+
+## `.git/hooks/pre-commit` ALREADY EXISTS in this repo (changes any hook proposal)
+Not in the first brief. Measured:
+- `auto-commit-and-push.sh` has **no `--no-verify`**, so `.git/hooks/pre-commit`
+  DOES fire on the auto-commit path -- a guard there would have blocked the leak.
+- The hook already blocks 3 things (stray `.claude/*.bak-*` `:10-17`; retired
+  Claude snapshot IDs in staged `*.py` `:19-29`; dotenv syntax `:35-47`), all via
+  `git diff --cached --name-only --diff-filter=ACM` -> filter -> `exit 1`.
+- **`set -e` at `:5` = fail-CLOSED.** Every guard wraps grep in `|| true` because
+  grep exits 1 on no-match and `set -e` would abort -> git reads that as "commit
+  rejected". Forget `|| true` and you block every CLEAN commit.
+- **A rejected commit is SILENT**: `auto-commit-and-push.sh:380` is
+  `if ! git commit ...; then log ...; exit 0; fi` -- no commit, no push, exit 0,
+  visible only in `handoff/logs/auto-push.log`.
+- `.git/hooks/` is **not version-controlled**; no `.pre-commit-config.yaml`
+  exists; zero secret-scanning refs anywhere in `.claude/hooks/`.
+
+## The publisher's own safety comment is FALSIFIED by this incident
+`.claude/hooks/auto-commit-and-push.sh:348-349`: *"Broad capture; the pre-commit
+pre-tool-use-danger guard + gitignore for .env files cover safety."* Neither
+covers `handoff/away_ops/session_*.json`. A written safety model that the
+evidence refutes is worth more than a missing one -- grep for the comment that
+states WHY an unsafe operation is believed safe, then test that claim.
+
+## Redaction-at-write outranks scanning and gitignore, and it is MEASURED
+arXiv 2604.03070v1 (n=17,022 agent skills, kappa=0.88): **73.5% of credential
+leaks are stdout/log capture** -- *"agent frameworks capture stdout into the LLM
+context window"* -- and the top recommendation is to strip credential patterns
+from stdout **before** it is persisted; 89.6% exploitable in normal execution.
+That is `run_away_session.sh:170` verbatim (`> "$OUT_JSON"`, raw, unfiltered).
+Same paper kills the scrub-first instinct mechanistically: *"credentials removed
+from 107 upstream repositories remain live across 50+ independent forks"*.
+
+## GitHub push protection is weaker than it sounds
+Fires at **push** time not commit time; the free on-by-default variant is
+user-level and only blocks pushes to **public** repos; repo-level needs GitHub
+Secret Protection; and any writer can bypass by picking a reason. gitleaks is
+MIT and `--baseline-path` is what makes adoption possible on a repo with
+pre-existing findings -- but it is **"feature complete... security patches
+only"**, so a new `sk-ant-oat01-` detector must be YOUR `.gitleaks.toml` rule.
