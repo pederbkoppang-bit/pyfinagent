@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-14 | `ddc08396` | docs(86.84): retract the graceful-degradation corollary, refuted by the research gate |
 | 2026-08-14 | `577adcdf` | docs(harness): day report + next-session goal for the 86.84 turn-cap diagnosis |
 | 2026-08-14 | `c1797888` | fix(harness): diagnose the Layer-3 rail drop as TURN-BUDGET EXHAUSTION, and file 86.84 + 86.85 |
 | 2026-08-14 | `5594ed65` | docs(goal): trim so BOTH char and byte counts clear 4000 (em-dashes are multi-byte) |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-14 | `ba896969` | docs(86.74): record the cycle-4 grade, the proxy-assertion fix, and a wrong count in cba60c0b |
 | 2026-08-14 | `cba60c0b` | phase-86.74 cycle-4: assert the HARM, not the BUY -- an orphaned SELL was unmeasured |
 | 2026-08-14 | `d0366a00` | docs(goal): remove a self-contradiction and a superseded count |
-| 2026-08-14 | `4d9294c9` | docs(goal): next-session goal reflects the CONDITIONAL verdict and the three items blocking 86.74 |
 
 ---
 
