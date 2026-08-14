@@ -118,3 +118,87 @@ survivors**, and **negative-control the survivor probe**.
 earlier draft said 91, which went stale while the report was being written), and the
 changelog rule shipped
 yesterday behaved exactly as designed.
+
+---
+
+# SESSION 2 (01:50–05:30 CEST) — the harness was rebuilding work it had already shipped
+
+Operator reprioritised mid-session: *"add them later after this one we need our harness to
+work correctly."* The picker chain was therefore **not** restarted — and Q1's committed
+answer (`f6c2dbf4`, 08-13) independently says **STOP optimising the ranking**, because the
+binding constraint is upstream analysis emptiness, not the ranking.
+
+## The headline: a 1.45M-token audit rebuilt a step that had already shipped the fix
+
+Four dated events on one defect, each measured with a positive control:
+
+| date | event |
+|---|---|
+| 08-09 | **86.21** files the counter defect **and prescribes the fix verbatim** — "a small append-only per-step verdict ledger" |
+| 08-09→11 | 86.21 **BUILDS it** and runs **five** Q/A cycles: `verdict_ledger.jsonl`, `verdict_history_86_21.py` (473 lines), `mutation_matrix_86_21.py` (**16/16 killed**, re-verified today) |
+| 08-13 | **86.75**'s ultracode audit — 23 agents, **1,451,204 tokens** — reports that diagnosis as its headline discovery and ships the same fix. `'86.21'` appears **nowhere** in its step JSON (control: `'86.33'` does) |
+| 08-14 | **I re-derived it again on top**, and only noticed because I overwrote 86.21's artifact and recovered 433 lines from `git show` |
+
+**Filed as step 86.76 (P1).** The gap, positive-controlled: no instruction to search the
+project's own defect register exists in `researcher.md`, `research-gate.js`, or
+`rules/research-gate.md` (probes live — 10/9/27 hits for other terms). The gate's
+prior-art discipline points entirely outward at literature.
+
+## The re-derivation caused a regression
+
+86.75 silently replaced CLAUDE.md:371-376's trigger (**3 consecutive CONDITIONALs**) with
+**"3rd attempt or later."** Replayed on 36.17's real `C,F,F,C,C,PASS`: the correct rule
+never fires (longest run 2); the shipped one **forces FAIL at attempts 4 and 5** and denies
+the PASS 36.17 earned at attempt 6. It was also stricter than F1b's documented 5-attempt
+budget, which *escalates* rather than auto-fails. **86.21 had flagged that exact ambiguity
+on 08-11 and asked for it to be reconciled** — the re-derivation resolved it the wrong way.
+
+## Fixed and pushed
+
+1. **The counter inherited the defect it replaced.** A missing sink made
+   `records_retained: 0` **byte-identical** to a genuine first attempt, silently disabling
+   escalation. Added `source_present`; M1 killed, control green, M2 unscored *with its
+   reason* (`prune_wip_records` deletes by design).
+2. **Both rails restored** to the consecutive-CONDITIONAL trigger.
+3. **Both rails repointed** at `verdict_history_86_21.py` — the purpose-built counter with
+   a 5-value status vocabulary where `ledger_missing`/`ledger_empty`/`unparseable` return
+   `None` and fail **closed**, instead of a hand-rolled grep.
+4. **A staleness cross-check neither tool had alone:** `qa_wip` is automatic, the ledger is
+   hand-written, so `records_retained > ledger count` ⇒ **STALE**. Live: **86.62 → 4 vs 0**.
+5. **`mutation_matrix_86_31`: 20/24 → 24/24 KILLED.** Four cells had silently stopped
+   testing anything since `6e8f3169` (08-11, anchor drift). Verified *not* caused by
+   tonight's edits — all four already 0 at HEAD.
+6. **86.75 live_check**: 6 of 8 criteria measured. Fixed two defects in my own audit —
+   `run_memo.py`'s docstring asserted both a claim and its correction, and
+   `cycle_prompt.md` still stated a **3-source** floor plus a research-skip carve-out the
+   operator overruled in May.
+
+## Three of my own probes were wrong, and each is a class
+
+- **A probe matched its own documentation.** `grep 'phase=86.33 result=CONDITIONAL'`
+  returned 1 — the audit's *prose quoting the grep*. Anchored: **0**, as the basis said.
+  Corpus-wide, **121 prose lines** contaminate any unanchored grep of `harness_log.md`.
+- **A false zero from zsh not word-splitting** an unquoted var, with stderr suppressed and
+  `|| echo NONE` printing a clean result. It hid a live 3-source floor.
+- **`exit=$?` after a pipe reads `tail`.** I reported a suite "still exits 0" with dead
+  cells; it returns 1. The script was right, my measurement was not.
+
+## Still open, and honestly
+
+- **The OAuth token is still public.** Re-scanned all 76 session files with the vendor
+  pattern: same 5 files, positive control fires, **all 5 still on `origin/main`**.
+  Unremediated — operator-gated (ask 06-2 / #20, one credential, one fix).
+- **86.75 criteria 1 and 7**: 1 needs a driven Q/A; 7 is separation-of-duties review, now
+  covering **three** `qa.md` edits I authored.
+- **Nothing appends `verdict_ledger.jsonl` automatically.** 86.21 said so on 08-11. The
+  cross-check makes the staleness *visible*; it does not fix it.
+- **No step was flipped and no Q/A graded any of this.** No self-certification.
+
+## Book (server-side read-back, 05:25)
+
+NAV **$23,920.63**, cash **$20,425.99 (85.4%)**, **2 positions** (DELL, NTAP),
+P&L **+19.6%** vs benchmark **+9.09%**. The 95.6%-cash / 1-position framing that motivated
+the picker urgency **no longer describes the book**.
+
+`degradation` key: the **08-12 cycle wrote one**, and 08-13 did too — the peer's 86.38
+stake holds.
