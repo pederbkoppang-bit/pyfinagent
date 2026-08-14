@@ -669,3 +669,100 @@ the schema path. My doc-based retraction over-generalised from a different
 surface. That correction is recorded in `contract_86.84.md` and is owed to
 `live_check_86.84.md` in the next cycle. It rests on a peer's decompilation, not
 on documentation, and should be re-verified before it is load-bearing.
+
+---
+
+# Post-freeze (operator lifted it): the fix landed, three Q/A cycles, ESCALATED
+
+## The remediation
+
+**`maxTurns` REMOVED from both `.claude/agents/qa.md` (30) and
+`researcher.md` (40).** Removed rather than raised: `maxTurns` counts tool-use
+turns only and `StructuredOutput` is itself a tool call, so a cap sized to the
+work cannot terminate; the distribution is right-censored so any number repeats
+the phase-59.1 inference that already failed; there is no per-call turn budget
+and forcing the schema call was closed as not planned (#20625); and raising is
+exposed to #41143 while removing the key is immune. `agentType: 'qa'` unchanged.
+**NOT IN FORCE until the next session** — the roster snapshots at start.
+
+Criterion 5 done: the "mechanism is UNPROVEN" and model-split claims are
+superseded at source in `qa-verdict.js`, `research-gate.js` and
+`rail_drop_rate.py` — including the **runtime output**, which had kept printing
+the confounded split while I claimed the correction was made.
+
+## Three Q/A cycles, three real defects in MY work
+
+| cycle | verdict | what it caught |
+|---|---|---|
+| 1 | CONDITIONAL | `393 of 394` mis-scoped; `killed` bucketed as completed; at-cap population understated |
+| 2 | CONDITIONAL | **a real hole in my own guard** — `maxTurns: 30  # restored` read as "all pins removed"; the mutation matrix existed only as commit prose |
+| 3 | CONDITIONAL | **my guard fix never executed** under the shipped command; `347/347` still wrong (343); `259K` was a p99 sold as a ceiling |
+
+**Cycle 3's F-C is the one worth remembering.** I replaced a leaky regex with a
+YAML parse — but bare `python3` here is `/usr/bin/python3`, which has no PyYAML,
+so the shipped verification command silently took the fallback where `!!int 30`,
+`&anchor 30` and `0x1e` read as *uncapped*. A fix that does not execute under its
+own verification command is not a fix. The fallback now treats **any** top-level
+`maxTurns` key as a pin, and the output prints which parser ran. 13 shapes
+verified on the no-PyYAML path; the matrix is 21 cells, 0 real survivors, green
+on both interpreters.
+
+**Cycle 3's F-A is the most instructive.** I fixed `killed`-as-third-status
+*inside the script*, then carried the pre-fix figure forward *in prose* — into a
+file whose own header said it was regenerated from the live measurement. Fixing
+the code does not fix the sentences you wrote from the old code.
+
+## A measurement of my own that corrected me
+
+| dispatch | role | n | max turns | over cap |
+|---|---|---:|---:|---:|
+| Agent-tool | qa (cap 30) | 39 | **67** | **24 of 39** |
+| Workflow | qa (cap 30) | 302 | 30 | **0 of 302** |
+
+**`maxTurns` is enforced on the Workflow rail and not on the Agent-tool path.**
+That reproduces #41143 here and is the real reason the Agent-tool fallback keeps
+working — **not** my earlier claim that those spawns "finished inside 30 turns".
+They often ran far past it.
+
+## ESCALATED rather than looping
+
+Three consecutive CONDITIONALs means the next pass must return FAIL. **I did not
+spawn a cycle 4** — running an evaluation whose only lawful outcome is FAIL is
+the "logging instead of correcting" the clause exists to stop.
+
+And the escalation had to be driven by hand: the counter that should have
+produced it read `no_rows_for_step` on all three cycles, so every Q/A had to be
+told its predecessors' verdicts by me. That is **86.85**, filed today; with
+**86.71** it means *both* documented per-step bounds are inert, and this loop
+stopped only because a human-readable file happened to carry the history.
+
+**Open and disclosed:** F-E — `CAP_REMOVED_AT` is a hardcoded midnight standing
+in for "first session after the edit"; the window is open tonight and the
+failure mode is loud but misattributing.
+
+**Operator decisions owed:** (1) review the agent-file change per
+separation-of-duties (`harness_log.md` Cycle 218); (2) whether 86.84 may close on
+F-E alone — **my recommendation is no**, keep it open until the post-restart
+re-measurement, which is the only thing that turns a reasoned fix into a
+verified one.
+
+## D5 (item 3): tie to 86.69 REFUTED as identity
+
+June daily shows a step function the monthly view hid: **100% missing
+`final_synthesis` through 06-10** (72 of 72), then it stops — ~0% from 06-15.
+Across the same boundary, missing-synthesis fell 51%→7% while HOLD rose
+23%→**85%**, and **211 of the 223 post-break HOLD rows HAVE a synthesis**. So
+86.69's rows are not D5's rows: disjoint populations, fixing one will not fix
+the other. Consistent with one change around 06-11/06-14 altering how a failed
+analysis is persisted — timing established, commit not identified. D5's last
+occurrence is **2026-08-11**; "8.8% and accumulating" overstates it because the
+monthly average spans the regime break.
+
+## Item 2 partial
+
+`/api/health` is the endpoint (200); `/health` 404s. A `000` on the portfolio
+endpoint was transient — 200 in 3 ms on retry, no defect. Backend v6.93.222,
+NAV 23,920.63 (+19.6% vs benchmark +9.09%). **C4 remains unmeasured**: no
+autonomous cycle ran in this window. C7 untouched.
+
+**Pending restarts: none.** No `.env`, no plist, no production code.
