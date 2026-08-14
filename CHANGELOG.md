@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-14 | `38ba13ad` | phase-86.74: RETRACT the "C7 RESOLVED" claim -- I refuted it myself, one commit later |
 | 2026-08-14 | `d6a1500a` | chore: session-end backend restart, verified -- the 86.74 fix is now IN FORCE |
 | 2026-08-14 | `73d42267` | docs(goal): C7 resolved; C4 reduced to confirm-restart-then-measure |
 | 2026-08-14 | `4e610437` | docs(day-report): C7 resolved, and the restart precondition is now met |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-14 | `7afe1122` | fix(security): close the credential exposure -- revocation CONFIRMED BY PROBE, and correct the rotat |
 | 2026-08-14 | `98eafb90` | chore(masterplan): queue the two defects 86.81 found and deliberately did not fix |
 | 2026-08-14 | `8b520f6c` | phase-86.81: prove the StructuredOutput drop retry actually fires, and stop the metric counting its  |
-| 2026-08-14 | `f237bb8d` | chore: stop a stray workflow test-copy from being committable |
 
 ---
 
