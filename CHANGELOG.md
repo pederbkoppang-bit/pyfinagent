@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-14 | `3be1ab13` | docs(session): day report session 4 + regenerate the 08-15 goal |
 | 2026-08-14 | `9c431237` | docs(86.74): D5 archaeology + D2 corrected to 14 undetermined |
 | 2026-08-14 | `a400a987` | phase-86.74: remediate cycle 6 -- undetermined is 14 not 33, and the stale claim was in the BINDING  |
 | 2026-08-14 | `f0c4ad0c` | phase-86.74: remediate the cycle-5 CONDITIONAL -- the artifact of record denied its own measurement |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-14 | `c50c9a9c` | docs(goal): clear the 4000 char/byte ceiling |
 | 2026-08-14 | `e133eeac` | docs(goal): trim under the 4000 char/byte ceiling |
 | 2026-08-14 | `b2cea6a7` | docs(goal): regenerate for 86.84 with the gate PASSED and the cycle-1 CONDITIONAL |
-| 2026-08-14 | `89efc7d8` | fix(86.84): correct F1/F2/F3/NOTE-A/NOTE-B from the cycle-1 Q/A |
 
 ---
 
