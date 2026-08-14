@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-14 | `06c3265f` | phase-86.68: experiment_results + live_check -- the shipped rule VERIFIED by replay |
 | 2026-08-14 | `8ce3ed73` | phase-86.59: research gate RE-RUN PASSED -- and it changes the fix |
 | 2026-08-14 | `b0eebea2` | docs: regenerate the goal -- 86.76 is the new P1, the picker is closed by Q1's answer |
 | 2026-08-14 | `084a3e2f` | docs: day report -- session 2, the harness was rebuilding work it had already shipped |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-14 | `5ccadd34` | docs: correct a stale commit count in my own day report (91 -> re-derived at push time) |
 | 2026-08-14 | `26b5bdec` | docs: day report 2026-08-14 -- overnight session, headed by the open credential incident |
 | 2026-08-14 | `24fbcf9f` | SECURITY: open incident -- sk-ant OAuth token published on origin/main in 5 tracked files |
-| 2026-08-14 | `3ddc97bc` | phase-86.64: gate PASSED and it REFUTES the step's premise -- the gap is a matcher, not a platform l |
 
 ---
 
