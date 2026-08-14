@@ -362,9 +362,28 @@ const verdict = await agent(PROMPT, {
 if (verdict == null || typeof verdict !== 'object') {
   return verdict
 }
-// The verdict is returned UNCHANGED. `escalation` sits beside it, never inside it.
+// The verdict is returned UNCHANGED. `escalation` sits beside it, NEVER inside it.
+//
+// phase-86.78 cycle-1 Q/A, cell QA-F: flattening this (`...escalation`) SURVIVED the
+// whole checker, because "alongside, never merged" was a property asserted in prose and
+// nowhere guarded. Merged, the CALLER's fields (would_auto_fail, burden_on, override)
+// would surface as top-level siblings of ok/verdict/reason in the object Main
+// transcribes VERBATIM -- caller output presented as judge output, the exact doer/judge
+// blur this step exists to prevent. So it is now checked at RUNTIME, not just in a test.
 const escalation = enforceEscalation(verdict, args?.verdict_sequence, {
   attempt_number: args?.attempt_number,
   max_attempts: args?.max_attempts,
 })
-return { ...verdict, escalation, verdict_unmodified: true }
+const merged = { ...verdict, escalation }
+// Exactly ONE returned key may come from the escalation object, and it must be the
+// nested one. If a future edit spreads it, this throws rather than silently shipping
+// caller fields as judge fields.
+const leaked = Object.keys(escalation).filter(k => k !== 'escalation' && k in merged)
+if (leaked.length > 0) {
+  throw new Error('phase-86.78 invariant violated: escalation fields leaked into the '
+    + 'verdict object as top-level siblings: ' + leaked.join(', '))
+}
+// Computed, not attested. The cycle-1 Q/A noted that a hardcoded `true` would still
+// read true if the verdict HAD been modified, which is an attestation, not a check.
+const untouched = Object.keys(verdict).every(k => merged[k] === verdict[k])
+return { ...merged, verdict_unmodified: untouched }

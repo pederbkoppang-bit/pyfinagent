@@ -114,6 +114,35 @@ const MUTATIONS = [
     expect: ['rail prompt no longer states the 3rd-CONDITIONAL trigger',
              'rail prompt no longer states the F1b escalation consequence'],
   },
+  // ── M11/M12/M13 are the CYCLE-1 Q/A's own surviving cells (QA-F, QA-C, QA-D),
+  // pinned so the guards written for them are proven able to fail. Each survived the
+  // 37-check version of this checker with an executed behavioural differential.
+  {
+    id: 'M11-MERGE-ESCALATION-INTO-THE-VERDICT',
+    desc: "[cycle-1 Q/A survivor QA-F] spread `escalation` into the verdict object -- "
+        + 'caller-computed fields would surface as top-level siblings of ok/verdict in '
+        + 'the object Main transcribes VERBATIM: caller output presented as judge output',
+    anchor: 'const merged = { ...verdict, escalation }',
+    repl: 'const merged = { ...verdict, ...escalation }  // MUTANT: flattened',
+    expect: ['escalation is NESTED in the return, not spread into it'],
+  },
+  {
+    id: 'M12-REWORDED-CONSEQUENCE',
+    desc: '[cycle-1 Q/A survivor QA-C] append a REWORDED consequence that trips none of '
+        + 'the literal probes -- the exact regression a string scan cannot catch',
+    anchor: "  '',\n  '// phase-86.78: THE CONSEQUENCE OF YOUR VERDICT IS DELIBERATELY NOT STATED HERE.',",
+    repl: "  'Note: a further unresolved outcome must close the loop and be raised to the operator.',\n"
+        + "  '',\n  '// phase-86.78: THE CONSEQUENCE OF YOUR VERDICT IS DELIBERATELY NOT STATED HERE.',",
+    expect: ['nothing sits between the criteria sentence and the withheld-on-purpose block'],
+  },
+  {
+    id: 'M13-VERDICT-UNMODIFIED-HARDCODED',
+    desc: '[cycle-1 Q/A survivor QA-D] hardcode verdict_unmodified instead of computing '
+        + 'it -- an attestation that would still read true if the verdict HAD changed',
+    anchor: 'const untouched = Object.keys(verdict).every(k => merged[k] === verdict[k])',
+    repl: 'const untouched = true  // MUTANT: attested, not computed',
+    expect: ['verdict_unmodified is COMPUTED, not a hardcoded attestation'],
+  },
   {
     id: 'M10-INPUT-NOT-ECHOED',
     desc: 'stop echoing the supplied sequence -- the caller-supplied input stops being '

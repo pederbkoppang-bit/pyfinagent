@@ -3,7 +3,13 @@
 **Phase:** GENERATE (after RESEARCH → PLAN). Contract at
 `handoff/current/contract_86.78.md`, written **before** any change.
 **Evidence:** `handoff/current/live_check_86.78.md` — verbatim, re-runnable.
-**Totals: 37 checks (floor 30), 10 mutation cells, 10 killed.**
+**Totals (cycle 2): 43 checks (floor 41), 13 mutation cells, 13 killed.**
+
+> **CYCLE 2.** The cycle-1 Q/A returned **CONDITIONAL**, 5 of 6 criteria met, and its
+> own 7-cell battery left **3 survivors**. All three are now closed and pinned as cells
+> **M11/M12/M13** — see `live_check_86.78.md` "CYCLE 2" and
+> `evaluator_critique_86.78.md` for the verbatim verdict. Criterion 3 is **unchanged at
+> PARTIAL**: it is operator-gated, and no amount of further work here moves it.
 
 ---
 
@@ -12,8 +18,8 @@
 | file | change |
 |---|---|
 | `.claude/workflows/qa-verdict.js` | **modified** — consequence stripped from the prompt; `enforceEscalation()` added at the post-`agent()` seam |
-| `scripts/qa/verify_escalation_86_78.mjs` | **new** — 37-check checker driving the REAL function |
-| `scripts/qa/mutation_matrix_86_78.mjs` | **new** — 10-cell mutation matrix |
+| `scripts/qa/verify_escalation_86_78.mjs` | **new** — **43**-check checker driving the REAL function |
+| `scripts/qa/mutation_matrix_86_78.mjs` | **new** — **13**-cell mutation matrix |
 
 **Not touched:** `.claude/agents/qa.md` (**zero-line diff**), `CLAUDE.md`,
 `.claude/rules/research-gate.md`, `scripts/qa/qa_wip.py`.
@@ -61,7 +67,7 @@ importing it, so it can never drift from a hand-copy.
 | 3 | counter moved OUTSIDE the judge; a Q/A with NO attempt number still escalates caller-side | **PARTIAL — §4** | live_check §2 — driven; but `qa.md` still instructs self-counting |
 | 4 | verdict semantics UNCHANGED; 3rd-CONSECUTIVE still terminates | **met** | live_check §2 C4 — no input verdict is mutated under any sequence; `would_auto_fail` can arm only on a CONDITIONAL |
 | 5 | the two safeguards implemented or declined with a reason | **met** | live_check §2 C5; sourcing gap stated |
-| 6 | mutation-test the relocated counter, control GREEN first | **met** | live_check §3 — 10/10 killed on named assertions |
+| 6 | mutation-test the relocated counter, control GREEN first | **met** | live_check §3 + "CYCLE 2" — **13/13** killed on named assertions |
 
 ---
 
@@ -140,7 +146,8 @@ not asking for a waiver. The `qa.md` patch will be written out unapplied alongsi
    read the tracked file instead of the mutant — the same defect fixed in 86.79 hours
    earlier — and a `[FAIL]`-regex that truncated labels containing ` -- `. Both would
    have produced a false green.
-3. **10 cells, not the contract's implied minimum.** Every cell targets a distinct
+3. **13 cells, not the contract's implied minimum** (10 authored, then 3 added from the
+   cycle-1 Q/A's own survivors). Every cell targets a distinct
    failure the relocation could have introduced.
 
 ---
@@ -157,3 +164,50 @@ not asking for a waiver. The `qa.md` patch will be written out unapplied alongsi
 - **Nothing downstream consumes `escalation` yet.** Wiring a consumer is out of scope
   (and overlaps 86.71).
 - **The recording safeguard is not legally sourced** — clinical analogue only.
+
+---
+
+## 7. Cycle-2 remediation, and one thing the Q/A framed better than I did
+
+**"The counter is DUPLICATED, not MOVED."** That is the cycle-1 Q/A's phrasing for
+criterion 3 and it is sharper than mine. The rail no longer supplies the consequence,
+but `qa.md` — which the spawn prompt's own **binding STEP 0** orders the judge to read
+in full — still does. So the composite instruction set still delivers it. The Q/A
+confirmed this **first-party**: it was itself instructed to self-count in that very run.
+
+It also confirmed the two halves I could verify only indirectly:
+
+- **The live test holds.** `THE CONSEQUENCE OF YOUR VERDICT IS DELIBERATELY NOT STATED
+  HERE` occurs in **zero of ~100 persisted `qa-verdict-wf_*.js` snapshots** and in the
+  on-disk file — independent proof the graded run used the disk script, and independent
+  corroboration of the session-snapshot finding in live_check §7.
+- **The census reproduces exactly** under an independently written population rule:
+  365 / 25 / 16 after subtracting the two transcripts created since I measured. It adds
+  two reproduction caveats I had not stated: matching **must be case-insensitive** (19
+  otherwise), and the literal probes are `return FAIL instead of a` / `recommend
+  operator`, **not** the fuller labels printed in the §1b table — the old prompt
+  line-wrapped mid-phrase. **So the number is right and my printed recipe was not
+  exact.** Corrected here rather than left standing.
+- **Both self-reported checker defects are load-bearing**, proven by its own mutants
+  rather than taken on trust.
+
+### Three notes it raised that I am recording rather than quietly fixing
+
+1. **The census self-contaminates on re-run.** Re-derived today it counts *this
+   evaluation's own prompt* as Class B, because my `extra` quotes the two removed
+   strings as probe targets — the same mention-vs-use error I caught in my own first
+   pass. The census needs an as-of timestamp. **Queued, not patched**, because editing
+   the census mid-evaluation is tree movement during EVALUATE.
+2. **`live_check_86.78.md` was modified 22 seconds after that spawn began** (adding §7,
+   the snapshot finding). The Q/A flagged it as tree movement during EVALUATE and
+   verified the subject sha was unchanged. It was correct to flag it, and I should have
+   held the append.
+3. **The C3 source-order check is a source scan, not a behavioural observation.** It
+   happens to be backed by a JS temporal-dead-zone guarantee, so it is not vacuous in
+   effect — recorded so nobody mistakes it for a behavioural guard.
+
+### Still NOT met, and not fixable here
+
+Criterion 3 end-to-end. Its stated route to PASS is *"the operator-gated `qa.md` edit
+removing `:665`/`:685`/`:702`, or an explicit operator decision to accept the
+duplication with the patch written out unapplied."* Both routes are the operator's.

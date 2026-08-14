@@ -34619,3 +34619,62 @@ executor)**. Step remains `pending`.
 cycle-1 spawn prompt supplied NO attempt number, NO prior sequence and NO consequence
 -- and the Q/A still opened its notes with "ATTEMPT NUMBER: 1", because `qa.md` tells
 it to. Suppressing the caller's prompt alone is **not sufficient**.
+
+---
+
+## Cycle 1 -- 2026-08-14 -- phase=86.78 result=CONDITIONAL
+
+**The judge was being told what its verdict would trigger, before it graded.** Research
+gate `wf_af92dada-5b9` (10 sources / 27 URLs, complex tier) resolved the primary
+evidence rather than assuming it: **arXiv 2604.15224 EXISTS** -- content held strictly
+constant, ONE consequence sentence varied, 18,240 judgments, judges LENIENT in **58 of
+72 cells (p<0.001, peak -9.8pp)**. **Reward framing is as lenient as punishment
+framing**, so a gentler consequence is not a fix. **ERRJ = 0.000** -- invisible in
+chain-of-thought, so it can never be audited by reading the judge's own notes.
+
+**MECHANISM CORRECTION.** A prior step credited self-preference / authority anchoring.
+arXiv 2603.04582 refutes it: *"explicitly stating that the action comes from the
+monitor does not by itself induce self-attribution bias."* The mechanism is STAKES.
+
+**Fixed on the rail side:** the prompt states no consequence; `enforceEscalation()`
+computes the threshold at the post-`agent()` seam, pure, returning `escalation`
+ALONGSIDE the verdict and failing closed (null, never 0). Both law-of-the-case
+safeguards implemented caller-side, since `VERDICT_SCHEMA` is
+`additionalProperties:false` and the judge therefore structurally cannot record an
+override.
+
+**MEASURED MID-STEP, and it invalidated a launch: `Workflow({name:...})` runs a
+SESSION-SNAPSHOTTED script.** The first Q/A spawn was executing a copy of
+`qa-verdict.js` predating the day's edits. Enumerated across all three named launches
+this session: **0 of 3 carried either of the day's two fixes**, while the disk file
+carried both. The run was STOPPED before it produced a verdict, and the evaluation was
+relaunched by `scriptPath`. The Q/A then confirmed the relaunch independently -- the new
+marker occurs in **zero of ~100 persisted snapshots** and in the on-disk file. This is
+the "committed is NOT in force" class, and `CLAUDE.md` is incomplete on it.
+
+**The Q/A framed criterion 3 better than I did: the counter is DUPLICATED, not MOVED.**
+`qa.md` -- which the prompt's own binding STEP 0 orders it to read -- still states both
+consequences and the self-count demand, and it was instructed to self-count in that very
+run. Its census REPRODUCED EXACTLY (365/25/16) under an independently written population
+rule, and it corrected my printed recipe: matching must be case-INSENSITIVE, and my
+table printed fuller labels than the literals actually used.
+
+## Cycle 2 -- 2026-08-14 -- phase=86.78 result=CONDITIONAL (criterion 3 escalated)
+
+Its 7-cell battery left **3 survivors**, all now closed and pinned: **QA-F** (spreading
+`escalation` INTO the verdict passed all 37 checks -- "alongside, never merged" was
+prose, not a guard), **QA-C** (a REWORDED consequence tripped none of the four literal
+probes), **QA-D** (`verdict_unmodified` was a hardcoded attestation that would read true
+even if the verdict had changed). Fixes: a runtime throw plus a spread-detecting check;
+a content pin on the withheld-on-purpose block; and a COMPUTED `verdict_unmodified`.
+
+**My first fix for QA-F did not work and the matrix caught it** -- the check asserted
+only that the runtime throw EXISTS, which the mutation leaves untouched. *A check that a
+guard exists is not a check that the property holds.* Two further probes of mine went red
+against a CORRECT subject (a guessed length constant; an anchor at the wrong end of a
+line) and were fixed as probes, not as code.
+
+**43 checks (floor 41), 13/13 cells killed, control GREEN first, subject sha unchanged.**
+
+**NOT FLIPPED.** Criterion 3 cannot be met end-to-end without the operator-gated `qa.md`
+edit removing `:665`/`:685`/`:702`. Escalated alongside 86.79's, as one decision.

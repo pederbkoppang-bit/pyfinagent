@@ -259,3 +259,122 @@ $ python scripts/qa/verify_counter_86_79.py   -> exit 0
    material.** Both fetched legal sources are silent, and the two that would settle it
    returned 403/301. It is attested only in the clinical analogue (the DMC documents
    its recommendation and rationale to the sponsor). Stated rather than upgraded.
+
+---
+
+## §7. MEASURED MID-EVALUATION: the named-workflow rail runs a SESSION-SNAPSHOTTED script
+
+**This was found by checking rather than assuming, and it changes what "live" means
+for every `Workflow({name: ...})` launch.**
+
+The first Q/A spawn for this step was launched as `Workflow({name: 'qa-verdict'})`.
+Before reading its verdict, the launched copy was inspected — and it did **not**
+contain this step's change:
+
+```
+$ S=.../workflows/scripts/qa-verdict-wf_0471dd22-909.js
+$ grep -c 'enforceEscalation' "$S"                                        -> 0
+$ grep -c 'THE CONSEQUENCE OF YOUR VERDICT IS DELIBERATELY NOT STATED HERE' "$S"  -> 0
+$ grep -c 'return FAIL instead of a' "$S"                                 -> 1
+$ grep -c 'recommend operator' "$S"                                       -> 1
+$ grep -c 'State the derived attempt number' "$S"                         -> 1
+```
+
+That run was **stopped** rather than allowed to produce a verdict on a rail that does
+not exist on disk.
+
+**The scope is every named launch this session, not just this one.** Enumerated over
+all three `qa-verdict` scripts the session persisted, oldest first:
+
+| launched script | carries 86.79's fix? | carries 86.78's fix? |
+|---|---|---|
+| `qa-verdict-wf_61338c26-b90.js` (86.79 cycle 1) | **no** | no |
+| `qa-verdict-wf_44776e5d-ca3.js` (86.79 cycle 2) | **no** | no |
+| `qa-verdict-wf_0471dd22-909.js` (86.78, stopped) | **no** | **no** |
+| `.claude/workflows/qa-verdict.js` **on disk** | **yes (1)** | **yes (2)** |
+
+**Conclusion: no edit made to `qa-verdict.js` today has ever been live on the
+`name:`-dispatched rail.** The registration snapshots at session start, exactly as the
+Agent-tool roster does. `scriptPath` does **not** snapshot — relaunching with
+`scriptPath: .claude/workflows/qa-verdict.js` reports that exact path as the script
+file, and that is how the graded run was obtained.
+
+### What this does and does not invalidate
+
+- **It does NOT invalidate 86.79's two verdicts.** Both Q/As verified that step's
+  `qa-verdict.js` change by **reading the file from disk** (grep), which is why the
+  cycle-2 Q/A could correctly report *"its only two surviving `records_retained`
+  mentions (:156, :158) now say it is NOT the attempt number."* Their findings concern
+  file content, not the prompt they were handed.
+- **It DOES bound this step's live-test claim.** Criterion 3's demonstration is valid
+  only for a run launched by `scriptPath`. Until a session restart, a
+  `Workflow({name: 'qa-verdict'})` launch still hands the judge the **old prompt with
+  the consequence in it**.
+- **`CLAUDE.md` is incomplete on this point.** It says the Workflow launch *"has the
+  Q/A read `qa.md` from disk at runtime, so a `qa.md` edit is live immediately on this
+  path; only the Agent-tool roster snapshots at session start."* True for `qa.md` — the
+  agent reads it with a tool call — but **the workflow SCRIPT itself is snapshotted**,
+  and the sentence reads as though nothing on this path is. Queued as a defect rather
+  than edited here, since `CLAUDE.md` is outside this step's scope.
+
+**This is the "committed is NOT in force" class**: the commit is real, the file on disk
+is correct, and the running system was still using the old copy.
+
+---
+
+# CYCLE 2 — the two mutants the cycle-1 Q/A found surviving
+
+Its own battery of 7 cells KILLED 4 and left 3. Two were WARN findings
+(QA-F, QA-C) and one a note (QA-D). **All three are now closed and pinned.**
+
+| its cell | what survived | fix | now |
+|---|---|---|---|
+| **QA-F** | `{...verdict, escalation}` -> `{...verdict, ...escalation}` passed all 37 checks. "Alongside, never merged" was asserted in prose and **nowhere guarded** | a **runtime throw** in the shipped code if any escalation key surfaces top-level, PLUS a checker assertion that detects the spread itself | cell **M11** KILLED |
+| **QA-C** | a **REWORDED** consequence tripped none of the four literal probes | the withheld-on-purpose block is **content-pinned** (normalised length) and the region between the criteria sentence and that block must be **empty** | cell **M12** KILLED |
+| **QA-D** | `verdict_unmodified: true` was a hardcoded attestation that would read true even if the verdict HAD changed | now **COMPUTED** from the keys | cell **M13** KILLED |
+
+**My first fix for QA-F did not work, and the matrix caught it.** The check asserted
+only that the runtime `leaked` throw EXISTS in the source — which the mutation leaves
+untouched — so M11 **SURVIVED** again. *A check that a guard exists is not a check that
+the property holds.* Replaced with a check that detects the spread.
+
+**Two of my new probes were miscalibrated and went red against a CORRECT subject:**
+a guessed `EXPECTED_LEN = 1180` (measured: 886) and a gap anchored at the START of
+the criteria line instead of its end. Both indicted the probe, not the code — verified
+before changing anything.
+
+## §8. Cycle-2 checker output (verbatim)
+
+```
+  checks run : 43   (cardinality floor 41)
+  failed     : 0
+  ALL CHECKS PASS
+
+subject : .claude/workflows/qa-verdict.js  sha256[:16]=7d2942310c695762
+checker : scripts/qa/verify_escalation_86_78.mjs
+
+[CONTROL] unmutated checker -> exit 0
+  ok -- GREEN control established (43 checks)
+
+==========================================================================
+MUTATION MATRIX
+==========================================================================
+  KILLED            M1-THRESHOLD-OFF-BY-ONE            by: 2 prior CONDITIONALs + a third -> ARMED (the loop terminates)
+  KILLED            M2-NO-RESET-ON-PASS                by: a PASS RESETS the run
+  KILLED            M3-FAIL-OPEN-WITH-ZERO             by: sequence not supplied -> null, not 0
+  KILLED            M4-ARM-ON-ANY-VERDICT              by: ...and never on a PASS either (arming a PASS would be a downgrade path)
+  KILLED            M5-NO_VERDICT-RESETS-THE-RUN       by: NO_VERDICT is a dropped ATTEMPT: it neither extends nor resets the run
+  KILLED            M6-BUDGET-FAILS-OPEN               by: no attempt number supplied -> budget_exhausted is null, not false
+  KILLED            M7-BURDEN-SAFEGUARD-REMOVED        by: safeguard 1: the BURDEN is named, and sits on the departing party
+  KILLED            M8-OVERRIDE-DEFAULTS-TO-APPLIED    by: ...and it defaults to null -- an override must be recorded, never implied
+  KILLED            M9-CONSEQUENCE-RESTORED-TO-THE-PROMPT by: rail prompt no longer states the 3rd-CONDITIONAL trigger
+  KILLED            M11-MERGE-ESCALATION-INTO-THE-VERDICT by: escalation is NESTED in the return, not spread into it
+  KILLED            M12-REWORDED-CONSEQUENCE           by: nothing sits between the criteria sentence and the withheld-on-purpose block
+  KILLED            M13-VERDICT-UNMODIFIED-HARDCODED   by: verdict_unmodified is COMPUTED, not a hardcoded attestation
+  KILLED            M10-INPUT-NOT-ECHOED               by: the input is echoed back, so what the caller supplied is auditable
+
+  subject sha256[:16] before=7d2942310c695762 after=7d2942310c695762 -> tracked file UNCHANGED
+  cells: 13   killed: 13   survived/unearned: 0
+
+  ALL CELLS KILLED
+```

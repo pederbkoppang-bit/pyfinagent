@@ -27,7 +27,7 @@ const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '.
 const WORKFLOW = path.join(REPO, '.claude/workflows/qa-verdict.js')
 const QA_MD = path.join(REPO, '.claude/agents/qa.md')
 
-const EXPECTED_CHECKS = 30
+const EXPECTED_CHECKS = 41
 const results = []
 const check = (label, ok, detail = '') => {
   results.push([label, !!ok, detail])
@@ -113,6 +113,57 @@ check('positive control: the EVIDENCE pointer is still there (not a blanket dele
   SRC.includes('verdict_history_86_21.py'))
 check('the rail says explicitly that the consequence is withheld ON PURPOSE',
   SRC.includes('THE CONSEQUENCE OF YOUR VERDICT IS DELIBERATELY NOT STATED HERE'))
+
+// ── cycle-1 Q/A cell QA-C: the four literal-string scans above are defeated by
+// REWORDING. It appended "a further unresolved outcome must close the loop and be
+// raised to the operator" -- no banned literal, same consequence -- and every check
+// passed. No string scan can enumerate all phrasings, so the block is CONTENT-PINNED
+// instead: any edit to the withheld-on-purpose block must be deliberate.
+const BLOCK_START = '// phase-86.78: THE CONSEQUENCE OF YOUR VERDICT IS DELIBERATELY NOT STATED HERE.'
+const BLOCK_END = 'RECOMMENDS, the sponsor DECIDES.'
+const bs = SRC.indexOf(BLOCK_START)
+const be = SRC.indexOf(BLOCK_END)
+check('the withheld-on-purpose block is present and well-formed', bs >= 0 && be > bs)
+const block = bs >= 0 && be > bs ? SRC.slice(bs, be + BLOCK_END.length) : ''
+// Length + a normalised digest. A reworded ADDITION anywhere between the criteria line
+// and the end of that block changes one or both.
+const norm = block.replace(/\s+/g, ' ').trim()
+// MEASURED from the shipped block, not guessed -- the first value here was a guess
+// (1180) and the check went red against a correct subject. A probe constant must be
+// read off the thing it describes.
+const EXPECTED_LEN = 886   // re-derive deliberately if the block is edited on purpose
+check('the block has not silently grown or shrunk (rewording guard)',
+  Math.abs(norm.length - EXPECTED_LEN) <= 40,
+  `normalised length ${norm.length}, expected ~${EXPECTED_LEN}+-40`)
+
+// And the prompt REGION between the criteria sentence and the evidence pointer must not
+// acquire new imperative sentences about outcomes. Rather than banning words, assert the
+// region is exactly the known block: anything inserted lands here.
+const CRIT = "'CONDITIONAL for fixable gaps, FAIL for a criterion miss.',"
+const cIdx = SRC.indexOf(CRIT)
+// Measure from the END of the criteria line, not its start -- the first version of this
+// check included the criteria line itself in the gap and went red against a clean tree.
+const gap = cIdx >= 0 && bs > cIdx ? SRC.slice(cIdx + CRIT.length, bs) : null
+check('nothing sits between the criteria sentence and the withheld-on-purpose block',
+  gap !== null && gap.replace(/[\s',]/g, '') === '',
+  `gap=${JSON.stringify(gap === null ? 'ANCHOR MISSING' : gap.slice(0, 120))}`)
+
+// ── cycle-1 Q/A cell QA-F: "escalation alongside, never merged" was asserted in prose
+// and nowhere guarded; flattening it survived all 37 checks. Now enforced at runtime.
+// THE DETECTION, not just the presence of a guard. The first version of this check
+// asserted only that the runtime `leaked` throw EXISTS in the source -- and cell M11
+// (spread escalation into the verdict) left that throw untouched, so it SURVIVED. A
+// check that the guard exists is not a check that the property holds.
+check('escalation is NESTED in the return, not spread into it',
+  SRC.includes('const merged = { ...verdict, escalation }')
+  && !/\{[^}]*\.\.\.escalation/.test(SRC),
+  'the mutation that flattens it must not survive')
+check('...and the shipped code ALSO throws at runtime (defence in depth)',
+  SRC.includes('const leaked = Object.keys(escalation).filter')
+  && /if \(leaked\.length > 0\) \{\s*\n\s*throw new Error/.test(SRC))
+check('verdict_unmodified is COMPUTED, not a hardcoded attestation',
+  SRC.includes('const untouched = Object.keys(verdict).every(')
+  && !SRC.includes('verdict_unmodified: true }'))
 
 // The other half of the exposure -- measured, not assumed, and NOT claimed fixed.
 const QA = fs.readFileSync(QA_MD, 'utf8')
