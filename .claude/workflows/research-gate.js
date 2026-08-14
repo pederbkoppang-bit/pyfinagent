@@ -662,21 +662,28 @@ if (tierUnsupported) {
 // and never a verdict.
 // ── 2026-08-14: RETRY A STOCHASTIC StructuredOutput DROP ────────────────────
 // Full derivation of the measurement lives in the twin comment in
-// `.claude/workflows/qa-verdict.js`; the headline is that across 562 recorded
-// runs the drop rate splits by MODEL (opus-4-8 0/73, fable-5 3.0%,
-// opus-5[1m] 21.8% carrying 76 of all 80 drops), and that the mechanism is
-// UNPROVEN -- size, wall-clock, effort and the documented preamble-suppression
-// trigger were each tested and refuted.
+// `.claude/workflows/qa-verdict.js`. The headline, classified from the run
+// record's `error` field alone: across 565 recorded runs the drop rate splits by
+// MODEL -- opus-4-8[1m] 0/73 = 0.0%, fable-5 4/135 = 3.0%, opus-5[1m]
+// 40/351 = 11.4% -- and the mechanism is UNPROVEN: size, wall-clock, effort and
+// the documented preamble-suppression trigger were each tested and refuted.
 //
-// CORRECTED 2026-08-14, same day: an earlier revision of this comment claimed
-// this gate was "the worst-hit caller" at 53.4% versus qa-verdict's 14.3%, and
-// justified maxAttempts=3 by that gap. THAT WAS A MEASUREMENT ARTEFACT. The
-// first probe matched the error string anywhere in the run record -- and the
-// record embeds this file's SOURCE, which quotes the string in the 86.37
-// comment block above. research-gate quoted it more than qa-verdict did, so
-// research-gate looked worse. Classified from the `error` field alone the two
-// are indistinguishable: research-gate 6/73 = 8.2%, qa-verdict 34/367 = 9.3%.
-// There is no 4x amplification and nothing here to explain.
+// A NOTE ON WHY THE FIGURES IN THIS BLOCK MOVED (phase-86.81). An earlier
+// revision claimed this gate was "the worst-hit caller" and justified
+// maxAttempts=3 by that gap. THAT WAS A MEASUREMENT ARTEFACT: the first probe
+// matched the error string anywhere in the run record -- and the record embeds
+// this file's SOURCE, which quotes the string in the 86.37 comment block above.
+// research-gate quoted it more often than qa-verdict did, so research-gate
+// looked worse. Classified from the `error` field alone the two are
+// indistinguishable: research-gate 6/74 = 8.1%, qa-verdict 35/368 = 9.5%.
+// There is no per-workflow amplification and nothing here to explain.
+//
+// The retracted numbers are deliberately NOT restated here. `qa-verdict.js`
+// carries the single retraction notice that names them, so a reader who meets a
+// stale figure elsewhere can identify it; repeating them in a second file is how
+// a correction turns back into a source. Prefer the re-runnable reader
+// `python3 scripts/qa/rail_drop_rate.py` to any number pasted in a comment,
+// including these.
 //
 // maxAttempts stays 3 rather than the qa default of 2, but on a DIFFERENT and
 // weaker rationale, stated honestly: a dropped research gate is the more

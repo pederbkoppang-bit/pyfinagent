@@ -306,9 +306,26 @@ Agent-tool path. The Q/A returns a verdict and STOPS; it never loops
 fix→re-grade internally (Main owns the fix + spawns a FRESH Q/A on
 changed evidence — the cycle-2 flow below). Single-Q/A-per-step and the
 exactly-3-agents doctrine are unchanged: the Workflow path is a launch
-mechanism, not a fourth agent. The Workflow launch has the Q/A **read
-`qa.md` from disk at runtime**, so a `qa.md` edit is live immediately on
-this path; only the Agent-tool roster snapshots at session start.
+mechanism, not a fourth agent. **LAUNCH BY `scriptPath`, NOT BY `name`
+(corrected phase-86.81 -- this paragraph previously said the opposite and
+it was measured false).** `Workflow({name: 'qa-verdict'})` dispatches a
+**session snapshot** of the script, not the file on disk: measured
+2026-08-14, three named dispatches launching 07:37:05Z / 08:11:45Z /
+09:04:38Z all carried a byte-identical 18,321-char script from a commit
+made at 00:28:27Z — **up to 8h36m stale, across two intervening commits**,
+so a whole day's edits looked live and were not.
+`Workflow({scriptPath: '.claude/workflows/qa-verdict.js'})` does deliver
+the current file at dispatch, confirmed three ways (an 88-second pickup of
+a fresh commit, a 102-second pickup of another, and a 62-second A/B where
+the named launch took 18,321 chars and a scriptPath launch a minute later
+took 22,961). Two things snapshot and they are **not** the same thing: the
+SCRIPT (fixed by using `scriptPath`) and the AGENT DEFINITION. The Workflow
+launch has the Q/A **read `qa.md` from disk at runtime**, so an **addition**
+to `qa.md` is live immediately on this path — but `agentType:'qa'` also
+supplies `qa.md` as the **system prompt**, which IS snapshotted at session
+start, so a runtime read can only ADD text and never RETRACT it. **A
+DELETION from `qa.md` still requires a session restart on this path**, and
+`scripts/qa/verify_qa_roster_live.sh` is how you check.
 
 **If `ok: false` / verdict is CONDITIONAL or FAIL — the canonical
 cycle-2 flow (per Anthropic's

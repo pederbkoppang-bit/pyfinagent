@@ -10,9 +10,32 @@ export const meta = {
 // Main transcribes it VERBATIM into handoff/current/evaluator_critique.md.
 // NEVER auto-PASS on an errored/empty return -- that is NO VERDICT, so Main
 // falls back to the Agent-tool `qa` subagent path (never PASS on error).
-// The Q/A agent reads .claude/agents/qa.md from disk => any qa.md edit is live
-// immediately on THIS path (no roster snapshot; the snapshot caveat binds only
-// the Agent-tool `qa` type). Keep the agent on model:'opus' (rider-trap R4:
+// TWO DIFFERENT THINGS SNAPSHOT HERE, AND THIS COMMENT USED TO CONFLATE THEM
+// (corrected phase-86.81). It read: "any qa.md edit is live immediately on THIS
+// path (no roster snapshot; the snapshot caveat binds only the Agent-tool `qa`
+// type)". Both halves need qualifying, and the second was measured false.
+//
+//  1. THE SCRIPT. `Workflow({name:'qa-verdict'})` dispatches a SESSION SNAPSHOT
+//     of this file, not the file on disk. MEASURED 2026-08-14: three named
+//     dispatches in one session, launching 07:37:05Z / 08:11:45Z / 09:04:38Z,
+//     all carried a byte-identical 18,321-char script matching a commit from
+//     00:28:27Z -- up to 8h36m stale, across two intervening commits.
+//     `Workflow({scriptPath})` does NOT have this problem: it delivers the
+//     on-disk file at dispatch, confirmed three ways -- an 88-second pickup of a
+//     fresh commit, a 102-second pickup of another, and a 62-second A/B in which
+//     a NAME dispatch took 18,321 chars while a scriptPath dispatch one minute
+//     later took 22,961. **So launch by scriptPath whenever the file may have
+//     changed this session.** A named launch of a file you just edited runs the
+//     old code and reports success.
+//  2. THE AGENT DEFINITION. The prompt below tells the agent to read
+//     `.claude/agents/qa.md` at runtime, so an ADDITION to qa.md is visible on
+//     this path without a restart. A DELETION is not: `agentType:'qa'` also
+//     supplies qa.md as the SYSTEM PROMPT, and that IS snapshotted at session
+//     start, so a runtime read can only ever ADD text to what the agent already
+//     carries -- it can never retract it. Removing a directive still requires a
+//     session restart, on this path as much as on the Agent-tool one.
+//
+// Keep the agent on model:'opus' (rider-trap R4:
 // the stall is model-agnostic; routing off Opus also violates the effort/model
 // policy). Do NOT loop fix->re-grade internally (rider-trap R1): return a
 // verdict and STOP; Main owns the fix and spawns a FRESH Q/A on changed
@@ -383,11 +406,21 @@ function enforceEscalation(verdict, sequence, opts = {}) {
 // is an association, not a dose-response.
 //
 // WHY A RETRY IS NONETHELESS CORRECT, AND NOT A GUESS: the failure is
-// STOCHASTIC, and that is measured rather than assumed -- the identical script
-// dropped 39 times and completed 34 times. Retry effectiveness follows from the
-// independence, not from any theory of the cause: 14.3% -> ~2.0% at one retry.
-// Cost is bounded to the failing subset; today a drop costs the whole run AND a
-// manual re-drive.
+// STOCHASTIC, and that is measured rather than assumed. Grouping runs by sha1 of
+// the embedded `script`, EIGHT distinct byte-identical script versions produced
+// BOTH outcomes; the largest dropped 17 times and completed 179. Same bytes,
+// same caller, both results -- so a second attempt is asking a question that can
+// come back differently. Cost is bounded to the failing subset; a drop otherwise
+// costs the whole run AND a manual re-drive.
+//
+// NO EFFECTIVENESS FIGURE IS STATED HERE, AND THAT IS DELIBERATE (phase-86.81).
+// The obvious `p -> p^2` arithmetic assumes attempts are independent, and
+// ReliabilityBench (arXiv 2601.06112) refutes that assumption in BOTH directions:
+// Gemini 2.0 Flash measures pass^2 = 91.04% where independence predicts 93.86%,
+// while GPT-4o lands essentially AT independence. So a squared figure is an UPPER
+// BOUND on the benefit, never a forecast. The only honest number is a measured
+// conditional rate P(drop on attempt 2 | drop on attempt 1), which needs real
+// second attempts on real drops -- of which this repo has, so far, zero.
 //
 // DO NOT "SIMPLIFY" THIS TO A MODEL PIN. Pinning to claude-opus-4-8 would also
 // take the rate to ~0, and was explicitly REJECTED by the operator on

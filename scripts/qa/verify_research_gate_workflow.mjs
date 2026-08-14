@@ -494,9 +494,14 @@ console.log('\n[6d] phase-86.28 cycle 3 -- BEHAVIOURAL: does the driver actually
       dropped ? `gate_passed=${JSON.stringify(dropped.gate_passed)} violations=${JSON.stringify(dropped.violations)}` : 'no result')
     // ── 2026-08-14: THE RETRY ITSELF MUST BE GUARDED ────────────────────────
     // The stage-1 retry was added because the StructuredOutput drop is
-    // STOCHASTIC (measured: the identical script dropped 39 and completed 34
-    // times, and the rate splits by model -- opus-4-8 0/73 vs opus-5[1m]
-    // 21.8%). Without this cell, deleting the retry loop leaves the suite fully
+    // STOCHASTIC (measured over 565 run records, classified from the `error`
+    // field alone: eight byte-identical script versions produced BOTH outcomes,
+    // the largest dropping 17 and completing 179; and the rate splits by model --
+    // opus-4-8[1m] 0/73 vs opus-5[1m] 40/351 = 11.4%). Earlier revisions of this
+    // comment carried figures from a probe that matched its own source text; see
+    // the retraction notice in `.claude/workflows/qa-verdict.js`, and prefer
+    // `python3 scripts/qa/rail_drop_rate.py` to any number pasted in a comment.
+    // Without this cell, deleting the retry loop leaves the suite fully
     // green: every other drop cell simulates EXHAUSTION, which behaves
     // identically with or without a retry. This is the only cell that fails if
     // the retry is removed, so it is what makes the fix mutation-resistant.

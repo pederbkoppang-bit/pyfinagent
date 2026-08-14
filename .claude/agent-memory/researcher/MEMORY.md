@@ -1,5 +1,6 @@
 # Researcher Agent Memory Index
 
+- [Retry never ran 86.81](project_retry_never_ran_86_81.md) — a run record's `script` field embeds the DISPATCHED source; the fix was absent from 18/18 runs
 - [Risk-gate veto 86.74](project_risk_gate_veto_86_74.md) — `or 10.0` at FOUR sites, fix guards ONE; "fail-safe" flag
 - [Stakes framing 86.78](project_stakes_framing_86_78.md) — reward framing no safer; schema additionalProperties:false
 - [Counter correctness 86.79](project_counter_correctness_86_79.md) — prune has ZERO auto-callers; 3 off-by-ones; 86.32 sits ON the

@@ -34723,3 +34723,80 @@ REPRODUCES.
 **Session outcome: 0 steps closed, 0 verdicts issued by Main, version unchanged at
 v6.93.222.** Ending deliberately so the restart makes the qa.md scrub live -- which is
 the only way 86.78 can be graded honestly.
+
+---
+
+## Cycle 1 -- 2026-08-14 -- phase=86.81 result=PASS
+
+**Step:** the StructuredOutput drop retry had never once executed, and the metric built
+to measure it counted its own source code. P1. $0 (Max rail).
+
+**Research gate:** cycle 1 FAILED on one enforced over-claim (`urls_collected=26` vs 25
+distinct URLs in the brief) and was **re-run, not overridden** -- `wf_e03da94d-d14`,
+gate_passed, 12 checks, 6 sources read in full, 30 URLs, brief COMPLETE at 43,262 chars.
+
+**The finding.** Commit `6b4df8f9` (2026-08-14T10:15:17Z) shipped `agentRetryingDrops`
+and both research-gate stage retry loops. Measured across all 566 run records, using the
+`script` field each record embeds: `agentRetryingDrops` appears in **0** dispatched
+scripts, and **zero qa-verdict runs had launched since the fix**. It parsed, it had no
+checker, and nothing else was known about it. Meanwhile `rail_drop_rate.py:62` counted
+retries with `blob.count(...)` over the whole record -- and the record embeds the
+workflow source, which contains that literal once, in the log call itself. On a 3-run
+fixture with ground truth `retried=1, exhausted=0` the shipped reader reported **4 / 1**;
+the Q/A reproduced the same failure on the REAL population at **retried=5 vs 1**. The
+same self-match had already produced 38 phantom drops out of 81 and was corrected in
+`f88f8190` -- **in the `exhausted` predicate only**, one seam short.
+
+**The proof, which is what the operator asked for.** The retry now fires on the real
+rail: run `wf_9f387ad8-b5c` carries
+`logs=['qa-verdict: StructuredOutput DROP on attempt 1/2 -- retrying']`, `agentCount=2`,
+one transcript with no `StructuredOutput` call and one with it, `status=completed`. The
+fault was injected by instruction (a marker file the agent flips before ending its turn
+without emitting) and **trigger-verified four ways**, per AgentChaos: unfaulted runs are
+filtered, not scored. The **first** live attempt was INVALID -- the agent complied instead
+of dropping -- and is reported in full rather than discarded. `verify_rail_retry.mjs`
+drives the REAL function byte-for-byte out of the shipped file: 38 checks green.
+`mutation_matrix_86_81.mjs`: 6/6 killed, control GREEN first, subject sha256 unchanged.
+
+**Two timing errors, same class, both corrected mid-cycle.** I compared a local-time
+commit stamp (+0200) against UTC run timestamps; the research gate then read the record's
+`timestamp` (COMPLETION) as the launch instant. Re-measured from `startTime`, both drops
+STARTED ~5 min BEFORE the fix existed, and `scriptPath` picked up a fresh commit in 102 s.
+The two fields can disagree on ORDER -- the drop that ended later started earlier.
+
+**Reachability settled by measurement, and it inverts the docs.** `Workflow({name})`
+dispatches a SESSION SNAPSHOT: three named dispatches all carried a byte-identical
+18,321-char script from a commit 8h36m older, across two intervening commits.
+`Workflow({scriptPath})` delivers the on-disk file at dispatch -- 88 s and 102 s pickups
+plus a 62-second A/B. `CLAUDE.md` and `qa-verdict.js` said the opposite and were corrected;
+the SCRIPT snapshot (fixed by `scriptPath`) and the AGENT-DEFINITION snapshot (a `qa.md`
+DELETION still needs a restart) are now stated as the two separate things they are.
+
+**Defect found by the retracted-figure sweep.** Commit `f237bb8d`, whose subject is
+"stop a stray workflow test-copy from being committable", **committed the file it meant to
+exclude** -- `git add -A` staged it in the same commit, and a `.gitignore` rule cannot
+affect an already-tracked path. It carried `name: 'qa-verdict'` (a duplicate registered
+name in the dispatch directory) plus all three retracted figures. Untracked with
+`git rm --cached`; left on disk as a peer session's working file.
+
+**Scope honesty -- what this does NOT establish.** No effectiveness rate is claimed and
+none can be: ReliabilityBench refutes retry independence in BOTH directions, so every
+`p^2` figure is an upper bound, never a forecast, and this repo has ZERO real second
+attempts on real drops. Proving the mechanism fires is MAS-FIRE's `L_f`, not `S_f`.
+The cause of the drop remains UNPROVEN and deliberately out of scope. Exhausted-run
+blindness is DISCLOSED, not fixed: `logs` is empty on 44/44 dropped runs, so a lost run's
+attempts are unobservable and the reader now says so instead of printing a zero it cannot
+see. The live drop was INJECTED, not sampled from the wild.
+
+**Q/A:** PASS, 9/9 criteria, `harness_compliance_ok: true`, first spawn, no prior
+verdicts. It re-ran two mutation cells itself, recomputed the sha256 of the shipped retry
+span against the live run's stamp, and verified the run record on disk rather than taking
+Main's quote. One NON-BLOCKING condition -- a peer session's 6 unrelated files in the tree
+would have been swept up by the auto-commit hook's `git add -A` -- **cleared**: the flip
+was made without firing the hook and the commit used an explicit pathspec.
+
+**Queued, not fixed here:** nested retry amplification (the runtime already retries stalled
+agents 1/5 and this multiplies on top -- up to 10 attempts at ~185K tokens each, against
+Google SRE's explicit warning); the duplicate `qa-verdict` name still on disk; and
+`research-gate.js`'s "10.3% on the low-effort Explore path" comment, which does not
+reproduce (measured 0/377 by agentType, confound stated).
