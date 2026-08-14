@@ -86,22 +86,58 @@ the Q/A's CONDITIONAL had it. I caught this by running the attack I had asked th
 evaluator to run, *after* committing and pushing the wrong claim -- so the
 correction is recorded here rather than the claim being silently removed.
 
-## 3. Post-fix persisted-verdict share vs the 0-of-129 baseline -- **NOT SATISFIED**
+## 3. Post-fix persisted-verdict share vs the 0-of-129 baseline -- **SATISFIED 2026-08-14**
+
+*(This section previously read "NOT SATISFIED -- cannot be measured yet". That was
+true when written and is now false; it is REPLACED rather than annotated, because a
+correction that merely accompanies the old text leaves two live claims in one file.)*
 
 **Baseline, reproduced exactly** (`total_rows=129, decision=0, risk_level=0,
 pct=0`, 2026-07-20..2026-08-13) with the query in `experiment_results_86.74.md` §C4.
 
-**The post-fix share cannot be measured yet.** It requires an autonomous cycle to
-run with the new code, and:
+**The blocker cleared without a manual cycle and without a restart.** The claim in
+the old text -- that the running process held the pre-fix module -- was true of
+`pid 27945`, but that process is gone. Measured, not inferred:
 
-- backend restarts are **batched to session end** (standing operator instruction);
-- the running process (`pid 27945`, started 2026-08-14 13:30:35 CEST) still holds
-  the **pre-fix** module -- committed is not in force;
-- fabricating or estimating a share would be inventing a measurement.
+| fact | value | source |
+|---|---|---|
+| C4 fix committed | **2026-08-14T14:36:20Z** | `git log -1 --format=%cI -S risk_judge_decision -- backend/services/autonomous_loop.py` (9d14291e) |
+| running backend started | **2026-08-14T15:52:08Z** (pid 85562) | `ps -o pid,lstart -p 85562` |
+| scheduled cycle | started **18:00:00Z**, completed **19:33:13Z**, 0 trades | `handoff/cycle_history.jsonl` (cycle `68925781`) |
 
-The write is proven at the **unit seam** (`TestVerdictIsPersistedPerTicker`, and
-mutation **M3** deleting the write turns it red), **not in BigQuery**. This item
-is therefore **open**, and the step should not be read as having demonstrated it.
+The process started **76 minutes after** the fix landed, so the 18:00Z cycle
+executed post-fix code. **No cycle was triggered manually** -- this is the ordinary
+scheduled run.
+
+**THE MEASUREMENT, with the row count beside the share:**
+
+```
+BASELINE 2026-07-20..2026-08-13 : total_rows=129  decision=0  risk_level=0  pct=0   ->   0 of 129 (0%)
+POST-FIX 2026-08-14             : total_rows=  6  decision=6  risk_level=6  pct=6   ->   6 of 6 (100%)
+```
+
+Per-ticker, all six from inside the cycle window:
+
+| ticker | `risk_judge_decision` | `pct` | `analysis_date` |
+|---|---|---:|---|
+| PANW | REJECT | 0 | 18:35:23Z |
+| WDAY | REJECT | 0 | 18:36:27Z |
+| HPE | REJECT | 0 | 18:37:54Z |
+| STX | APPROVE_REDUCED | 2 | 19:02:32Z |
+| MRVL | REJECT | 0 | 19:04:26Z |
+| NTAP | APPROVE_REDUCED | 2 | 19:32:26Z |
+
+**Why this is not a vacuous green.** The column is not populated with one constant:
+two distinct decisions (`REJECT`, `APPROVE_REDUCED`) and two distinct pcts (0, 2)
+appear, so the write is carrying real per-ticker verdict content rather than a
+literal. The 0%/REJECT rows are also the shape that the C7 inversion check reads,
+so the same write feeds the gate this step exists to protect.
+
+**WHAT IS NOT CLAIMED.** n = **6 rows, one cycle**. This demonstrates the write
+path now populates all three columns on the autonomous rail; it is **not** a
+stability claim over time, and a single cycle cannot be one. The unit-seam proof
+(`TestVerdictIsPersistedPerTicker`, mutation **M3** turning it red) still carries
+the regression guard; BigQuery now corroborates it end-to-end.
 
 ---
 
@@ -167,6 +203,46 @@ is **accumulating**:
 a persistence defect in its own right. It is *why* C7 is permanently unclosable by
 measurement, and because it is still firing, **C7's undetermined set grows**. Queued
 as its own step (`queued_defects_from_86.74.md` D5) rather than fixed here.
+
+### 2g. The 19/14/0 split INDEPENDENTLY RE-DERIVED (2026-08-14, later session)
+
+The split above was, on its own admission, single-authored. It has now been
+re-derived from the stated enumeration rule by a **query written from scratch**,
+not by re-running the original SQL, with the instrument controlled first.
+
+**Instrument control, run BEFORE the classification** (the failure mode 2d records):
+
+```
+DELL 2026-08-13   judge.decision = 'REJECT'
+  JSON_VALUE(full_report_json,'$.final_synthesis') IS NULL  -> TRUE    <- FALSE POSITIVE
+  JSON_QUERY(full_report_json,'$.final_synthesis') IS NULL  -> FALSE   <- correct
+```
+
+`JSON_QUERY` is therefore the only instrument used below.
+
+**Result -- every bucket reproduces exactly:**
+
+| bucket | n |
+|---|---:|
+| `INVERSION` (REJECT or 0% yet a BUY executed) | **1** (DELL, and only DELL) |
+| `PERMITTED` (verdict allowed the buy) | **0** (bucket empty) |
+| `UNDET_truncated_no_final_synthesis` | **19** |
+| `UNDET_no_row_within_2s` | **14** |
+| `UNDET_fs_present_but_no_risk_assessment` | **0** (bucket empty) |
+
+**Completeness check, which is what makes the zeros meaningful:**
+1 + 0 + 19 + 14 + 0 = **34** = the full `UPPER(action)='BUY'` population. Because the
+buckets sum to the population, no row is unclassified **and no BUY fanned out to two
+`analysis_results` rows** -- a join fan-out would have pushed the total above 34.
+The two empty buckets are therefore measured zeros, not absent categories.
+
+**WHAT THIS DOES AND DOES NOT SETTLE.** It settles that the numbers are
+reproducible from the enumeration rule by an independently written query, which is
+what "the split is mine alone" was flagging. It does **not** make C7 closable: the
+33 remain unrecoverable for the two persistence reasons already recorded, and 2e's
+truncation defect is still firing (D5). **C7 stays PARTIAL.** Independent
+*third-party* confirmation is a Q/A's job, not a second derivation by the same
+author -- that limit is stated here rather than papered over.
 
 ### 2f. The in-system precedent for 2c's reasoning
 
