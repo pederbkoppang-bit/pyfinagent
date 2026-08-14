@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-14 | `948e6e93` | phase-86.64: ESCALATE after 3 attempts -- criterion 2 failed three times, each smaller than the last |
 | 2026-08-14 | `10e6135f` | phase-86.64: FAIL on attempt 3 -- criterion 2 missed members the PRIOR VERDICT had named in writing |
 | 2026-08-14 | `e37c51f8` | docs: day report part 3 -- the evaluate loop ran and caught me four more times |
 | 2026-08-14 | `363175e1` | phase-86.64 cycle-3: I claimed I had corrected settings.json and I had not |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-14 | `30b1b08a` | phase-86.64: the guard is a CONVENTION CHECK, not a boundary -- corrected in both places, with zero  |
 | 2026-08-14 | `06c3265f` | phase-86.68: experiment_results + live_check -- the shipped rule VERIFIED by replay |
 | 2026-08-14 | `8ce3ed73` | phase-86.59: research gate RE-RUN PASSED -- and it changes the fix |
-| 2026-08-14 | `b0eebea2` | docs: regenerate the goal -- 86.76 is the new P1, the picker is closed by Q1's answer |
 
 ---
 
