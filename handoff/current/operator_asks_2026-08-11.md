@@ -1,5 +1,23 @@
 # Operator asks -- 2026-08-11 (session `pyfinagent-51`)
 
+> ## ✅ ANSWERED 2026-08-14 -- asks `06-2` / `51-4` (and `#20`) are CLOSED
+>
+> The operator revoked the credential at `claude.ai/settings/claude-code` and
+> re-authenticated. **The revocation was then CONFIRMED BY DIRECT PROBE, not taken on
+> report** -- the leaked value, including the 108-char reconstruction rejoined across
+> the newline, returns **401** while the operator's live credential returns **400** on
+> the same endpoint in the same minute. Evidence:
+> `handoff/current/INCIDENT_2026-08-14_credential_exposure.md` §9.
+>
+> **`06-2`, `51-4` and `#20` were always ONE credential and are now ONE closure.** Per
+> the disambiguation below, `51-4` was never a separate decision.
+>
+> **⚠ The rotation instruction recorded across these files was WRONG** and is corrected
+> in the incident record: `claude setup-token` is **mint-only** and `claude /login`
+> refreshes a *different* credential -- neither revokes. Revocation is the
+> `claude.ai/settings/claude-code` web UI only; there is no CLI revoke
+> (anthropics/claude-code#57400, closed as not planned).
+
 > ## READ FIRST -- THE ASK NUMBERS COLLIDE ACROSS TWO SESSIONS
 >
 > Two sessions worked this repo today and numbered asks independently, so a bare

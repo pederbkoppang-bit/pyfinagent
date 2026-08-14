@@ -2,8 +2,13 @@
 
 **Opened:** 2026-08-14 ~10:30 CEST
 **Severity:** HIGH — a live credential on a public GitHub remote for six days
-**Status:** **OPEN. Operator action required. NOTHING has been remediated.**
-**Relates to:** operator ask **06-2** (credential rotation), masterplan step **86.67**
+**Status:** **CLOSED 2026-08-14 — operator revoked; revocation CONFIRMED BY MEASUREMENT, not by report.**
+**Relates to:** operator ask **06-2** (credential rotation) — **CLOSED**; ask **#20**
+(malformed token re-issue) — **CLOSED**; masterplan step **86.67**
+
+> **Closure evidence is in §9. The operator's "I revoked it" was NOT taken as proof** —
+> anthropics/claude-code#43801 reports claude.ai revokes that did not invalidate the
+> OAuth token, so the credential was probed directly.
 
 > **NO TOKEN VALUE APPEARS IN THIS FILE.** Only the `sk-ant-oat01` prefix, which
 > establishes the shape without disclosing the secret. Do not paste the value into any
@@ -262,17 +267,36 @@ is now much smaller: look outside the repo.
 The guard now reports `CLEAN -- no tracked file carries real credential material`,
 exit 0. It read exit 1 before step 3.
 
-### ⚠ ROTATION IS STILL REQUIRED AND STILL UNPERFORMED
+### ~~⚠ ROTATION IS STILL REQUIRED AND STILL UNPERFORMED~~ — **DONE 2026-08-14, see §9**
 
-**Step 3 reduces DISCOVERABILITY. It does not revoke.** The token remains:
+**Step 3 reduces DISCOVERABILITY. It does not revoke.** The token remained:
 
 - in **git history** on `origin/main`;
 - on the **fork**, which history rewriting cannot reach;
 - **valid** until rotated.
 
-**Rotation is the only action that revokes**, and it is the operator's:
-`claude /login`, or `claude setup-token` for a 1-year credential, on the host.
-Asks **06-2** and **#20** are this same credential — one fix closes both.
+**Rotation is the only action that revokes**, and it was the operator's. Asks
+**06-2** and **#20** are this same credential — one fix closed both. **§9 records the
+revocation and the measurement that confirms it.**
+
+**⚠ CORRECTION — the rotation instructions in this file were WRONG, and the same
+wrong instruction is in the goal file.** Both said rotation is *"`claude /login`, or
+`claude setup-token` for a 1-year credential"*. **Neither of those revokes anything:**
+
+- **`claude setup-token` is MINT-ONLY.** It issues a *new* one-year token and leaves
+  every prior token valid for its full year. The official docs
+  (`code.claude.com/docs/en/authentication` → *Generate a long-lived token*) describe
+  minting and say nothing about revocation.
+- **`claude /login` refreshes a DIFFERENT credential** — the subscription OAuth
+  credential in the macOS Keychain. It does not touch a `setup-token`-minted token.
+- **There is no CLI revoke.** `claude setup-token` accepts no flags;
+  anthropics/claude-code#57400 (*revoke token generated using `setup-token`*) was
+  **closed as not planned**, and #48373 (`--list`/`--revoke`) closed as duplicate.
+
+**The only real revocation path is the web UI:** `claude.ai/settings/claude-code` →
+*Manage your authorization tokens* → revoke each entry (there is no bulk revoke;
+anthropics/claude-code#59378 requests one). **Following this file's original
+instruction would have produced a fresh token and left the leaked one live.**
 
 ### Scope, re-derived rather than inherited
 
@@ -282,3 +306,100 @@ flags 45 files; 40 are test fixtures, briefs *about* this incident, and pattern 
 `research_brief_86.67.md` looked like a sixth: a 26-char match that genuinely IS a
 substring of the live token. It is `sk-ant-oat01-` **twice** — the token is doubled —
 with the body already redacted. **No secret material.**
+
+---
+
+## 9. CLOSURE (2026-08-14) — revoked by the operator, and CONFIRMED BY PROBE
+
+The operator revoked the tokens at `claude.ai/settings/claude-code` and re-authenticated
+with `/login`. **That report was not treated as evidence.** anthropics/claude-code#43801
+documents claude.ai revocations that left the OAuth token functional, so the credential
+was probed directly against `api.anthropic.com/v1/messages`.
+
+### 9a. The measurement
+
+| candidate | length | status | verdict |
+|---|---:|---:|---|
+| **negative control** — synthetic invalid token | 93 | **401** | dead (probe *can* say dead) |
+| **positive control** — operator's live Keychain credential | 108 | **400** | **LIVE** (probe *can* say live) |
+| leaked blob, as a line-bounded regex sees it | 92 | 401 | dead |
+| leaked blob, from 2nd prefix | 79 | 401 | dead |
+| **newline-rejoined, from 2nd prefix — THE credential** | **108** | **401** | **dead** |
+| newline-rejoined, whole value | 121 | 401 | dead |
+
+**Zero tokens were spent.** Every probe sent a deliberately invalid body (`model: ""`,
+`messages: []`). Auth is evaluated before the body, so a live credential returns **400**
+(auth passed, body rejected, nothing billed) and a dead one returns **401**. The standing
+`$0 metered` constraint is intact.
+
+**The token value never entered argv.** `handoff/audit/pre_tool_use_audit.jsonl` is
+tracked and pushed — a credential in a shell command would have re-published the very
+secret this incident is about. It was read via `git show` into process memory only, and
+the server's reply was scrubbed of it before printing, because **the original leak vector
+was an error message echoing the Authorization header verbatim**.
+
+### 9b. Why the FIRST "dead" answer was not accepted
+
+The first probe returned 401 and I did not act on it. **The negative control and the
+result coincided** — fake→401, leaked→401 — which proves only that the probe can emit
+401, not that it can distinguish. Had `sk-ant-oat01` credentials simply been unacceptable
+on that endpoint, *every* token would 401 and "DEAD" would be manufactured out of nothing.
+The **positive control settles it**: a genuinely live credential returns **400** on the
+same endpoint in the same minute. *(Re-run after the operator's `/login` so the control
+credential was current, not the pre-revocation one.)*
+
+### 9c. Why the 92-char answer was not accepted either — the arithmetic
+
+A live token is **108** chars. Every early candidate was **≤92**, so none of them could
+have been a whole token; 92 is a token **cut in half by the newline it wraps across** —
+false-clean #2 in §2, *"matched 92 of its characters and left 29 behind"*. The remainder
+points straight at the real value:
+
+```
+ 13 chars   stray "sk-ant-oat01-"   (the double-paste artifact)
++ 79 chars   rest of seg1, itself starting with the prefix
++ 29 chars   the continuation AFTER the newline
+-----------
+ 121 chars   measured joined length   ->   121 - 13 = 108 == canonical length, exactly
+```
+
+**This reconstruction is what an attacker builds** — it requires only deleting a line
+break from a public file. It is the candidate that had to be dead, and it is: **401**.
+Ask #20's reconstruction is confirmed independently by this arithmetic.
+
+### 9d. Blast radius — nothing on this host depended on the leaked token
+
+Re-derived rather than inherited, because **ask #20's claim is now STALE**: it recorded
+`com.pyfinagent.away-watchdog.plist` as holding the byte-identical value. It no longer does.
+
+```
+com.pyfinagent.*.plist carrying CLAUDE_CODE_OAUTH_TOKEN : 0 of 12
+  (positive control: 12 plists found, 9 have EnvironmentVariables, keys enumerated)
+~/.zshrc, .zprofile, .zshenv, .profile, .bash_profile   : 0 hits
+away-ops jobs authenticate via                          : $CLAUDE_BIN -p + HOME -> Keychain
+```
+
+So revocation could not break the scheduled jobs, the away-ops rail, or the backend —
+none of them read that variable. **No re-mint is required**; `setup-token` was
+deliberately NOT run, since nothing consumes `CLAUDE_CODE_OAUTH_TOKEN`.
+
+### 9e. What is closed, and what is NOT
+
+**CLOSED:** ask **06-2** (rotation) and ask **#20** (malformed token re-issue) — one
+credential, one fix, both discharged. The exposure is over: the published value yields
+no live credential under any reconstruction tested.
+
+**NOT closed, and deliberately out of scope here:**
+
+- **Git history still contains the dead string** on `origin/main` and on the fork.
+  Now cosmetic — it is a revoked credential — and history rewriting remains
+  operator-gated under 86.67 criterion 4.
+- **§5 item 3 — why the leak stopped after 08-10 — remains UNEXPLAINED.** Neither
+  14-hour bracket contains a producer change, so the cause is outside git. The producer
+  is now redacted at source (`cd9774e3`), so this is a curiosity rather than a risk.
+- **Probes are scratch-only**, not committed: they exist to read a credential out of git
+  history, which is not a capability that belongs in the tracked tree.
+
+**Reproduction:** the three probe scripts are in this session's scratchpad
+(`probe_token_liveness.py`, `probe_substrings.py`, `probe_joined.py`). To re-verify later,
+re-derive them — the method is fully specified in §9a–9c.
