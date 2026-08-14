@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-14 | `ad7e4c20` | phase-86.76: FILE the root cause of the operator's "redoing the same thing" |
 | 2026-08-14 | `0d1171f7` | phase-86.75: live_check -- 6 of 8 criteria measured, and 2 defects in my own audit |
 | 2026-08-14 | `9dd026a4` | phase-86.63: partial GENERATE -- criteria 1/2/5 by measurement, 3/4/6 NOT done |
 | 2026-08-14 | `34e5d0c6` | chore: commit the session's evidence trail -- scanned for secrets BEFORE publishing |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-14 | `1422d0ec` | phase-86.44: correct the closing block -- criterion 5 is settled, and settled NEGATIVELY |
 | 2026-08-14 | `5769c366` | phase-86.44: criterion 5 MEASURED -- concurrent-writer uniqueness is DISPROVEN, 14 collisions of 16 |
 | 2026-08-14 | `ce8ac085` | phase-86.9: FAIL on a guard that could not fail -- fixed, and ESCALATING at 4 attempts |
-| 2026-08-14 | `1ea5dc2f` | phase-86.9: criterion 6 verified -- .env backup retained, paper_analyze_top_n not lowered |
 
 ---
 
