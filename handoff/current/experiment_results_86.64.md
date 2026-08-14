@@ -11,28 +11,48 @@
 
 ---
 
-## C1 — the Bash-channel evasion, DEMONSTRATED
+## C1 — the Bash-channel evasion — CORRECTED after the cycle-1 Q/A
 
-A single A/B where **only the channel differs** — same qa identity, same target path:
+> **Two defects in my cycle-1 evidence, both found by the Q/A, both reproduced by me.**
+
+**(i) My "qa-shaped identity" was INERT.** I drove
+`CLAUDE_AGENT_TYPE=qa-86-64-c1 bash -c "…"` and called it a write under a qa identity. The
+hook reads `agent_type` from the **stdin JSON payload only** (`:70 d.get("agent_type")`) and
+never consults the environment. That write was issued by Main with `agent_type=""`. **No
+single measurement in the cycle-1 artifact satisfied C1's conjunction** of Bash-channel AND
+qa-shaped identity.
+
+The Q/A closed it live from its own session: its `agent_type='qa'` **Write** calls each
+produced a guard row (01:43:14Z, 01:51:13Z) while its **Bash** calls creating files outside
+the memory dir (01:44:21, 01:51:28) produced **zero** rows.
+
+**(ii) My A/B credited the WRONG MECHANISM.** I wrote that the matcher is why Bash exits 0.
+A **piped-payload drive never touches the matcher** — the matcher decides whether the
+platform *routes* a call to the hook, and piping bypasses routing entirely.
+
+**Mutation-proven, and I reproduced it independently:**
 
 ```
-identity=qa-86-64-c1, target=handoff/current/evaluator_critique.md
-
-  tool_name=Write  ->  exit 2   BLOCKED  ("qa-write-guard: BLOCKED -- read-only on file contents")
-  tool_name=Bash   ->  exit 0   ALLOWED
+CONTROL  (scratchpad copy, unmutated)  qa + tool_name=Bash   -> exit 0
+MUTANT   widen ONLY :148 `tool_name in ("Write","Edit")` to include "Bash",
+         settings.json matcher UNTOUCHED                      -> exit 2
+repo md5 unchanged: 3eb5acfea3ec356ac6b289011f49912d
 ```
 
-And driven for real rather than simulated — a Bash write under a qa-shaped identity:
+**So there are TWO gates and my text conflated them:**
 
-```
-guard log lines BEFORE : 10293
-  (write executed via Bash, 45 bytes, succeeded)
-guard log lines AFTER  : 10293
-entries for this write :     0     <- the hook never fired
-```
+| gate | decides | evidenced by |
+|---|---|---|
+| `settings.json` matcher `Write\|Edit` | whether the platform **routes** a call here | the log: **0 of 26,934** platform Bash calls produced a row over 21 days |
+| `qa-write-guard.sh:148` | what the script does with a payload it **has** received | the A/B above |
 
-**The hook is not bypassed; it is never reached.** `settings.json`'s matcher is `Write|Edit`,
-so a Bash tool call is not routed to it at all.
+**This matters operationally:** a maintainer following my cycle-1 text would widen the
+matcher and believe the accidental-breach channel closed — while `:148` still allows Bash.
+The contract predicted exactly this: *"even with the matcher fixed, :124 gates on
+`tool_name in ("Write","Edit")` and would allow Bash anyway. Both must change."*
+
+**Log aliveness (positive control):** the Q/A's own Write appears as the log's last row, so
+the zero-for-Bash is a measured zero, not a dead log.
 
 ## C2 — write-capable tools, ENUMERATED from the platform tool list
 
@@ -54,52 +74,75 @@ class, and widening the matcher to `Write|Edit|NotebookEdit` would close it. **N
 here** — it would be a behavioural change to a security hook, and no criterion owns it.
 Queued as a finding rather than slipped in.
 
-## C3 — fail direction, measured, and the docstring was WRONG
+## C3 — fail direction — CORRECTED TWICE, and it splits on TRUTHINESS
 
-The docstring claimed: *"FAIL-OPEN by design: missing fields, malformed JSON, or an internal
-error must never brick the session — **only an explicit qa-outside-memory match blocks**."*
-**The second half is false.** Measured across payload shapes, qa identity + `tool_name=Write`:
+The original docstring claimed *"only an explicit qa-outside-memory match blocks."* False.
+**My cycle-1 replacement was also wrong**: I labelled the deny leg "PATH INDETERMINATE",
+and its own subject falsifies that.
 
-| shape | exit | direction |
+**Measured boundary (qa identity + Write/Edit):**
+
+| shape | exit | leg |
 |---|---:|---|
-| malformed JSON | 0 | fail-OPEN ✓ *(as claimed)* |
-| empty payload | 0 | fail-OPEN ✓ |
-| `python3` absent from PATH | 0 | fail-OPEN ✓ |
-| **no `tool_input` key** | **2** | **fail-CLOSED** |
-| **`tool_input: null`** | **2** | **fail-CLOSED** |
-| **`tool_input: {}`** | **2** | **fail-CLOSED** |
-| **`file_path: ""`** | **2** | **fail-CLOSED** |
-| **`tool_input: "oops"`** (non-dict) | **2** | **fail-CLOSED** |
-| non-qa identity, any shape | 0 | allow ✓ |
+| missing `tool_input` / `null` / `{}` / `file_path: ""` / non-dict `tool_input` | **2** | **falsy → `""` → `normpath("")` is `"."` → deny** |
+| **`file_path: 123`** | **0** | **truthy non-string → `.replace()` raises → ALLOW** |
+| **`file_path: ["a","b"]`** | **0** | same |
+| malformed JSON / empty payload / `python3` absent | 0 | hook-itself-broke → fail-open |
+| **`agent_type: 5`** (genuine uncaught raise) | **0** | fail-open |
+| non-qa identity, any shape | 0 | allow |
 
-**I predicted "allow" for two of those and was wrong** — measuring corrected it. Mechanism:
-`normpath("")` is `"."`, and `"."` is not inside the memory dir, so an unreadable path is
-treated as *outside* and denied.
+**So the deny leg is NARROWER than "cannot read the target" — a garbled path sails through.**
 
-**Criterion 3 is satisfied**: it requires fail-open *on internal error*, and all three
-genuine internal-error paths do fail open. The path-indeterminate case is a different
-category, and **denying when the control cannot read its target is the correct direction**
-— so the behaviour is kept and the description corrected.
+**My cycle-1 fail-open proof did not prove what it claimed.** The Q/A's point is exact: none
+of my three cases is an *uncaught raise of the helper*. Malformed JSON hits the **handled**
+`except Exception: print("allow malformed-payload")` branch; an empty payload is the
+ordinary allow path, not an error; `python3` absent means the helper never runs at all. The
+criterion asks for the property *"proven by making the guard's own helper raise."*
+
+Genuine uncaught raises — `agent_type: 5` (`'int' has no attribute 'strip'`), `file_path:
+123` and `file_path: ["a","b"]` (`'int'/'list' has no attribute 'replace'`) — **all exit 0**,
+with tracebacks observed in the guard log. **The property holds; my evidence for it did
+not.** Note the helper's `try/except` wraps only the JSON parse: everything after relies on
+the bash-level `case *) exit 0` default, which cycle-1 never exercised.
 
 ## C4 — the claim corrected: CONVENTION CHECK, not a boundary
 
-Two independent reasons the control cannot be made sound, both measured:
+> **My cycle-1 reasoning was the reasoning the contract FORBADE.** I grounded the
+> conclusion on *Channel + Identity*, where "channel" meant *"Bash is never routed here."*
+> The contract says in bold that C4's conclusion **may not** rest on that, because
+> **Bash IS interceptable** — this is CWE-693 *"Protection Mechanism Ignored"*, not
+> *missing*. A matcher is a changeable configuration, so "the matcher excludes Bash" is a
+> reason the control **is not** sound, never a reason it **cannot be made** sound. Regrounded
+> below.
 
-1. **Channel** — the matcher is `Write|Edit`; Bash is never routed (C1).
-2. **Identity** — `agent_type` is chosen by the **spawner** (RFC 9700 §4.15), so a caller
-   that wants past it simply does not name itself `qa-*`.
+**Why it cannot be made sound — two real limits:**
 
-It therefore raises the cost of an **accidental** breach and cannot stop a **deliberate**
-one. Corrected in both places criterion 4 names:
+**1. DECIDABILITY.** A hook that intercepts Bash must then decide whether an arbitrary shell
+command writes a guarded path. The evidence cuts both ways and both halves belong in the
+answer:
 
-- **`.claude/hooks/qa-write-guard.sh`** — header rewritten: convention-check framing, the
-  measured A/B, and the mixed fail direction replacing the false fail-open claim.
-- **`.claude/settings.json`** — `statusMessage` rewritten from *"read-only outside
-  .claude/agent-memory/qa/ … fail-open"* to the convention-check description with the
-  mixed fail direction and the named covering control.
+- **CARE (2026): 85.64% F1** on shell-command verification — non-trivial, **not hopeless**.
+- **CVE-2025-66032** defeated **Claude Code's own validator** via `$IFS` rewriting — shell
+  is adversarially hard to parse, so it is **not solved** either.
 
-The covering control for a deliberate write is unchanged and now stated in both: the
-Main-side post-verdict `git status` cleanliness rule (`per-step-protocol.md` §4).
+A control whose correctness depends on winning that arms race is not a boundary.
+
+**2. IDENTITY — decisive on its own.** `agent_type` is chosen by the **spawner**
+(RFC 9700 §4.15; established phase-86.33). A caller that wants past this simply does not
+name itself `qa-*`. **No amount of channel coverage repairs an unauthenticated identity**,
+which is why the conclusion survives even though my original leg (1) was wrong.
+
+**Corrected in both places criterion 4 names:**
+
+- **`.claude/hooks/qa-write-guard.sh`** — header now separates the **two gates** (the
+  routing matcher vs `:148`), states the mutation proof that `:148` is operative for a
+  piped payload, grounds unsoundness on decidability + identity, and replaces the
+  falsified "PATH INDETERMINATE" category with the measured truthiness split.
+- **`.claude/settings.json`** — `statusMessage` rewritten to the convention-check
+  description with the mixed fail direction and the named covering control.
+
+The covering control for a deliberate write is unchanged: the Main-side post-verdict
+`git status` cleanliness rule (`per-step-protocol.md` §4).
 
 ## C5 — mutation test: NOT APPLICABLE, and why that is not a dodge
 
@@ -134,4 +177,11 @@ hook events intact.
   fixed — closing it changes hook behaviour and no criterion owns it.
 - **The 10293-line guard log is a live artifact**; the BEFORE/AFTER equality is the evidence
   for C1, and it will move as the session continues.
-- **No Q/A has graded this**, and the step is not flipped.
+- **A Q/A graded cycle 1: CONDITIONAL** (`wf_19fbea36-8c1`), transcribed verbatim in
+  `evaluator_critique_86.64.md`. C1/C2/C3/C5 MET; **C4 NOT MET as delivered** — the
+  corrected description credited the wrong mechanism and omitted the decidability grounding
+  the contract required. Both are fixed above. **A fresh Q/A must grade the changed
+  evidence. The step is NOT flipped.**
+- **The Q/A corroborated C1 far beyond my artifact**: guard-log recall of Bash =
+  **0 of 26,934** platform Bash calls over the log's 21-day window, with the log proven
+  alive by its own Write appearing as the last row.

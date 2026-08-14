@@ -15,16 +15,34 @@
 # frontmatter name") when the hook fires inside a subagent call. Main's
 # own tool calls carry no agent_type -> always allowed.
 #
-# THIS IS A CONVENTION CHECK, NOT A SECURITY BOUNDARY (phase-86.64).
-# Stated plainly because the difference decides what may be relied on it.
-# Two independent reasons, both MEASURED by driving this hook:
-#   1. CHANNEL. The settings.json matcher is Write|Edit, so a write issued
-#      through Bash is never routed here at all. Measured: an identical qa
-#      identity writing an identical target path returns exit 2 via
-#      tool_name=Write and exit 0 via tool_name=Bash, and the Bash write
-#      added ZERO lines to this hook log.
-#   2. IDENTITY. agent_type is chosen by the SPAWNER (RFC 9700 s4.15), so a
-#      caller that wants past this simply does not name itself qa-anything.
+# THIS IS A CONVENTION CHECK, NOT A SECURITY BOUNDARY (phase-86.64,
+# corrected in cycle 2 after the Q/A showed the first version credited the
+# wrong mechanism). The difference decides what may be relied on it.
+#
+# TWO SEPARATE GATES STOP A Bash WRITE, AND CONFLATING THEM IS THE TRAP:
+#   (a) The settings.json matcher `Write|Edit` decides whether the platform
+#       ROUTES a tool call here at all. Evidenced ONLY by the log: over the
+#       log's 21-day window, 0 of 26,934 platform Bash calls produced a row.
+#   (b) Line 148 below, `tool_name in ("Write", "Edit")`, decides what this
+#       script does with a payload it HAS received.
+#   A piped-payload A/B (exit 2 for Write, exit 0 for Bash) measures (b)
+#   ONLY -- the matcher is not in its causal path. MUTATION-PROVEN: widen
+#   line 148 to include "Bash" with settings.json UNTOUCHED and the same
+#   payload flips 0 -> 2. So a maintainer who "fixes" the matcher alone has
+#   closed nothing: line 148 would still allow Bash. BOTH must change.
+#
+# WHY IT CANNOT BE MADE SOUND -- the reason is DECIDABILITY, not channel.
+# Bash IS interceptable (CWE-693 "Protection Mechanism Ignored", not
+# missing), so "Bash cannot be hooked" would be false. The real limits:
+#   1. DECIDABILITY. Deciding whether an arbitrary shell command writes a
+#      guarded path is adversarially hard. Both sides are real: CARE (2026)
+#      reaches 85.64% F1 on shell-command verification, so it is not
+#      hopeless; but CVE-2025-66032 defeated Claude Code's OWN validator by
+#      `$IFS` rewriting, so it is not solved either.
+#   2. IDENTITY, and this one is decisive on its own. agent_type is chosen
+#      by the SPAWNER (RFC 9700 s4.15, phase-86.33), so a caller that wants
+#      past this simply does not name itself qa-anything. No amount of
+#      channel coverage repairs an unauthenticated identity.
 # It therefore raises the cost of an ACCIDENTAL breach and cannot stop a
 # deliberate one. The covering control for the deliberate case is the
 # Main-side post-verdict git-status cleanliness rule
@@ -33,19 +51,25 @@
 #
 # Exit 2 = block (PreToolUse convention). Exit 0 = allow.
 #
-# FAIL DIRECTION IS MIXED, AND THE PREVIOUS COMMENT HERE WAS WRONG.
-# It claimed "missing fields, malformed JSON, or an internal error must
-# never brick the session -- only an explicit qa-outside-memory match
-# blocks." The second half is false and was falsified by measurement:
-#   * HOOK-ITSELF-BROKE  -> FAIL-OPEN, as claimed. Malformed JSON, an empty
-#     payload, and python3 absent from PATH all exit 0.
-#   * PATH INDETERMINATE on a qa Write/Edit -> FAIL-CLOSED, exit 2. A
-#     missing tool_input key, a null tool_input, an empty dict, an empty
-#     file_path and a non-dict tool_input ALL deny, because normpath("")
-#     is "." and "." is not inside the memory dir. That is NOT an "explicit
-#     qa-outside-memory match", and it is the safe direction for a control
-#     whose whole job is to refuse when it cannot read the target -- so the
-#     BEHAVIOUR is kept and the DESCRIPTION is corrected.
+# FAIL DIRECTION IS MIXED, AND IT SPLITS ON TRUTHINESS, NOT ON
+# "INDETERMINATE". Two earlier versions of this comment were both wrong.
+# The original claimed "only an explicit qa-outside-memory match blocks";
+# the phase-86.64 cycle-1 replacement claimed "PATH INDETERMINATE -> FAIL-
+# CLOSED", which its own subject falsifies. MEASURED boundary, qa identity
+# + Write/Edit:
+#   * FALSY or ABSENT file_path -> "" -> normpath("") is "." -> not inside
+#     the memory dir -> DENY (exit 2). Covers a missing tool_input key,
+#     tool_input null, {}, file_path "", and a non-dict tool_input.
+#   * TRUTHY NON-STRING file_path -> ALLOW (exit 0), because
+#     file_path.replace() raises AttributeError BEFORE the containment
+#     check and the bash-level `case *) exit 0` default catches it.
+#     Measured: file_path 123 -> exit 0; file_path ["a","b"] -> exit 0.
+#   * HOOK ITSELF BROKE -> FAIL-OPEN. Malformed JSON (handled branch), an
+#     empty payload (ordinary allow path), python3 absent (helper never
+#     runs), and genuine uncaught raises such as agent_type 5 -> all exit 0.
+# So the deny leg is NARROWER than "cannot read the target": a garbled
+# path can sail straight through. Behaviour is KEPT -- fail-open is the
+# design -- and the description is corrected to match it.
 # A non-qa identity is unaffected by all of the above and always allows.
 
 payload=""
