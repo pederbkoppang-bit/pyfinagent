@@ -202,3 +202,92 @@ the picker urgency **no longer describes the book**.
 
 `degradation` key: the **08-12 cycle wrote one**, and 08-13 did too — the peer's 86.38
 stake holds.
+
+---
+
+# SESSION 2, PART 2 (05:30–09:20 CEST) — the THEN chain, advanced as far as evidence allows
+
+Five steps advanced. **No step flipped, no Q/A verdict obtained, no production code changed.**
+
+| step | outcome |
+|---|---|
+| **86.59** | Gate **RE-RUN PASSED** (`wf_ff8717e8-ccf`) — 8 sources, 54/54 URLs corroborated |
+| **86.67** | Gate **RE-RUN PASSED** (`wf_40b64505-346`) — 9 sources, 31/31 URLs corroborated |
+| **86.68** | `experiment_results` + `live_check` written; replay harness added |
+| **86.64** | `experiment_results` + `live_check`; guard + statusMessage corrected, **0 executable lines changed** |
+| **86.65** | CLAUDE.md path fixed; census + consumer list written |
+| **86.66** | Analysed to a hard stop at its own criterion 4 |
+
+## Both failed gates had the SAME root cause, and it was not the one recorded
+
+The goal said 86.59 failed on "30 URLs claimed, 13 present" and 86.67 on a "38-vs-37
+over-claim." **86.67's 38 claimed URLs were all genuinely present.** Both actually failed
+because the envelope carried **no `sources_read_in_full` array**, so `enforceGate` could
+corroborate nothing regardless of counts. One defect, two steps.
+
+**I did not patch either brief.** The missing URLs weren't in the artifact, and editing a
+brief so its own gate passes would be Main authoring research evidence. Both re-runs wrote
+to new paths; both prior briefs are preserved.
+
+## Findings that change what should be built
+
+**86.59 — z-scoring will NOT stop the slate repeating.** It is a per-horizon *affine*
+transform: it fixes declared-vs-effective weights but leaves the ranking a monotone function
+of the same slow state. Residualisation is *not* affine cross-sectionally (FF5F flips a
+weekly contrarian result to momentum, Sharpe 1.3392). The premise splits three ways:
+(a) weights bug **fix**, (b) no orthogonal signal **fix**, (c) daily repetition **NOT a
+defect** — correct for a slow predictor. No source endorses a daily slate; Alkshaik
+rebalances **semi-annually**.
+
+**86.67 — redaction-at-write ranks first, and it names our line.** arXiv:2604.03070v1
+(n=17,022, κ=0.88): **73.5%** of agent credential leaks are stdout/log capture. Verified at
+`run_away_session.sh:170` — raw agent stdout redirected into a tracked file. The existing
+`.git/hooks/pre-commit` **is not a secret scanner** (0 secret patterns; its 3 guards match
+`handoff/away_ops/*.json` on none). `.gitignore` is closed as an option: it cannot apply to
+**tracked** files. Revoke-then-scrub, because **>64%** of 2022-leaked secrets were still
+valid in Jan 2026.
+
+**86.66 — the step names one bug; there are two.** The only full traceback anywhere says
+`'str' has no attribute **'get'**` at `agent_creator.py:80`, in a log dated **2026-07-24**.
+The step names `'append'`, dated **08-13**. `"no attribute 'append'"` appears in **0 of 9
+logs** — measured, with the same probe returning 6 for `'get'`. And **it recovered**:
+08-07→08-12 six clean days, 08-13 the error, **08-14 success**. Stopped at criterion 4:
+reproducing needs paid API calls.
+
+**86.64 — the guard is a convention check, not a boundary.** Same identity, same path:
+`Write` → exit 2, `Bash` → exit 0, with **zero** guard-log lines for the Bash write. Its
+docstring claimed *"only an explicit qa-outside-memory match blocks"* — false; five
+malformed-input shapes block. Behaviour kept, description corrected.
+
+**86.68 — verified by replay.** 482 commits: **186** bumps under the retired rule, **8**
+under the shipped one. Both parked steps 13 → **0**. Mutation KILLED, control GREEN first.
+
+## Four more probe errors, all mine, all caught by measuring
+
+1. **A probe matched its own documentation — three times.** A grep for
+   `phase=86.33 result=CONDITIONAL` returned 1: the audit's *prose quoting the grep*.
+   Corpus-wide, **121 prose lines** contaminate `harness_log.md`. It recurred on a `qa.md`
+   survivor check and again on the CLAUDE.md path sweep, where my own correction note made
+   the fix appear to fail.
+2. **A false zero from zsh not word-splitting** an unquoted var, stderr suppressed, `|| echo
+   NONE` printing a clean result. It hid a live 3-source floor in a dormant prompt.
+3. **`exit=$?` after a pipe reads `tail`.** I reported a suite "still exits 0" with dead
+   cells; it returns 1.
+4. **A first-match census.** `grep -oE '[A-Za-z_]*(Error|Exception)'` classified all 63
+   autoresearch failures as bare `Error`, because every file starts `Error: <Class>:`.
+   A uniform result across 63 files is a probe smell.
+
+## Honest gaps at 09:20
+
+1. **The OAuth token is still public and unremediated** — re-verified 05:25: same 5 files,
+   positive control fires, all still on `origin/main`.
+2. **No Q/A has graded any of this session's work.** Six steps have artifacts and zero
+   verdicts.
+3. **86.63's criteria 3/4/6 are untouched** — they need a guard on the live trade path, and
+   criterion 1 is blocked on "across a module boundary" being undefined (**19 files write,
+   1 reads**).
+4. **86.62 / 86.9 / 86.44 need operator decisions**, not work.
+5. **86.75 criterion 7** — separation of duties, now covering **three** `qa.md` edits I
+   authored.
+6. **The picker chain was not run**, by reasoned disagreement: Q1's answer and 86.59's fresh
+   gate independently conclude the ranking is not the defect.
