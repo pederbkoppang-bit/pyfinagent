@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-15 | `e4f2e844` | phase-86.86: D6 -- the lite risk judge's explicit 0% verdict survives ingress |
 | 2026-08-15 | `6723206e` | docs(session): day report 2026-08-15 + regenerate the 08-16 goal |
 | 2026-08-15 | `d75aa320` | phase-86.84: post-boundary evidence -- the maxTurns removal is VERIFIED |
 | 2026-08-15 | `64512cdc` | phase-86.85: cycle-3 FAIL -- 3rd consecutive, ESCALATED to operator, no cycle 4 |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-14 | `e77b5392` | docs(goal): reorder 86.84 into an ordered (a)(b)(c) first-actions block |
 | 2026-08-14 | `58ed0e73` | docs(goal): restore the safety constraints an auto-trim wrongly dropped |
 | 2026-08-14 | `6b40d01c` | docs(goal): D5 refutation, /api/health, cycle-3 discipline lessons |
-| 2026-08-14 | `29d1de84` | docs(goal): regenerate for 86.84 escalation + the measured D5 refutation |
 
 ---
 
