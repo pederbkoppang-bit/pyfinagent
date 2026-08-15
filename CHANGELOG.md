@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-15 | `e15caa9e` | phase-86.74: cycle-7 verdict CONDITIONAL -> recorded FAIL (3rd-CONDITIONAL rule) |
 | 2026-08-15 | `77e4ae08` | phase-86.74: semantic sweep of every 86.74-touching artifact before cycle 7 |
 | 2026-08-15 | `714fe13f` | docs(goal): compress the 08-15 goal to 3994 chars for a full-day run |
 | 2026-08-14 | `3be1ab13` | docs(session): day report session 4 + regenerate the 08-15 goal |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-14 | `38ddf013` | docs(86.84): transcribe the cycle-2 CONDITIONAL verdict verbatim |
 | 2026-08-14 | `85127353` | fix(harness): REMOVE the maxTurns caps that were dropping the Layer-3 rail |
 | 2026-08-14 | `28be64f1` | docs(86.84): flag a fabricated completion timestamp in the Q/A verdict artifact |
-| 2026-08-14 | `c50c9a9c` | docs(goal): clear the 4000 char/byte ceiling |
 
 ---
 
