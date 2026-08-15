@@ -569,3 +569,143 @@ and `qa.md`, **a third consecutive CONDITIONAL must be returned as FAIL.** The n
 Q/A on this step therefore has two outcomes only: PASS, or FAIL. That is the correct
 design and I am not seeking to avoid it -- but it means the next spawn must not be
 made until the remediation is believed complete, and it must not be made to fish.
+
+## Cycle 7 -- Workflow rail `wf_8c3730a1-32e` -- returned CONDITIONAL -> **RECORDED AS FAIL**
+
+Launched by **`scriptPath`** (never `name`). Full-step grade at HEAD `77e4ae08`.
+61 tool-use turns, 236,421 tokens, 771s, last tool `StructuredOutput`.
+
+**THE RETURNED VERDICT WAS `CONDITIONAL`. IT IS RECORDED AS `FAIL`** under the
+CLAUDE.md 3rd-CONDITIONAL auto-FAIL rule. This is a mechanical rule application by
+Main, not a re-grading: no criterion judgement of the Q/A's was altered, and the
+verbatim return is transcribed below unedited.
+
+**Why the Q/A did not apply the rule itself -- MY spawn error, disclosed.**
+`qa-verdict.js` computes the escalation from `args.verdict_sequence`, and its own
+comment says so explicitly: *"this cannot read handoff/verdict_ledger.jsonl -- the
+sequence must arrive as data via `args.verdict_sequence`."* I supplied the counter
+state as PROSE in `extra.counter_state` / `extra.binding_rule` instead. The
+machinery therefore reported `sequence_status: "not_supplied"`,
+`consecutive_conditionals: null`, `would_auto_fail: null`,
+`judge_was_told_consequence: false`, and the Q/A wrote *"Any threshold or escalation
+that follows is the caller's to compute."* It fails CLOSED to `null`, never to `0`,
+exactly as designed -- the machinery is sound; I did not feed it.
+
+**The escalation, computed by running the SHIPPED function rather than asserting it.**
+`enforceEscalation` (lines 319-370 of `.claude/workflows/qa-verdict.js`) extracted
+and executed against 86.74's real prior sequence:
+
+```
+priors = ['NO_VERDICT','CONDITIONAL','CONDITIONAL','PASS','CONDITIONAL','CONDITIONAL']
+enforceEscalation({verdict:'CONDITIONAL'}, priors, {}) ->
+  { consecutive_conditionals: 2, would_auto_fail: true, sequence_status: "ok" }
+```
+
+**A CORRECTION THE Q/A MADE AGAINST ME, and it is right.** It checked my sequence
+disclosure against `handoff/harness_log.md` and found **no Cycle 194 row for 86.74**
+(the only Cycle 194 in the file is 2026-08-09 `phase=36.17`). My "191 C, 192 C, 193
+PASS, 194 C, 195 C" mislabelled the step's cycle 5. The substance survives and the
+count is unchanged at 2 -- cycle 5 (`wf_8ba8cba7-01d`, CONDITIONAL) is real and
+recorded in this file at the "Cycle 5" heading -- but **it was never given a
+`harness_log` row at all**, which is a LOG-phase miss on a non-skippable artifact.
+Cycle numbers are also not globally unique in that file (two independent 193/194/195
+runs exist), so the log alone cannot carry a per-step sequence. Both are recorded as
+findings rather than smoothed over.
+
+### What cycle 7 found -- and unlike cycles 5 and 6, ONE OF THESE IS CODE
+
+1. **C6 NOT MET (the blocker).** No post-fix `signals_log` row carries a RiskJudge
+   contribution: 2026-08-14, the only post-fix day, has 1 row with `factors_json`
+   length 19 and `with_RiskJudge=0`. The unit seam is proven and discriminating, but
+   it is not the artifact the criterion names. The Q/A also recorded a structural
+   point in the step's favour: the *"including a 0% REJECT"* half is now
+   **unsatisfiable end-to-end precisely because the fix works** -- a 0% REJECT can no
+   longer produce a buy, so it can never produce a buy's `signals_log` row.
+
+2. **WARN -- a residual falsy-zero of this step's EXACT class, undisclosed, on a
+   live money path.** `autonomous_loop.py:3091-3094` (Claude lite judge) and
+   `:3337-3340` (Gemini lite judge):
+   `float(risk_dict.get("recommended_position_pct") or _LITE_RISK_DEFAULT[...])`.
+   A judge-emitted `0.0` is falsy, so `or` substitutes the 3.0 default; measured, that
+   turns a 0.0 lite verdict into a **$719.93 BUY** where the true 0.0 yields `[]`.
+   The zero is destroyed **upstream** of the helper 86.74 fixed, so 86.74's fix
+   cannot reach it. Pre-existing (phase-25.A, `9c5eb8ad`, 2026-05-12), named by no
+   immutable criterion, and absent from all five artifacts and from D1-D5.
+   I verified both sites by source inspection independently. **Queued as D6.**
+
+### Where the Q/A disagreed with my own self-grade -- in my favour, twice
+
+It graded **C7 MET**, against my own PARTIAL: the criterion asks for the swept count,
+the enumeration rule, and a controlled zero, and all three are delivered, while the
+14 rows with no verdict in *either* source fall outside its *"while a completed risk
+verdict existed"* predicate. It also killed **MQ1**, a cell absent from my matrix
+(re-gate the nested-first resolution behind the flag), which proves the
+unconditional-ness that actually fixed DELL has its own killing test. I am not
+adopting the more generous C7 grade to change the outcome -- the step fails on C6
+either way.
+
+### VERBATIM RETURN -- transcribed unedited from the rail
+
+```json
+{
+  "ok": false,
+  "verdict": "CONDITIONAL",
+  "reason": "9 of 10 immutable criteria MET on my own re-derivation (immutable cmd 41 passed exit 0; ruff clean on a git-derived scope; C3's or-10.0 set AST-derived to ZERO; C4's 129-row 0/0/0 baseline and 6-of-6 post-fix share reproduced exactly from BigQuery; C7's 34/1/19/14/0 buckets reproduced by an independently written query with no join fan-out; C8's 9->38 tests and 17->62 asserts reproduced by AST; my own 7-cell in-memory mutation matrix with control green first killed all 7 including 4 mutants Main never ran; adjacent-suite failure set identical pre/post 86.74 with EMPTY symmetric difference; DELL still held at qty 4.806437 / cost_basis 2392.26). C6 is NOT met: the criterion requires the RiskJudge contribution to appear in signals_log.factors_json for a gated buy, and no post-fix row exists (2026-08-14 has 1 row, factors_json len 19, no RiskJudge) -- the unit seam is proven and discriminating but is not the artifact the criterion names. Plus one WARN: a residual falsy-zero of this step's exact class survives undisclosed at autonomous_loop.py:3091-3094 and :3337-3340, measured to turn a 0.0 lite verdict into a $719.93 BUY. Full record: /Users/ford/.openclaw/workspace/pyfinagent/.claude/agent-memory/qa/verdicts/verdict_wip_86.74__20260815T131613Z.md",
+  "violated_criteria": [
+    "criterion_6_riskjudge_in_signals_log_for_a_gated_buy"
+  ],
+  "violation_details": [
+    {
+      "violation_type": "Missing_Assumption",
+      "action": "SELECT DATE(signal_date), COUNT(*), COUNTIF(STRPOS(factors_json,'RiskJudge')>0) FROM financial_reports.signals_log WHERE DATE(signal_date) >= '2026-07-25'",
+      "state": "2026-08-14 (the only post-fix day): 1 row, factors_json length 19, with_RiskJudge=0. Reference records reproduce exactly -- DELL 2026-08-13 len=517 RiskJudge=False, NTAP 2026-07-31 len=1232 RiskJudge=True. The unit seam IS proven and discriminating (real extract_all_signals on DELL's nested REJECT/0% returns agents ['Trader','RiskJudge']; the no-verdict control returns ['Trader'] only), and Main disclosed the gap honestly in experiment_results section 6 item 5. Structural note in Main's favour: the 'including a 0% REJECT' half is now UNSATISFIABLE end-to-end precisely because the fix works -- a 0% REJECT can no longer produce a buy, so it can never produce a buy's signals_log row. The non-zero-pct half remains demonstrable and undemonstrated, awaiting the first post-fix scheduled cycle that places a buy.",
+      "constraint": "criterion 6: 'the RiskJudge contribution appears in signals_log.factors_json for a gated buy regardless of the pct value, including a 0% REJECT -- compare against the two measured records (DELL 3 agents/517 chars, NTAP 4 agents/1232 chars)'. qa.md section 4 contract-completeness: a criterion whose covering evidence is partial CAPS the verdict at CONDITIONAL."
+    },
+    {
+      "violation_type": "Overgeneralization",
+      "action": "python -c: pct = float(risk_dict.get('recommended_position_pct') or _LITE_RISK_DEFAULT['recommended_position_pct']) -- the literal expression at backend/services/autonomous_loop.py:3091-3094 (Claude lite judge) and :3337-3340 (Gemini lite judge) -- then decide_trades on the result",
+      "state": "MEASURED, not argued: judge emits recommended_position_pct=0.0 -> the value written into risk_assessment is 3.0 -> decide_trades emits BUY $719.93 on NAV 23997.71, where the true 0.0 produces []. The zero is destroyed UPSTREAM of the fixed helper, so 86.74's helper fix cannot reach it. Pre-existing (phase-25.A, commit 9c5eb8ad, 2026-05-12), NOT introduced by this step, and named by NO immutable criterion (they scope _extract_position_pct, the 10%-NAV default, and decide_trades). Grep of all five 86.74 artifacts for '_LITE_RISK_DEFAULT|lite risk|3091|3337' returns ZERO hits -- undisclosed, and absent from D1-D5 of queued_defects_from_86.74.md. Live-harm bound, stated so the finding is not overstated: prod backend/.env sets paper_risk_judge_reject_binding=True, so a lite REJECT is blocked on the DECISION leg; exposure needs a non-REJECT decision paired with pct 0.0, or that .env line absent (the Field default is False). SEVERITY: WARN.",
+      "constraint": "Scope honesty + .claude/skills/code-review-trading-domain heuristic #17/Dimension-2: a step whose stated premise is 'the falsy-zero class ... the strongest risk signal converted into a position' must either fix, or explicitly queue, the residual instances of that class it passes over on a live money path. Project convention feedback_queue_discovered_defects_in_masterplan: every out-of-scope defect gets its own queued entry."
+    }
+  ],
+  "certified_fallback": false,
+  "checks_run": [
+    "harness_compliance_audit_5_items",
+    "immutable_verification_command",
+    "python_lint_gate_F821_F401_F811_derived_scope",
+    "git_scope_and_unintended_change_check",
+    "docs_only_verification_of_recent_commits",
+    "ast_rederivation_of_or_10.0_default_sites",
+    "behavioural_drive_of_real_decide_trades_both_flag_states",
+    "behavioural_drive_of_real_extract_all_signals_with_control",
+    "own_in_memory_mutation_matrix_7_cells_control_green_first",
+    "equivalent_mutant_differential_check",
+    "adjacent_suite_regression_diff_pre_vs_post",
+    "bigquery_rederivation_c4_baseline_and_postfix_share",
+    "bigquery_rederivation_c7_paper_trades_sweep",
+    "bigquery_signals_log_c6_end_to_end_check",
+    "backend_runtime_smoke_live_portfolio_endpoint",
+    "test_fixture_production_representativeness_diff",
+    "ast_rederivation_of_test_and_assert_counts",
+    "prior_attempt_and_verdict_ledger_evidence",
+    "code_review_heuristics",
+    "evaluator_critique"
+  ],
+  "harness_compliance_ok": true,
+  "notes": "SEQUENCE: UNKNOWN. verdict_history_86_21.py --step 86.74 --evidence-only returns status=no_rows_for_step, verdicts=(none). qa_wip.py --spawned-at 2026-08-15T13:16:13Z returns attempt_number=10, prior_attempts=9, attempt_number_status=ok, attempt_number_is_lower_bound=true, source_present=true (records_retained=10 is the gauge, not used as a counter). attempt_number (10) > ledger count (0), so THE LEDGER IS STALE and the sequence is unreliable. Secondary cross-check only: harness_log carries phase=86.74 rows for Cycles 190 NO-VERDICT, 191 CONDITIONAL, 192 CONDITIONAL, 193 PASS, 195 CONDITIONAL -- there is NO Cycle 194 row for 86.74 (the only \"Cycle 194\" in the file is 2026-08-09 phase=36.17), so Main's own commit-message sequence \"191 C, 192 C, 193 PASS, 194 C, 195 C\" in a400a987 is not fully corroborated by the log; Main's disclosure is advisory only and I graded on merits. Any threshold or escalation that follows is the caller's to compute.\n\nEVIDENCE PROVENANCE: every number in this verdict was produced by me, not read from Main's artifacts. Where I disagree with Main: (1) Main self-grades C7 PARTIAL; I grade it MET as worded -- the criterion asks for the swept count, the enumeration rule, and a controlled zero, and all three are delivered, while the 14 rows with no verdict in EITHER source fall outside its \"while a completed risk verdict existed\" predicate. Main's self-grade is more conservative than its own criterion requires. (2) I confirm rather than dispute Main's C6 disclosure.\n\nMUTATION DETAIL: control observed GREEN first (41 passed, rc=0). Killed: M1 (restore `if pct:` in _coerce_pct), M2 (restore `or 10.0` at the main sizing seam), MQ1 (re-gate the nested-first resolution behind paper_risk_judge_shape_fix_enabled -- MY cell, absent from Main's matrix, and the one that proves the UNCONDITIONAL-ness that actually fixed DELL has its own killing test), MQ2 (SIZE-with-None falls back to DEFAULT), MQ3 (UNPARSEABLE returns DEFAULT), MS1 (delete the swap $50 floor), MS3 (TRUE ORPHAN: floor re-applied between the SELL and BUY appends so the SELL orphans -- killed rc=1 by test_swap_path_zero_pct_emits_no_SELL_specifically, which independently validates the cycle-4 \"assert the harm, not the BUY\" remediation). One survivor, MS2, was verified EQUIVALENT (floor re-applied immediately before the SELL with nothing emitted in between = shipped behaviour) and is correctly not a finding. All mutations were applied in-memory via sys.modules injection; portfolio_manager.py sha256 042cd8e5eca44783 identical before and after, so there was no restore step to get wrong and no repo write.\n\nLIVE-UI CAPTURE GATE (qa.md 1c): does NOT bind. The diff touches no frontend file, and the criteria concern signals_log.factors_json as a DATA artifact rather than a rendered view; no capture was substituted for or implied. No evidence in this verdict was produced by Main.\n\nVERIFICATION-BUDGET / SCOPE LIMITS, stated rather than implied: I did not re-run the full backend/tests tree, only the immutable suite plus the four adjacent suites the regression claim depends on (Main's section 5 lists seven pre-existing failures; I reproduced six -- test_phase_75_prompt_contracts.py was outside my four-suite scope, which is my omission, not a finding). C4's post-fix share rests on n=6 rows from one scheduled cycle, exactly as Main discloses; there are no 2026-08-15 rows yet (the cycle runs 18:00Z and it is 13:16Z), so I could not extend the sample. C7's 14 undetermined are structurally unrecoverable and traced to the still-firing truncation defect queued as D5.\n\nWRITE-FIRST: the record at .claude/agent-memory/qa/verdicts/verdict_wip_86.74__20260815T131613Z.md was created on my first tool call, appended throughout, and flipped to COMPLETE before returning. No write was blocked; nothing outside that path was written.",
+  "escalation": {
+    "sequence_supplied": null,
+    "sequence_status": "not_supplied",
+    "consecutive_conditionals": null,
+    "would_auto_fail": null,
+    "attempt_number": null,
+    "budget_exhausted": null,
+    "max_attempts": 5,
+    "burden_on": "the party departing from the computed escalation",
+    "override": null,
+    "override_reason": null,
+    "judge_was_told_consequence": false
+  },
+  "verdict_unmodified": true
+}
+```

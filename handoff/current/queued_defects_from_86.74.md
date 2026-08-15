@@ -263,3 +263,70 @@ is broken.
 today (8.8% suggests yes), find the producer, and either fix it or record why a
 truncated row is unavoidable. Report the rate with the month breakdown and the
 population rule beside it.
+
+---
+
+## D6 (P1, LIVE MONEY) -- a residual falsy-zero of 86.74's EXACT class survives in the lite judge path
+
+**Found by the cycle-7 Q/A (2026-08-15), independently re-verified by Main.** This
+is the finding that turned 86.74's third consecutive CONDITIONAL into a FAIL.
+
+**The defect.** `backend/services/autonomous_loop.py` **`:3091-3094`** (Claude lite
+judge) and **`:3337-3340`** (Gemini lite judge) both build the persisted
+`risk_assessment` with:
+
+```python
+"recommended_position_pct": float(
+    risk_dict.get("recommended_position_pct")
+    or _LITE_RISK_DEFAULT["recommended_position_pct"]      # == 3.0
+),
+```
+
+`0.0` is falsy, so `or` substitutes the 3.0 default. Re-verified by Main by importing
+the real `_LITE_RISK_DEFAULT` and evaluating the shipped expression:
+
+```
+judge emits   0.0 -> persisted 3.0  <-- 0.0 DESTROYED
+judge emits   3.0 -> persisted 3.0
+judge emits  None -> persisted 3.0
+```
+
+**Note the second and third rows: an explicit 0.0 and an ABSENT verdict are
+indistinguishable after this line.** That is precisely the "one Optional carrying
+three domain states" collapse 86.74 was opened to kill -- `_resolve_position_pct` /
+`PositionVerdict` exist to keep judge-said-0 / judge-said-N / no-judge apart.
+
+**Why 86.74's fix cannot reach it.** The zero is destroyed **upstream** of the helper
+86.74 repaired. By the time `decide_trades` runs, the value is a legitimate-looking
+3.0 and no downstream guard can recover the REJECT. The Q/A measured the downstream
+consequence: a 0.0 lite verdict yields a **BUY of $719.93** on NAV 23,997.71, where
+the true 0.0 produces `[]`.
+
+**Provenance -- NOT introduced by 86.74.** Pre-existing since phase-25.A, commit
+`9c5eb8ad` (2026-05-12). Named by **no** immutable criterion of 86.74 (its criteria
+scope `_extract_position_pct`, the 10%-NAV default, and `decide_trades`). It is
+queued rather than fixed inline for that reason.
+
+**Live-harm bound, stated so this is not overstated.** Production `backend/.env` sets
+`paper_risk_judge_reject_binding=True`, so a lite **REJECT** is blocked on the
+DECISION leg regardless of the pct. Exposure therefore needs either (a) a non-REJECT
+decision paired with `recommended_position_pct == 0.0`, or (b) that `.env` line
+absent -- the `Field(...)` default is `False`. **Do not read the bound as "harmless":
+it means the blast radius depends on an `.env` line, not on code.**
+
+**Deliverable.** Fix at the seam, not at the call site: both lite paths must
+distinguish an explicit `0.0` from an absent value, the same way
+`_resolve_position_pct` does for the full path -- preferably by routing them through
+the same 3-state resolver rather than adding a second parallel idiom. Then:
+
+- prove it in **both** flag states, since the shipped production state of
+  `paper_risk_judge_shape_fix_enabled` is OFF;
+- mutation-test it: restore `or _LITE_RISK_DEFAULT[...]` and show the new assertion
+  goes red, with the control observed GREEN first and a byte-identical restore;
+- **sweep the whole `or _LITE_RISK_DEFAULT[...]` family**, not just these two sites --
+  `risk_level` and `risk_limits` on the adjacent lines use the same idiom, and
+  `feedback_guard_from_instance_not_class` says enumerate the class, not the instance.
+
+**Positive control for whoever picks this up:** the expression above must, after the
+fix, map `0.0 -> 0.0` while still mapping `None -> 3.0`. A fix that maps both to 0.0
+has replaced one collapse with another.

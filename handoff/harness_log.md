@@ -35140,3 +35140,87 @@ is a poor trade to make at the end of a session on an unprovable claim. Operator
 call; the next session should spawn it fresh.
 
 **Step 86.74 remains `pending`.**
+
+## Cycle 196 -- 2026-08-15 -- phase=86.74 result=FAIL (3rd-CONDITIONAL auto-FAIL; and a REAL code finding)
+
+*(NUMBER COLLISION, created knowingly and disclosed rather than hidden: a
+`## Cycle 196 -- 2026-08-10 -- phase=86.20 result=PASS` already exists. I continued
+86.74's own local series rather than inventing a globally-unique number, because the
+alternative -- jumping to 1231 -- would break the 190..195 run this step's sequence
+is read from. The collision is itself evidence for the point made below: **this file
+cannot be used as a per-step verdict sequence**, and grepping `^## Cycle 196` now
+returns two unrelated runs.)*
+
+Workflow rail `wf_8c3730a1-32e`, launched by **`scriptPath`**. Full-step grade at
+HEAD `77e4ae08`. 61 tool-use turns, 236,421 tokens, 771s.
+
+**THE RAIL RETURNED `CONDITIONAL`. IT IS RECORDED AS `FAIL`** under the CLAUDE.md
+3rd-CONDITIONAL auto-FAIL rule. Mechanical rule application by Main; no criterion
+judgement was altered and the return is transcribed verbatim in
+`evaluator_critique_86.74.md`.
+
+**The escalation was COMPUTED, not asserted.** `enforceEscalation` (lines 319-370 of
+`.claude/workflows/qa-verdict.js`) was extracted and executed against the real prior
+sequence `['NO_VERDICT','CONDITIONAL','CONDITIONAL','PASS','CONDITIONAL','CONDITIONAL']`
+-> `{consecutive_conditionals: 2, would_auto_fail: true}`.
+
+**MY SPAWN ERROR, disclosed.** The script reads the sequence from
+`args.verdict_sequence` ("the sequence must arrive as data" -- its own comment). I
+supplied it as PROSE in `extra.counter_state`, so the machinery reported
+`sequence_status: "not_supplied"`, `would_auto_fail: null`,
+`judge_was_told_consequence: false`, and the Q/A wrote "any threshold or escalation
+that follows is the caller's to compute". It fails CLOSED to `null`, never `0` --
+the machinery is sound; I did not feed it. **Next 86.74-class spawn must pass
+`args.verdict_sequence` as an array.**
+
+**UNLIKE CYCLES 5 AND 6, THIS ONE FOUND CODE.**
+
+1. **C6 NOT MET (the blocker).** No post-fix `signals_log` row carries a RiskJudge
+   contribution -- 2026-08-14, the only post-fix day, has 1 row, `factors_json`
+   length 19, `with_RiskJudge=0`. The unit seam is proven and discriminating but is
+   not the artifact the criterion names. In the step's favour, the Q/A noted the
+   *"including a 0% REJECT"* half is now **unsatisfiable end-to-end because the fix
+   works** -- a 0% REJECT can no longer produce a buy, so it can never produce a
+   buy's row. The non-zero-pct half stays demonstrable and undemonstrated, awaiting
+   the first post-fix scheduled cycle that places a buy.
+
+2. **WARN -- a residual falsy-zero of this step's EXACT class, on a live money path,
+   undisclosed until now.** `autonomous_loop.py:3091-3094` and `:3337-3340`:
+   `float(risk_dict.get("recommended_position_pct") or _LITE_RISK_DEFAULT[...])`.
+   Main re-verified independently against the real `_LITE_RISK_DEFAULT`: a judge
+   `0.0` persists as **3.0**, and `0.0` is indistinguishable from `None` after that
+   line -- the three-states-collapsed defect 86.74 exists to kill. The zero dies
+   UPSTREAM of the helper 86.74 fixed, so the fix cannot reach it. Measured
+   downstream: a **$719.93 BUY** where the true 0.0 yields `[]`. Pre-existing
+   (phase-25.A, `9c5eb8ad`, 2026-05-12), named by no immutable criterion.
+   Blast radius is bounded by an `.env` line (`paper_risk_judge_reject_binding=True`
+   blocks a lite REJECT on the DECISION leg), **not by code**. **Queued as D6.**
+
+**A CORRECTION THE Q/A MADE AGAINST ME, and it is right.** There is **no Cycle 194
+row for 86.74** -- my "191 C, 192 C, 193 PASS, 194 C, 195 C" mislabelled the step's
+cycle 5. The count of 2 survives (cycle 5 = `wf_8ba8cba7-01d`, CONDITIONAL, recorded
+in `evaluator_critique_86.74.md`), but **that cycle never got a harness_log row at
+all** -- a LOG-phase miss on a non-skippable artifact. Compounding it, cycle numbers
+in this file are **not unique**: two independent 193/194/195 runs exist (2026-08-09
+`phase=36.17` and 2026-08-14 `phase=86.74`), and a high series (1225/1226/1230)
+interleaves with a low one. **The log alone cannot carry a per-step verdict
+sequence** -- which is exactly the gap step 86.85's verdict ledger exists to close,
+and it is now measured rather than assumed.
+
+**Where the Q/A disagreed with Main -- twice, in Main's favour.** It graded **C7 MET**
+against Main's own PARTIAL (the 14 rows with no verdict in either source fall outside
+the criterion's *"while a completed risk verdict existed"* predicate), and it killed
+**MQ1**, a mutation cell absent from Main's matrix (re-gate the nested-first
+resolution behind the flag) which proves the unconditional-ness that actually fixed
+DELL has its own killing test. Main did **not** adopt the more generous C7 grade to
+change the outcome; the step fails on C6 either way.
+
+**Before this cycle**, Main ran a SEMANTIC sweep of every 86.74-touching artifact
+(commit `77e4ae08`, docs-only): 12 stale claims across 5 files, **zero in code**,
+triaged by MEANING against a written claim-set rather than by grepping just-edited
+strings. Cycle 7 found no stale prose -- the cap moved from prose to a real code
+finding, which is the outcome that sweep was for.
+
+**86.74 remains `pending` and is now ESCALATED to the operator.** Verification
+command green throughout (41 passed, exit 0). Per the standing instruction, no
+eighth cycle was spawned.
