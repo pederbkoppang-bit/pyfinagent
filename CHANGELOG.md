@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-15 | `5a3b0766` | phase-86.85: cycle-2 remediation -- the cycle-1 Q/A returned FAIL and it was right |
 | 2026-08-15 | `d1c4a79d` | phase-86.85: the verdict-ledger WRITER, plus the measurement that forced its shape |
 | 2026-08-15 | `e15caa9e` | phase-86.74: cycle-7 verdict CONDITIONAL -> recorded FAIL (3rd-CONDITIONAL rule) |
 | 2026-08-15 | `77e4ae08` | phase-86.74: semantic sweep of every 86.74-touching artifact before cycle 7 |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-14 | `0fa1566b` | fix(86.84): close cycle-3 F-A/F-B/F-C, disclose F-E, and ESCALATE on the 3rd CONDITIONAL |
 | 2026-08-14 | `24c57a47` | fix(86.84): close the cycle-2 blockers, incl. a REAL survivor in my own guard |
 | 2026-08-14 | `38ddf013` | docs(86.84): transcribe the cycle-2 CONDITIONAL verdict verbatim |
-| 2026-08-14 | `85127353` | fix(harness): REMOVE the maxTurns caps that were dropping the Layer-3 rail |
 
 ---
 
