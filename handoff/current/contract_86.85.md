@@ -30,7 +30,15 @@ recency scan performed (yes). Not audit-class, so `coverage.dry` is informationa
 - **F1** -- record **before** the irreversible effect. Here the irreversible effect
   is Main *acting on* the verdict (transcribing, fixing, flipping the step).
 - **F4 / C** -- dedup key `(step_id, run_id)`; `run_id` is the rail's own
-  `wf_<uuid>` and is present on 33/35 existing rows. Fallback `(step_id, cycle)`.
+  `wf_<uuid>`. Fallback `(step_id, cycle)`.
+  **CORRECTED (cycle-1 Q/A, C2):** this line said `run_id` "is present on 33/35
+  existing rows", a figure carried forward from the research brief and never
+  re-derived. **No predicate yields 33.** Population = every non-blank line of
+  `handoff/verdict_ledger.jsonl` at `d1c4a79d~1`; command
+  `git show d1c4a79d~1:handoff/verdict_ledger.jsonl | python3 -c "..."`:
+  total rows **35**, `run_id` key present **35**, non-empty **35**, `wf_`-prefixed
+  **35**, non-`wf_` values `[]`. So it is **35 of 35 on every predicate**.
+  Corrected against a re-run, not by editing the digit.
 - **F8 / E** -- on silence: **alert always** (NIST AU-5 base), **fail-closed on the
   DECISION that consumes the ledger**, and **never fail-closed on the harness**
   (AU-5(4) / `CrashOnAuditFail` ships disabled by default).

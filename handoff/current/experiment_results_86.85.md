@@ -24,7 +24,7 @@ test the criteria demand.**
 | File | Change |
 |---|---|
 | `scripts/qa/verdict_ledger_write.py` | **new** -- the writer. Append-one-row, dedup-refusing, fail-loud, append-only. Carries `--emit-sequence` and `--self-test`. |
-| `scripts/qa/mutation_matrix_86_85.py` | **new** -- 5-cell mutation matrix, zero repo writes |
+| `scripts/qa/mutation_matrix_86_85.py` | **new** -- mutation matrix, zero repo writes. **7 cells** after the cycle-2 remediation (M6 ordering + M7 out-of-vocabulary were added; it shipped with 5, and the cycle-1 Q/A proved those 5 were blind to ordering -- see §5). |
 | `handoff/verdict_ledger.jsonl` | 35 -> 43 rows; 86.74 backfilled from 0 -> 8 labelled rows |
 
 **No production/trading code was touched.** No flag promoted, no `.env` written, no
@@ -165,10 +165,17 @@ event**, the log records the **cycle outcome**.
 - `qa.md` is untouched. `verdict_history_86_21.py` is untouched. `qa-verdict.js` is
   untouched. The only new surface is a writer.
 
-### C8 -- mutation-tested, control GREEN first, byte-identical ✅
+### C8 -- mutation-tested, control GREEN first, byte-identical ❌ -> ✅ (see §5)
 
-`scripts/qa/mutation_matrix_86_85.py` -- **5 cells, 5 KILLED, 0 survived,
-0 unscorable**, control observed GREEN *before* any cell ran:
+> **THIS SECTION WAS WRONG AS SHIPPED, and the cycle-1 Q/A proved it.** "5 cells,
+> 5 KILLED" was true and *irrelevant to the property that mattered*: none of M1-M5
+> touched ORDERING, and my self-test's ordering check used a **palindromic**
+> fixture, so a mutant reversing `emit_sequence` **survived with every check
+> green**. The matrix is now **7 cells, 7 KILLED**, with M6 = that exact surviving
+> mutant. Read §5 before trusting the table below.
+
+`scripts/qa/mutation_matrix_86_85.py` -- as originally shipped, **5 cells, 5 KILLED,
+0 survived, 0 unscorable**, control observed GREEN *before* any cell ran:
 
 | cell | guard reverted | result |
 |---|---|---|
@@ -236,3 +243,94 @@ and is recorded as a follow-up.
 5. **No end-to-end run has yet used the ledger to supply `args.verdict_sequence`
    on a live spawn.** The mechanism is proven by driving the shipped function with
    ledger-sourced data; it has not yet ridden a real Q/A launch.
+
+---
+
+## 5. Cycle-2 remediation -- the cycle-1 Q/A returned FAIL, and it was right
+
+**Verdict: FAIL** (`wf_5f5ce4b6-266`). 6 of 8 criteria met; **C8 and C2 not met**
+and the mandatory ruff gate RED. Every blocker was reproduced by Main before being
+fixed. Full verbatim return: `evaluator_critique_86.85.md`.
+
+### C8 -- I wrote a guard named for a property it could not test
+
+The self-test check named `"sequence is oldest->newest"` asserted against
+`["CONDITIONAL","CONDITIONAL","CONDITIONAL"]` -- **a palindrome**. The Q/A's mutant
+`emit_sequence -> return out[::-1]` therefore **SURVIVED with all 11 checks green,
+including that one.** Reproduced by Main: reversing the function and re-running
+`--self-test` prints `SELF-TEST PASSED`, exit 0.
+
+Materiality, driven on the shipped `enforceEscalation`:
+
+```
+oldest->newest  [PASS,C,C] + CONDITIONAL -> n=2  would_auto_fail=TRUE
+reversed        [C,C,PASS] + CONDITIONAL -> n=0  would_auto_fail=FALSE
+```
+
+Ordering is the load-bearing contract of **the one function feeding
+`args.verdict_sequence`**, and a reversal silently DISARMS the escalation. None of
+M1-M5 touched ordering.
+
+**Fixed:** fixture is now `[PASS, CONDITIONAL, FAIL]` on a dedicated step id; a
+**guard-on-the-guard** asserts the fixture is not equal to its own reverse, so it
+cannot silently become palindromic again; and **M6** (the exact surviving mutant)
+was added to the matrix and is now KILLED.
+
+### C2 -- a number I carried instead of deriving
+
+`run_id` "present on 33 of 35 rows" appeared in `verdict_ledger_write.py`,
+`contract_86.85.md` **and** `research_brief_86.85.md`. It is **unreproducible**.
+Population = every non-blank line of `handoff/verdict_ledger.jsonl` at
+`d1c4a79d~1`; command
+`git show d1c4a79d~1:handoff/verdict_ledger.jsonl | python3 -c "..."`:
+
+```
+total rows          : 35
+run_id key present  : 35
+run_id non-empty    : 35
+run_id wf_-prefixed : 35
+non-wf run_id values: []
+```
+
+**35 of 35 on every predicate.** Corrected at all three sites, with the population
+rule and the command beside the number, and marked in place at the ORIGIN (the
+brief) because the propagation path is the lesson: I took the figure from the brief
+and never re-derived it, in the same session whose stated discipline is *"fixing
+code does not fix prose"*.
+
+### Lint -- `F401 shutil imported but unused`
+
+`mutation_matrix_86_85.py:22`. Import removed;
+`ruff --select F821,F401,F811` over both files is now **exit 0, "All checks
+passed!"**.
+
+### WARN -- `emit_sequence` laundered out-of-vocabulary tokens
+
+It silently dropped any verdict outside the vocabulary. That **bypasses the
+consumer's own fail-closed branch**: given the raw tokens `enforceEscalation`
+returns `sequence_status="unparseable"`, `consecutive_conditionals=null`, whereas a
+filtered list looks like a clean, confident, **shorter** sequence -- and shorter can
+only ever UNDER-count a consecutive run, i.e. it fails OPEN. It was also internally
+inconsistent with `read_rows`, which is deliberately loud for exactly the same
+"would under-count" reason.
+
+**Fixed:** it now raises `LedgerError` (exit 4). New self-test check, plus matrix
+cell **M7**, killed.
+
+### State after remediation
+
+```
+self-test                 : 13/13 ok, exit 0
+mutation matrix           : 7 cells, 7 KILLED, 0 survived, 0 unscorable
+                            control GREEN first; target sha256 identical
+                            before/after (temp-copy mutants, zero repo writes)
+ruff F821,F401,F811       : exit 0, "All checks passed!"
+immutable command         : parses, exit 0
+```
+
+**A matrix caveat recorded rather than smoothed.** On the first re-run M2 scored
+**UNSCORABLE (anchor matched 2x)**, because its anchor became a *substring* of the
+more-indented copy M7 introduced -- `str.count` matches text, not lines. The matrix
+refused to score it rather than reporting a kill it had not earned; the anchor was
+made unique by including its preceding line. That behaviour is the matrix working,
+and it is the same class as the C8 finding it was added to close.

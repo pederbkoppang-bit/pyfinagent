@@ -126,9 +126,24 @@ class LedgerError(Exception):
 def _dedup_key(row: dict) -> tuple[str, str]:
     """The identifier of the LOGICAL event, assigned by the producer.
 
-    `(step_id, run_id)` where `run_id` exists -- it is the rail's own `wf_<uuid>`
-    and is present on 33 of the 35 pre-existing rows, satisfying Confluent's
-    "unique to the logical event, such as an event key or request ID".
+    `(step_id, run_id)` where `run_id` exists -- it is the rail's own `wf_<uuid>`,
+    satisfying Confluent's "unique to the logical event, such as an event key or
+    request ID".
+
+    Population = every non-blank line of `handoff/verdict_ledger.jsonl` at
+    `d1c4a79d~1` (the pre-86.85 state). Command and result:
+
+        $ git show d1c4a79d~1:handoff/verdict_ledger.jsonl | python3 -c "..."
+          total rows          : 35
+          run_id key present  : 35
+          run_id non-empty    : 35
+          run_id wf_-prefixed : 35
+          non-wf run_id values: []
+
+    i.e. **35 of 35 on every predicate**. An earlier revision of this docstring, and
+    of `contract_86.85.md`, said "33 of the 35" -- a number carried forward from the
+    research brief and never re-derived. No predicate yields 33. Corrected against a
+    re-run rather than by editing the digit (phase-86.85 cycle-1 Q/A, C2).
 
     Falls back to `(step_id, cycle)` when `run_id` is absent, which is the only
     other producer-assigned identifier the historical rows carry.
@@ -251,6 +266,15 @@ def emit_sequence(step_id: str, path: Path = LEDGER) -> list[str]:
     Oldest -> newest, matching `enforceEscalation`'s reverse scan. This closes the
     loop that failed on 86.74 cycle 7, where the sequence arrived as prose in
     `extra` and the machinery reported `sequence_status="not_supplied"`.
+
+    An out-of-vocabulary verdict token is LOUD, never silently dropped. Silently
+    filtering it would BYPASS the consumer's own fail-closed branch: given the raw
+    tokens, `enforceEscalation` returns `sequence_status="unparseable"` and
+    `consecutive_conditionals=null`, whereas a filtered list looks like a clean,
+    confident, SHORTER sequence -- which can only ever under-count a consecutive
+    run, i.e. it fails OPEN. This also keeps the function consistent with
+    `read_rows`, which is deliberately loud about a corrupt line for the same
+    "would under-count" reason. (phase-86.85 cycle-1 Q/A, WARN.)
     """
     step_id = (step_id or "").strip()
     out: list[str] = []
@@ -258,8 +282,16 @@ def emit_sequence(step_id: str, path: Path = LEDGER) -> list[str]:
         if (row.get("step_id") or "").strip() != step_id:
             continue
         verdict = (row.get("verdict") or "").strip().upper()
-        if verdict in VALID_VERDICTS:
-            out.append(verdict)
+        if verdict not in VALID_VERDICTS:
+            raise LedgerError(
+                f"row for step {step_id!r} carries an unrecognised verdict "
+                f"{verdict!r} (valid: {', '.join(VALID_VERDICTS)}). Refusing to "
+                "emit a sequence with it silently removed -- a filtered sequence "
+                "is SHORTER than the truth and can only under-count a consecutive "
+                "run, bypassing the consumer's fail-closed 'unparseable' branch.",
+                EXIT_IO,
+            )
+        out.append(verdict)
     return out
 
 
@@ -311,15 +343,42 @@ def _self_test() -> int:
         # event time and write time are separate fields
         check("event/write time separate", r1["date"] != r1["recorded_at"])
 
-        # sequence round-trips oldest -> newest
         append_row(build_row("99.1", "CONDITIONAL", run_id="wf_ddd", cycle="3"), p)
-        seq = emit_sequence("99.1", p)
+
+        # ORDER. The fixture MUST be order-sensitive. A previous revision asserted
+        # against ["CONDITIONAL","CONDITIONAL","CONDITIONAL"] -- a PALINDROME -- so
+        # a mutant returning `out[::-1]` passed this very check, and the cycle-1
+        # Q/A's QA-M1 survived because of it. Ordering is the load-bearing contract
+        # of the one function that feeds args.verdict_sequence: reversing
+        # [PASS,C,C] to [C,C,PASS] takes enforceEscalation from n=2/auto_fail=true
+        # to n=0/auto_fail=false, i.e. it SILENTLY DISARMS the escalation.
+        for i, v in enumerate(("PASS", "CONDITIONAL", "FAIL"), start=1):
+            append_row(build_row("99.4", v, run_id=f"wf_ord{i}", cycle=str(i)), p)
+        ordered = emit_sequence("99.4", p)
+        # guard-on-the-guard: if this fixture is ever made palindromic again, the
+        # ordering check silently stops testing ordering. Assert it cannot be.
+        check("order fixture is NOT palindromic (anti-vacuity)",
+              ordered != list(reversed(ordered)))
         check("sequence is oldest->newest",
-              seq == ["CONDITIONAL", "CONDITIONAL", "CONDITIONAL"])
+              ordered == ["PASS", "CONDITIONAL", "FAIL"])
 
         # other steps are not mixed in
         append_row(build_row("99.2", "PASS", run_id="wf_eee", cycle="1"), p)
-        check("sequence filters by step", emit_sequence("99.1", p) == seq)
+        check("sequence filters by step",
+              emit_sequence("99.4", p) == ["PASS", "CONDITIONAL", "FAIL"])
+
+        # an out-of-vocabulary token must be LOUD, never silently filtered --
+        # a filtered sequence is SHORTER than the truth and under-counts a run.
+        oov = Path(td) / "oov.jsonl"
+        oov.write_text(
+            '{"step_id":"99.5","verdict":"CONDITIONAL","run_id":"wf_o1"}\n'
+            '{"step_id":"99.5","verdict":"COND","run_id":"wf_o2"}\n'
+        )
+        try:
+            emit_sequence("99.5", oov)
+            check("out-of-vocabulary verdict is loud", False)
+        except LedgerError as e:
+            check("out-of-vocabulary verdict is loud", e.code == EXIT_IO)
 
         # NO_VERDICT is recorded faithfully and is not silently dropped
         append_row(build_row("99.3", "NO_VERDICT", run_id="wf_fff", cycle="1"), p)

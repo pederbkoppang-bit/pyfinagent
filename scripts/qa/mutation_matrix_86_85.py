@@ -19,7 +19,6 @@ Exit: 0 if every cell KILLED, 1 otherwise.
 from __future__ import annotations
 
 import hashlib
-import shutil
 import subprocess
 import sys
 import tempfile
@@ -40,8 +39,13 @@ CELLS: list[tuple[str, str, str, str]] = [
     (
         "M2",
         "remove the verdict vocabulary guard -- an unknown verdict must be written",
-        "    if verdict not in VALID_VERDICTS:",
-        "    if False:",
+        # Anchored WITH its preceding line: the bare `if verdict not in
+        # VALID_VERDICTS:` is a SUBSTRING of emit_sequence's more-indented copy
+        # (M7's anchor), so on its own it matches twice and the cell scores
+        # UNSCORABLE rather than KILLED. `str.count` does substring matching, not
+        # line matching -- an anchor must be unique as TEXT, not merely as a line.
+        '    verdict = (verdict or "").strip().upper()\n    if verdict not in VALID_VERDICTS:',
+        '    verdict = (verdict or "").strip().upper()\n    if False:',
     ),
     (
         "M3",
@@ -60,6 +64,23 @@ CELLS: list[tuple[str, str, str, str]] = [
         "collapse event time into write time -- a backfill masquerades as history",
         '        "date": event_date or stamp.date().isoformat(),',
         '        "date": stamp.isoformat(),',
+    ),
+    # ---- cells added after the cycle-1 Q/A found M1-M5 blind to ordering ----
+    (
+        "M6",
+        "REVERSE emit_sequence -- this is the cycle-1 Q/A's QA-M1, which SURVIVED "
+        "against the old palindromic fixture. Reversing [PASS,C,C] to [C,C,PASS] "
+        "takes enforceEscalation from n=2/auto_fail=true to n=0/auto_fail=false, "
+        "silently DISARMING the escalation",
+        "\n    return out\n",
+        "\n    return out[::-1]\n",
+    ),
+    (
+        "M7",
+        "remove the out-of-vocabulary loudness in emit_sequence -- an unrecognised "
+        "token must not be laundered into a clean, shorter, confident sequence",
+        "        if verdict not in VALID_VERDICTS:",
+        "        if False:",
     ),
 ]
 

@@ -110,6 +110,19 @@ Canonical (year-less) prior art — Idempotent Consumer / Idempotent Reader, NIS
 
 **F3 — A self-authored audit trail is weak evidence; an orchestrator-authored one is only *less* weak.** arXiv:2606.04990 §2.3: self-reported endpoints mean *"failures from task interpretation, retrieval, tool selection ... collapse into a single endpoint failure."* The mitigation in the literature is (a) an **external** writer at the boundary and (b) **verification independent of the writer** — ESAA uses SHA-256 canonical-state hashing + replay; halo-record/hermes use hash chains. **The mitigation that actually applies at pyfinagent's scale is cross-checking the ledger against an artifact the writer did not author** (the rail's own run records / the WIP artifacts), not cryptography.
 
+> **CORRECTION 2026-08-15 (86.85 cycle-1 Q/A, C2) — applies to F4 below, to §C in
+> "Application", and to the `summary` field of the envelope above.** This brief
+> states three times that `run_id` is present on **33 of 35** rows. That is
+> **WRONG and unreproducible**. Population = every non-blank line of
+> `handoff/verdict_ledger.jsonl` at `d1c4a79d~1`; measured: total **35**, `run_id`
+> key present **35**, non-empty **35**, `wf_`-prefixed **35**, non-`wf_` values
+> `[]`. **35 of 35 on every predicate; no predicate yields 33.** The design
+> conclusion is UNAFFECTED and in fact strengthened -- `run_id` is a *more*
+> reliable dedup component than the brief claimed. Left in place with this marker
+> rather than silently edited, because the number propagated into
+> `contract_86.85.md` and `verdict_ledger_write.py` and the propagation path is
+> the lesson.
+
 **F4 — Dedup key = identifier of the *logical event*, assigned by the producer.** Confluent: *"A tracking ID should be a field that is unique to the logical event, such as an event key or request ID"*; cheapest enforcement is *"an upsert on the event ID as primary key."* Azure adds the write-side variant: *"the event store can reject an event that matches an existing entity identifier and event identifier."* For 86.85 the natural composite is **`(step_id, run_id)`** — `run_id` already exists in 33 of 35 rows and is the rail's own `wf_<uuid>` — with `(step_id, cycle)` as the fallback when `run_id` is absent.
 
 **F5 — Retries and drops are the *reason* for the key, and a dropped run is a real event.** Azure: delivery is *"typically at least once ... Without idempotency, projections drift from the eventstream."* The existing ledger already encodes the correct instinct in a note: *"Rail drops recorded as NO_VERDICT because an empty return is not an absence of a cycle"* (`handoff/verdict_ledger.jsonl`, last row). That is right for *attempt* accounting and **wrong for the consecutive-CONDITIONAL rule** — which is exactly masterplan 86.45.

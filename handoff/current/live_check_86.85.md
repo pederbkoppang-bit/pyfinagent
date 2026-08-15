@@ -169,11 +169,17 @@ row -- out of scope for 86.85, recorded as a follow-up.
 
 ---
 
-## 6. MUTATION MATRIX -- 5/5 killed, control GREEN first, zero repo writes
+## 6. MUTATION MATRIX -- 7/7 killed, control GREEN first, zero repo writes
+
+> **SUPERSEDED IN PLACE.** This section shipped as "5/5 killed" and the cycle-1 Q/A
+> proved those 5 cells were blind to ORDERING -- a mutant reversing `emit_sequence`
+> survived because the self-test's ordering fixture was PALINDROMIC. Cells **M6**
+> (that exact mutant) and **M7** (out-of-vocabulary loudness) were added. Current
+> state below.
 
 ```
 $ python scripts/qa/mutation_matrix_86_85.py
-sha256 before: 146cf84e9bc666745c918fb0539b67b099e11eb6e001660cedea2785347d1904
+sha256 before: 2f0d1000f98ed03e3b92e25792e296e831775a784e8203968bdde9315d57c168
 CONTROL      : rc=0 -> GREEN
 
 M1  KILLED (rc=1)  remove the dedup refusal
@@ -181,10 +187,13 @@ M2  KILLED (rc=1)  remove the verdict vocabulary guard
 M3  KILLED (rc=1)  allow an unkeyed row
 M4  KILLED (rc=1)  swallow a corrupt ledger line
 M5  KILLED (rc=1)  collapse event time into write time
+M6  KILLED (rc=1)  REVERSE emit_sequence  <- the cycle-1 Q/A's QA-M1, which SURVIVED
+                                             against the old palindromic fixture
+M7  KILLED (rc=1)  remove the out-of-vocabulary loudness in emit_sequence
 
-sha256 after : 146cf84e9bc666745c918fb0539b67b099e11eb6e001660cedea2785347d1904
+sha256 after : 2f0d1000f98ed03e3b92e25792e296e831775a784e8203968bdde9315d57c168
 UNCHANGED    : True  (mutations ran on temp copies; the real file was never written)
-5 cells: 5 killed, 0 survived, 0 unscorable
+7 cells: 7 killed, 0 survived, 0 unscorable
 EXIT=0
 ```
 
