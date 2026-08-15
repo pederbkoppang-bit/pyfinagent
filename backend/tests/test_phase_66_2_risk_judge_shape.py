@@ -630,3 +630,202 @@ class TestSwapPathSizingIsBehaviourallyGuarded:
         buys = [o for o in self._run(None, ABSENT) if o.action == "BUY"]
         assert buys, "an absent verdict should still size at the default"
         assert abs(buys[0].amount_usd - 10_000.0 * (DEFAULT_POSITION_PCT / 100.0)) < 1.0
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# phase-86.86 (D6) -- the INGRESS seam: the lite PRODUCER
+# ══════════════════════════════════════════════════════════════════════════
+#
+# Everything above this line tests the CONSUMER (`_resolve_position_pct` and
+# `decide_trades`). phase-86.74 made the consumer correct, and it stayed correct
+# while the money defect ran, because the lite PRODUCER destroyed the zero
+# before the consumer ever saw it:
+#
+#     float(risk_dict.get("recommended_position_pct")
+#           or _LITE_RISK_DEFAULT["recommended_position_pct"])   # 0.0 is falsy
+#
+# Measured on the shipped tree 2026-08-15 -- judge 0.0 -> 3.0, judge 3.0 -> 3.0,
+# judge ABSENT -> 3.0. Rows 1 and 3 identical: an explicit zero and a silent
+# judge were indistinguishable. Driven through the real `decide_trades` that was
+# a BUY of $719.93 on NAV 23,997.71 where a true 0.0 produces no order, in ALL
+# FOUR flag combinations.
+#
+# THESE TESTS DRIVE THE REAL PRODUCER, not a copy of the expression. A mutation
+# cell aimed at a site no test executes is UNSCORABLE, and the whole point of
+# extracting `_build_lite_risk_assessment` was to make the producer driveable.
+
+from backend.services.autonomous_loop import (  # noqa: E402
+    _LITE_RISK_DEFAULT,
+    _build_lite_risk_assessment,
+    _lite_position_pct,
+)
+
+LITE_DEFAULT_PCT = _LITE_RISK_DEFAULT["recommended_position_pct"]  # 3.0
+
+
+def _judge(pct=..., decision="APPROVE_REDUCED"):
+    """A raw lite-judge dict. `pct=...` means the key is ABSENT entirely."""
+    d = {"decision": decision, "risk_level": "MODERATE", "reasoning": "r"}
+    if pct is not ...:
+        d["recommended_position_pct"] = pct
+    return d
+
+
+class TestLiteProducerKeepsAnExplicitZero:
+    """The positive control criterion 4 demands: 0.0 -> 0.0 AND absent -> 3.0.
+
+    Mapping both to 0.0 (or both to 3.0) swaps one collapse for another, so each
+    half is asserted separately and the discrimination is asserted directly.
+    """
+
+    def test_explicit_zero_survives_the_producer(self):
+        got = _build_lite_risk_assessment(_judge(0.0), "TST")["recommended_position_pct"]
+        assert got == 0.0, (
+            f"D6 regression: the judge said 0% and the producer persisted {got} "
+            f"-- an explicit no-buy has been rewritten to the default"
+        )
+
+    def test_absent_verdict_still_reaches_the_default(self):
+        got = _build_lite_risk_assessment(_judge(), "TST")["recommended_position_pct"]
+        assert got == LITE_DEFAULT_PCT, (
+            f"an ABSENT verdict must still default to {LITE_DEFAULT_PCT}, got {got} "
+            f"-- collapsing absent onto 0.0 is the mirror-image defect"
+        )
+
+    def test_zero_and_absent_are_DISTINGUISHABLE(self):
+        """The defect stated as an equality, so a fix that maps both to the same
+        value cannot pass by satisfying the two tests above independently."""
+        zero = _build_lite_risk_assessment(_judge(0.0), "TST")["recommended_position_pct"]
+        absent = _build_lite_risk_assessment(_judge(), "TST")["recommended_position_pct"]
+        assert zero != absent, (
+            f"judge-said-zero ({zero}) and judge-said-nothing ({absent}) are "
+            f"indistinguishable after the producer -- this IS the D6 defect"
+        )
+
+    def test_an_explicit_size_is_passed_through_unchanged(self):
+        got = _build_lite_risk_assessment(_judge(7.5), "TST")["recommended_position_pct"]
+        assert got == 7.5
+
+
+class TestLiteProducerUnparseableFailsClosed:
+    """Criterion 6: the one behaviour change that is NOT the falsy-zero repair.
+
+    The shipped expression RAISED ValueError on a garbage value (the falsy test
+    precedes float(), so 'high' passed the `or` and blew up in float()). It now
+    fails CLOSED at 0.0 with a loud WARNING -- a verdict that cannot be read is
+    not evidence of safety.
+    """
+
+    @pytest.mark.parametrize("garbage", ["high", "", "n/a"])
+    def test_unparseable_sizes_at_zero_not_at_the_default(self, garbage):
+        got = _build_lite_risk_assessment(_judge(garbage), "TST")["recommended_position_pct"]
+        assert got == 0.0, (
+            f"an UNPARSEABLE verdict ({garbage!r}) sized at {got}; it must fail "
+            f"closed at 0.0, never at the {LITE_DEFAULT_PCT} default"
+        )
+
+    def test_unparseable_is_LOUD_not_silent(self, caplog):
+        import logging
+        with caplog.at_level(logging.WARNING, logger="backend.services.autonomous_loop"):
+            _build_lite_risk_assessment(_judge("high"), "TST")
+        assert any("UNPARSEABLE" in r.message or "UNPARSEABLE" in r.getMessage()
+                   for r in caplog.records), (
+            "an unparseable risk verdict was swallowed silently -- "
+            "operations that cannot fail loudly do not fail at all"
+        )
+
+    def test_explicit_null_is_ABSENT_not_unparseable(self):
+        """`{"recommended_position_pct": null}` is silence, not corruption."""
+        got = _build_lite_risk_assessment(_judge(None), "TST")["recommended_position_pct"]
+        assert got == LITE_DEFAULT_PCT
+
+
+class TestLiteProducerLeavesTheOtherKeysBYTEIDENTICAL:
+    """Scope guard. The other four `or _LITE_RISK_DEFAULT[...]` members were
+    measured NOT to change any order and are deliberately RETAINED (filed as
+    86.87). If a later edit silently 'fixes' them here, that is a scope breach
+    and these tests say so.
+    """
+
+    def test_empty_decision_still_takes_the_default(self):
+        ra = _build_lite_risk_assessment(_judge(3.0, decision=""), "TST")
+        assert ra["decision"] == _LITE_RISK_DEFAULT["decision"]
+
+    def test_empty_risk_limits_still_takes_the_protective_default(self):
+        d = _judge(3.0)
+        d["risk_limits"] = {}
+        ra = _build_lite_risk_assessment(d, "TST")
+        assert ra["risk_limits"] == _LITE_RISK_DEFAULT["risk_limits"]
+
+    def test_reason_alias_still_mirrors_reasoning(self):
+        ra = _build_lite_risk_assessment(_judge(3.0), "TST")
+        assert ra["reason"] == ra["reasoning"]
+
+
+class TestLiteZeroProducesNoOrderEndToEnd:
+    """Criterion 8: the downstream consequence, MEASURED by driving the real
+    `decide_trades` -- producer output fed straight in, no hand-built dict.
+
+    Parametrised over BOTH flags. NOTE, stated so a green result is not
+    over-read: `paper_risk_judge_shape_fix_enabled` has ZERO production readers
+    (verified by repo-wide grep, phase-86.86), so its two states prove the code
+    is INSENSITIVE to it -- they do not exercise a gated branch, because there
+    is none. `paper_risk_judge_reject_binding` DOES have production readers.
+    """
+
+    @staticmethod
+    def _orders(pct, shape_fix, binding):
+        ra = _build_lite_risk_assessment(_judge(pct), "TST")
+        analysis = {
+            "ticker": "TST", "recommendation": "BUY", "final_score": 8.0,
+            "price_at_analysis": 100.0, "analysis_date": "2026-08-15",
+            "_path": "lite", "risk_assessment": ra,
+        }
+        return decide_trades(
+            [], [analysis], [], PORTFOLIO,
+            _settings(paper_risk_judge_shape_fix_enabled=shape_fix,
+                      paper_risk_judge_reject_binding=binding),
+        )
+
+    @pytest.mark.parametrize("shape_fix", BOTH_FLAG_STATES)
+    @pytest.mark.parametrize("binding", BOTH_FLAG_STATES)
+    def test_zero_pct_lite_verdict_produces_no_order(self, shape_fix, binding):
+        b = _buy(self._orders(0.0, shape_fix, binding))
+        assert b is None, (
+            f"D6 regression: a 0% lite verdict produced BUY ${b.amount_usd:,.2f} "
+            f"(shape_fix={shape_fix}, reject_binding={binding}). Pre-fix this was "
+            f"$719.93 on NAV {NAV} in all four combinations."
+        )
+
+    @pytest.mark.parametrize("shape_fix", BOTH_FLAG_STATES)
+    @pytest.mark.parametrize("binding", BOTH_FLAG_STATES)
+    def test_absent_verdict_still_buys_at_the_lite_default(self, shape_fix, binding):
+        """Anti-vacuity: without this, the test above could pass because the
+        harness never produces an order at all."""
+        b = _buy(self._orders(..., shape_fix, binding))
+        assert b is not None, (
+            f"an ABSENT lite verdict produced no order at all "
+            f"(shape_fix={shape_fix}, binding={binding}) -- the zero test above "
+            f"would then be vacuous"
+        )
+        expected = round(NAV * (LITE_DEFAULT_PCT / 100.0), 2)
+        assert abs(b.amount_usd - expected) < 1.0, (
+            f"absent verdict sized at {b.amount_usd}, expected the "
+            f"{LITE_DEFAULT_PCT}% lite default ({expected})"
+        )
+
+
+def test_lite_position_pct_is_the_only_route_to_the_default():
+    """Criterion 2, asserted in the suite as well as in the AST checker, so the
+    'exactly one seam' property is defended by the immutable command too."""
+    import inspect
+    from backend.services import autonomous_loop as al
+    src = inspect.getsource(al._build_lite_risk_assessment)
+    assert "_lite_position_pct(" in src, (
+        "the producer no longer routes the pct through the shared seam"
+    )
+    assert 'or _LITE_RISK_DEFAULT["recommended_position_pct"]' not in src, (
+        "the falsy-zero idiom is back inside the producer"
+    )
+    assert _lite_position_pct({}, "TST") == LITE_DEFAULT_PCT
+    assert _lite_position_pct({"recommended_position_pct": 0.0}, "TST") == 0.0

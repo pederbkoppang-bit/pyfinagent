@@ -35328,3 +35328,100 @@ NO VERDICT and never a PASS, which needs its own executed test and was not run.
    criteria are ungraded.
 
 **86.84 remains `pending`.**
+
+---
+
+## Cycle 219 -- 2026-08-15 -- phase=86.86 result=PASS
+
+**D6 -- the lite risk-judge paths destroyed an explicit 0% position verdict at the
+CONSTRUCTION seam.** Filed as 86.86 and fixed in ONE cycle. P1, live money.
+
+**The defect, measured before anything was changed.**
+`autonomous_loop.py:3091-3094` (Claude lite) and `:3337-3340` (Gemini lite) built
+the persisted `risk_assessment` with
+`float(risk_dict.get("recommended_position_pct") or _LITE_RISK_DEFAULT[...])`.
+`0.0` is falsy. Re-derived against the shipped tree: judge `0.0` -> `3.0`,
+judge `3.0` -> `3.0`, judge ABSENT -> `3.0`. **Rows 1 and 3 identical -- an
+explicit zero and a silent judge were indistinguishable**, and the zero died
+UPSTREAM of every guard 86.74 built, so `PositionVerdict(SIZE, 3.0)` downstream
+was a correct reading of an already-falsified value. Driven through the real
+`decide_trades`: **BUY $719.93 on NAV 23,997.71** where the true verdict gives
+no order -- in **all four** flag combinations.
+
+**The D6 brief's harm bound was too generous, and this makes the defect worse
+than filed.** The brief bounded exposure by `paper_risk_judge_reject_binding=True`.
+The reproduction pairs a non-REJECT decision with `0.0` -- the brief's own case
+(a) -- and the BUY fires **with binding ON**, because binding blocks only an
+exact `REJECT`. The bound was never "an .env line".
+
+**The fix.** Both lite paths held BYTE-IDENTICAL copies of the dict literal. They
+now call one producer, `_build_lite_risk_assessment`, whose pct goes through
+`_lite_position_pct` -> `_resolve_position_pct` -- the SAME three-state resolver
+the full path uses, not a second idiom. `SIZE` -> the judge's number (0.0
+included); `UNPARSEABLE` -> 0.0, fail closed AND loud; `ABSENT` -> 3.0, and only
+ABSENT reaches it. Extraction was load-bearing, not cosmetic: a literal inside a
+300-line async LLM function cannot be DRIVEN by a test, and a mutation cell
+aimed at an undriveable site is UNSCORABLE -- the research gate named exactly
+this.
+
+**Evidence.** Positive control `0.0 -> 0.0` **while** absent `-> 3.0`, with the
+INEQUALITY asserted directly so a mirror collapse cannot pass. End-to-end,
+`0.0 = no order` in all four flag combos while `3.0` and absent stay at
+`BUY $719.93` (proof the fix did not merely suppress buying). Seam checker: 8
+checks emitted, 8 PASS. Mutation matrix: 6 cells, **6 KILLED**, both controls
+GREEN first, restore sha256-verified. Immutable command **62 passed** (was 41;
++21 tests). Full suite: zero regressions **attributable**, proven by reverting
+to HEAD and re-running the identical 21 node ids -- 20 failures both ways, set
+difference EMPTY.
+
+**The class was swept, and I corrected the researcher by measurement.** AST walk:
+10 sites / 5 keys pre-fix -> 4 post-fix, `recommended_position_pct` gone. The
+brief called `decision` a HARMFUL fail-open and `risk_level` HARMFUL-MILD;
+driving the real `decide_trades` shows **neither changes any order** (`""` and
+`APPROVE_REDUCED` both BUY $719.93 -- only exact `REJECT` blocks; `risk_level` is
+read ZERO times by `portfolio_manager`). The brief's insight was kept rather than
+discarded: `decision` is a **latent** fail-open that would invert under an
+allow-list gate. `risk_limits` left alone deliberately -- its substitution
+INSTALLS a stop (90.0 vs 92.0), i.e. protective.
+
+**Q/A: PASS, 9/9 criteria, 0 violated, 22 checks, harness_compliance_ok.** Run
+`wf_b1747d75-eec`, cycle 1, `verdict_sequence=[]` passed as DATA. The Q/A
+re-derived every claim independently from `git show HEAD:` and its own harness
+rather than trusting the author's scripts, and verified the matrix's restore with
+its own sha256.
+
+**THE MOST VALUABLE THING IN THIS CYCLE IS A FINDING THE Q/A MADE THAT MY OWN
+MATRIX MISSED.** It mutated the **CALLER**, not the seam: a pre-mangle
+`risk_dict['recommended_position_pct'] = (... or 3.0)` injected immediately
+before the producer call **SURVIVED** -- 62 passed, green. It reintroduces the
+exact D6 defect and is caught by neither the suite (no test drives the real
+`_run_*_analysis` lite path end to end) nor the AST checker (which matches only
+the `_LITE_RISK_DEFAULT`-constant form, not a hardcoded literal). Its probe was
+proven live by a discriminating positive control first. It also found four
+`dict(_LITE_RISK_DEFAULT)` whole-dict routes invisible to that checker by
+construction, making the checker's `<whole-dict>` branch a DEAD zero-assertion
+guard. Both are **outside criterion 7** (which names the fixed sites, and both
+of those ARE covered) -- so they blocked nothing, and both are filed as
+**86.88 (P1)**. The general lesson: a matrix licenses only "these N mutations
+were killed"; 86.86's matrix said exactly that, and the Q/A then found the
+N+1th. Guarding a seam is not guarding the routes into it.
+
+**Queued from this cycle:** **86.87** (P2 -- the three audit-fabricating members;
+the substituted `reasoning` states "risk-judge parse failed" when the parse
+SUCCEEDED, a false statement in a persisted audit column) and **86.88** (P1 --
+the N1/N2 coverage gap above).
+
+**Artifact corrections applied post-verdict** (a correction REPLACES, it does not
+accompany): the "exactly ONE function can reach the default" wording is true only
+under a subscript-read reading and now says so; pre-fix line-number citations
+corrected to post-fix; all 21 failing node ids enumerated rather than 2 named.
+
+**NOT YET IN FORCE.** Restart batched to session end per standing operator
+instruction; the running backend still holds the pre-fix module. Pending-restart:
+`backend/services/autonomous_loop.py`.
+
+**Peer-session protection.** `backend/api/sovereign_api.py` + 5 `frontend/src`
+files are a PEER's uncommitted work (mtime 2026-08-14, a day before this step).
+The Q/A flagged that `git add -A` would sweep them into this commit. This step
+was committed with **explicit pathspecs only** and the masterplan flip was done
+without triggering the `git add -A` hook, so they remain uncommitted.

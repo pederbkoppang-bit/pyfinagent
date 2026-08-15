@@ -21,7 +21,14 @@ from backend.agents.orchestrator import AnalysisOrchestrator
 from backend.config.settings import Settings, get_settings
 from backend.db.bigquery_client import BigQueryClient
 from backend.services.paper_trader import PaperTrader
-from backend.services.portfolio_manager import decide_trades
+from backend.services.portfolio_manager import (
+    decide_trades,
+    # phase-86.86 (D6): the lite producer reuses the SAME three-state verdict
+    # rule as the full path rather than growing a second parallel idiom.
+    SIZE,
+    UNPARSEABLE,
+    _resolve_position_pct,
+)
 from backend.tools.screener import screen_universe, rank_candidates, get_sp500_tickers, get_russell1000_tickers
 from backend.services.recommendation_vocab import resolve_outcome_recommendation  # phase-86.25
 
@@ -2303,6 +2310,100 @@ _LITE_RISK_DEFAULT = {
 }
 
 
+def _lite_position_pct(risk_dict: dict, ticker: str = "?") -> float:
+    """THE single seam at which the LITE judge's position size is resolved.
+
+    phase-86.86 (D6). Both lite paths previously built the persisted
+    risk_assessment with::
+
+        float(risk_dict.get("recommended_position_pct")
+              or _LITE_RISK_DEFAULT["recommended_position_pct"])
+
+    and **0.0 is falsy**, so the strongest risk signal the judge can issue -- an
+    explicit 0% -- was rewritten to the 3.0 default at INGRESS. Measured on the
+    shipped tree 2026-08-15: judge 0.0 -> 3.0, judge 3.0 -> 3.0, judge ABSENT ->
+    3.0. The second and third rows are the defect: **an explicit zero and a
+    silent judge became indistinguishable**, and the zero died UPSTREAM of every
+    guard phase-86.74 built, so `PositionVerdict(SIZE, 3.0)` downstream was a
+    correct reading of an already-falsified value. Driven through the real
+    `decide_trades` that produced a BUY of $719.93 on NAV 23,997.71 where a true
+    0.0 produces no order -- in ALL FOUR flag combinations, because the decision
+    was APPROVE_REDUCED and `paper_risk_judge_reject_binding` only blocks an
+    exact REJECT.
+
+    This routes through `_resolve_position_pct` -- the SAME three-state resolver
+    the full path uses -- rather than adding a second idiom, so lite and full
+    share one rule. The default is returned for ABSENT and **only** for ABSENT:
+
+    * ``SIZE``        -> the judge's number, **0.0 included**
+    * ``UNPARSEABLE`` -> 0.0, fail CLOSED and LOUD (a verdict we could not read
+      is not evidence of safety -- mirrors `_sizing_pct`)
+    * ``ABSENT``      -> the 3.0 default; nobody expressed an opinion
+
+    Note `analysis={}`: at construction time the raw judge dict is the only
+    source that exists, and the second source `_resolve_position_pct` consults
+    (`analysis["risk_judge_position_pct"]`) is not populated until later.
+    """
+    verdict = _resolve_position_pct(risk_dict, {})
+    if verdict.kind == SIZE:
+        # A SIZE with no number is contradictory; fail closed rather than let a
+        # corrupted verdict reach the default.
+        return float(verdict.pct) if verdict.pct is not None else 0.0
+    if verdict.kind == UNPARSEABLE:
+        logger.warning(
+            "Lite risk judge for %s: recommended_position_pct is present but "
+            "UNPARSEABLE (%r) -- sizing at 0.0 (fail closed), NOT at the %.1f "
+            "default. A verdict that cannot be read is not evidence of safety.",
+            ticker,
+            risk_dict.get("recommended_position_pct"),
+            _LITE_RISK_DEFAULT["recommended_position_pct"],
+        )
+        return 0.0
+    return float(_LITE_RISK_DEFAULT["recommended_position_pct"])
+
+
+def _build_lite_risk_assessment(risk_dict: dict, ticker: str = "?") -> dict:
+    """Build the persisted lite `risk_assessment` -- the ONE producer.
+
+    phase-86.86 (D6). The Claude lite path (was `:3085-3097`) and the Gemini
+    lite path (was `:3333-3343`) carried byte-identical copies of this dict
+    literal, so a fix applied to one would silently miss the other. Extracting
+    it does three things the in-place edit could not:
+
+    1. there is now **exactly one** place that can reach
+       `_LITE_RISK_DEFAULT["recommended_position_pct"]` -- inside
+       `_lite_position_pct`, and nowhere else;
+    2. a test can DRIVE the real producer, which a dict literal buried in a
+       300-line async LLM function cannot be driven; a mutation cell against an
+       undriveable site is UNSCORABLE;
+    3. the two paths cannot drift apart again.
+
+    **The other four keys are relocated BYTE-IDENTICALLY and deliberately.**
+    Their `or` idioms are not decision-inverting -- measured 2026-08-15 by
+    driving the real `decide_trades`: an empty `decision` and the substituted
+    APPROVE_REDUCED both produce the same BUY (only an exact REJECT blocks), and
+    `risk_level` is read zero times by `portfolio_manager`. They DO fabricate the
+    persisted audit trail -- the substituted `reasoning` states "risk-judge parse
+    failed" when the parse succeeded and only that field was blank -- which is a
+    real defect, filed as its own step **86.87** rather than fixed here.
+    `risk_limits` is left alone because its substitution INSTALLS a stop where
+    none existed, i.e. it is protective.
+    """
+    risk_reasoning = str(risk_dict.get("reasoning") or _LITE_RISK_DEFAULT["reasoning"])
+    return {
+        "decision": str(risk_dict.get("decision") or _LITE_RISK_DEFAULT["decision"]),
+        "reasoning": risk_reasoning,
+        # Backward-compat alias: bq.save_report at line ~818 reads
+        # risk_assessment.get("reason", "") for the summary column.
+        "reason": risk_reasoning,
+        # phase-86.86 (D6): NOT `or _LITE_RISK_DEFAULT[...]` -- see
+        # `_lite_position_pct`. An explicit 0.0 must survive this line.
+        "recommended_position_pct": _lite_position_pct(risk_dict, ticker),
+        "risk_level": str(risk_dict.get("risk_level") or _LITE_RISK_DEFAULT["risk_level"]),
+        "risk_limits": dict(risk_dict.get("risk_limits") or _LITE_RISK_DEFAULT["risk_limits"]),
+    }
+
+
 def _integrity_market_data(
     name, current_price, market_cap, pe_ratio, sector, industry,
     momentum_20d, momentum_60d, norm, flags,
@@ -3081,20 +3182,8 @@ Respond in this exact JSON format:
         risk_dict = dict(_LITE_RISK_DEFAULT)
         logger.warning("Lite risk judge for %s failed (%s) -- using default sizing", ticker, exc)
 
-    risk_reasoning = str(risk_dict.get("reasoning") or _LITE_RISK_DEFAULT["reasoning"])
-    risk_assessment = {
-        "decision": str(risk_dict.get("decision") or _LITE_RISK_DEFAULT["decision"]),
-        "reasoning": risk_reasoning,
-        # Backward-compat alias: bq.save_report at line ~818 reads
-        # risk_assessment.get("reason", "") for the summary column.
-        "reason": risk_reasoning,
-        "recommended_position_pct": float(
-            risk_dict.get("recommended_position_pct")
-            or _LITE_RISK_DEFAULT["recommended_position_pct"]
-        ),
-        "risk_level": str(risk_dict.get("risk_level") or _LITE_RISK_DEFAULT["risk_level"]),
-        "risk_limits": dict(risk_dict.get("risk_limits") or _LITE_RISK_DEFAULT["risk_limits"]),
-    }
+    # phase-86.86 (D6): ONE producer, shared with the Gemini lite path.
+    risk_assessment = _build_lite_risk_assessment(risk_dict, ticker)
     logger.info(
         "Lite risk judge for %s: decision=%s position_pct=%.1f risk_level=%s",
         ticker,
@@ -3329,18 +3418,8 @@ Respond ONLY with valid JSON, no prose. Schema:
             "Gemini lite risk judge for %s failed (%s) -- using default sizing", ticker, exc,
         )
 
-    risk_reasoning = str(risk_dict.get("reasoning") or _LITE_RISK_DEFAULT["reasoning"])
-    risk_assessment = {
-        "decision": str(risk_dict.get("decision") or _LITE_RISK_DEFAULT["decision"]),
-        "reasoning": risk_reasoning,
-        "reason": risk_reasoning,  # backward-compat alias for bq.save_report
-        "recommended_position_pct": float(
-            risk_dict.get("recommended_position_pct")
-            or _LITE_RISK_DEFAULT["recommended_position_pct"]
-        ),
-        "risk_level": str(risk_dict.get("risk_level") or _LITE_RISK_DEFAULT["risk_level"]),
-        "risk_limits": dict(risk_dict.get("risk_limits") or _LITE_RISK_DEFAULT["risk_limits"]),
-    }
+    # phase-86.86 (D6): ONE producer, shared with the Claude lite path.
+    risk_assessment = _build_lite_risk_assessment(risk_dict, ticker)
     logger.info(
         "Gemini lite risk judge for %s: decision=%s position_pct=%.1f risk_level=%s",
         ticker,
