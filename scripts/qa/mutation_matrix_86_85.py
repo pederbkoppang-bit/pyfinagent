@@ -82,6 +82,31 @@ CELLS: list[tuple[str, str, str, str]] = [
         "        if verdict not in VALID_VERDICTS:",
         "        if False:",
     ),
+    # ---- cells added after the cycle-2 Q/A found M1-M7 left NEW guards uncovered.
+    # Enumerated from source (every `raise LedgerError` + every _dedup_key branch),
+    # not from the two findings that were reported -- cover the CLASS.
+    (
+        "M8",
+        "revert the fail-loud I/O guard to a silent success -- the writer would "
+        "PRINT the row, exit 0 and write NOTHING, manufacturing the exact "
+        "absent-row state the reader is built to refuse (cycle-2 QA-M6)",
+        '        raise LedgerError(f"failed to append to {path}: {exc}", EXIT_IO) from exc',
+        "        return row",
+    ),
+    (
+        "M9",
+        "drop step_id from the dedup key -- the same run_id then collides ACROSS "
+        "steps and a legitimate second row is refused and LOST, under-counting a "
+        "consecutive run in the fail-OPEN direction (cycle-2 QA-M4)",
+        '        return (step, f"run:{run}")',
+        '        return ("", f"run:{run}")',
+    ),
+    (
+        "M10",
+        "remove the empty-step_id guard -- an unkeyed, unattributable row appends",
+        '        raise LedgerError("--step is required and must be non-empty.", EXIT_INVALID)',
+        "        pass",
+    ),
 ]
 
 

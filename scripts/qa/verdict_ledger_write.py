@@ -393,6 +393,58 @@ def _self_test() -> int:
         except LedgerError as e:
             check("corrupt ledger is loud", e.code == EXIT_IO)
 
+        # ---- COVERAGE OF THE REMAINING GUARD CLASS (cycle-2 Q/A) ----
+        # Enumerated from source rather than from the findings: every `raise
+        # LedgerError` site plus every distinguishing branch of _dedup_key. Two
+        # cycles running, a NEW guard shipped with no check; the fix is to cover
+        # the CLASS, not the two instances that happened to be reported.
+
+        # (a) an I/O failure must be LOUD, never a silent success. QA-M6: with
+        # this guard reverted the writer PRINTS the row, exits 0, writes NOTHING
+        # and says nothing on stderr -- the exact "silent writer" the module
+        # docstring forbids, and the state criterion 6 warns is unfalsifiable.
+        ro = Path(td) / "ro"
+        ro.mkdir()
+        ro.chmod(0o500)  # r-x------ : cannot create a file inside
+        try:
+            append_row(build_row("99.6", "PASS", run_id="wf_io"), ro / "l.jsonl")
+            check("I/O failure is loud", False)
+        except LedgerError as e:
+            check("I/O failure is loud", e.code == EXIT_IO)
+        finally:
+            ro.chmod(0o700)
+
+        # (b) the dedup key must include step_id. QA-M4: dropping it makes the
+        # same run_id collide ACROSS steps, so a legitimate row for a second step
+        # is refused and LOST -- an under-count, i.e. it fails OPEN.
+        k1 = Path(td) / "keyed.jsonl"
+        append_row(build_row("88.1", "PASS", run_id="wf_same", cycle="1"), k1)
+        # The second append MUST be caught rather than allowed to propagate: with
+        # step_id dropped from the key it raises, and an uncaught raise exits the
+        # whole self-test with a traceback instead of a failed check -- which the
+        # matrix scores UNSCORABLE, not KILLED, because a crash is not evidence
+        # that the guard discriminated. Convert it into a check result.
+        try:
+            append_row(build_row("99.9", "PASS", run_id="wf_same", cycle="1"), k1)
+            second_step_accepted = True
+        except LedgerError:
+            second_step_accepted = False
+        check("dedup key includes step_id (same run_id, different step)",
+              second_step_accepted and len(read_rows(k1)) == 2)
+
+        # (c) an empty step id is refused
+        try:
+            build_row("", "PASS", run_id="wf_x")
+            check("empty step_id rejected", False)
+        except LedgerError as e:
+            check("empty step_id rejected", e.code == EXIT_INVALID)
+
+        # (d) the CLI argument guards, driven through main()
+        check("--emit-sequence without --step exits 3",
+              main(["--emit-sequence", "--ledger", str(p)]) == EXIT_INVALID)
+        check("append without --verdict exits 3",
+              main(["--step", "99.1", "--ledger", str(p)]) == EXIT_INVALID)
+
     print()
     if failures:
         print(f"SELF-TEST FAILED: {len(failures)} check(s): {', '.join(failures)}")

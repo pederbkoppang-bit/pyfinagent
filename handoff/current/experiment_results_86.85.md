@@ -24,8 +24,9 @@ test the criteria demand.**
 | File | Change |
 |---|---|
 | `scripts/qa/verdict_ledger_write.py` | **new** -- the writer. Append-one-row, dedup-refusing, fail-loud, append-only. Carries `--emit-sequence` and `--self-test`. |
-| `scripts/qa/mutation_matrix_86_85.py` | **new** -- mutation matrix, zero repo writes. **7 cells** after the cycle-2 remediation (M6 ordering + M7 out-of-vocabulary were added; it shipped with 5, and the cycle-1 Q/A proved those 5 were blind to ordering -- see §5). |
-| `handoff/verdict_ledger.jsonl` | 35 -> 43 rows; 86.74 backfilled from 0 -> 8 labelled rows |
+| `scripts/qa/mutation_matrix_86_85.py` | **new** -- mutation matrix, zero repo writes. **10 cells** as of the cycle-3 remediation. It shipped with 5; cycle 1 proved those 5 blind to ORDERING (+M6, M7), cycle 2 proved 7 still left NEW guards uncovered (+M8 I/O fail-loud, M9 step_id-in-key, M10 empty-step). See §5 and §6. |
+| `backend/tests/test_phase_86_85_verdict_ledger_write.py` | **new** -- 25 pytest regressions, one per mutation cell. Promised in contract §6.3 and initially substituted by `--self-test` **without disclosure**; the cycle-2 Q/A flagged that as a scope-honesty violation and it is now discharged. |
+| `handoff/verdict_ledger.jsonl` | 35 -> 43 rows at `d1c4a79d`; 86.74 backfilled 0 -> 8 labelled rows. Now 45 in the working tree, the +2 being this step's own cycle-1 and cycle-2 FAIL rows. |
 
 **No production/trading code was touched.** No flag promoted, no `.env` written, no
 manual cycle, no restart.
@@ -63,20 +64,40 @@ independent 193/194/195 runs exist). All three substitutes fail.
 
 ### C2 -- population rule stated beside every count, enumeration command quoted ✅
 
-**Population = EVERY non-blank line in `handoff/verdict_ledger.jsonl`.** Command:
+**Population = EVERY non-blank line in `handoff/verdict_ledger.jsonl`.**
+
+**THESE COUNTS ARE ANCHORED, because this step's ledger MOVES WHILE THE STEP RUNS.**
+86.85 records its own Q/A verdicts into the very file it counts, so any unanchored
+total goes stale the moment the next cycle is graded -- which is exactly what the
+cycle-2 Q/A caught (it measured 44 against a stated 43, the drift being this step's
+own cycle-1 FAIL row). Each figure below therefore names the commit it was taken at.
 
 ```
-$ python3 -c "rows=[json.loads(l) for l in open('handoff/verdict_ledger.jsonl') if l.strip()]"
-  total rows            : 43   (was 35 before this step)
-  rows added by 86.85   : 8
-  step_ids present      : 11   (was 10)
-  86.74 rows            : 8    (was 0)
+$ git show d1c4a79d~1:handoff/verdict_ledger.jsonl | python3 -c "..."   [PRE-STEP]
+  total rows            : 35
+  step_ids present      : 10
+  86.74 rows            : 0
+  recorded_by           : {main: 35}
+  run_id                : 35/35 key present, 35/35 non-empty, 35/35 wf_-prefixed
+  max date              : 2026-08-11
+
+$ git show d1c4a79d:handoff/verdict_ledger.jsonl | python3 -c "..."     [AS SHIPPED]
+  total rows            : 43   (= 35 + 8 backfilled 86.74 rows)
+  step_ids present      : 11
+  86.74 rows            : 8
   verdict distribution  : {CONDITIONAL 23, FAIL 5, PASS 8, NO_VERDICT 7}
   rows with recorded_at : 29 / 43
+
+$ python3 -c "rows=[json.loads(l) for l in open('handoff/verdict_ledger.jsonl') if l.strip()]"
+                                                                        [WORKING TREE]
+  total rows            : 45   (= 43 + this step's own cycle-1 and cycle-2 FAIL rows)
+  step_ids present      : 12
+  verdict distribution  : {CONDITIONAL 23, FAIL 7, PASS 8, NO_VERDICT 7}
+  rows with recorded_at : 31 / 45
 ```
 
-`rows with recorded_at` is 29/43 rather than 43/43 because **14 historical rows
-predate the field**; all 8 new rows carry it. That is stated rather than rounded up.
+`rows with recorded_at` is short of the total because **14 historical rows predate
+the field**; every row this step writes carries it. Stated rather than rounded up.
 
 ### C3 -- cross-session persistence DEMONSTRATED across two process invocations ✅
 
@@ -334,3 +355,85 @@ more-indented copy M7 introduced -- `str.count` matches text, not lines. The mat
 refused to score it rather than reporting a kill it had not earned; the anchor was
 made unique by including its preceding line. That behaviour is the matrix working,
 and it is the same class as the C8 finding it was added to close.
+
+---
+
+## 6. Cycle-3 remediation -- the cycle-2 Q/A returned FAIL, and it was right again
+
+**Verdict: FAIL** (`wf_879d28f2-9fc`). 6 of 8 criteria met; **C8 not met, C2 partial**,
+plus a scope-honesty finding. Every blocker reproduced by Main before being fixed.
+
+### C8 again -- and the lesson is that I fixed INSTANCES, not the CLASS
+
+Cycle 1 found the ordering guard untested. I added M6 for it. Cycle 2 then found
+**two more new guards with no coverage at all**:
+
+- **QA-M6 / the fail-loud I/O guard** (`except OSError -> LedgerError(EXIT_IO)`).
+  Reverted to `return row`, it **survives all 13 self-test checks and all 7 matrix
+  cells**. Driven with a discriminating probe (append into a `0o500` directory):
+  baseline `exit=4`, no file, loud stderr; mutant `exit=0`, **row printed to
+  stdout, nothing on disk, empty stderr** -- a *silent writer*, which is the exact
+  state this module's own docstring forbids and which criterion 6 calls
+  unfalsifiable.
+- **QA-M4 / `step_id` in the dedup key.** Dropped, the same `run_id` collides
+  ACROSS steps and a legitimate second row is refused and **lost** -- an
+  under-count, i.e. fails OPEN.
+
+**The fix this time is class-level, not instance-level.** I enumerated every guard
+from source -- all **9 `raise LedgerError` sites** plus every distinguishing branch
+of `_dedup_key` -- and found the uncovered set was *larger than the two reported*:
+`build_row`'s empty-`step_id` guard and **both CLI argument guards** were also
+untested. All are now covered.
+
+```
+self-test        : 13 -> 19 checks
+mutation matrix  :  7 -> 10 cells, 10 KILLED, 0 survived, 0 unscorable
+pytest           : 25 passed (new file, one test per cell)
+```
+
+**And the matrix caught my own bad test, again.** M9 first scored **UNSCORABLE
+(rc=1, no `SELF-TEST FAILED`)**: my new check called `append_row` unguarded, so the
+mutant *crashed* the suite with a traceback instead of failing a check -- and a
+crash is not evidence that a guard discriminated. Converting it to a caught
+`try/except` turned it into a genuine KILL. That is the harness working exactly as
+designed, and it is the same failure family as the C8 findings themselves.
+
+### C2 -- counts that could not reproduce, and a correction that only annotated
+
+Two distinct faults, both mine:
+
+1. **Unanchored headline counts.** I stated 43 rows / 11 step_ids / FAIL 5 /
+   29-of-43. Measured later: 44 / 12 / 6 / 30-of-44. **The drift is
+   self-referential** -- 86.85 records its own verdicts into the very file it
+   counts, so an unanchored total goes stale the moment the next cycle is graded.
+   Every figure in §2 C2 now names the commit it was taken at (`d1c4a79d~1`
+   pre-step, `d1c4a79d` as-shipped, working tree), which is the same discipline the
+   C2 remediation figure already used and the headline block did not.
+2. **`33/35` was ANNOTATED, not REPLACED.** I added a correction block at
+   `research_brief_86.85.md:115` and left the wrong number standing at `:29`,
+   `:126` and `:182`. That is precisely the *"a correction must REPLACE, not
+   accompany"* failure I spent this morning fixing in 86.74 -- committed in the
+   same session, in the opposite direction. All three sites now carry **35/35**
+   with the population rule and command; the correction block remains only to name
+   the error, which is history rather than a live claim.
+
+### Scope honesty -- a promised artifact I silently substituted
+
+`contract_86.85.md` §6.3 promised
+`backend/tests/test_phase_86_85_verdict_ledger_write.py`. I shipped the checks as a
+`--self-test` subcommand instead and **did not disclose the substitution**. The file
+now exists (25 tests) and the two are deliberately not duplicates: `--self-test` is
+the mutation-matrix target (one process, one exit code, dependency-free), the pytest
+file is the regression suite that runs with the rest of the backend. Each test names
+the matrix cell it mirrors so the two cannot silently diverge.
+
+### Gates after remediation
+
+```
+pytest (new file)         : 25 passed, exit 0
+self-test                 : 19/19 ok, exit 0
+mutation matrix           : 10 cells, 10 KILLED, 0 survived, 0 unscorable
+                            control GREEN first; target sha256 identical before/after
+ruff F821,F401,F811       : exit 0, "All checks passed!"
+immutable command         : parses, exit 0
+```
