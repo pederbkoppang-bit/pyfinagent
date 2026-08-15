@@ -402,3 +402,46 @@ executed evidence for criterion 4 (an exhausted retry yields no value, rethrows,
 still RECOMPUTES `gate_passed`, and assigns no verdict field), cited here per
 **V-10** because it was previously proven but unmapped. None of the concurrent
 peer session's files are in any commit.
+## Post-boundary verification of the maxTurns removal -- 2026-08-15
+
+**The gap this closes.** The prior evidence was a sample of n=2 at 15 and 3 turns
+with 0 drops, which carried NO information: a 15-turn run could never have exhausted
+a 40 cap, so it cannot distinguish "the removal worked" from "the cap was never
+reached". The verification needed was a post-boundary spawn running PAST the removed
+cap that still emits StructuredOutput.
+
+**It exists now, and it was produced as a by-product of grading 86.74.**
+
+```
+run          : wf_8c3730a1-32e   (86.74 cycle-7 Q/A)
+agentType    : qa                (the role whose cap was 30)
+realised     : 61 tool-use turns
+last tool    : StructuredOutput  -> the schema call was emitted
+tokens       : 236,421   duration 771s
+```
+
+**Why this is decisive rather than suggestive.** 61 > 30 by 31 turns. Under the
+removed cap this run dies at turn 30 with full token cost and nothing returned --
+which is precisely the drop signature 86.84 diagnosed. The run is therefore only
+OBSERVABLE because the cap is gone, and it is the first uncensored point of the
+realised turn distribution that the cap made unmeasurable.
+
+**Boundary check -- the removal was in force.** The removal landed in
+`85127353` at 2026-08-14T19:37:50+02:00; this session started 2026-08-15, after it.
+The agent roster snapshots at session start, so it was live for this spawn. Note the
+BEHAVIOUR is the stronger proof: a capped spawn cannot exceed its cap, so a 61-turn
+`qa` run is itself evidence the cap is absent, independent of reading the file.
+
+**What this does NOT establish.**
+1. **n=1 above the boundary.** One uncensored observation proves the cap was the
+   binding constraint; it does not characterise the distribution's tail.
+2. **It does not discharge 86.84's other criteria** -- in particular the criterion
+   that a turn-exhausted spawn must yield NO VERDICT and never a PASS, which needs
+   its own executed test and was not run today.
+3. **It says nothing about `researcher`** (cap was 40). No post-boundary researcher
+   spawn ran today.
+
+**Recommendation on "may 86.84 close unverified?" -- still NO, but the reason has
+narrowed.** The specific "the removal is not verified" blocker is now DISCHARGED by
+the run above. 86.84 should still not close until its remaining criteria are graded
+by a fresh Q/A, which has not returned.

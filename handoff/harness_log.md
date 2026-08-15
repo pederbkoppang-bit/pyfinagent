@@ -35286,3 +35286,45 @@ coverage-derivation method rather than an enumeration I keep asserting.
 **86.85 remains `pending`.** No masterplan flip. Nothing was loosened; the writer
 changes no verdict semantics and `qa.md`, `verdict_history_86_21.py` and
 `qa-verdict.js` are untouched.
+
+## Cycle 198 -- 2026-08-15 -- phase=86.84 result=EVIDENCE-ADDED (removal VERIFIED; step still pending)
+
+**No Q/A ran for 86.84 this session. This is an evidence append, not a verdict.**
+
+The gap the prior cycle left open was: *"verification needs a post-boundary spawn
+running PAST 30 (qa) / 40 (researcher) turns that still emits StructuredOutput."*
+The prior sample was n=2 at **15 and 3 turns**, which carried NO information -- a
+15-turn run could never have exhausted a 40 cap.
+
+**That evidence now exists, produced as a by-product of grading 86.74:**
+
+```
+run       : wf_8c3730a1-32e   (86.74 cycle-7 Q/A)
+agentType : qa                (the role whose cap was 30)
+realised  : 61 tool-use turns
+last tool : StructuredOutput  -> the schema call WAS emitted
+```
+
+61 > 30 by 31 turns. Under the removed cap this run dies at turn 30 with full token
+cost and nothing returned -- the exact drop signature 86.84 diagnosed. The run is
+only OBSERVABLE because the cap is gone. **The BEHAVIOUR is the proof**: a capped
+spawn cannot exceed its cap, independent of reading the file. Boundary: the removal
+landed `85127353` 2026-08-14T19:37:50+02:00; this session started 2026-08-15.
+
+Three further post-boundary `qa` spawns ran today (86.85 cycles 1-3, 55/55/57 tool
+calls), all emitting StructuredOutput -- consistent, though tool-call count is not
+identical to the turn metric above.
+
+**WHAT THIS DOES NOT DO.** n=1 above the boundary on the turn metric; nothing about
+`researcher` (cap was 40, no post-boundary researcher spawn ran); and it does NOT
+discharge 86.84's other criteria -- notably that a turn-exhausted spawn must yield
+NO VERDICT and never a PASS, which needs its own executed test and was not run.
+
+**DECISIONS OWED TO THE OPERATOR (unchanged, now better informed):**
+1. **Separation-of-duties review of the agent-file change** (Cycle 218). The change
+   is now LOAD-BEARING -- 86.74's cycle 7 depended on it.
+2. **May 86.84 close unverified? Recommendation remains NO** -- but the reason has
+   narrowed: the "removal not verified" blocker is DISCHARGED; the remaining
+   criteria are ungraded.
+
+**86.84 remains `pending`.**
