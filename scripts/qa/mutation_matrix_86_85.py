@@ -127,6 +127,29 @@ CELLS: list[tuple[str, str, str, str]] = [
         '    cycle = str(row.get("cycle") or "").strip()\n    if cycle:\n        return (step, f"cycle:{cycle}")',
         '    cycle = str(row.get("cycle") or "").strip()\n    if False:\n        return (step, f"cycle:{cycle}")',
     ),
+    # ── cycle-4 (C8). NOT hand-spotted. `verify_matrix_coverage_86_85.py`
+    # DERIVED these two gaps from the writer's own AST: `main`'s CLI argument
+    # validation had no cell aiming at it, while the matrix reported 12/12
+    # KILLED. That is the whole 86.85 failure class in miniature -- a matrix
+    # complete over its own list, not over the subject's guards -- and it is why
+    # cells are no longer added by reading the file and thinking hard.
+    (
+        "M13",
+        "remove the --emit-sequence arg guard -- `--emit-sequence` with no --step "
+        "must be refused; without it the reader is invoked with an empty step id "
+        "and returns a sequence for the wrong (or no) step, which the escalation "
+        "rule then consumes as if it were history",
+        '            if not args.step:\n                raise LedgerError("--emit-sequence requires --step.", EXIT_INVALID)',
+        '            if False:\n                raise LedgerError("--emit-sequence requires --step.", EXIT_INVALID)',
+    ),
+    (
+        "M14",
+        "remove the append arg guard -- an append with a missing --step or "
+        "--verdict must be refused at the CLI boundary rather than reaching "
+        "build_row, so the refusal is attributable to the caller's invocation",
+        "        if not args.step or not args.verdict:",
+        "        if False:",
+    ),
 ]
 
 
@@ -208,6 +231,28 @@ def main() -> int:
     if before != after:
         print("FATAL: target file changed -- investigate before trusting any cell.")
         return 1
+
+    # ── COMPLETENESS IS DERIVED, NOT CLAIMED (cycle-4, C8) ────────────────
+    # "14 cells killed" answers "can these guards fail?" It does NOT answer
+    # "is there a guard with no cell?" -- and THAT is the question this step
+    # failed three times in a row, each time because the guard list was
+    # written by hand and its omissions were invisible from the inside.
+    #
+    # So the matrix is RED when a guard has no cell, even if every cell it
+    # does have was killed. On the run that introduced this call the matrix
+    # reported 12/12 KILLED while `main`'s CLI argument validation had NO
+    # cell aiming at it: a perfect score over an incomplete list.
+    print()
+    print("=== DERIVED COVERAGE (does any guard have NO cell?) ===")
+    import verify_matrix_coverage_86_85 as cov  # local import: same directory
+
+    cov_rc = cov.main()
+    if cov_rc != 0:
+        print("\nFATAL: the mutation matrix is INCOMPLETE over the writer's "
+              "guards (see above). Every cell may still have been killed -- "
+              "that is precisely the failure this check exists to catch.")
+        return 1
+
     return 0 if not survived and not unscorable else 1
 
 

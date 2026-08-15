@@ -438,3 +438,81 @@ of the same class would be me guessing rather than converging.
   "verdict_unmodified": true
 }
 ```
+
+---
+
+# CYCLE 4 VERDICT -- C8 ONLY (2026-08-15)
+
+**Evaluator:** Layer-3 Q/A, Workflow rail (`.claude/workflows/qa-verdict.js`,
+launched by `scriptPath`), Opus, effort max. **Run:** `wf_769e1502-fd8`.
+**Cycle 4.** **`args.verdict_sequence` passed as DATA:** `["FAIL","FAIL","FAIL"]`.
+
+> TRANSCRIBED VERBATIM FROM THE Q/A's RETURN VALUE. Main records the verdict;
+> Main never authors it. Main's response is in a separate section at the end.
+
+## VERDICT: CONDITIONAL   (ok=False, certified_fallback=False, harness_compliance_ok=True)
+
+### violated_criteria (verbatim)
+- Contradiction: five cells labelled coverage-redundant cover ZERO enumerated guards and no guard is covered by more than one cell
+- Overgeneralization: 'Completeness is now DERIVED' -- known-member recall of the derived gate is 1 of 4 on the author's own named member set
+- Contradiction: C8.5's five-cell behaviour list names 'sequence filtering' (no cell exists) and omits M5's actual target (event/write-time separation)
+
+### reason (verbatim)
+
+Criterion 8's three literal requirements are each verified by execution and all reproduce: CONTROL rc=0 GREEN is printed before any cell, the matrix runs 14 cells 14 KILLED / 0 survived / 0 unscorable, and byte-identity is achieved by a stronger disclosed construction (zero repo writes; sha256 3e607f1b... identical before and after, md5 of all three scripts unchanged after every run I made). The derived coverage checker reports 15 guards / 15 covered / 0 uncovered, its self-control detects and reports its own planted guard, and my six independent mutation cells produced no genuine survivor (QA-A/B/C/D KILLED; QA-E and QA-F survived but both fail the behavioural-differential test as defects and are retracted). CAP: the artifacts' explanation of the drop-one-cell sweep is refuted by measurement. experiment_results and live_check C8.5 both state that M5/M6/M9/M11/M12 leave the gate GREEN because they are "coverage-redundant -- another cell touches the same guard"; measured per-cell, those five cells cover ZERO enumerated guards and NO guard anywhere is covered by more than one cell. The true reason is the second half of the same sentence -- their targets are invisible to the enumeration rule -- and the two readings differ materially: "redundant" says the gate is still complete, "invisible" says it is structurally blind. A known-member recall test using the checker's OWN named member set ("ordering; then fail-loud-I/O + step_id-in-key; then cycle-fallback") gives 1 of 4: dropping M6 -> GREEN, M8 -> RED, M9 -> GREEN, M11+M12 -> GREEN. So the mechanism offered as the structural end of this step's three-cycle failure class would not have demanded 3 of the 4 guards whose omission caused those cycles. Fixable in the artifacts, not in the code.
+
+### violation_details (verbatim)
+
+**1. Contradiction**
+
+- *action*: Inverted verify_matrix_coverage_86_85.coverage() per cell against the shipped CELLS list, and re-ran the gate with each cell dropped
+- *state*: M5, M6, M9, M11, M12 each cover 0 enumerated guards; guards covered by more than one cell = NONE; enumerated fingerprints mentioning 'return out' / 'run:' / 'cycle:' / 'date' = 0/0/0/0
+- *constraint*: [WARN] experiment_results_86.85.md 'Proof the gate is load-bearing' and live_check_86.85.md C8.5: 'Five cells (M5, M6, M9, M11, M12) are coverage-redundant -- another cell touches the same *guard*'. There is no redundancy anywhere in the coverage map; the correct reason (their targets are outside the enumeration rule) sits in the same sentence and contradicts the clause preceding it.
+
+**2. Overgeneralization**
+
+- *action*: Known-member recall test: dropped the cell for each guard the checker's own docstring names as its motivating class, then re-ran the gate
+- *state*: drop M6 (ordering, cycle-1 QA-M1) -> rc=0 GREEN; drop M8 (fail-loud I/O, cycle-2 QA-M6) -> rc=1 RED; drop M9 (step_id-in-key, cycle-2 QA-M4) -> rc=0 GREEN; drop M11+M12 (cycle-fallback, cycle-3 QA-M2) -> rc=0 GREEN. Recall = 1 of 4.
+- *constraint*: [WARN] qa.md 4b -- a COMPLETENESS claim must be executed against a known-member set the author did not choose and must find ALL of them. 'This cycle does not write another hand-list. Completeness is now DERIVED' is not supported at 1-of-4 recall. Partially mitigated: live_check C8.7 does state the enumeration's blind spot correctly.
+
+**3. Contradiction**
+
+- *action*: grep of mutation_matrix_86_85.py CELLS for an anchor on emit_sequence's step filter, and read of M5's cell description
+- *state*: No cell targets the step filter (I had to write one myself, QA-B); M5's description is 'collapse event time into write time -- a backfill masquerades as history'
+- *constraint*: [NOTE] live_check_86.85.md C8.5 names the five cells' targets as '(ordering, sequence filtering, dedup-key composition, cycle fallback)' -- four behaviours for five cells, one of which has no cell and one of which (M5's) is unnamed.
+
+### checks_run (verbatim)
+
+1. `harness_compliance_audit_5_item`
+2. `verification_command`
+3. `python_lint_gate_ruff_derived_scope`
+4. `scoped_pytest`
+5. `writer_self_test`
+6. `mutation_matrix_reproduction`
+7. `derived_coverage_checker_reproduction`
+8. `independent_mutation_matrix_6_cells`
+9. `known_member_recall_test`
+10. `harness_mutation_drop_one_cell_sweep`
+11. `claim_audit_numeric_and_causal`
+12. `prior_verdict_ledger_evidence`
+13. `byte_identity_md5_sha256`
+14. `unintended_production_change_scan`
+15. `code_review_heuristics`
+
+### notes (verbatim)
+
+Sequence evidence (gathered, not applied): verdict_history_86_21.py --step 86.85 --evidence-only -> status=ok, 3 verdicts, FAIL -> FAIL -> FAIL. qa_wip.py --spawned-at 2026-08-15T19:42:48Z -> source_present=true, attempt_number=4 (status ok, INCLUSIVE of me, is_lower_bound true), prior_attempts=3, records_retained=4 (gauge, not used as a counter). Cross-check: prior_attempts (3) == ledger count (3), so the ledger is NOT stale for this step. Separate observation for the caller, not acted on: HEAD carries 64512cdc "phase-86.85: cycle-3 FAIL -- 3rd consecutive, ESCALATED to operator, no cycle 4", and a 4th cycle nevertheless exists.
+
+SPAWN-PROMPT DEFECT: "EVIDENCE / FILES TO READ" and "ADDITIONAL CONTEXT" both arrived as the literal string "[object Object]" -- the evidence pointer list did not reach me. I derived the evidence set from git + handoff/current + .claude/masterplan.json. The prompt also supplied only 1 of the masterplan's 8 immutable criteria (its #8); C1-C7 are declared "unchanged from cycle 3, not re-litigated" and I did not re-derive them (live_check sections 1-9 carry their evidence; section 3's driven 3rd-CONDITIONAL is execution-based with anti-vacuity controls).
+
+CLAIMS THAT DO REPRODUCE, checked because this step's three prior FAILs were claim defects: HEAD's matrix has exactly 12 cells and dropping M13 or M14 turns the gate RED, so "12/12 KILLED with main's CLI validation uncovered" is real; "M14 SURVIVED against the self-test as it stood" reproduces against `git show HEAD:` -- the HEAD writer emits 20 checks (matching "before: 20") and M14 survives while M13 is killed; 23 self-test checks, 34 pytest passed, 14/14 killed, 15/15 covered all reproduce; the C8.5 sweep table reproduces on every row I re-ran. The three self-found checker defects recorded in C8.2 are a genuine and unusual piece of honesty.
+
+REMEDY (small and precise): in experiment_results "Proof the gate is load-bearing" and live_check C8.5, replace "coverage-redundant -- another cell touches the same guard" with the measured fact -- those five cells contribute ZERO enumerated-guard coverage and no guard is covered by more than one cell, because their targets (ordering, dedup-key composition, cycle fallback, event/write-time separation) are outside the enumeration rule, so the gate would not demand them if they were deleted. State the 1-of-4 known-member recall next to the sweep, and fix the behaviour list (drop "sequence filtering", add event/write-time separation). Residual risk is bounded: behavioural coverage of ordering does not depend on M6, since the self-test carries both "sequence is oldest->newest" and the "order fixture is NOT palindromic (anti-vacuity)" guard-on-the-guard.
+
+RETRACTED FINDING, recorded so it is not re-raised: I mutated `except LedgerError:` -> `except Exception:` in existing_keys (QA-F) and it SURVIVED, but the behavioural differential inverts the hypothesis -- CONTROL crashes with an unhandled AttributeError on a ledger line that is valid JSON but not an object, while the MUTANT refuses correctly with EXIT_DUPLICATE. The mutant is equivalent-or-better, so the narrow except is not shown to be load-bearing. QA-E (removing read_rows' blank-line skip) also survived but fails CLOSED, so it is a NOTE not a defect. No genuine surviving mutant was found this cycle and no product defect was found.
+
+NON-BLOCKING NOTES: (1) live_check heading "## 6. MUTATION MATRIX -- 12/12 killed" is now stale in the document's top-level structure; cycle 4 appended rather than annotating it. (2) The writer's _self_test docstring says "Touches no real file", but the new cycle-4 check cli(["--emit-sequence"]) omits --ledger and so READS the real handoff/verdict_ledger.jsonl via the module default -- read-only and harmless today, but it makes that check's exit code depend on the real ledger's state. (3) mutation_matrix_86_85.py imports verify_matrix_coverage_86_85 by bare module name; that resolves only because sys.path[0] is the script directory on direct invocation. (4) WORKING TREE: backend/api/sovereign_api.py plus 5 frontend/src files are modified and uncommitted (mtimes 2026-08-14 13:24-13:29, a day before this step's work) -- an unrelated "1y" sovereign red-line window change, NOT produced by 86.85, but auto-commit-and-push.sh does `git add -A` so they would ship under an 86.85 commit subject.
+
+Deterministic tier, verbatim: immutable command -> "parses", exit 0. ruff --select F821,F401,F811 over a DERIVED non-empty 4-file scope (git diff --name-only HEAD '*.py' UNION git ls-files --others '*.py', passed via xargs) -> "All checks passed!", exit 0. pytest -k '86_85 or ledger or verdict_ledger' -> 34 passed, 3498 deselected. mutation_matrix_86_85.py -> exit 0. No UI claims in this step, so gate 1c does not apply; no backend/** change belongs to this step's diff, so gate 1d does not apply.
+
+Write-first record: /Users/ford/.openclaw/workspace/pyfinagent/.claude/agent-memory/qa/verdicts/verdict_wip_86.85__20260815T194248Z.md (STATUS: COMPLETE -- evidence for a next spawn, never a verdict).

@@ -247,3 +247,233 @@ because **14 historical rows predate the field**; every row this step writes has
 3. **Only one consumer is proven.** `attempt_budget.py` (86.71) is still inert.
 4. **No live spawn has yet consumed the ledger** for `args.verdict_sequence` -- the
    mechanism is proven by driving the shipped function, not by riding a real launch.
+
+---
+
+# CYCLE 4 -- C8 ONLY (2026-08-15)
+
+Prior verdicts on this step, passed to the Q/A as DATA in
+`args.verdict_sequence` (from `verdict_ledger_write.py --emit-sequence --step
+86.85`): **`["FAIL", "FAIL", "FAIL"]`**.
+
+All three FAILs were ONE class: **a new guard shipped with no mutation cell**
+(cycle 1 ordering; cycle 2 fail-loud-I/O + step_id-in-key; cycle 3
+cycle-fallback). Each time the guard list was written BY HAND and the Q/A found
+the one that was missed. A hand-list cannot be audited by the person who wrote
+it -- its omissions are invisible from the inside.
+
+**So cycle 4 does not write another hand-list.** It DERIVES guard-shaped
+coverage instead.
+
+**READ C8.5 BEFORE BELIEVING ANY COMPLETENESS CLAIM IN THIS SECTION.** The
+cycle-4 Q/A refuted the strong reading and I re-measured it myself: known-member
+recall against this step's own three prior FAILs is **1 of 4**. The gate catches
+**guard-shaped** omissions (a `raise` or refusing `if` with no cell) and NOT
+**behavioural** ones -- and 3 of the 4 historical misses were behavioural. Any
+sentence below that reads as "the failure class is now structurally closed" is
+governed by this paragraph and by C8.5.
+
+## C8.1 -- the new checker: `scripts/qa/verify_matrix_coverage_86_85.py`
+
+It enumerates the writer's guards FROM SOURCE by AST, then measures -- per cell
+-- which guards each cell actually touches. **No cell declares what it covers**;
+a declaration would be a hand-list wearing a different hat. Any enumerated guard
+that no cell touches makes the checker exit non-zero.
+
+**The enumeration rule, written down so it can be argued with:**
+
+- `GUARD-RAISE` -- every `raise LedgerError(...)`. `LedgerError` is the module's
+  own refusal type, so this is a rule about semantics, not a curated list. It
+  excludes `raise SystemExit(main())` (CLI dispatch) **without anyone naming
+  it**.
+- `GUARD-BRANCH` -- every `ast.If` that refuses DIRECTLY: its body reaches a
+  GUARD-RAISE or a failure-code `return` **without passing through a nested
+  `ast.If`**. Ancestors route; they do not guard.
+
+**Coverage is measured two ways, and each was added because the other gave a
+wrong answer:**
+
+- (a) STRUCTURAL -- the guard's fingerprint is present in the original and
+  absent/altered in the cell's mutated source.
+- (b) TEXTUAL -- the cell's anchor overlaps the guard's own span **or the span
+  of an enclosing `ast.If`**.
+
+## C8.2 -- three defects the checker found in its own first runs
+
+Recorded because each is a case of a check that looked clean and was not.
+
+1. **FALSE GAPS from own-span-only matching.** First run reported 8 uncovered of
+   16 -- but `RAISE::append_row::duplicate key` is killed by M1, which neuters
+   the enclosing `if key in existing_keys(path):`. The raise's own AST node and
+   text are untouched, so own-span matching missed it. Fixed by adding
+   enclosing-`If` spans.
+2. **AN OVER-COUNTED GUARD.** `if args.emit_sequence:` was enumerated as a guard
+   because its body ends `return EXIT_OK` and the rule tested `"EXIT_" in txt`.
+   A success return is not a refusal. Rule corrected to exclude `EXIT_OK`;
+   guards 16 -> 15.
+3. **OVER-CREDITED COVERAGE -- the dangerous direction, and the one that would
+   have hidden a real gap.** The ancestor rule initially included `ast.Try`.
+   `main` wraps its whole body in one `try:`, so every anchor inside it
+   "overlapped" every guard in it, and cell M13 was credited with covering a
+   raise in a different branch. **The tell: dropping cell M14 left the gate
+   GREEN.** This was invisible until the gate was tested for its ability to go
+   RED. Ancestors are now `ast.If` only.
+
+## C8.3 -- what the derived checker found in the MATRIX
+
+With the rules corrected, the checker reported **`main`'s CLI argument
+validation had NO cell aiming at it** -- while the matrix reported **12/12
+KILLED**. A perfect score over an incomplete list: the 86.85 failure class in
+miniature, found by derivation rather than by re-reading the file.
+
+Two cells added, **M13** and **M14**. `M13`'s first anchor did not match
+(`count=0`); the checker reported it as a CELL PROBLEM rather than silently
+scoring it -- a no-match `str.replace` looks exactly like success.
+
+**M14 then SURVIVED**, i.e. a guard that cannot fail. Cause, measured: the CLI
+guards are defence-in-depth -- `build_row` refuses an empty `--step` and an
+empty `--verdict` anyway -- so removing the CLI guard still refuses and only the
+MESSAGE changes. The pre-existing self-test checks asserted only that the exit
+code was 3, and **both paths return 3**, so they were vacuous. Three checks
+added that pin WHICH refusal fires (plus an anti-vacuity check that a
+well-formed append still succeeds). M14 is now KILLED.
+
+## C8.4 -- the matrix is now RED when a guard has no cell
+
+`mutation_matrix_86_85.py` calls the coverage checker and fails on a non-zero
+result, so "every cell killed" can no longer be reported as success while a
+guard sits uncovered.
+
+## C8.5 -- proof the gate can go RED (drop-one-cell sweep)
+
+A gate that has never been observed failing is a zero-assertion guard. Each cell
+was removed in memory and the gate re-run:
+
+```
+CONTROL (14 cells) -> exit 0
+    guards: 15   covered: 15   uncovered: 0   cell problems: 0
+
+  drop M1   -> exit 1 RED   gaps=2        drop M8   -> exit 1 RED   gaps=1
+  drop M2   -> exit 1 RED   gaps=2        drop M9   -> exit 0 GREEN (coverage-redundant)
+  drop M3   -> exit 1 RED   gaps=1        drop M10  -> exit 1 RED   gaps=2
+  drop M4   -> exit 1 RED   gaps=1        drop M11  -> exit 0 GREEN (coverage-redundant)
+  drop M5   -> exit 0 GREEN (coverage-redundant)   drop M12  -> exit 0 GREEN (coverage-redundant)
+  drop M6   -> exit 0 GREEN (coverage-redundant)   drop M13  -> exit 1 RED   gaps=2
+  drop M7   -> exit 1 RED   gaps=2        drop M14  -> exit 1 RED   gaps=2
+```
+
+**CORRECTED BY THE CYCLE-4 Q/A, AND THE CORRECTION MATTERS MORE THAN THE
+ORIGINAL CLAIM.** The paragraph that stood here said the five GREEN rows were
+"coverage-redundant -- another cell touches the same *guard*". **That is false,
+and I have re-measured it myself rather than taking the Q/A's word:**
+
+```
+guards covered by MORE THAN ONE cell: 0
+
+  M1  covers 2 guard(s)      M8   covers 1 guard(s)
+  M2  covers 2 guard(s)      M9   covers 0 guard(s)  <-- ZERO
+  M3  covers 1 guard(s)      M10  covers 2 guard(s)
+  M4  covers 1 guard(s)      M11  covers 0 guard(s)  <-- ZERO
+  M5  covers 0 guard(s) <-- ZERO   M12  covers 0 guard(s)  <-- ZERO
+  M6  covers 0 guard(s) <-- ZERO   M13  covers 2 guard(s)
+  M7  covers 2 guard(s)      M14  covers 2 guard(s)
+```
+
+**There is no redundancy anywhere in the coverage map.** Those five cells cover
+**zero** enumerated guards. The gate stays green without them not because
+another cell covers the same guard, but because **their targets are invisible to
+the enumeration rule** -- and those two readings differ materially: "redundant"
+says the gate is still complete, "invisible" says the gate is structurally
+blind. I wrote the reassuring one.
+
+**THE CONSEQUENCE, MEASURED -- and it is the finding of this cycle.** The
+known-member set is not one I chose after the fact: it is the three prior FAILs,
+named in the checker's own docstring as its motivating class. Dropping the cell
+for each historical miss and re-running the gate:
+
+```
+  drop ['M6']         cycle-1 QA-M1  ordering           -> GREEN  NOT demanded
+  drop ['M8']         cycle-2 QA-M6  fail-loud I/O      -> RED    DEMANDED
+  drop ['M9']         cycle-2 QA-M4  step_id-in-key     -> GREEN  NOT demanded
+  drop ['M11','M12']  cycle-3 QA-M1/M2  cycle-fallback  -> GREEN  NOT demanded
+
+RECALL = 1 of 4
+```
+
+**So the mechanism I offered as the structural end of this step's three-cycle
+failure class would not have demanded 3 of the 4 guards whose omission caused
+those three cycles.** By this project's own rule -- *a scan that cannot find its
+own known members is a FAILED gate* -- a 1-of-4 recall does not support the
+claim "completeness is now DERIVED", and that sentence is withdrawn. What the
+gate genuinely does is narrower and still worth having: **it catches
+guard-shaped omissions** (a `raise LedgerError` or a refusing `if` with no
+cell), which is exactly how it found `main`'s uncovered CLI validation. It does
+**not** catch behavioural omissions, which were 3 of the 4 historical misses.
+Extending the enumeration to behavioural guards is queued as step **86.89**.
+
+Also corrected: the behaviour list above named "sequence filtering", for which
+**no cell exists**, and omitted M5's actual target. The five cells' real targets
+are **ordering (M6), dedup-key composition (M9), cycle fallback (M11, M12), and
+event/write-time separation (M5)**. All five remain KILLED by the matrix.
+
+**Residual risk is bounded and stated rather than assumed:** behavioural
+coverage of ordering does not depend on M6 alone, because the self-test carries
+both "sequence is oldest->newest" and the "order fixture is NOT palindromic
+(anti-vacuity)" guard-on-the-guard.
+
+The two checks still answer different questions -- "can this guard fail?" versus
+"is any guard unmutated?" -- and conflating them is how a 12/12 score coexisted
+with an uncovered guard. That part of the original paragraph stands.
+
+Additionally the checker runs a **self-control before reporting**: it plants a
+synthetic guard into an in-memory copy and requires itself to report that guard
+as UNCOVERED. If it cannot detect a guard it planted itself it exits 2 with
+FAILED GATE rather than a clean bill.
+
+## C8.6 -- verbatim output
+
+### writer self-test
+```
+SELF-TEST PASSED
+checks emitted: 23        (was 20 before this cycle)
+```
+
+### mutation matrix, now gated on derived coverage
+```
+14 cells: 14 killed, 0 survived, 0 unscorable
+guards: 15   covered: 15   uncovered: 0   cell problems: 0
+RESULT: OK -- every enumerated guard is touched by at least one cell.
+exit=0
+```
+```
+UNCHANGED    : True  (mutations ran on temp copies; the real file was never written)
+UNCHANGED    : True  (all mutation was in memory)
+```
+The writer's sha256 is printed before and after by both scripts and is unchanged
+-- no restore step exists to get wrong, because nothing is ever written.
+
+### pytest
+```
+selector: -k '86_85 or ledger or verdict_ledger'
+34 passed, 3498 deselected, 1 warning in 6.16s
+```
+
+**Population rule for every count above (C2 discipline):** `checks emitted` is
+`grep -cE '^  (ok  |FAIL)'` over the self-test's own output; `cells` is
+`len(CELLS)` in `mutation_matrix_86_85.py`; `guards` is the AST enumeration
+under the rule in C8.1; the pytest number is whatever the quoted `-k` selector
+selects and is **not** comparable to a count taken under a different selector.
+
+## C8.7 -- what this does NOT claim
+
+- A matrix licenses exactly **"these 14 mutations were killed"**. The coverage
+  checker adds a separate, narrower guarantee: **"no guard the enumeration can
+  see is unmutated."** Neither is a claim that the writer's guard SET is
+  complete or correct.
+- The enumeration has its own blind spots -- it sees `raise LedgerError` and
+  refusing `if` branches. A guard expressed some other way (a silent `return`
+  with no failure code, a validation inside a helper called for effect) is
+  outside it. The rule is written down in C8.1 precisely so that limit is
+  auditable rather than implicit.
+- **Scope:** this cycle touched C8 only. C1-C7 are unchanged from cycle 3 and
+  were not re-litigated.

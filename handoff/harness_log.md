@@ -35425,3 +35425,96 @@ files are a PEER's uncommitted work (mtime 2026-08-14, a day before this step).
 The Q/A flagged that `git add -A` would sweep them into this commit. This step
 was committed with **explicit pathspecs only** and the masterplan flip was done
 without triggering the `git add -A` hook, so they remain uncommitted.
+
+---
+
+## Cycle 220 -- 2026-08-15 -- phase=86.85 result=CONDITIONAL (cycle 4, C8 only -- ESCALATED, step stays pending)
+
+**Scope: C8 only,** per the operator's standing instruction ("the design is
+settled, do not re-litigate"). C1-C7 unchanged from cycle 3 and not re-graded.
+`args.verdict_sequence` passed as DATA: **`["FAIL","FAIL","FAIL"]`** (from
+`verdict_ledger_write.py --emit-sequence --step 86.85`, matching the ledger's own
+3 rows -- so the ledger is not stale for this step).
+
+**What was built.** Three prior FAILs were ONE class: a new guard shipped with no
+mutation cell, the guard list written BY HAND each time. So cycle 4 did not write
+another hand-list. `scripts/qa/verify_matrix_coverage_86_85.py` AST-enumerates
+the writer's guards and MEASURES, per cell, which guards each cell touches -- no
+cell declares its own coverage. The matrix now calls it and is RED when a guard
+has no cell. Self-test 20 -> **23 checks**; matrix 12 -> **14 cells, 14 KILLED**;
+derived coverage **15 guards / 15 covered / 0 uncovered**; pytest **34 passed**
+under the quoted selector.
+
+**It earned its keep immediately:** it found that `main`'s CLI argument
+validation had **NO cell** while the matrix reported **12/12 KILLED** -- a
+perfect score over an incomplete list, which is the failure class in miniature.
+Adding the cells then exposed that **M14 SURVIVED**, because the CLI guards are
+defence-in-depth and the pre-existing self-test asserted only `exit == 3`, which
+**both** paths return. Those checks were vacuous; three new ones pin WHICH
+refusal fires.
+
+**Three defects the checker found in ITSELF**, recorded not hidden: false gaps
+from own-span-only matching (8 spurious); an over-counted guard (`return
+EXIT_OK` is not a refusal); and -- the dangerous one -- **over-credited coverage**
+from including `ast.Try` as an ancestor, where `main`'s single wrapping `try:`
+let one anchor cover every guard in the body. **The tell was that dropping cell
+M14 left the gate GREEN**, found only because the gate was tested for its ability
+to go RED rather than observed passing.
+
+**VERDICT: CONDITIONAL -- 3 violated criteria, and the Q/A is right.** The
+finding is a claim defect in MY artifacts, and I reproduced every part of it
+myself before accepting it:
+
+1. I wrote that five cells (M5, M6, M9, M11, M12) were "coverage-redundant --
+   another cell touches the same guard". **False.** Measured: those five cover
+   **ZERO** enumerated guards, and **no guard anywhere is covered by more than
+   one cell** -- there is no redundancy in the map at all. They leave the gate
+   green because their targets are **invisible to the enumeration rule**.
+   "Redundant" says the gate is complete; "invisible" says it is blind. **I wrote
+   the reassuring one.**
+2. **Known-member recall = 1 of 4.** Against the checker's own named motivating
+   set -- the three prior FAILs -- dropping the cell for ordering (M6),
+   step_id-in-key (M9) and cycle-fallback (M11+M12) all leave the gate **GREEN**;
+   only fail-loud I/O (M8) is demanded. **The mechanism offered as the structural
+   end of this failure class would not have demanded 3 of the 4 guards whose
+   omission caused it.** By this project's own rule -- a scan that cannot find
+   its own known members is a FAILED gate -- **the claim "completeness is now
+   DERIVED" is WITHDRAWN.**
+3. The behaviour list named "sequence filtering", for which no cell exists, and
+   omitted M5's real target (event/write-time separation).
+
+**Corrections applied, REPLACING the false text rather than appending to it**, in
+all three places that carried it: `live_check_86.85.md` C8.5 and its cycle-4
+header, `experiment_results_86.85.md`, and the checker's own docstring (which had
+overclaimed in its title). A fourth inconsistency I found myself while correcting
+-- the docstring still describing ancestors as "branch/try/loop" after the
+`ast.If`-only fix -- was corrected in the same pass.
+
+**What the gate genuinely delivers, stated at its true size:** it closes the
+**guard-shaped** half of the failure class (a `raise` or refusing `if` with no
+cell) and not the **behavioural** half -- and 3 of the 4 historical misses were
+behavioural. That remaining work is filed as **86.89**.
+
+**ESCALATION -- 86.85 REMAINS `pending`, and this is an operator decision.** The
+step has now consumed **4 attempts** (FAIL, FAIL, FAIL, CONDITIONAL). The
+operator's instruction for this session was ONE Q/A on C8, with "if it FAILs
+again, STOP and escalate". It did not FAIL -- but a CONDITIONAL is not a PASS,
+and I am not opening cycle 5 on my own authority. **No self-authorised cycle 5.**
+Note for the record: HEAD carries `64512cdc "phase-86.85: cycle-3 FAIL -- 3rd
+consecutive, ESCALATED to operator, no cycle 4"`, and cycle 4 nevertheless
+exists -- it was explicitly authorised by the operator's goal file for this
+session, which is a legitimate override and is recorded here so the apparent
+contradiction is not read as drift.
+
+**A HARNESS DEFECT THE EVALUATOR FOUND IN ITS OWN INPUT, filed as 86.90 (P2).**
+The Q/A reported that `EVIDENCE / FILES TO READ` and `ADDITIONAL CONTEXT` both
+arrived as the literal string **`"[object Object]"`** -- the object-shaped
+`evidence` and `extra` I passed never reached it, and it rebuilt the evidence set
+from git and `handoff/current` on its own. **The defect is invisible from the
+verdict**: nothing fails, nothing warns, and the caller believes it supplied
+context it did not. **86.86's PASS used the same object-shaped input earlier
+today and is a named candidate for the same treatment** -- that must be resolved
+by 86.90 rather than assumed clean.
+
+**Also queued this cycle:** 86.89 (behavioural-guard coverage, from the 1-of-4
+recall) and 86.90 (the `[object Object]` rail defect).

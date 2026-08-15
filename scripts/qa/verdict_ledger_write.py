@@ -467,6 +467,46 @@ def _self_test() -> int:
         check("cycle fallback preserves sequence length",
               len(emit_sequence("86.99", cf)) == len(cycles))
 
+        # ── CLI-boundary refusals (cycle-4, C8) ───────────────────────────
+        # These two guards are DEFENCE IN DEPTH: build_row would refuse an
+        # empty --step and an empty --verdict anyway, so removing the CLI
+        # guard still refuses -- only the MESSAGE changes. That made them
+        # unobservable, and a guard that cannot fail does not count: matrix
+        # cell M14 SURVIVED against the self-test as it stood, which is
+        # exactly the "shipped a guard with no coverage" class this step
+        # exists to end. Found by verify_matrix_coverage_86_85.py deriving
+        # the gap from the writer's own AST, not by re-reading the file.
+        #
+        # So the assertion pins WHICH refusal fires, not merely THAT one
+        # does. Asserting the exit code alone would be vacuous -- both paths
+        # return EXIT_INVALID (3).
+        import contextlib
+        import io
+
+        def cli(argv: list[str]) -> tuple[int, str]:
+            buf = io.StringIO()
+            with contextlib.redirect_stderr(buf):
+                rc = main(argv)
+            return rc, buf.getvalue()
+
+        rc_seq, err_seq = cli(["--emit-sequence"])
+        check("CLI refuses --emit-sequence without --step, at the boundary",
+              rc_seq == EXIT_INVALID
+              and "--emit-sequence requires --step" in err_seq)
+
+        rc_app, err_app = cli(["--step", "99.5", "--ledger", str(p)])
+        check("CLI refuses an append with no --verdict, at the boundary",
+              rc_app == EXIT_INVALID
+              and "both --step and --verdict are required" in err_app)
+
+        # Anti-vacuity: the CLI must still SUCCEED on a well-formed append,
+        # or the two refusals above would pass simply because every
+        # invocation fails.
+        rc_ok, _ = cli(["--step", "99.6", "--verdict", "PASS",
+                        "--run-id", "wf_cli_ok", "--ledger", str(p)])
+        check("CLI still appends a well-formed row (anti-vacuity)",
+              rc_ok == EXIT_OK)
+
     print()
     if failures:
         print(f"SELF-TEST FAILED: {len(failures)} check(s): {', '.join(failures)}")
