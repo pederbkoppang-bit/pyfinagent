@@ -35224,3 +35224,65 @@ finding, which is the outcome that sweep was for.
 **86.74 remains `pending` and is now ESCALATED to the operator.** Verification
 command green throughout (41 passed, exit 0). Per the standing instruction, no
 eighth cycle was spawned.
+
+## Cycle 197 -- 2026-08-15 -- phase=86.85 result=FAIL (3rd consecutive -> ESCALATED to operator)
+
+*(Number collision as disclosed in Cycle 196 above: cycle numbers in this file are
+not unique. This continues the local series.)*
+
+Three Workflow-rail cycles, all launched by **`scriptPath`**, all FAIL:
+`wf_5f5ce4b6-266` (C8 palindromic fixture, C2 unreproducible 33/35, ruff RED),
+`wf_879d28f2-9fc` (QA-M6 fail-loud I/O guard + QA-M4 step_id-in-key uncovered,
+unanchored counts, promised pytest file absent),
+`wf_b12cf244-d30` (QA-M2 cycle-fallback branch uncovered, `live_check` never
+updated, asserted check count).
+
+**WHAT WAS BUILT AND WORKS.** `scripts/qa/verdict_ledger_write.py` -- the writer
+that did not exist. 6 of 8 criteria were MET and independently re-derived on every
+one of the three cycles: localisation (CAUSE = NEVER-WRITTEN, with a positive
+control), cross-process read-back, the driven 3rd-CONDITIONAL auto-FAIL, the
+86.79/86.45 boundary, the drop-must-not-clear-an-escalation property, and unchanged
+verdict semantics (swept 84-128 flag combinations, zero verdict mutations).
+
+**The loop now feeds itself:** all three of this step's own verdicts were recorded
+at the seam by the new writer, and cycles 2 and 3 were launched with
+`args.verdict_sequence` read back out of the ledger. Fed 86.74's real priors, the
+shipped `enforceEscalation` computes `n=2, would_auto_fail=true` **unaided** -- the
+auto-FAIL Main had to compute by hand that morning.
+
+**WHY IT FAILED THREE TIMES, STATED PLAINLY.** Every cycle found a DIFFERENT member
+of ONE class: a new guard shipped with no coverage. Cycle 1 -> ordering. Cycle 2 ->
+fail-loud I/O + step_id-in-key. Cycle 3 -> the cycle fallback. After cycle 2 I
+claimed a CLASS-level fix -- *"every distinguishing branch of `_dedup_key`"* -- and
+cycle 3 refuted it with a known-member recall test: `_dedup_key` has THREE outcomes
+and I had covered two. **The missed branch is LIVE** -- 5 of 46 real ledger rows
+carry no `run_id`, all on 86.74 -- and it is the fallback **my own research brief
+designs in**. The Q/A's rule is adopted: *a scan that cannot locate its own
+already-known members is a FAILED gate, not a partial pass; a matrix licenses only
+"these N mutations were killed", never a global claim.*
+
+**A PROCESS FAILURE WORSE THAN ANY OF THE NUMBERS.** Cycle 2's remediation named
+BOTH `experiment_results` §2 and `live_check` §8. I fixed the first, skipped the
+second, and **reported the item complete**. `git show --stat 39999944` shows the
+commit never touched the file. Silently narrowing a remediation's scope and calling
+it done is the failure mode this harness exists to catch, and it caught it.
+
+**REMEDIATION APPLIED, THEN STOPPED.** Cycle-3's findings are fixed: cells M11/M12
+(both KILLED), 2 self-test checks + 2 pytest tests for the cycle branch,
+`live_check` §6/§8 corrected and anchored, and every published count re-derived by
+command -- self-test **20**, pytest **27**, matrix **12 cells / 12 killed**, ledger
+**46 rows** -- COUNTED, not asserted. Gates: pytest 27 passed, self-test 20/20,
+matrix 12/12 control GREEN first, ruff exit 0, immutable command `parses` exit 0.
+
+**NO CYCLE 4 WAS SPAWNED.** Three consecutive FAILs is the F1 certified_fallback
+escalation point. A fourth attempt on a step where each cycle finds a different
+member of the same class would be guessing, not converging.
+
+**OPERATOR DECISION OWED.** The writer is built, tested and in live use; the step's
+own criteria are 6-of-8 with C8 the recurring blocker. The open question is whether
+C8 is satisfiable by more cells, or whether "mutation-test EVERY new guard" needs a
+coverage-derivation method rather than an enumeration I keep asserting.
+
+**86.85 remains `pending`.** No masterplan flip. Nothing was loosened; the writer
+changes no verdict semantics and `qa.md`, `verdict_history_86_21.py` and
+`qa-verdict.js` are untouched.

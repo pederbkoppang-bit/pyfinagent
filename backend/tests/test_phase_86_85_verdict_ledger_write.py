@@ -231,3 +231,36 @@ def test_self_test_subcommand_is_green():
                        capture_output=True, text=True)
     assert r.returncode == 0, r.stdout + r.stderr
     assert "SELF-TEST PASSED" in r.stdout
+
+
+# --------------------------------------------------------------------------
+# the CYCLE FALLBACK branch  (matrix M11, M12)
+# --------------------------------------------------------------------------
+
+def test_cycle_fallback_keys_on_the_cycle_value(ledger: Path):
+    """M11/M12: the third outcome of _dedup_key, and the one two 'class-complete'
+    claims missed.
+
+    It is LIVE, not theoretical: 5 rows of the real ledger carry no run_id, all of
+    them on step 86.74 (cycles 1-drop-a, 1-drop-b, 3, 3b, 4) -- the very step this
+    writer exists to serve. If the cycle value stops distinguishing rows, the
+    appends are refused under EXIT_DUPLICATE (the benign 'already recorded' code a
+    caller ignores) and the verdicts vanish from the sequence enforceEscalation
+    consumes -- the under-count / fail-OPEN direction.
+
+    Fixture replays the real 86.74 backfill shape deliberately.
+    """
+    cycles = ("1-drop-a", "1-drop-b", "3", "3b", "4")
+    for c in cycles:
+        vlw.append_row(vlw.build_row("86.99", "CONDITIONAL", cycle=c), ledger)
+    assert len(vlw.read_rows(ledger)) == len(cycles)
+    assert len(vlw.emit_sequence("86.99", ledger)) == len(cycles)
+
+
+def test_same_cycle_without_run_id_is_still_deduplicated(ledger: Path):
+    """The fallback must still DEDUPE -- it is a key, not a bypass."""
+    vlw.append_row(vlw.build_row("86.98", "PASS", cycle="7"), ledger)
+    with pytest.raises(vlw.LedgerError) as exc:
+        vlw.append_row(vlw.build_row("86.98", "FAIL", cycle="7"), ledger)
+    assert exc.value.code == vlw.EXIT_DUPLICATE
+    assert len(vlw.read_rows(ledger)) == 1

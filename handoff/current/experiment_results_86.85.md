@@ -386,9 +386,9 @@ of `_dedup_key` -- and found the uncovered set was *larger than the two reported
 untested. All are now covered.
 
 ```
-self-test        : 13 -> 19 checks
-mutation matrix  :  7 -> 10 cells, 10 KILLED, 0 survived, 0 unscorable
-pytest           : 25 passed (new file, one test per cell)
+self-test        : 13 -> 20 checks (COUNTED)
+mutation matrix  :  7 -> 12 cells, 12 KILLED, 0 survived, 0 unscorable
+pytest           : 27 passed (new file, one test per cell) (COUNTED)
 ```
 
 **And the matrix caught my own bad test, again.** M9 first scored **UNSCORABLE
@@ -430,9 +430,9 @@ the matrix cell it mirrors so the two cannot silently diverge.
 ### Gates after remediation
 
 ```
-pytest (new file)         : 25 passed, exit 0
-self-test                 : 19/19 ok, exit 0
-mutation matrix           : 10 cells, 10 KILLED, 0 survived, 0 unscorable
+pytest (new file)         : 27 passed, exit 0 (COUNTED)
+self-test                 : 20/20 ok, exit 0 (COUNTED)
+mutation matrix           : 12 cells, 12 KILLED, 0 survived, 0 unscorable
                             control GREEN first; target sha256 identical before/after
 ruff F821,F401,F811       : exit 0, "All checks passed!"
 immutable command         : parses, exit 0

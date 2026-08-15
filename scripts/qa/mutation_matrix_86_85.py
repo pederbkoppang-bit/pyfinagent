@@ -107,6 +107,26 @@ CELLS: list[tuple[str, str, str, str]] = [
         '        raise LedgerError("--step is required and must be non-empty.", EXIT_INVALID)',
         "        pass",
     ),
+    # ---- cells added after the cycle-3 Q/A found the CYCLE FALLBACK branch
+    # uncovered. Two prior cycles claimed "every distinguishing branch of
+    # _dedup_key" was covered; _dedup_key has THREE outcomes (run:, cycle:, raise)
+    # and only two were. The missed one is LIVE -- 5 real rows use it, all on 86.74.
+    (
+        "M11",
+        "make the cycle fallback key CONSTANT -- run_id-less rows stop being "
+        "distinguishable, appends are refused under the benign EXIT_DUPLICATE, and "
+        "verdicts vanish from the sequence enforceEscalation consumes (cycle-3 QA-M2)",
+        '        return (step, f"cycle:{cycle}")',
+        '        return (step, "cycle:X")',
+    ),
+    (
+        "M12",
+        "DELETE the cycle fallback entirely -- every run_id-less row becomes "
+        "unkeyable and is refused, so a rail drop recorded without a run_id is "
+        "silently dropped from history (cycle-3 QA-M1)",
+        '    cycle = str(row.get("cycle") or "").strip()\n    if cycle:\n        return (step, f"cycle:{cycle}")',
+        '    cycle = str(row.get("cycle") or "").strip()\n    if False:\n        return (step, f"cycle:{cycle}")',
+    ),
 ]
 
 

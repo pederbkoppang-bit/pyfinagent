@@ -445,6 +445,28 @@ def _self_test() -> int:
         check("append without --verdict exits 3",
               main(["--step", "99.1", "--ledger", str(p)]) == EXIT_INVALID)
 
+        # (e) THE CYCLE FALLBACK BRANCH -- the third outcome of _dedup_key, and the
+        # one two "class-complete" claims missed. It is LIVE, not theoretical:
+        # 5 of the real ledger's rows carry no run_id, ALL of them on 86.74 (cycles
+        # 1-drop-a, 1-drop-b, 3, 3b, 4), i.e. the very step this writer exists to
+        # serve. If the cycle VALUE stops distinguishing rows, those appends are
+        # refused under EXIT_DUPLICATE -- the benign "already recorded" code a
+        # caller ignores -- and the verdicts silently vanish from the sequence
+        # enforceEscalation consumes. That is the under-count / fail-OPEN direction.
+        # The fixture replays the real 86.74 backfill shape deliberately.
+        cf = Path(td) / "cyclekey.jsonl"
+        cycles = ("1-drop-a", "1-drop-b", "3", "3b", "4")
+        refused = 0
+        for c in cycles:
+            try:
+                append_row(build_row("86.99", "CONDITIONAL", cycle=c), cf)
+            except LedgerError:
+                refused += 1
+        check("cycle fallback keys on the cycle VALUE (run_id absent)",
+              refused == 0 and len(read_rows(cf)) == len(cycles))
+        check("cycle fallback preserves sequence length",
+              len(emit_sequence("86.99", cf)) == len(cycles))
+
     print()
     if failures:
         print(f"SELF-TEST FAILED: {len(failures)} check(s): {', '.join(failures)}")

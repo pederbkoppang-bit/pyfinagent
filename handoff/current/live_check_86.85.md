@@ -169,13 +169,16 @@ row -- out of scope for 86.85, recorded as a follow-up.
 
 ---
 
-## 6. MUTATION MATRIX -- 7/7 killed, control GREEN first, zero repo writes
+## 6. MUTATION MATRIX -- 12/12 killed, control GREEN first, zero repo writes
 
-> **SUPERSEDED IN PLACE.** This section shipped as "5/5 killed" and the cycle-1 Q/A
-> proved those 5 cells were blind to ORDERING -- a mutant reversing `emit_sequence`
-> survived because the self-test's ordering fixture was PALINDROMIC. Cells **M6**
-> (that exact mutant) and **M7** (out-of-vocabulary loudness) were added. Current
-> state below.
+> **THIS SECTION WAS STALE TWICE AND THE SECOND TIME IS THE WORSE ONE.** It shipped
+> as "5/5"; cycle 1 proved those 5 blind to ORDERING (+M6, M7). The cycle-2
+> remediation then named **both** `experiment_results` §2 **and** this file §8 --
+> and I updated only the former while reporting the item done, silently narrowing
+> the scope. Cycle 3 caught it: this header still read "7/7 ... Current state below"
+> against a delivered 10. It is now **12 cells** -- cycle 3 additionally found the
+> `_dedup_key` **cycle-fallback** branch uncovered (+M11, M12), a LIVE branch used
+> by 5 real ledger rows, all on 86.74.
 
 ```
 $ python scripts/qa/mutation_matrix_86_85.py
@@ -187,13 +190,17 @@ M2  KILLED (rc=1)  remove the verdict vocabulary guard
 M3  KILLED (rc=1)  allow an unkeyed row
 M4  KILLED (rc=1)  swallow a corrupt ledger line
 M5  KILLED (rc=1)  collapse event time into write time
-M6  KILLED (rc=1)  REVERSE emit_sequence  <- the cycle-1 Q/A's QA-M1, which SURVIVED
-                                             against the old palindromic fixture
+M6  KILLED (rc=1)  REVERSE emit_sequence  <- cycle-1 QA-M1, SURVIVED the palindrome
 M7  KILLED (rc=1)  remove the out-of-vocabulary loudness in emit_sequence
+M8  KILLED (rc=1)  revert the fail-loud I/O guard   <- cycle-2 QA-M6
+M9  KILLED (rc=1)  drop step_id from the dedup key  <- cycle-2 QA-M4
+M10 KILLED (rc=1)  remove the empty-step_id guard
+M11 KILLED (rc=1)  make the cycle fallback key CONSTANT <- cycle-3 QA-M2
+M12 KILLED (rc=1)  DELETE the cycle fallback entirely   <- cycle-3 QA-M1
 
 sha256 after : 2f0d1000f98ed03e3b92e25792e296e831775a784e8203968bdde9315d57c168
 UNCHANGED    : True  (mutations ran on temp copies; the real file was never written)
-7 cells: 7 killed, 0 survived, 0 unscorable
+12 cells: 12 killed, 0 survived, 0 unscorable
 EXIT=0
 ```
 
@@ -214,16 +221,18 @@ EXIT=0
 Population = every non-blank line in `handoff/verdict_ledger.jsonl`.
 
 ```
-total rows            : 43   (was 35)
-rows added by 86.85   : 8
-step_ids present      : 11   (was 10)
-86.74 rows            : 8    (was 0)
-verdict distribution  : {CONDITIONAL 23, FAIL 5, PASS 8, NO_VERDICT 7}
-rows with recorded_at : 29 / 43
+[PRE-STEP  d1c4a79d~1]  total 35 | step_ids 10 | 86.74 rows 0 | recorded_by {main:35}
+[AS SHIPPED d1c4a79d ]  total 43 | step_ids 11 | 86.74 rows 8 | recorded_at 29/43
+                        verdict distribution {CONDITIONAL 23, FAIL 5, PASS 8, NO_VERDICT 7}
+[WORKING TREE        ]  total 46 | this step's own cycle-1/2/3 FAIL rows included
 ```
 
-`recorded_at` is 29/43 rather than 43/43 because **14 historical rows predate the
-field**. All 8 new rows carry it. Stated rather than rounded up.
+**ANCHORED, because this step's ledger MOVES WHILE THE STEP RUNS** -- 86.85 records
+its own verdicts into the file it counts, so an unanchored total goes stale the
+moment the next cycle is graded. That is exactly what cycle 3 caught here: this
+block read "43" against a measured 45, and carried no commit anchor even though
+`experiment_results` §2 already had one. `recorded_at` is short of the total
+because **14 historical rows predate the field**; every row this step writes has it.
 
 ---
 
