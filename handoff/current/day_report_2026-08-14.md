@@ -178,31 +178,47 @@ Write-first preserved both records. All four are fixed; the worst was mine:
 
 ## 3. What I could NOT verify -- stated plainly
 
+> **SUPERSEDED LATER THE SAME DAY -- items 2, 3 and 4. Do not act on them.**
+> This list was true when written (session 1/2, before the 15:52Z restart). By the
+> end of session 4: **item 2** is MEASURED (6 of 6 = 100% from scheduled cycle
+> `68925781`, against an 0-of-129 baseline -- §9a and the Session-4 section);
+> **item 3** is **14**, not 33, because `paper_trades.risk_judge_decision` recovers
+> 19 of them; **item 4** is false -- the restart landed at `d6a1500a` 15:52:58Z and
+> `pid 85562` holds post-fix code. Marked here, at the point of the claim, because
+> a reader landing on this section would otherwise trigger the manual cycle or the
+> restart that the batched-restart policy exists to prevent.
+
 1. **No verdict on 86.74.** BOTH cycles dropped. The step is `pending` and must not
    be read as done. Cycle 2's completed working record says CONDITIONAL, which also
    does not close it.
-2. **The post-fix BQ persisted share** -- needs an autonomous cycle after the
-   session-end restart. Proven at the unit seam only.
-3. **33 of 34 historical BUYs are UNDETERMINED**, not clean. One confirmed
-   inversion (DELL) is **not** an all-clear.
-4. **Nothing was driven through the running backend or a browser.** pid 27945
+2. ~~**The post-fix BQ persisted share** -- needs an autonomous cycle after the
+   session-end restart. Proven at the unit seam only.~~ **-> MEASURED, see above.**
+3. ~~**33 of 34 historical BUYs are UNDETERMINED**~~ **-> 14 of 34**, not clean.
+   One confirmed inversion (DELL) is **not** an all-clear.
+4. ~~**Nothing was driven through the running backend or a browser.** pid 27945
    started 13:30:35 CEST and still holds **pre-fix** code -- committed is not in
-   force.
+   force.~~ **-> superseded; pid 85562 holds post-fix code, see above.**
 5. **Why NTAP carries `risk_judge_position_pct=4.0` from 2026-07-31** while its
-   analysis row persisted no verdict -- untraced.
+   analysis row persisted no verdict -- untraced. *(Still open.)*
 
 ---
 
 ## 4. Pending restart (batched to session end, per standing instruction)
 
-`backend/services/portfolio_manager.py`, `autonomous_loop.py`,
-`signal_attribution.py`, `agents/risk_debate.py` are **committed but NOT IN
-FORCE**. Running pid **27945**, started **2026-08-14 13:30:35 CEST**, predates
-both 86.74 commits.
+> **SUPERSEDED -- THE RESTART WAS PERFORMED at 15:52:58Z (`d6a1500a`).** The
+> running process is `pid 85562` (started 15:52:08Z) and it holds **post-fix**
+> code, established by observation (six `Risk debate complete: ticker=` lines in
+> `backend.log` from the 18:00Z cycle matching six BigQuery rows), not by inference
+> from the commit clock. See §9a. **There is nothing pending here; do not restart.**
 
-**The restart was NOT performed**, because 86.74 has no verdict yet and restarting
-would put ungraded trading-path code into the live process. That is a deliberate
-hold, not an oversight.
+`backend/services/portfolio_manager.py`, `autonomous_loop.py`,
+`signal_attribution.py`, `agents/risk_debate.py` were **committed but NOT IN
+FORCE** at the time this section was written. Running pid **27945**, started
+**2026-08-14 13:30:35 CEST**, predated both 86.74 commits.
+
+**The restart had NOT been performed** at that point, because 86.74 had no verdict
+yet and restarting would put ungraded trading-path code into the live process. That
+was a deliberate hold, not an oversight -- and it was lifted later the same day.
 
 ## 5. Queued defects (drafted, not yet filed as steps)
 
@@ -212,8 +228,10 @@ Held in the session scratchpad rather than written into the masterplan mid-EVALU
   **2** (two suites I picked by hand -- wrong method), **7** (Q/A's derived affected
   scope, 55 files), **19** (my own whole-tree run: 19 failed / 3443 passed / 12
   skipped in 511s). The 7 are a strict subset of the 19.
-- **D2** the 33 undetermined historical BUYs
-- **D3** verify the persisted-verdict fix in BQ after the restart
+- **D2** the ~~33~~ **14** undetermined historical BUYs *(19 of the original 33 were
+  recovered from `paper_trades.risk_judge_decision` later the same day)*
+- **D3** ~~verify the persisted-verdict fix in BQ after the restart~~ **CLOSED the
+  same day** -- 6 of 6 (100%) from scheduled cycle `68925781`, 0-of-129 baseline
 - **D4** `_extract_position_pct`'s legacy shim still collapses UNPARSEABLE/ABSENT
 
 ## 6. Not touched, as instructed
@@ -349,6 +367,14 @@ post-fix share needs an **autonomous cycle to run afterwards**. That is next
 session's measurement, and the baseline to compare against is in
 `experiment_results_86.74.md` §C4.
 
+> **WRONG, and superseded within hours.** The scheduled cycle `68925781` ran
+> 18:00:00Z->19:33:13Z on the restarted process the SAME day, so C4 was measurable
+> today after all: **6 of 6 (100%)** against the 0-of-129 baseline. No manual cycle
+> and no second restart were needed. See §9a and the Session-4 section. This
+> paragraph is kept because it explains why the restart was judged safe, but its
+> forecast was false -- do not carry the "next session's measurement" instruction
+> forward.
+
 ### 9a. Restart PERFORMED and verified
 
 ```
@@ -392,13 +418,23 @@ verdict may have existed and simply never been written. *"Key absent"* supports
 **not persisted**; I read it as **never existed**, which is strictly stronger than
 the data carries.
 
-**Corrected position:** 1 confirmed inversion (DELL), **33 UNDETERMINED**. C7 stays
+**Corrected position:** 1 confirmed inversion (DELL), ~~**33 UNDETERMINED**~~
+**14 UNDETERMINED** *(corrected again later the same day -- see below)*. C7 stays
 **PARTIAL**, exactly as the Q/A's CONDITIONAL had it -- I am not contesting the
 blocker.
 
+> **THIS "CORRECTED POSITION" WAS ITSELF CORRECTED.** The 33 assumed the truncated
+> rows carry no recoverable verdict. They do:
+> `paper_trades.risk_judge_decision` is populated on **19 of 19** of them (15
+> `APPROVE_REDUCED`, 3 `REJECT`, 1 `APPROVE_HEDGED`), so only the **14** with no
+> `analysis_results` row within 2s are absent in both sources. Inversion count is
+> unchanged at 1. Re-measured independently 2026-08-15.
+
 **What survives:** the 33 now carry a **cause decomposition** rather than being one
-bucket -- 19 truncated-report joins, 14 from the 2026-04-26..05-01 window where
-`analysis_results` holds zero rows. That is a real improvement; "resolved" was not.
+bucket -- 19 truncated-report joins **(all 19 verdict-recoverable from the
+per-trade column)**, 14 from the 2026-04-26..05-01 window where `analysis_results`
+holds zero rows **(recoverable from neither source)**. That is a real improvement;
+"resolved" was not.
 
 **Why this is in the report rather than edited away:** I committed and pushed the
 wrong claim (`97832063`) before running the check that refutes it, and told the

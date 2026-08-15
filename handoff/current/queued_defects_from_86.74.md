@@ -65,19 +65,44 @@ Doing that join properly is the remaining D2 work.
 `ABS(TIMESTAMP_DIFF(analysis_date, TIMESTAMP(analysis_id), SECOND)) < 2`; verdict
 from `$.final_synthesis.risk_assessment.judge`.
 
-**Why 33 don't join** is the actual open question. `analysis_results` holds 567
-rows (2025-11-23..2026-08-13), 372 with a nested judge verdict, so the data
-broadly exists -- the JOIN is the limit, not the corpus. Undetermined BUY dates:
-2026-04-26 (9), 04-27 (1), 04-28 (3), 05-01 (1), 05-29 (1), 06-01..06-10 (12),
-07-09 (2), 07-20 (1), 07-31 (1).
+**Why 14 are absent from BOTH sources** is the actual open question. `analysis_results`
+holds 567 rows (2025-11-23..2026-08-13), 372 with a nested judge verdict, so the data
+broadly exists -- the JOIN is the limit, not the corpus.
+
+**The 14 truly-undetermined BUYs, re-measured 2026-08-15** (`ar_verdict IS NULL AND
+no analysis_results row within 2s`, and `paper_trades.risk_judge_decision` empty on
+all 14):
+
+| date | n | tickers |
+|---|---:|---|
+| 2026-04-26 | 9 | CIEN, DELL, GLW, INTC, LITE, ON, SNDK, TER, WDC |
+| 2026-04-27 | 1 | COHR |
+| 2026-04-28 | 3 | GEV, KEYS, MU |
+| 2026-05-01 | 1 | FIX |
+| **total** | **14** | |
+
+All four dates fall inside the `2026-04-20..2026-05-15` window where
+`analysis_results` holds **zero** rows -- so these are a persistence gap, not a join
+defect, and widening the join tolerance cannot recover them.
+
+*(An earlier revision of this paragraph asked "why 33 don't join" and listed
+`04-26 (9), 04-27 (1), 04-28 (3), 05-01 (1), 05-29 (1), 06-01..06-10 (12), 07-09 (2),
+07-20 (1), 07-31 (1)` under the heading "Undetermined BUY dates". That list was wrong
+three ways: it was labelled undetermined when its last five entries are the
+RECOVERABLE truncated bucket, it summed to **31** rather than the 33 it claimed, and
+its recoverable tail listed 17 of the actual 19. Corrected against a re-run of the
+enumeration rule rather than by editing the number.)*
 
 **Positive control that must keep passing:** DELL 2026-08-13 must be detected by
 whatever join you build. A sweep that cannot find the known case cannot report a
 zero.
 
-**Deliverable:** either resolve the 33 to a verdict each, or state precisely why
-a given BUY is permanently unattributable, and report the final count with the
-population rule beside it. Report zero, if it is zero, as a MEASURED zero.
+**Deliverable:** either resolve the remaining **14** to a verdict each, or state
+precisely why a given BUY is permanently unattributable, and report the final count
+with the population rule beside it. Report zero, if it is zero, as a MEASURED zero.
+The 19 truncated rows are already resolved -- do not re-open them; read
+`paper_trades.risk_judge_decision` (15 `APPROVE_REDUCED`, 3 `REJECT`,
+1 `APPROVE_HEDGED`).
 
 ---
 

@@ -236,18 +236,28 @@ Population = 34 `paper_trades` BUYs, all time. Join = `ticker` +
 `|analysis_date - TIMESTAMP(analysis_id)| < 2s`. Verdict read nested-first then
 flat.
 
-**What improved:** the 33 now carry a cause decomposition -- **19** join but their
-`full_report_json` has **no `final_synthesis` subtree** (truncated report), and
-**14** have no row within 2s, nearest 15-20 DAYS away, from the window where
+**What improved:** the 33 non-DELL BUYs carry a cause decomposition, and the two
+halves have DIFFERENT outcomes -- **19** join but their `full_report_json` has **no
+`final_synthesis` subtree** (truncated report), *and all 19 have their verdict in
+`paper_trades.risk_judge_decision` anyway, so they are NOT undetermined*; **14**
+have no row within 2s, nearest 15-20 DAYS away, from the window where
 `analysis_results` holds zero rows (2026-04-20..2026-05-15; phase-24.2 F-2
-"full pipeline previously evaporated without persistence", closed by 25.A2).
+"full pipeline previously evaporated without persistence", closed by 25.A2), and
+those 14 are empty in BOTH sources. **Undetermined = 14, not 33.**
 
 **What did NOT improve, and I claimed it had:** I asserted the 19 were a *measured
 not-an-inversion* because the `risk_assessment` key was absent, so "no verdict
 existed". **Refuted by one query** -- `final_synthesis` is absent in **19 of 19**,
 so the report is truncated and a verdict may have existed and simply never been
 persisted. "Key absent" supports *not persisted*, not *never existed*. **The 19
-revert to UNDETERMINED and C7 stays PARTIAL**, as the Q/A's CONDITIONAL had it.
+reverted to UNDETERMINED and C7 stays PARTIAL**, as the Q/A's CONDITIONAL had it.
+
+**SUPERSEDED IN PART, and in the direction this paragraph's own reasoning
+predicted.** The 19 did NOT stay undetermined: `paper_trades.risk_judge_decision`
+holds a verdict for **19 of 19** of them, so "not persisted *here*" was exactly
+right and the verdict was persisted somewhere else. **Undetermined is 14.** C7
+still stays PARTIAL, on the strength of those 14 alone. See the C7 block above and
+`live_check_86.74.md` §2h.
 
 Recorded rather than deleted, because I committed and pushed the wrong claim before
 running the check that kills it. Full detail: `live_check_86.74.md` §2c.
@@ -396,9 +406,12 @@ exact action the batched-restart policy exists to prevent.)*
 1. ~~The post-fix persisted share in BQ (C4)~~ -- **RESOLVED, see §C4 above.**
    Measured 6 of 6 (100%) against the 0-of-129 baseline, from scheduled cycle
    `68925781` on a process (pid 85562, 15:52:08Z) that post-dates the fix.
-2. **33 of 34 historical BUYs** (C7) -- undetermined, not clean. **Still open**,
-   and structurally so: the two causes are persistence gaps (19 truncated reports,
-   14 with no row within 2s), queued as D5.
+2. **14 of 34 historical BUYs** (C7) -- undetermined, not clean. **Still open**,
+   and structurally so. *(This item read "33 of 34" until 2026-08-15; that number
+   came from a single-source enumeration rule. The 19 "truncated report" rows have
+   their verdict in `paper_trades.risk_judge_decision` -- 19 of 19 -- so only the
+   14 with no `analysis_results` row within 2s are absent in both sources. The
+   truncation itself is real and still firing, queued as D5.)*
 3. **Why `NTAP` carries `risk_judge_position_pct=4.0` from 2026-07-31** while its
    analysis row persisted no verdict -- untraced, as the step notes.
 4. ~~Nothing was driven through the running backend~~ -- **superseded.** The
@@ -539,6 +552,14 @@ tokens, so one was **not** spawned.
 **86.74 remains `pending`. The next session must grade the swap fix**, and can
 close C4 once the backend restarts on this code.
 
+> **BOTH CLAUSES NOW DISCHARGED (2026-08-14 evening / 2026-08-15).** The swap fix
+> was graded: cycles 5 and 6 each graded the FULL step at HEAD, and both re-ran a
+> mutation matrix covering the swap sizing sites (`824`/`877`/`902`, which live in
+> `_compute_swap_candidates`) with no survivors. C4 is closed -- the restart landed
+> `d6a1500a` 15:52:58Z and scheduled cycle `68925781` produced **6 of 6 (100%)**
+> against the 0-of-129 baseline. Nothing here is outstanding; do not re-grade the
+> swap fix as though it were ungraded.
+
 ---
 
 ## 9. CYCLE 4 -- the swap fix was graded, and the grade caught a PROXY assertion
@@ -660,6 +681,17 @@ Recorded verbatim because it is exactly right, and it means **the C7 decompositi
 (19/14/0) is still only MY measurement.** The next session must re-derive it before
 building on it.
 
+> **DISCHARGED -- it is no longer a single-author measurement.** The cycle-6 Q/A
+> wrote its own query from the stated enumeration rule and reproduced the split
+> exactly (`34 / 1 inversion / 0 permitted / 19 truncated / 14 no-row / 0
+> fs-present-no-risk-assessment`, summing to the full population, DELL positive
+> control detected), and additionally ran a discrimination control Main had not
+> (inverting the INVERSION predicate moves DELL into PERMITTED). It was re-derived
+> a third time on 2026-08-15 against BigQuery, which also established that all 19
+> truncated rows carry a verdict in `paper_trades.risk_judge_decision` -- the
+> finding that cut undetermined from 33 to **14**. Three independent derivations
+> now agree; re-deriving a fourth time is not required before building on it.
+
 ### Two scope corrections it made against me
 
 1. **`cba60c0b..HEAD` EXCLUDES `cba60c0b`** — and the orphan guard and M7 live *in*
@@ -678,3 +710,93 @@ direction it happened to move" is luck, not method.
 
 **This PASS is scoped to the cycle-4 work and does NOT close 86.74.** C4 is open,
 C7 is PARTIAL — exactly as the earlier CONDITIONAL had them.
+
+---
+
+## Cycle-7 preparation -- a SEMANTIC sweep of every 86.74-touching artifact
+
+**Why this section exists.** Cycles 5 and 6 each returned CONDITIONAL, and neither
+found a code defect. Both capped on **prose**: a stale claim in a file that had not
+been swept. Cycle 6's cap was `goal_next_2026-08-15.md`, the artifact BINDING on the
+next session. The failure mode both times was the same and it is worth naming
+precisely: **after fixing a claim I built the "did I get them all" probe out of the
+exact phrasings I had just edited**, so it could only rediscover what was already
+fixed.
+
+**Method this time -- enumerate the CLAIM, not the wording.** I wrote down what
+CHANGED, then triaged every artifact by meaning against it, by hand:
+
+| # | The claim, in its current form |
+|---|---|
+| 1 | **C4 is SATISFIED.** 129 rows 0/0/0 (2026-07-20..08-13) vs **6 of 6 (100%)** on 08-14, from scheduled cycle `68925781` on post-fix `pid 85562`. No manual cycle, no second restart. |
+| 2 | **C7 undetermined is 14, not 33.** `paper_trades.risk_judge_decision` is a second per-trade verdict source populated on 19 of 34 BUYs, mapping exactly onto the 19 "truncated" rows. **Inversion stays 1** (DELL). C7 stays PARTIAL on the strength of the 14. |
+| 3 | **The restart is DONE** (`d6a1500a`, 15:52:58Z). "Committed but NOT IN FORCE / pid 27945" is false. |
+| 4 | **The nested-first resolution is UNCONDITIONAL**, not flag-gated; all four sizing sites route through `_sizing_pct`. |
+
+**Triage rule applied.** A statement is STALE if a reader acting on it *today* would
+take a wrong action or record a wrong number. A statement is HISTORICAL-OK if it sits
+in a verbatim verdict transcript, an append-only log, or a chronological session block
+**and carries an in-place supersession marker at the point of the claim**. Verbatim
+Q/A verdicts (`evaluator_critique_86.74.md`, `.claude/agent-memory/qa/verdicts/*`) and
+`handoff/harness_log.md` were deliberately left untouched.
+
+### Independent re-measurement that settled the arithmetic
+
+Re-ran the enumeration rule against BigQuery on 2026-08-15 (third independent
+derivation; the cycle-6 Q/A was the second):
+
+```
+AR_verdict_known                    :  1   pt_verdict populated:  0   (DELL 2026-08-13)
+UNDET_truncated_no_final_synthesis  : 19   pt_verdict populated: 19   <- ALL recoverable
+UNDET_no_row_within_2s              : 14   pt_verdict populated:  0   <- genuinely undetermined
+                                      --
+                                      34   = full UPPER(action)='BUY' population
+```
+
+`paper_trades.risk_judge_decision` distribution over the 34: 15 `APPROVE_REDUCED`,
+3 `REJECT`, 1 `APPROVE_HEDGED`, **15 empty** -- and 15 empty = the 14 + DELL, which
+closes the arithmetic. The 14 fall on exactly four dates, all inside the
+`2026-04-20..05-15` window where `analysis_results` holds zero rows:
+**04-26 (9: CIEN, DELL, GLW, INTC, LITE, ON, SNDK, TER, WDC), 04-27 (1: COHR),
+04-28 (3: GEV, KEYS, MU), 05-01 (1: FIX)**.
+
+### What the sweep FOUND -- 12 stale claims across 5 files
+
+Nothing was found in code. Every finding is prose.
+
+| file | what was stale | why it mattered |
+|---|---|---|
+| `live_check_86.74.md` | §2 headline fenced block still read `UNDETERMINED : 33`; §2a said the other 33 "cannot be answered"; §2b's table called all 19 truncated rows "unrecoverable"; §2g said "the 33 remain unrecoverable" | The correction lived at **§2h only** -- it ACCOMPANIED the stale text instead of REPLACING it, so §2's own summary contradicted its own §2h |
+| `experiment_results_86.74.md` | §6 "What I could NOT verify" item **2** still said "33 of 34"; §C7's prose said "the 33 now carry a cause decomposition"; the C7 retraction's conclusion still read "the 19 revert to UNDETERMINED" | Items 1 and 4 of that same list HAD been corrected -- a partial sweep of a single list. The honest-limits section overstated the unknown by 19 rows |
+| `experiment_results_86.74.md` | "the next session must grade the swap fix"; "the C7 decomposition is still only MY measurement -- the next session must re-derive it" | Both discharged (cycles 5+6 graded the full step; three derivations now agree). Directed redundant work |
+| `queued_defects_from_86.74.md` | D2 tail asked "why **33** don't join" and set the deliverable as "resolve the 33"; its date list was labelled "Undetermined", summed to **31**, and its recoverable tail listed 17 of the actual 19 | **Three different numbers in one section** (14 / 33 / 31). Forward-looking: it tasks an executor with no session context |
+| `day_report_2026-08-14.md` | §3 items 2/3/4, §4 "Pending restart", §5 D2/D3, §9's "C4 still will not be measurable today", §8a's labelled **"Corrected position: 33 UNDETERMINED"** | Chronological sections with **no in-place marker**, while §9a and Session 4 contradict them 150+ lines later. §8a is the worst: the sentence a reader trusts is literally labelled "Corrected position" |
+| `.claude/agent-memory/researcher/project_risk_gate_veto_86_74.md` | headline: "the `or 10.0` idiom is at FOUR sites and the approved fix guards ONE" | A **memory**, recalled in future sessions. Measured today: all four sites now call `_sizing_pct`; raw `or 10.0` survives only in comments and `DEFAULT_POSITION_PCT`. A future researcher would have believed three sites were still unguarded |
+
+### What was deliberately NOT changed
+
+- `evaluator_critique_86.74.md` -- every `33` in it is inside a **verbatim Q/A
+  verdict** (JSON `reason` / `notes` / `constraint`). Historical verdicts stand.
+- `.claude/agent-memory/qa/verdicts/*` -- write-first crash-survival records.
+- `handoff/harness_log.md` -- append-only cycle history.
+- `.claude/masterplan.json` -- immutable criteria are never edited.
+- `contract_86.74.md:71` ("the brief recorded this as UNMEASURED") -- resolved in
+  place by §2b immediately below it.
+- `settings.py:348` / `:352` -- verified already carrying the phase-86.74
+  corrections; no further edit needed.
+
+### Verification
+
+Immutable command re-run after every edit above: **41 passed, exit 0**. No
+production code was touched by this sweep -- it is documentation-only, which
+`git diff --stat` on the commit confirms.
+
+### The honest limit on this sweep
+
+I can state the method and the findings; **I cannot prove absence.** Two cycles
+running have each found prose defects in files I had not thought to sweep. What is
+different this time is the enumeration rule: I triaged by MEANING against a written
+claim-set rather than by grepping strings I had just edited, I swept the
+forward-looking artifacts FIRST, and I re-measured the underlying numbers
+independently rather than propagating them. That raises the floor; it does not
+close the question.

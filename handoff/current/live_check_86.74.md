@@ -37,9 +37,15 @@ Verdict read **nested-first then flat** (the lite path is flat).
 ```
 INVERSION -- a verdict of REJECT or 0% yet a BUY executed :  1   <- DELL, and only DELL
 verdict PERMITTED the buy                                 :  0
-UNDETERMINED                                              : 33
+UNDETERMINED                                              : 14   <- single-source rule said 33; see 2h
 POSITIVE CONTROL -- DELL detected                         : True
 ```
+
+**READ 2h BEFORE 2a-2g.** The `33` this section originally reported was a property
+of a SINGLE-SOURCE enumeration rule, not of the data. `paper_trades` carries a
+second, per-trade verdict column that recovers 19 of the 33. The corrected count is
+**14**, and 2a-2g below have been brought into line with it rather than left
+standing beside the correction.
 
 ### 2a. The criterion's question, answered as far as the data allows
 
@@ -47,20 +53,24 @@ POSITIVE CONTROL -- DELL detected                         : True
 > risk verdict existed"*
 
 **One position is CONFIRMED: DELL, 2026-08-13, $2,392.26 = 10.00% of NAV against
-REJECT/0%.** For the other 33 the question **cannot be answered from persisted
-data** -- and that is reported as a limit, not as a zero.
+REJECT/0%.** For the remaining 33 BUYs, **19 DO have a persisted verdict** (in
+`paper_trades.risk_judge_decision`, not in the report blob -- 2h) and none of those
+19 is an inversion; for the other **14** the question **cannot be answered from
+persisted data** -- and that is reported as a limit, not as a zero.
 
-### 2b. What DID improve: the 33 now have a cause decomposition
+### 2b. Cause decomposition of the 33 -- and 19 of them turned out to be RECOVERABLE
 
 Previously one undifferentiated bucket. Now:
 
-| n | shape | why unrecoverable |
+| n | shape | verdict recoverable? |
 |---:|---|---|
-| 19 | an `analysis_results` row EXISTS and joins | its `full_report_json` has **no `final_synthesis` subtree at all** -- the report is truncated |
-| 14 | no row within 2s | nearest row per ticker is **15-20 DAYS** away; `analysis_results` holds **zero rows 2026-04-20..2026-05-15** while the table dates to 2025-11-23. Cause named in code: phase-24.2 F-2, *"full pipeline previously evaporated without persistence"*, closed by phase-25.A2 |
+| 19 | an `analysis_results` row EXISTS and joins | **YES -- 19 of 19.** Its `full_report_json` has **no `final_synthesis` subtree at all** (the report is truncated, D5), but `paper_trades.risk_judge_decision` is populated on every one: 15 `APPROVE_REDUCED`, 3 `REJECT`, 1 `APPROVE_HEDGED`. Re-measured independently 2026-08-15. |
+| 14 | no row within 2s | **NO -- 0 of 14.** Nearest row per ticker is **15-20 DAYS** away; `analysis_results` holds **zero rows 2026-04-20..2026-05-15** while the table dates to 2025-11-23. Cause named in code: phase-24.2 F-2, *"full pipeline previously evaporated without persistence"*, closed by phase-25.A2. `paper_trades.risk_judge_decision` is empty on all 14. |
 
 Both are persistence gaps of different shapes. **Neither is recoverable by widening
-the join.**
+the join** -- but the first is recoverable from a DIFFERENT COLUMN, which is what
+2h establishes and what cuts undetermined from 33 to 14. The 14 fall on exactly
+four dates: **2026-04-26 (9), 04-27 (1), 04-28 (3), 05-01 (1)**.
 
 ### 2c. AN OVERCLAIM I MADE AND THEN REFUTED MYSELF -- recorded, not quietly deleted
 
@@ -238,11 +248,12 @@ The two empty buckets are therefore measured zeros, not absent categories.
 
 **WHAT THIS DOES AND DOES NOT SETTLE.** It settles that the numbers are
 reproducible from the enumeration rule by an independently written query, which is
-what "the split is mine alone" was flagging. It does **not** make C7 closable: the
-33 remain unrecoverable for the two persistence reasons already recorded, and 2e's
-truncation defect is still firing (D5). **C7 stays PARTIAL.** Independent
-*third-party* confirmation is a Q/A's job, not a second derivation by the same
-author -- that limit is stated here rather than papered over.
+what "the split is mine alone" was flagging. It does **not** make C7 closable: **14**
+remain unrecoverable (the `UNDET_no_row_within_2s` bucket -- the other 19 are
+recoverable from `paper_trades.risk_judge_decision`, see 2h), and 2e's truncation
+defect is still firing (D5). **C7 stays PARTIAL.** Independent *third-party*
+confirmation is a Q/A's job, not a second derivation by the same author -- that
+limit is stated here rather than papered over.
 
 ### 2h. A SECOND VERDICT SOURCE cuts undetermined from 33 to 14 (cycle-6 Q/A, WARN)
 

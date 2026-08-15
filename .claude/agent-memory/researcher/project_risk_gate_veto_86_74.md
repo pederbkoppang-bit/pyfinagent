@@ -1,6 +1,6 @@
 ---
 name: risk-gate-veto-86-74
-description: Step 86.74 falsy-zero risk veto -- the `or 10.0` idiom is at FOUR sites and the approved fix guards ONE; three default-OFF flags whose conjunction is the safety property, and the "fail-safe" one alone makes failure WORSE (3%->10%)
+description: Step 86.74 falsy-zero risk veto -- the `or 10.0` idiom was at FOUR sites and the ORIGINALLY-SCOPED fix guarded ONE (all four now route through `_sizing_pct`); three default-OFF flags whose conjunction is the safety property, and the "fail-safe" one alone makes failure WORSE (3%->10%)
 metadata:
   type: project
 ---
@@ -9,7 +9,17 @@ Research for step 86.74 (risk judge returns 0% REJECT, code converts it to a
 10%-of-NAV BUY). Three findings that were NOT visible from the incident memo or
 the caller's stated scope.
 
-**1. The `or 10.0` idiom is at FOUR sites; the approved fix guards ONE.**
+> **STATE AS OF 2026-08-15 -- read before acting on finding 1.** This memo records
+> the PRE-FIX survey. 86.74 has since landed: all four sizing sites
+> (`portfolio_manager.py:531`, `:824`, `:877`, `:902`) now call `_sizing_pct(cand)`,
+> the raw `or 10.0` idiom survives only in comments and the named constant
+> `DEFAULT_POSITION_PCT` (`:1019`), and the nested-first resolution in
+> `_resolve_position_pct` is **unconditional** rather than flag-gated. Do NOT read
+> finding 1 as "three sites are still unguarded" -- they are not. The line numbers
+> below are pre-fix and have moved; re-derive them. **The METHOD in "How to apply"
+> is the durable part and is unaffected.**
+
+**1. The `or 10.0` idiom was at FOUR sites; the originally-scoped fix guarded ONE.**
 `backend/services/portfolio_manager.py` `:507` (main loop, guarded by
 `paper_risk_judge_shape_fix_enabled`), `:800`, `:853`, `:878` -- the last three
 UNGUARDED by any flag. `:878` is the swap path's real `buy_amount` sizing. The
