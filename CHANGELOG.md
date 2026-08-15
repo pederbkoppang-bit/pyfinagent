@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-15 | `7a3e3cf2` | docs(session): day report 2026-08-15b + regenerate the 08-16 goal |
 | 2026-08-15 | `9a18150f` | phase-86.85: cycle 4 (C8) -- derived guard coverage; CONDITIONAL, step ESCALATED |
 | 2026-08-15 | `e4f2e844` | phase-86.86: D6 -- the lite risk judge's explicit 0% verdict survives ingress |
 | 2026-08-15 | `6723206e` | docs(session): day report 2026-08-15 + regenerate the 08-16 goal |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-14 | `d59cf424` | phase-86.84: key the cap boundary on the first post-restart run on disk (F-E) |
 | 2026-08-14 | `bab78790` | docs(goal): restore the 3964-char goal a cp installed over |
 | 2026-08-14 | `e77b5392` | docs(goal): reorder 86.84 into an ordered (a)(b)(c) first-actions block |
-| 2026-08-14 | `58ed0e73` | docs(goal): restore the safety constraints an auto-trim wrongly dropped |
 
 ---
 
