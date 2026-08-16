@@ -268,6 +268,23 @@ def main() -> int:
         bad(f"expected 4 whole-dict copy routes, found {len(copies)} at {copies} -- "
             "a route was added or removed; classify it before shipping")
 
+    # phase-86.88 cycle 4 (Q/A NOTE). The cycle-3 artifact and commit message both
+    # credited both-path safety to "the literal count ASSERTED == 2 rather than
+    # assumed". A grep returned exactly 2 hits -- BOTH production lines, zero test
+    # or checker assertions. Read as "I measured it once" the sentence was true;
+    # read as a shipped guard it was not, and that is precisely what left the
+    # Gemini half unprotected when the persisted provenance was added. So the
+    # count is asserted HERE, where it runs on every invocation.
+    prov = [n.lineno for n in ast.walk(tree)
+            if isinstance(n, ast.Constant) and n.value == "risk_assessment_provenance"]
+    if len(prov) == 2:
+        ok(f"the persisted provenance block is present on BOTH lite paths at {sorted(prov)} "
+           "(phase-86.88: asserted every run, not measured once)")
+    else:
+        bad(f"expected the persisted provenance on exactly 2 lite paths, found {len(prov)} "
+            f"at {sorted(prov)} -- one path would persist judge-failed and judge-said-3% "
+            "byte-identically")
+
     unexpected = keys - RETAINED_KEYS - {WHOLE_DICT_COPY}
     if not unexpected:
         ok(f"remaining members are exactly the retained set {sorted(RETAINED_KEYS)} "

@@ -1257,17 +1257,64 @@ class TestLiteRouteEndToEnd:
         # criterion 7: the sizing column must NOT move.
         assert failed.get("recommended_position_pct") == real3.get("recommended_position_pct") == 3.0
 
-    def test_the_equality_is_EXACT_not_a_subset_match(self, monkeypatch):
-        """Pins the exactness the Q/A found unguarded: a subset match ignoring
-        `reasoning` survived all 75 tests. A judge that returns every default
-        VALUE but writes its own reasoning has expressed an opinion and must not
-        be labelled absent."""
+    def test_gemini_route_provenance_also_reaches_the_PERSISTED_payload(self, monkeypatch):
+        """The GEMINI half of the persistence guard.
+
+        phase-86.88 cycle 4. The cycle-3 Q/A dropped the provenance block from
+        the GEMINI persisted blob ONLY and all 77 tests stayed green, because
+        every persistence kill came from one test driving the CLAUDE route. It is
+        not an equivalent mutant: at baseline the Gemini judge-failed and
+        judge-said-3% blobs differ (sha256 189f53d0 vs 123dedd5) and under the
+        mutant they become byte-identical again -- the exact provenance collapse
+        this step exists to close, on one of two production paths.
+
+        This is the SAME guards-stop-one-seam-short shape fixed in cycle 2 for
+        the in-memory key, recurring for the persisted one.
+        """
+        import json as _json
+
+        failed = self._persisted(self._drive_gemini(monkeypatch, "no JSON from the judge"))
+        real3 = self._persisted(self._drive_gemini(
+            monkeypatch, '{"decision": "APPROVE_REDUCED", "recommended_position_pct": 3, '
+                         '"risk_level": "MODERATE", "reasoning": "ok"}'))
+        fr_failed = _json.dumps(failed.get("full_report"), sort_keys=True, default=str)
+        fr_real = _json.dumps(real3.get("full_report"), sort_keys=True, default=str)
+        assert "judge_verdict_absent" in fr_failed, (
+            "the GEMINI persisted payload carries no provenance flag"
+        )
+        assert fr_failed != fr_real, (
+            "on the GEMINI route a judge that produced NOTHING and a judge that "
+            "chose 3% persist byte-identically"
+        )
+        assert failed.get("recommended_position_pct") == real3.get("recommended_position_pct") == 3.0
+
+    def test_the_equality_is_EXACT_over_EVERY_key_not_just_one(self):
+        """Pins the CLASS, not one instance.
+
+        phase-86.88 cycle 4. Cycle 3 pinned exactness with a single case
+        (`reasoning`), and the Q/A then showed that ignoring `decision`,
+        `risk_level`, `recommended_position_pct` or `risk_limits` -- or tolerating
+        EXTRA keys -- all survived the 77-test suite. One instance cannot pin a
+        class. The key list is DERIVED from the shipped constant, so a key added
+        to `_LITE_RISK_DEFAULT` later is covered without editing this test.
+        """
         from backend.services.autonomous_loop import _LITE_RISK_DEFAULT, _lite_judge_produced_no_verdict
 
-        near = dict(_LITE_RISK_DEFAULT)
-        near["reasoning"] = "I independently concluded the conservative default is right"
-        assert _lite_judge_produced_no_verdict(near) is False, (
-            "a judge that wrote its own reasoning was labelled 'no verdict' -- the "
-            "whole-default match is a SUBSET match, not an exact one"
-        )
         assert _lite_judge_produced_no_verdict(dict(_LITE_RISK_DEFAULT)) is True
+
+        for key in _LITE_RISK_DEFAULT:
+            near = dict(_LITE_RISK_DEFAULT)
+            near[key] = ("a judge-authored value" if isinstance(near[key], str)
+                         else 99.0 if isinstance(near[key], (int, float))
+                         else {"judge": "authored"})
+            assert _lite_judge_produced_no_verdict(near) is False, (
+                f"a judge that differed ONLY in {key!r} was labelled 'no verdict' -- "
+                "the whole-default match is a SUBSET match on that key, not exact"
+            )
+
+        extra = dict(_LITE_RISK_DEFAULT)
+        extra["judge_confidence"] = 0.9
+        assert _lite_judge_produced_no_verdict(extra) is False, (
+            "a judge that returned the defaults PLUS its own field was labelled "
+            "'no verdict' -- the match tolerates extra keys"
+        )

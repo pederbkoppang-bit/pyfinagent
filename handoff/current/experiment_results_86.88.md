@@ -333,3 +333,43 @@ Each time the claim was one level further out than the code, and each time an
 evaluator had to measure the artifact to show it. The lesson is not "log lines
 are weak" -- it is that **"a reader can see it" is a claim about a specific
 artifact, and it is only true when that artifact has been read back.**
+
+
+---
+
+# Follow-up -- cycle 4 (2026-08-16)
+
+Three cycle-3 findings, all accepted. Each is the same lesson at a smaller scale:
+**a guard covering N duplicated sites at once cannot see a regression in one.**
+
+| # | Fix |
+|---|---|
+| **1** | `test_gemini_route_provenance_also_reaches_the_PERSISTED_payload` drives the GEMINI route through the real `_persist_analysis`. Matrix cells **M15/M16/M17** now mutate each path SEPARATELY -- drop-at-Claude, drop-at-Gemini, pin-False-at-Gemini -- and all three KILL. The two the Q/A found surviving are now cells |
+| **2** | `test_the_equality_is_EXACT_over_EVERY_key_not_just_one` parametrises over **every key of the shipped `_LITE_RISK_DEFAULT`** plus an extra-key case, so a key added to the constant later is covered without editing the test. Cells **M13** (ignore `decision`) and **M14** (superset-tolerant) -- both cycle-3 survivors -- now KILL |
+| NOTE | The count is a **SHIPPED ASSERTION** now, not a one-time measurement: the checker walks the AST for `"risk_assessment_provenance"` constants and requires exactly 2. Proven able to go RED -- dropping one path gives `FAIL expected the persisted provenance on exactly 2 lite paths, found 1 at [3541]`. Immutable command 9 -> **10** checks |
+
+## Matrix -- 12/12 KILLED on the shipped 78-test tree
+
+```
+CONTROL: 78 passed | checker exit 0 -> GREEN
+
+  KILLED  M1  N1 @ Claude                                    2 failed, 76 passed
+  KILLED  M2  N1 @ Gemini                                    1 failed, 77 passed
+  KILLED  M4  revert whole-default detection                 4 failed, 74 passed
+  KILLED  M5  over-fire                                     16 failed, 62 passed
+  KILLED  M6  restore the D6 falsy-or                       18 failed, 60 passed | checker 1
+  KILLED  M8  drop the in-memory key                         5 failed, 73 passed
+  KILLED  M11 subset ignoring 'reasoning'                    1 failed, 77 passed
+  KILLED  M13 subset ignoring 'decision'      (SURVIVED c3)  1 failed, 77 passed
+  KILLED  M14 superset-tolerant               (SURVIVED c3)  1 failed, 77 passed
+  KILLED  M15 drop persisted provenance @ CLAUDE only        1 failed, 77 passed | checker 1
+  KILLED  M16 drop persisted provenance @ GEMINI only (SURVIVED c3)  1 failed, 77 passed | checker 1
+  KILLED  M17 pin persisted provenance False @ GEMINI only (SURVIVED c3)  1 failed, 77 passed
+
+12/12 killed | restore byte-identical: True
+```
+
+**Five of these twelve cells exist because they SURVIVED a previous cycle.** That
+is the honest summary of this step: the product was right early, and each cycle
+found the guard covering it one seam short of where a regression could actually
+land.
