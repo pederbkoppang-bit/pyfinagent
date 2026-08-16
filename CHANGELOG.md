@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-16 | `757c58ad` | phase-86.94: the guard flagged ITSELF the moment it was committed |
 | 2026-08-16 | `f1b02a36` | phase-86.94: the phase-86.91 window fix was incomplete -- a pinned timestamp is TZ-local |
 | 2026-08-16 | `a8c71ab7` | phase-86.97: PARK at the 3-attempt cap -- FAIL on two claims that did not reproduce |
 | 2026-08-16 | `64ca8160` | phase-86.97: cycle-3 -- a measured figure that expired, and guards with no cells |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-16 | `1864dba7` | phase-86.89 cycle 2: six findings closed, incl. two the floor structurally could not see |
 | 2026-08-16 | `1cf84c57` | phase-86.88: harness_log cycle 226 -- FAIL by escalation |
 | 2026-08-16 | `acd13c57` | phase-86.88: ESCALATE -- F1 auto-FAIL applied after four CONDITIONALs |
-| 2026-08-16 | `b0edad8e` | phase-86.89: the missing half is a VACUITY check, not a richer AST rule |
 
 ---
 
