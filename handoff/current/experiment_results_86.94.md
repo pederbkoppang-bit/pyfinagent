@@ -96,7 +96,7 @@ sit relative to the sliding band.
 
 | member | class | judgement (measured) |
 |---|---|---|
-| `scheduler.py:503` `midnight` | LEGITIMATELY RELATIVE | Name appears in 37 files; every hit descriptive (em-dash cleanup, an APScheduler job description, a different scheduler at `:761-795`). No count from this window is quoted. |
+| `scheduler.py:503` `midnight` | LEGITIMATELY RELATIVE | Name appears in **282** files (measured over the whole `handoff/` tree); every hit descriptive (em-dash cleanup, an APScheduler job description, a different scheduler at `:761-795`). No count from this window is quoted. |
 | `frontend_route_inventory.py:73` `30.days` | SLIDING, left | **Corrected cycle 2:** its figures HAVE been quoted as evidence — an archived `experiment_results.md` uses them as success criteria. Quoted, unreproducible, and inert (closed step, nothing live depends on them), so the window is left but the judgement is no longer "never quoted". |
 | `verify_decision_log_86_97.py:360` `{first_stamp}` | runtime-derived, allowed | Figures **are** quoted — always with the clock time they were taken at, and the checker asserts a *relationship*, not a number. |
 | `replay_changelog_rule_86_68.py:114` `{CORPUS_SINCE}` | was SLIDING → **FIXED** | The TZ-naive pin. |
@@ -201,8 +201,7 @@ run (`282 / 6 / 49`).
 is this repo's *dominant* git idiom, and the option pattern required `=` or
 whitespace immediately after the option name. With a quote there the line never
 matched at all, so the site was **invisible** and the fail-closed `<unparsed>`
-path never fired. Both argv spellings are cells now, and the widened rule
-immediately found a live site the old one missed.
+path never fired. Both argv spellings are cells now. **RETRACTED (phase-86.94 cycle-3 verdict, and I re-measured it myself).** An earlier revision of this paragraph claimed the widened rule *"immediately found a live site the old one missed"*. It measures **zero**: reverting only the `WINDOW_RE` widening leaves the live-site enumeration byte-identical, and the cycle-2 blob enumerates the same four sites. Every live git window in this repo uses the `=` spelling. What I mistook for a find was `census_qa_write_guard_log_86_31.py:64` — an `argparse` flag for a non-git tool, i.e. a FALSE POSITIVE that I then excluded with the git-proximity rule. The widening's real effect is confined to the mutation cells: it closes a future-introduction gap, which is what criterion 6 governs, and it changes nothing about today's tree.
 
 That widening had a consequence, disclosed rather than smoothed: it also matched
 `argparse` definitions (`ap.add_argument("--before", default=None)`), which are

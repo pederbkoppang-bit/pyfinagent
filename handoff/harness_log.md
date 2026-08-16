@@ -35739,3 +35739,39 @@ PARKED per the overnight rail (3 attempts, no PASS). Both fixes are named in the
 masterplan notes and neither touches the product; the next cycle should be short.
 
 Tokens: 191,440 (research) + 207,808 + 249,564 + 242,368 (three Q/A cycles).
+
+## Cycle 230 -- 2026-08-17 -- phase=86.94 result=CONDITIONAL (PARKED at the cap; R2 CIRCUIT BREAKER TRIPPED)
+
+**All 7 immutable criteria MET on their literal wording; capped on evidence
+integrity, and the step is one short cycle from PASS.**
+
+RESEARCH: gate PASSED (enforced, audit-class, `wf_2c05296c-5d4`): 17 sources read
+in full, 45 URLs, 12 rounds with 3 dry, `coverage.dry: true`.
+
+WHAT SHIPPED. `scripts/qa/verify_no_sliding_windows_86_94.py` (45 assertions) and
+a one-character production fix: `CORPUS_SINCE` now ends in `Z`.
+
+THE FINDING. Two ways to fail "name an instant", and phase-86.91 fixed one:
+`git rev-parse --since=2026-08-11` resolves to **today's clock time carried onto
+that date**; and a *pinned* timestamp is still **TZ-LOCAL** -- both ends pinned,
+707 under Oslo/UTC/NY vs **787** under Seoul. Criterion 1 measured 1h00m49s
+apart: the bare count went **DOWN (376 -> 360) while the repo GREW**, pinned went
++4; the arithmetic closes with no residual (4 added, 20 slid out).
+
+VERDICTS: FAIL -> FAIL -> CONDITIONAL. Every capping finding was a real defect of
+mine and I reproduced each before accepting it -- five surviving mutants (three
+named verbatim in the step's own audit_basis); a correction that ACCOMPANIED
+instead of replacing, inside the step whose criterion 5 says exactly that; and an
+effectiveness claim that **measures zero**, which I confirmed by A/B myself.
+
+PARKED per R1 (3 attempts). With 86.97 also parked, **R2's circuit breaker has
+tripped** -- step work stops for the night. See `handoff/current/overnight_halt.md`.
+
+**The breaker's premise does not hold tonight, and that is the useful finding.**
+It assumes two parks indicate a harness blocker. Measured: 7 of 7 capping
+findings were real author defects, none a rubber-stamp CONDITIONAL on met
+criteria -- unlike the 2026-08-16 day session, where 8 of 15 verdicts said every
+criterion was MET and returned CONDITIONAL anyway. The recurring shape is one
+class: **a guard that has the very defect it was built to catch.**
+
+Tokens: 227,210 (research) + 218,196 + 225,041 + 243,670 (three Q/A cycles).
