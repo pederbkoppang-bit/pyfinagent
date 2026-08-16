@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-16 | `b0edad8e` | phase-86.89: the missing half is a VACUITY check, not a richer AST rule |
 | 2026-08-16 | `617ba2c0` | phase-86.88 cycle 4: per-path cells, class-wide exactness, and a SHIPPED count assertion |
 | 2026-08-16 | `a2ac7cca` | phase-86.88 cycle 3: put the provenance where a reader actually looks |
 | 2026-08-16 | `4e01f3b6` | phase-86.88 cycle 2: the provenance is now REAL, not a log line |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-15 | `6723206e` | docs(session): day report 2026-08-15 + regenerate the 08-16 goal |
 | 2026-08-15 | `d75aa320` | phase-86.84: post-boundary evidence -- the maxTurns removal is VERIFIED |
 | 2026-08-15 | `64512cdc` | phase-86.85: cycle-3 FAIL -- 3rd consecutive, ESCALATED to operator, no cycle 4 |
-| 2026-08-15 | `39999944` | phase-86.85: cycle-3 remediation -- cover the guard CLASS, not the reported instances |
 
 ---
 
