@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-16 | `6c801544` | phase-86.97: cycle-2 -- my buildability oracle had the step's own defect |
 | 2026-08-16 | `3894ac71` | phase-86.97: guard the decision log against a call the 86.91 checker cannot see |
 | 2026-08-16 | `e45c1bf6` | phase-86.92: PASS -- close the restored args-boundary gate, queue two successors |
 | 2026-08-16 | `45b74291` | phase-86.92: cycle-2 -- my own positive control could not fail |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-16 | `617ba2c0` | phase-86.88 cycle 4: per-path cells, class-wide exactness, and a SHIPPED count assertion |
 | 2026-08-16 | `a2ac7cca` | phase-86.88 cycle 3: put the provenance where a reader actually looks |
 | 2026-08-16 | `4e01f3b6` | phase-86.88 cycle 2: the provenance is now REAL, not a log line |
-| 2026-08-16 | `786b5a55` | phase-86.88: experiment_results + live_check; criterion 7 MEASURED under both flag states |
 
 ---
 
