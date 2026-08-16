@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-16 | `a8c71ab7` | phase-86.97: PARK at the 3-attempt cap -- FAIL on two claims that did not reproduce |
 | 2026-08-16 | `64ca8160` | phase-86.97: cycle-3 -- a measured figure that expired, and guards with no cells |
 | 2026-08-16 | `6c801544` | phase-86.97: cycle-2 -- my buildability oracle had the step's own defect |
 | 2026-08-16 | `3894ac71` | phase-86.97: guard the decision log against a call the 86.91 checker cannot see |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-16 | `acd13c57` | phase-86.88: ESCALATE -- F1 auto-FAIL applied after four CONDITIONALs |
 | 2026-08-16 | `b0edad8e` | phase-86.89: the missing half is a VACUITY check, not a richer AST rule |
 | 2026-08-16 | `617ba2c0` | phase-86.88 cycle 4: per-path cells, class-wide exactness, and a SHIPPED count assertion |
-| 2026-08-16 | `a2ac7cca` | phase-86.88 cycle 3: put the provenance where a reader actually looks |
 
 ---
 
