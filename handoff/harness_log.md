@@ -35569,3 +35569,35 @@ product; two mutants still survive the guard and one claim of mine ("closed on
 both the replay and the hook") was measured FALSE and is corrected in the
 artifact. Caller applied F1's auto-FAIL. PARKED ->
 handoff/current/escalation_86.90_86.91.md.
+
+## Cycle 226 -- 2026-08-16 -- phase=86.88 result=FAIL (escalated)
+
+The lite position-pct seam was guarded only AT the seam. Reproduced first with
+the control GREEN (62 passed): a caller-side pre-mangle injected before the
+producer call SURVIVED both the suite and the AST checker, while two
+discriminating positive controls were KILLED in the same run. Root cause
+structural -- NO test drove `_run_claude_analysis` or `_run_gemini_analysis` at
+all, so every guard anchored at or below the producer and no ROUTE into it was
+ever executed.
+
+The step's own premise was WRONG and both Main and the research gate measured it
+independently: the checker's `<whole-dict>` branch is NOT dead -- it fires on
+`x or _LITE_RISK_DEFAULT` and is blind only to the `dict(...)` Call shape. So
+criterion 4's "made LIVE" means WIDENING node shapes. Widened; it now fires on
+all four real matches, and those routes are CLASSIFIED so a fifth fails as
+unclassified.
+
+Fixed at the SEAM (CERT OBJ06-J copy-then-validate): value equality detects the
+whole-default and resolves ABSENT. Number deliberately unchanged, so criterion 7
+holds -- 7/7 disclosure inputs identical pre/post under both flag states. 62 -> 78
+tests, 8 -> 10 checks, N1 KILLED on both routes.
+
+4 cycles, [CONDITIONAL x4]. All 8 criteria graded MET each cycle. Two
+non-equivalent mutants still survive at the production expression computing
+judge_verdict_absent, and the checker's provenance count is attributable-blind.
+Caller applied F1's auto-FAIL rather than a fifth attempt. PARKED ->
+handoff/current/escalation_86.90_86.91.md (addendum).
+
+Recurring lesson across the three escalated steps: I called something provenance
+three times at three levels -- a log line, an in-memory key, a persisted blob --
+and only the third was checkable by a reader.
