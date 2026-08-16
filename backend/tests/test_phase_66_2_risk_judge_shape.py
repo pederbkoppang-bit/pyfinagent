@@ -1211,3 +1211,63 @@ class TestLiteRouteEndToEnd:
                                             '"risk_level": "HIGH", "reasoning": "no"}')
         assert analysis["risk_assessment"]["judge_verdict_absent"] is False
         assert analysis["risk_assessment"]["recommended_position_pct"] == 0.0
+
+    # ── THE PROVENANCE MUST REACH A PERSISTED ARTIFACT ─────────────────────
+    # phase-86.88 cycle 3. Cycle 1 claimed a logger.warning was provenance;
+    # cycle 2 claimed an in-memory dict key was. The Q/A measured that the lite
+    # full_report carried no risk_assessment at all, so the key reached NO
+    # persisted artifact -- the persisted blob sha256 was IDENTICAL for a judge
+    # that failed and a judge that chose 3%. These tests assert the thing the
+    # claim is about: what actually lands in the persisted payload.
+
+    @staticmethod
+    def _persisted(analysis):
+        import asyncio
+
+        from backend.services import autonomous_loop as al
+
+        captured = {}
+
+        class _BQ:
+            def save_report(self, **kw):
+                captured.update(kw)
+
+        asyncio.run(al._persist_analysis(analysis, _BQ()))
+        assert captured, "save_report was never called -- the write path errored"
+        return captured
+
+    def test_judge_failure_is_distinguishable_IN_THE_PERSISTED_PAYLOAD(self, monkeypatch):
+        import json as _json
+
+        failed = self._persisted(self._drive(monkeypatch, "no JSON from the judge"))
+        real3 = self._persisted(self._drive(monkeypatch, '{"decision": "APPROVE_REDUCED", '
+                                                         '"recommended_position_pct": 3, '
+                                                         '"risk_level": "MODERATE", "reasoning": "ok"}'))
+        fr_failed = _json.dumps(failed.get("full_report"), sort_keys=True, default=str)
+        fr_real = _json.dumps(real3.get("full_report"), sort_keys=True, default=str)
+        assert "judge_verdict_absent" in fr_failed, (
+            "the provenance flag does not appear in the PERSISTED payload -- it "
+            "exists only in memory, which is not provenance"
+        )
+        assert fr_failed != fr_real, (
+            "a judge that produced NOTHING and a judge that chose 3% persist "
+            "byte-identically -- the two states are still indistinguishable to "
+            "any downstream reader or auditor"
+        )
+        # criterion 7: the sizing column must NOT move.
+        assert failed.get("recommended_position_pct") == real3.get("recommended_position_pct") == 3.0
+
+    def test_the_equality_is_EXACT_not_a_subset_match(self, monkeypatch):
+        """Pins the exactness the Q/A found unguarded: a subset match ignoring
+        `reasoning` survived all 75 tests. A judge that returns every default
+        VALUE but writes its own reasoning has expressed an opinion and must not
+        be labelled absent."""
+        from backend.services.autonomous_loop import _LITE_RISK_DEFAULT, _lite_judge_produced_no_verdict
+
+        near = dict(_LITE_RISK_DEFAULT)
+        near["reasoning"] = "I independently concluded the conservative default is right"
+        assert _lite_judge_produced_no_verdict(near) is False, (
+            "a judge that wrote its own reasoning was labelled 'no verdict' -- the "
+            "whole-default match is a SUBSET match, not an exact one"
+        )
+        assert _lite_judge_produced_no_verdict(dict(_LITE_RISK_DEFAULT)) is True

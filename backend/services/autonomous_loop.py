@@ -3283,6 +3283,25 @@ Respond in this exact JSON format:
         "full_report": {
             "source": model_name,
             "analysis": analysis,
+            # phase-86.88 cycle 3 (Q/A finding 1, second occurrence of the same
+            # class). Cycle 2 added `judge_verdict_absent` to the in-memory
+            # risk_assessment and the comment claimed it was visible "IN THE
+            # RECORD, where a downstream reader or an auditor can see it".
+            # MEASURED by the Q/A: the lite `full_report` carried no
+            # risk_assessment at all, so the flag reached NO persisted artifact --
+            # the persisted blob sha256 was IDENTICAL for a judge that failed and
+            # a judge that chose 3%, and save_report's named columns were
+            # identical too. A repo census found 1 production line, 3 test
+            # assertions and ZERO consumers.
+            #
+            # That was the cycle-1 failure moved one level out: cycle 1 claimed a
+            # log line was provenance, cycle 2 claimed an in-memory key was. It
+            # is provenance only where it is PERSISTED, so it is persisted here.
+            # Additive: `full_report` is a JSON blob, so adding a key changes no
+            # column, no order and no existing reader.
+            "risk_assessment_provenance": {
+                "judge_verdict_absent": bool(risk_assessment.get("judge_verdict_absent")),
+            },
             "market_data": _integrity_market_data(
                 name, current_price, market_cap, pe_ratio, sector, industry,
                 momentum_20d, momentum_60d, _di_norm, _di_flags,
@@ -3506,6 +3525,25 @@ Respond ONLY with valid JSON, no prose. Schema:
         "full_report": {
             "source": model_name,
             "analysis": analysis,
+            # phase-86.88 cycle 3 (Q/A finding 1, second occurrence of the same
+            # class). Cycle 2 added `judge_verdict_absent` to the in-memory
+            # risk_assessment and the comment claimed it was visible "IN THE
+            # RECORD, where a downstream reader or an auditor can see it".
+            # MEASURED by the Q/A: the lite `full_report` carried no
+            # risk_assessment at all, so the flag reached NO persisted artifact --
+            # the persisted blob sha256 was IDENTICAL for a judge that failed and
+            # a judge that chose 3%, and save_report's named columns were
+            # identical too. A repo census found 1 production line, 3 test
+            # assertions and ZERO consumers.
+            #
+            # That was the cycle-1 failure moved one level out: cycle 1 claimed a
+            # log line was provenance, cycle 2 claimed an in-memory key was. It
+            # is provenance only where it is PERSISTED, so it is persisted here.
+            # Additive: `full_report` is a JSON blob, so adding a key changes no
+            # column, no order and no existing reader.
+            "risk_assessment_provenance": {
+                "judge_verdict_absent": bool(risk_assessment.get("judge_verdict_absent")),
+            },
             "market_data": _integrity_market_data(
                 name, current_price, market_cap, pe_ratio, sector, industry,
                 momentum_20d, momentum_60d, _di_norm, _di_flags,

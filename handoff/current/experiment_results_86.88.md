@@ -309,3 +309,27 @@ pass on an implementation that hardcodes `True`.
 $ python scripts/qa/verify_lite_risk_seam_86_86.py     RESULT: OK (9 PASS / 0 FAIL)   # immutable
 $ python -m pytest backend/tests/test_phase_66_2_risk_judge_shape.py -q     75 passed
 ```
+
+
+---
+
+# Follow-up -- cycle 3 (2026-08-16)
+
+All three cycle-2 findings closed. The pattern across three cycles is one thing:
+**I kept calling something provenance that no reader could see.**
+
+| # | Finding | Fix |
+|---|---|---|
+| **1** | The additive key reached no persisted artifact -- blob sha256 identical for judge-failed vs judge-said-3% | Threaded into the lite `full_report` on **BOTH** paths, with the literal count **asserted == 2** rather than assumed. `test_judge_failure_is_distinguishable_IN_THE_PERSISTED_PAYLOAD` drives the real `_persist_analysis` and asserts the two payloads DIFFER while `recommended_position_pct` does not move. Cell **M12** drops it and KILLS |
+| **2** | `live_check` was never regenerated; my patch anchor did not match and the no-op passed silently | **Regenerated WHOLESALE from live runs**, by a script that asserts the bytes changed AND that every placeholder was substituted. It caught its own first attempt embedding `warnings.warn(` as the suite line -- so the script now validates the capture is a real pytest summary, not merely that a substitution occurred |
+| WARN | The equality's exactness was unpinned; a subset match ignoring `reasoning` survived | `test_the_equality_is_EXACT_not_a_subset_match` asserts a judge that writes its own reasoning is NOT labelled absent. Cell **M11** is that exact mutant and KILLS |
+
+Matrix: **12/12 KILLED** on the shipped 77-test tree, control GREEN first, every
+restore sha256-verified. M11 and M12 exist because both SURVIVED in cycle 2.
+
+**The recurring shape, named:** cycle 1 said a `logger.warning` was provenance;
+cycle 2 said an in-memory dict key was; only cycle 3 put it where a reader looks.
+Each time the claim was one level further out than the code, and each time an
+evaluator had to measure the artifact to show it. The lesson is not "log lines
+are weak" -- it is that **"a reader can see it" is a claim about a specific
+artifact, and it is only true when that artifact has been read back.**
