@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-16 | `a21a5889` | phase-86.90: the Layer-3 prompt FIELD render boundary -- structured spawn input stops being coerced  |
 | 2026-08-16 | `c627a810` | chore(masterplan): file 86.91 -- changelog flip detector swallows created-and-closed steps |
 | 2026-08-15 | `7a3e3cf2` | docs(session): day report 2026-08-15b + regenerate the 08-16 goal |
 | 2026-08-15 | `9a18150f` | phase-86.85: cycle 4 (C8) -- derived guard coverage; CONDITIONAL, step ESCALATED |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-14 | `f0c4ad0c` | phase-86.74: remediate the cycle-5 CONDITIONAL -- the artifact of record denied its own measurement |
 | 2026-08-14 | `9034ddfb` | phase-86.74: C4 MEASURED and satisfied; the 19/14/0 split independently re-derived |
 | 2026-08-14 | `d59cf424` | phase-86.84: key the cap boundary on the first post-restart run on disk (F-E) |
-| 2026-08-14 | `bab78790` | docs(goal): restore the 3964-char goal a cp installed over |
 
 ---
 
