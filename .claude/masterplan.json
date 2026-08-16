@@ -25781,6 +25781,29 @@
             "live_check": "live_check_86.90.md carrying the reproduced \"[object Object]\" prompt text, the localised layer, the research-gate.js result, and the enumerated blast radius including a disposition for 86.86"
           },
           "notes": "Filed 2026-08-15. Found because the evaluator REPORTED a defect in its own input rather than silently working around it -- worth recording as the reason this was catchable at all. Related to the existing memory that structured input passed as prose reads as not_supplied; this is the object-shaped variant. The immutable command was run before these criteria were frozen and was green (2026-08-15)."
+        },
+        {
+          "id": "86.91",
+          "priority": "P1",
+          "status": "pending",
+          "harness_required": true,
+          "name": "the changelog version detector silently swallows every step FILED AND CLOSED IN THE SAME COMMIT: `before.get(sid) not in (None, \"done\")` excludes a step that did not exist at HEAD~1, so the file-it-and-fix-it workflow ships work with no version bump",
+          "audit_basis": "OPERATOR-REPORTED 2026-08-16 and INDEPENDENTLY REPRODUCED BY EXECUTION before filing. SYMPTOM: CHANGELOG.md's newest version header is `### v6.93.222 ... (2026-08-14)` while Recent-Activity rows kept landing through 2026-08-15 -- the version froze while work shipped. CAUSE, localised at .claude/hooks/post-commit-changelog.sh:154 inside `_flip_magnitude`: `newly_done = [sid for sid, st in after.items() if st == 'done' and before.get(sid) not in (None, 'done')]`. `before.get(sid)` is None when the step DID NOT EXIST at HEAD~1, and the `None` exclusion therefore drops exactly the steps created-and-closed in one commit. MEASURED on commit e4f2e844 (phase-86.86, 2026-08-15): `86.86 before: None -> after: done`; the shipped rule returns newly_done == [] and bumps NOTHING, while dropping the None term returns ['86.86'] and bumps patch. That commit shipped a real fix to backend/services/autonomous_loop.py. WHY THE None TERM WAS THERE: phase-86.68 replaced a subject-prefix classifier (`phase-X.Y:` -> patch) that counted ATTEMPTS -- 348 commits produced 136 bumps, and steps 86.9 and 86.44 each ended PARKED with no PASS while together moving the version 19 times. The flip detector was the fix, and the None guard was intended to mean 'not a transition'. It reads as 'ignore steps that appeared this commit', which is a DIFFERENT set and is the file-it-and-fix-it workflow this project uses constantly. THE TRAP THAT MAKES IT INVISIBLE: the hook `NEVER RAISES` by design -- on any internal error it returns 'none' and prints `[changelog] flip-detect FAILED` to stderr -- so a silently-empty newly_done and a genuinely-chore commit are INDISTINGUISHABLE from the CHANGELOG. Nothing warns; the row lands and the version does not move.",
+          "verification": {
+            "success_criteria": [
+              "the defect is REPRODUCED by execution before anything is changed, on a REAL commit from history, quoting the command and its verbatim output showing before=None -> after=done and the shipped rule returning an EMPTY newly_done",
+              "the fix makes a created-already-done step count as a flip, and the exact predicate change is stated; a fix that special-cases 86.86 or any single step id rather than the CLASS fails this criterion",
+              "the 86.68 defect is NOT reintroduced: the replay over the same 348-commit corpus is re-run and the bump count is STATED for the OLD subject-prefix rule, the SHIPPED flip rule, and the FIXED flip rule -- three numbers, from execution, not asserted. An increase over the shipped rule must be accounted for commit by commit, and every newly-bumping commit must be shown to have actually closed a step",
+              "the silent-swallow class is closed, not just this instance: when the detector decides 'none' it must be possible to tell WHY from the hook's own output (a genuinely-chore commit, an error, or a flip it declined) -- an unexplained 'none' is the defect and a fix that leaves it unexplained does not close it",
+              "CHANGELOG.md is NOT hand-edited: any correction to the version line is produced by running the hook, and the evidence shows the hook producing it",
+              "a regression guard is added that would go RED if the None exclusion (or an equivalent) is restored, and it is mutation-tested with the control observed GREEN first and the mutant KILLED",
+              "the hook still NEVER RAISES: an internal error must still print the FAILED marker and bump nothing, demonstrated by injecting a fault rather than by reading the source",
+              "verdict semantics and masterplan state are UNCHANGED: nothing here may flip a step or alter a verdict"
+            ],
+            "command": "bash -c 'bash -n .claude/hooks/post-commit-changelog.sh && echo parses'",
+            "live_check": "live_check_86.91.md carrying the reproduced before=None case with verbatim output, the three replay bump counts over the 348-commit corpus, the mutation cell, and the fault-injection proof that the hook still never raises"
+          },
+          "notes": "Filed 2026-08-16 by Main under operator direction. Sibling of 86.90: both are SILENT INPUT/OUTPUT LOSS -- a value that never arrives and a transition that never registers, each invisible from the artifact a reader would check. Related memory: feedback_operations_that_cannot_fail_loudly."
         }
       ]
     }
