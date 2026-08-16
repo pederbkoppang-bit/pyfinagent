@@ -269,3 +269,41 @@ raced.
 Ruled in my favour and worth recording: criterion 5's named `ast.Try` shape IS
 caught by the shipped mechanism -- the Q/A built it and measured it. My stated
 bound was too pessimistic; only the demonstration was missing.
+
+---
+
+## 12. Filed after the operator asked for a harness recommendation
+
+Measured across the session's 15 completed `qa-verdict` runs:
+
+```
+PASS                                      : 1
+judge stated ALL CRITERIA MET but not PASS: 8
+```
+
+`qa-verdict.js:374-376` gives PASS a **necessary** condition (*"only if EVERY
+immutable criterion is met"*) and no sufficient one, while *"CONDITIONAL for
+fixable gaps"* absorbs any residual -- and a residual is always available, since
+every guard admits a guard-of-the-guard question. Findings reached **depth 3** in
+one day. With F1's 3rd-CONDITIONAL rule on top, three steps escalated **with every
+criterion graded MET**.
+
+Filed: **86.98** (verdict not a function of the criteria, P1), **86.99**
+(guard-depth bound, P2), **86.100** (stress-test doctrine on evidence, P2).
+
+**Not filed, annotated instead** -- both already existed and duplicating them
+would have been the "queued in prose" failure in reverse: **86.85** (the ledger;
+now recorded as the blocking dependency, with a recommended P2->P1 I did **not**
+apply unilaterally because the step is parked) and **86.71** (attempt-budget
+wiring; F1 applied by hand three times).
+
+**86.98 carries a deliberate constraint against me:** criterion 7 requires an
+operator sign-off recorded in the artifact, because the change would convert 8 of
+this session's CONDITIONALs into PASSes and was proposed by the party those
+verdicts graded. A Q/A PASS alone is insufficient there by design.
+
+What must NOT change, and each step says so: the judge keeps reporting
+everything, and the consequence stays withheld from it. EviBound measured 100%
+false-completion claims from prompt-level self-reflection alone, falling to 0%
+only with a post-hoc artifact gate -- which is what these Q/As are. The three
+steps loosen the **verdict**, never the **reporting**.
