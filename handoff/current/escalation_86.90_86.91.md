@@ -1,4 +1,4 @@
-# ESCALATION TO THE OPERATOR -- phase-86.90 and phase-86.91
+# ESCALATION TO THE OPERATOR -- phase-86.90, phase-86.91 and phase-86.88
 
 **Date:** 2026-08-16 · **Raised by:** Main (autonomous session)
 **Trigger:** CLAUDE.md F1, the 3rd-CONDITIONAL auto-FAIL rule.
@@ -144,3 +144,59 @@ because the fix has not been allowed to close.
   `wf_fa56f83d-814`, `wf_7854f219-eaf`, `wf_0d88fe11-241`, `wf_c568a4c6-90b`,
   `wf_249feb74-c6d`; the 86.86 re-grade `wf_a09930e2-3d7`; the pre-fix probe
   `wf_4588d8a7-e70`.
+
+---
+
+# ADDENDUM -- phase-86.88 joins this escalation (2026-08-16)
+
+**Sequence `[C, C, C, C]`, four attempts, `would_auto_fail: true`. Same rule, same
+action: F1 applied, no fifth attempt, `status: pending`.**
+
+## What is TRUE about 86.88's product
+
+All 8 immutable criteria graded MET and **independently re-derived each cycle**.
+The cycle-4 Q/A built its own **21-cell** matrix rather than re-reading mine, and
+reproduced my 12-cell one exactly on the 7 cells it re-ran. Concretely:
+
+- The N1 caller-side pre-mangle is **KILLED on both lite routes** (it survived
+  everything before this step).
+- All four `dict(_LITE_RISK_DEFAULT)` routes are reached **by driving**, and the
+  Q/A confirmed each mutation kills a *distinct* route test -- so criterion 6's
+  per-route reachability is genuinely per-route.
+- Criterion 7: order outcomes **identical** pre-fix vs post-fix on 7/7 disclosure
+  inputs under both `paper_risk_judge_reject_binding` states.
+- 62 -> 78 tests; immutable command 8 -> 10 checks.
+
+## What is OPEN
+
+| # | Finding | Named fix |
+|---|---|---|
+| 1 | **Two non-equivalent mutants survive** at the production expression computing `judge_verdict_absent`. The class-wide exactness guard is bound to the **helper**, not to the production call site or its argument, so replacing the call or pre-normalising its argument leaves the suite AND the checker green. A judge emitting the default values plus its own reasoning would be persisted as "produced nothing" | Bind the exactness assertion to the production expression, not to `_lite_judge_produced_no_verdict` in isolation |
+| 2 | The checker's `len(prov) == 2` is **attributable-blind** -- moving both provenance blocks onto ONE path still passes | Attribute each constant to its enclosing `FunctionDef`; require one in `_run_claude_analysis` and one in `_run_gemini_analysis` |
+
+**And the process finding I want on the record:** I built a regeneration script in
+cycle 3 *specifically* to stop `live_check` going stale, and then **did not run it
+in cycle 4** -- so the artifact contradicted the shipped state again, the identical
+class cycle 3 was CONDITIONAL for. I regenerated it before writing this addendum;
+it now states plainly that sections 4-5 still quote the cycle-3 matrix, rather
+than being tidied to look consistent.
+
+## Why this one is materially different from 86.90/86.91
+
+On those two, **every** open finding is guard-coverage or artifact accuracy.
+Here, **finding 1 is a real gap at a production expression** -- bounded (other
+tests drive that expression at point inputs, which is why the Q/A rated it WARN
+rather than BLOCK), but real. If you take option 1 for the pair, 86.88 deserves
+the same authorisation and has two named, mechanical fixes.
+
+## Recommendation, unchanged in shape
+
+1. **RECOMMENDED -- authorise one scoped cycle** covering the four fixes for
+   86.90/86.91 and the two above for 86.88. All six are mechanical and every one
+   was named by an evaluator, not invented by me.
+2. Accept the products and close, residuals filed as their own steps.
+3. Park all three until you can review.
+
+**Three steps, twelve Q/A spawns, ~3.79M tokens. Every criterion graded MET on
+all three; not one reached PASS.** That is the number that should inform the
+call.

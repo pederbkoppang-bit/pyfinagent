@@ -320,3 +320,107 @@ survivors in the cycle-3 fix itself**.
   "verdict_unmodified": true
 }
 ```
+
+
+---
+
+# Cycle 4 verdict: CONDITIONAL  -- sequence now [C, C, C, C]
+
+Run `wf_bf573a68-025` · 58 tool uses · 241,158 tokens · 967 s · `attempt_number: 4`.
+
+All 8 criteria MET and independently re-derived. My 12-cell matrix REPRODUCED
+exactly on the 7 cells it re-ran, every row summing to 78 = the shipped tree. It
+built its own **21-cell** matrix rather than re-reading mine, all in memory, with
+all three file sha256s byte-identical before and after.
+
+| # | Finding | Why it lands |
+|---|---|---|
+| **1** | **Two non-equivalent mutants survive** the shipped 78-test suite AND the shipped 10-check command, at the production expression computing `judge_verdict_absent`. The class-wide exactness guard is bound to the **helper**, not to the production call site or its argument -- so replacing the call, or pre-normalising its argument, leaves everything green | And **`known_weak_point 3` -- my claim that the runtime value-equality guard covers the intermediate-alias case -- is MEASURED FALSE.** A judge emitting all default values plus its own reasoning sentence would be persisted as "the judge produced nothing" |
+| **2** | **`live_check_86.88.md` was NOT regenerated for cycle 4** -- last touched at `a2ac7cca`, absent from `617ba2c0`. It said "checks emitted: 9" against a shipped 10 and "CONTROL: 77 passed" against a shipped 78 | **The identical class cycle 3 was CONDITIONAL for.** Cycle 3's stated remedy was a regeneration script that asserts the bytes changed -- **and I did not run it in cycle 4** |
+| NOTE | The count assertion **IS vacuous in the direction I asked about**: moving both provenance blocks onto ONE path still satisfies `len(prov) == 2`, because it counts the constant anywhere in the module with no function attribution | Answering my own question C with a measurement. Named fix: attribute each constant to its enclosing `FunctionDef`. The sibling route-count assertion is NOT vacuous -- the Q/A proved it goes RED at 5 routes and at 3 |
+
+## Escalation applied
+
+`[C, C, C, C]`, four attempts. Per CLAUDE.md F1 the caller treats the next pass as
+**FAIL**. I am not spawning a fifth. **Recorded outcome: FAIL by escalation.**
+
+`live_check` was regenerated before escalating -- handing the operator a
+knowingly-false artifact would be worse than the finding.
+
+---
+
+## Verdict, VERBATIM
+
+```json
+{
+  "ok": false,
+  "verdict": "CONDITIONAL",
+  "reason": "All 8 immutable criteria MET and independently re-derived (immutable command exit 0 / 10 PASS 0 FAIL; 78 passed; N1 KILLED on the shipped tree at 2 failed/76 passed; criterion 7 order outcomes IDENTICAL pre-fix vs post-fix on 7/7 disclosure inputs x both paper_risk_judge_reject_binding states; ruff exit 0; no .env/settings/masterplan touched; tree sha256 byte-identical after my whole matrix). Main's 12-cell matrix REPRODUCES exactly on the 7 cells I re-ran and every row sums to 78 = the shipped tree. Two blocking-quality findings prevent PASS: (1) two NON-EQUIVALENT mutants survive the shipped 78-test suite AND the shipped 10-check command at the production expression computing judge_verdict_absent -- the new class-wide exactness guard is bound to the helper, not to the production call site or its argument, so replacing the call (\"bypass\") or pre-normalising its argument (\"intermediate alias\") leaves everything green; the alias case is precisely the one known_weak_point 3 asserts the runtime value-equality guard covers, and that is measured false. (2) live_check_86.88.md was NOT regenerated for cycle 4 (last touched at a2ac7cca; absent from 617ba2c0) and its verbatim capture now contradicts the shipped state: \"checks emitted: 9\" vs the shipped 10, \"CONTROL: 77 passed\" vs the shipped 78 -- the same class cycle 3 was CONDITIONAL for, recurring.",
+  "violated_criteria": [
+    "illusory-guard: class-wide exactness bound to the helper, not to the production expression/argument (2 surviving non-equivalent mutants)",
+    "stale live_check artifact contradicts the shipped immutable-command output (9 vs 10 checks, 77 vs 78 tests)"
+  ],
+  "violation_details": [
+    {
+      "violation_type": "Overgeneralization",
+      "action": "mutate backend/services/autonomous_loop.py:_build_lite_risk_assessment -> \"judge_verdict_absent\": _lite_judge_produced_no_verdict({**risk_dict, \"reasoning\": _LITE_RISK_DEFAULT[\"reasoning\"]})  (intermediate alias; the helper is still called)",
+      "state": "78 passed, checker exit 0 -- SURVIVED. Non-equivalent: for a judge emitting all default values plus its own reasoning sentence (an ordinary output for the shipped prompt schema) judge_verdict_absent flips False->True, i.e. a real verdict is persisted as 'the judge produced nothing'. A second, independent survivor exists at the same site: replacing the call with risk_dict.get(\"reasoning\") == _LITE_RISK_DEFAULT[\"reasoning\"] also passes 78/78 and flips two other rows. test_the_equality_is_EXACT_over_EVERY_key_not_just_one (test file:1291) imports and drives _lite_judge_produced_no_verdict directly, so it pins the class for the HELPER only and cannot observe the argument the production site passes.",
+      "constraint": "guard-vacuity (qa.md 4c): a guard must be able to fail when its subject is broken; a class-wide claim must be attached to the subject it claims to cover. known_weak_point 3 states the runtime value-equality guard covers the intermediate-alias case -- MEASURED FALSE. Severity WARN, not BLOCK: three record tests and two persisted-payload tests do drive the production expression at point inputs, so this is not sole-coverage vacuity."
+    },
+    {
+      "violation_type": "Contradiction",
+      "action": "git log -- handoff/current/live_check_86.88.md ; grep -nE 'checks emitted|passed' handoff/current/live_check_86.88.md",
+      "state": "last touched at a2ac7cca (cycle 3); NOT in commit 617ba2c0. File states 'checks emitted: 9  (PASS 9 / FAIL 0)' and 'CONTROL: 77 passed | checker exit 0' while the shipped immutable command emits 10 checks and the shipped tree is 78 tests (both reproduced by me). Its mutation matrix is the 12-cell cycle-3 table, not the shipped one.",
+      "constraint": "masterplan verification.live_check names live_check_86.88.md as the required evidence artifact; qa.md 4b requires a 'verbatim' capture to be regenerated, never carried forward. This is the identical class cycle 3 was CONDITIONAL for (its finding 2), and cycle 3's stated remedy was a regeneration script that asserts the bytes changed -- that script was not run for cycle 4."
+    },
+    {
+      "violation_type": "Missing_Assumption",
+      "action": "mutate autonomous_loop.py to move the GEMINI risk_assessment_provenance block into the CLAUDE full_report dict (both occurrences now on ONE path)",
+      "state": "the cycle-4 checker assertion len(prov) == 2 still holds and the checker exits 0 -- BLIND. Killed only by the suite (test_gemini_route_provenance_also_reaches_the_PERSISTED_payload, 1 failed). This answers Main's question C: YES, the count assertion is vacuous in that direction, because it counts the ast.Constant anywhere in the module with no function/path attribution.",
+      "constraint": "NOTE/WARN only -- a genuine behavioural guard coexists. Named fix: attribute each provenance constant to its enclosing FunctionDef and require one in _run_claude_analysis and one in _run_gemini_analysis, not merely two in the file. (The sibling route-count assertion is NOT vacuous: I proved it goes RED at 5 routes and at 3 routes, with the suite green in both, so the checker is the sole detector there.)"
+    }
+  ],
+  "certified_fallback": false,
+  "checks_run": [
+    "harness_compliance_audit_5_item",
+    "immutable_verification_command",
+    "syntax_ast_parse",
+    "python_lint_gate_ruff_F821_F401_F811_derived_scope",
+    "backend_runtime_smoke_import_and_api_health",
+    "scoped_pytest_suite",
+    "independent_mutation_matrix_21_cells",
+    "mutation_of_the_test_fixture_and_the_checker",
+    "behavioural_differential_for_each_survivor",
+    "criterion_7_independent_re_derivation_both_flag_states",
+    "criterion_3_N1_reproduced_on_shipped_tree",
+    "contract_test_of_the_save_report_stub_against_the_real_BigQueryClient_signature",
+    "claim_audit_matrix_row_sums_and_test_count_arithmetic",
+    "gate_loosening_audit_removed_lines_and_assertions",
+    "prior_attempt_and_verdict_sequence_evidence",
+    "git_scope_and_unintended_change_audit",
+    "code_review_heuristics",
+    "evaluator_critique",
+    "live_check_freshness_audit"
+  ],
+  "harness_compliance_ok": true,
+  "notes": "SEQUENCE: qa_wip.py 86.88 --spawned-at 2026-08-16T11:21:08Z -> source_present=true, attempt_number=4 (status \"ok\", is_lower_bound=true), prior_attempts=3, records_retained=4 (gauge, not a counter), records_pruned_known=null. verdict_history_86_21.py --step 86.88 --evidence-only -> status no_rows_for_step, verdicts (none). CROSS-CHECK: attempt_number (4) > ledger count (0 rows) => THE LEDGER IS STALE for this step; sequence: UNKNOWN from the authoritative source. Main's [CONDITIONAL x3] disclosure recorded as ADVISORY only. Any threshold/escalation is the caller's to compute.\n\nHARNESS COMPLIANCE (all 5 clean): research_brief_86.88.md 12:08:43 < contract_86.88.md 12:11:20 < test file 13:18:31 < checker 13:18:50 < experiment_results 13:20:39; gate PASSED (15 sources / 30 URLs, audit-class, coverage.dry after 2 dry rounds); harness_log rows for phase=86.88 = 0 (positive control phase=86.86 = 1) and masterplan status = pending, so LOG/flip correctly not yet done; evidence CHANGED between spawns (617ba2c0: tests +69, checker +17), so this is the documented fresh-respawn, not verdict-shopping; evaluator_critique_86.88.md ends at \"Cycle 3 verdict: CONDITIONAL\" with no pre-authored cycle-4 verdict.\n\nINDEPENDENCE / METHOD: I built my OWN 21-cell matrix rather than re-reading Main's. All mutation was in-memory (sys.modules injection + a stubbed checker TARGET); the repo tree was never written -- sha256 of autonomous_loop.py (c68ebad5...), the test file (4ac05365...) and the checker (1a46b9d7...) are byte-identical before and after. Cells KILLED: N1@shipped (2/76), inline-predicate-only (4), helper-only (4), helper-always-True (5), each of the FOUR dict(_LITE_RISK_DEFAULT) routes mutated SEPARATELY (3/1/2/1 -- each killed a distinct route test, so criterion 6's per-route reachability is genuinely per-route), drop-persisted@Claude (1+checker1), drop-persisted@Gemini (1+checker1), pin-False@Claude (1), pin-False@Gemini (1), superset-tolerant (1), ignore-risk_limits (2), ignore-decision (2), over-fire (5), drop-in-memory-key (5), checker 5th-route (checker1, suite green), checker route-removed (checker1, suite green). SURVIVED: the two named above.\n\nANSWERS TO MAIN'S FOUR QUESTIONS. (A) YES, a further duplicated-subject gap exists, but it is not a third copy of the persisted block -- it is that the whole-default predicate has two implementations (the inline `if risk_dict == _LITE_RISK_DEFAULT` in _lite_position_pct and the helper) and, more damagingly, that the production expression is unpinned at class level (the two survivors). The four route sites ARE individually covered. (B) The circularity is real but narrow: three of the five keys are subscripted elsewhere and would KeyError, so exposure is the two non-subscripted keys -- NOTE. The bigger problem is the parametrisation's SUBJECT, not its derivation. (C) YES, vacuous in that direction -- demonstrated. (D) NO, the save_report stub is not merely \"asserting the feed\": I contract-tested it against the real type. Driving the real _run_claude_analysis -> real _persist_analysis captured 17 kwargs; set(captured) - set(BigQueryClient.save_report params) == [], inspect.signature(...).bind(...) succeeds, and the real save_report has NO **kwargs, so a bogus kwarg would be a production TypeError. Residual (NOTE): nothing below save_report -- BQ serialisation, schema acceptance -- is exercised. Materially weaker than the cycle-2 class it echoes.\n\nCLAIMS THAT REPRODUCED (I re-derived rather than read): control 78 passed / checker exit 0; M1 2 failed 76 passed; M8 5/73; M14 1/77; M15 1/77 + checker 1; M16 1/77 + checker 1; M17 1/77 -- all EXACT matches. All 12 matrix rows sum to 78 = the shipped tree (the cycle-2 \"matrix ran against a 69-test tree\" defect does not recur). Test-count arithmetic across all four cycles: `def test_` = 51/61/64/66/67 vs collected 62/72/75/77/78, deltas +10/+3/+2/+1 -- consistent. Pre-fix suite references to _run_claude_analysis|_run_gemini_analysis = 0 (shipped = 7), independently corroborating criterion 1's root cause. Cycle 4 removed exactly one test and replaced it with a strictly stronger parametrised version; zero assertions were removed anywhere in the step -- no criteria erosion.\n\nSCOPE HONESTY: uncommitted changes exist in backend/api/sovereign_api.py and 5 frontend/** files, but their mtimes are 2026-08-14, two days before this step's work (2026-08-16), and none is in the step's commit range -- pre-existing, out of scope, NOT introduced by this cycle. Frontend gates 1b/1c were therefore not required and were not run; the step makes no UI claim, so the live-UI capture gate does not apply. I did not dispute any accepted cycle-3 finding.\n\nBLOCKED WRITES: the Write tool is denied outside .claude/agent-memory/qa/, including the session scratchpad, so my mutation harness was executed entirely in-memory via bash heredocs. Nothing I needed was unobtainable. Write-first record at .claude/agent-memory/qa/verdicts/verdict_wip_86.88__20260816T112108Z.md (COMPLETE) -- evidence for a next spawn, never a verdict.\n\nSUGGESTED REMEDIATION (named, so cycle 5 is bounded): (1) add two cells and one guard that pin the PRODUCTION expression, not the helper -- e.g. assert in the route tests that the value landing in the record equals _lite_judge_produced_no_verdict(the_exact_risk_dict_the_handler_built), or parametrise the record-level test over near-miss dicts driven through the real route; (2) regenerate live_check_86.88.md wholesale with the cycle-3 script (which asserts the bytes changed) so its captures show 10 checks / 78 tests / the shipped 12-cell matrix; (3) attribute the checker's provenance constants to their enclosing FunctionDef instead of counting them module-wide.",
+  "escalation": {
+    "sequence_supplied": [
+      "CONDITIONAL",
+      "CONDITIONAL",
+      "CONDITIONAL"
+    ],
+    "sequence_status": "ok",
+    "consecutive_conditionals": 3,
+    "would_auto_fail": true,
+    "attempt_number": 4,
+    "budget_exhausted": false,
+    "max_attempts": 5,
+    "burden_on": "the party departing from the computed escalation",
+    "override": null,
+    "override_reason": null,
+    "judge_was_told_consequence": false
+  },
+  "verdict_unmodified": true
+}
+```

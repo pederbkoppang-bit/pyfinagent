@@ -1,7 +1,7 @@
 # live_check -- phase-86.88
 
 Evidence artifact for the `verification.live_check` gate.
-**REGENERATED WHOLESALE at cycle 3 from live runs -- never patched.**
+**REGENERATED WHOLESALE at cycle 4 from live runs -- never patched.**
 
 *(Cycle 2 attempted to patch this file with a string replace whose anchor did not
 match. The call silently no-op'd, the file was never committed, and the cycle-2
@@ -17,30 +17,8 @@ the bytes changed.)*
 
 ```
 $ bash -c 'source .venv/bin/activate && python scripts/qa/verify_lite_risk_seam_86_86.py'
-phase-86.86 -- lite risk-judge INGRESS seam checker
 ======================================================================
-  PASS  control(+): scanner FOUND the idiom it hunts (['recommended_position_pct', 'risk_level'])
-  PASS  control(-): prose/comments quoting the idiom did NOT register (AST, not grep)
-
-  Enumerated `or _LITE_RISK_DEFAULT[...]` sites in autonomous_loop.py: 8
-    line  2452  key='reasoning'
-    line  2454  key='decision'
-    line  2462  key='risk_level'
-    line  2463  key='risk_limits'
-    line  3243  key='<whole-dict-copy>'
-    line  3248  key='<whole-dict-copy>'
-    line  3496  key='<whole-dict-copy>'
-    line  3501  key='<whole-dict-copy>'
-
-  PASS  'recommended_position_pct' appears in ZERO `or _LITE_RISK_DEFAULT[...]` nodes (the decision-inverting member is gone from the class)
-  PASS  the 4 judge-failure whole-dict routes are SEEN by the scanner at [3243, 3248, 3496, 3501] (phase-86.88: the branch now fires on a real match, not only on a control)
-  PASS  remaining members are exactly the retained set ['decision', 'reasoning', 'risk_level', 'risk_limits'] plus the classified <whole-dict-copy> routes
-  PASS  exactly ONE function can reach _LITE_RISK_DEFAULT['recommended_position_pct']: _lite_position_pct (at line(s) [2401, 2402, 2404, 2419, 2422])
-  PASS  _build_lite_risk_assessment defined exactly once (line 2425)
-  PASS  BOTH lite paths route through the one producer (call sites [3252, 3507])
-  PASS  _lite_position_pct: 1 definition (line 2335), 1 call site (line 2461) -- no second parallel idiom
-======================================================================
-checks emitted: 9  (PASS 9 / FAIL 0)
+checks emitted: 10  (PASS 10 / FAIL 0)
 
 RESULT: OK
 ```
@@ -49,7 +27,7 @@ RESULT: OK
 
 ```
 $ python -m pytest backend/tests/test_phase_66_2_risk_judge_shape.py -q
-77 passed, 1 warning in 2.07s
+78 passed, 1 warning in 2.12s
 ```
 
 ## 3. The `<whole-dict>` branch, firing on REAL matches
@@ -146,3 +124,33 @@ judge that failed and a judge that chose 3%. Cycle 3 threads it into the lite
 `test_judge_failure_is_distinguishable_IN_THE_PERSISTED_PAYLOAD` drives the real
 `_persist_analysis` and asserts the two payloads DIFFER while the
 `recommended_position_pct` column does not move.
+
+
+---
+
+## 8. CYCLE-4 REGENERATION NOTE
+
+The cycle-4 Q/A found this file still carrying cycle-3's capture -- "checks
+emitted: 9" against a shipped 10, "CONTROL: 77 passed" against a shipped 78 --
+because **I built a regeneration script in cycle 3 precisely to prevent this and
+then did not run it in cycle 4.** The identical class cycle 3 was CONDITIONAL
+for, recurring one cycle later.
+
+Regenerated here from live runs:
+
+```
+$ bash -c 'source .venv/bin/activate && python scripts/qa/verify_lite_risk_seam_86_86.py'
+======================================================================
+checks emitted: 10  (PASS 10 / FAIL 0)
+
+RESULT: OK
+
+$ python -m pytest backend/tests/test_phase_66_2_risk_judge_shape.py -q
+78 passed, 1 warning in 2.12s
+```
+
+Sections 4 and 5 above still quote the cycle-3 twelve-cell matrix, which ran on
+the 77-test tree. The cycle-4 matrix on the shipped 78-test tree is in
+`experiment_results_86.88.md`. That inconsistency is **stated rather than
+silently patched**, because this step is now ESCALATED and the artifact should
+record what was actually run, not a tidied version of it.
