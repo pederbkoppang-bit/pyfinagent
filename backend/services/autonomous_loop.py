@@ -2344,6 +2344,43 @@ def _lite_position_pct(risk_dict: dict, ticker: str = "?") -> float:
     source that exists, and the second source `_resolve_position_pct` consults
     (`analysis["risk_judge_position_pct"]`) is not populated until later.
     """
+    # phase-86.88 (N2). THE JUDGE-FAILURE ROUTE, resolved AT THE SEAM.
+    # Four callers -- autonomous_loop.py :3177 / :3182 (Claude lite) and
+    # :3411 / :3416 (Gemini lite), the no-JSON and exception handlers -- assign
+    # `risk_dict = dict(_LITE_RISK_DEFAULT)` when the judge produced nothing
+    # parseable at all. That copy carries `recommended_position_pct: 3.0`, so
+    # this seam saw SIZE(3.0) and a JUDGE FAILURE was persisted as though the
+    # judge had deliberately specified 3%. SAME NUMBER, DESTROYED PROVENANCE --
+    # which is exactly why no number-asserting test could see it, and why
+    # phase-86.86's six mutation cells all passed over it.
+    #
+    # It is the phase-86.74/86.86 collapse one seam over: one value carrying
+    # three domain states, with judge-failed and judge-said-3% made
+    # indistinguishable.
+    #
+    # Detected HERE and not at the four call sites, because criterion 5 requires
+    # the fix at the seam -- and because a call-site fix would have to be
+    # repeated at every future handler that falls back to the default. Value
+    # equality (not identity) is the right test: every route reaches us through
+    # `dict(...)`, which copies. CERT OBJ06-J's copy-then-validate, applied to a
+    # dict we do not own.
+    #
+    # THE NUMBER IS DELIBERATELY UNCHANGED. ABSENT resolves to the same 3.0
+    # default, so no order outcome moves (criterion 7). What changes is that the
+    # persisted verdict now says "nobody expressed an opinion" rather than "the
+    # judge chose 3%".
+    if risk_dict == _LITE_RISK_DEFAULT:
+        logger.warning(
+            "Lite risk judge for %s: the caller supplied the WHOLE default dict, "
+            "i.e. the judge produced nothing parseable -- resolving as ABSENT, "
+            "not as an explicit SIZE(%.1f). Sizing is unchanged at the %.1f "
+            "default; only the provenance is corrected.",
+            ticker,
+            _LITE_RISK_DEFAULT["recommended_position_pct"],
+            _LITE_RISK_DEFAULT["recommended_position_pct"],
+        )
+        return float(_LITE_RISK_DEFAULT["recommended_position_pct"])
+
     verdict = _resolve_position_pct(risk_dict, {})
     if verdict.kind == SIZE:
         # A SIZE with no number is contradictory; fail closed rather than let a

@@ -8,6 +8,7 @@ risk_judge_decision persisted ''. Flag paper_risk_judge_shape_fix_enabled
 File name carries '66_2' so the immutable -k expression matches.
 """
 
+import sys
 from types import SimpleNamespace
 
 import pytest
@@ -829,3 +830,324 @@ def test_lite_position_pct_is_the_only_route_to_the_default():
     )
     assert _lite_position_pct({}, "TST") == LITE_DEFAULT_PCT
     assert _lite_position_pct({"recommended_position_pct": 0.0}, "TST") == 0.0
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# phase-86.88 -- THE ROUTE, not just the seam.
+#
+# phase-86.86 guarded the PRODUCER (`_build_lite_risk_assessment` ->
+# `_lite_position_pct`). Measured 2026-08-16, a CALLER-SIDE pre-mangle inserted
+# immediately before the producer call --
+#     risk_dict['recommended_position_pct'] = (risk_dict.get(...) or 3.0)
+# -- SURVIVED the whole 62-test suite AND the AST checker, while two
+# discriminating positive controls were KILLED in the same run. The reason is
+# structural and is the point of this class: **no test drove
+# `_run_claude_analysis` or `_run_gemini_analysis` at all**, so every guard
+# anchored at or below the producer and no ROUTE INTO it was ever executed.
+#
+# Per Delamaro's interface mutation (second operator group: mutate invocations)
+# and PyTation (ICSE'26, 69% non-subsumption by traditional operators), unit-level
+# mutation on the callee structurally cannot see a caller that rewrote the
+# argument first. Per Fowler (*Mocks Aren't Stubs*) and the Google SWE Book ch13,
+# the remedy is to STUB THE TRANSPORT and ASSERT THE STATE -- never to re-create
+# the production dict construction in the test, which would test the copy.
+# ═══════════════════════════════════════════════════════════════════════════
+
+class TestLiteRouteEndToEnd:
+    """Criterion 2. Drives the REAL `_run_claude_analysis` with the LLM
+    transport stubbed, and asserts the downstream ORDER outcome."""
+
+    @staticmethod
+    def _drive(monkeypatch, risk_judge_json: str):
+        """Run the real lite path; return its analysis dict.
+
+        Only the two EXTERNAL boundaries are stubbed -- market data and the LLM
+        transport. Everything between them is production code, including the
+        risk-judge JSON parse, the four `dict(_LITE_RISK_DEFAULT)` fallbacks and
+        the producer.
+        """
+        import asyncio
+
+        import pandas as pd
+
+        from backend.services import autonomous_loop as al
+
+        info = {
+            "currentPrice": 100.0, "regularMarketPrice": 100.0,
+            "marketCap": 5_000_000_000, "trailingPE": 15.0,
+            "sector": "Technology", "industry": "Software", "shortName": "Test Co",
+        }
+        hist = pd.DataFrame({"Close": [90.0] * 70})
+        monkeypatch.setattr(al, "_fetch_yf_market_data", lambda t: (info, hist), raising=True)
+
+        trader_json = (
+            '{"action": "Buy", "confidence": 0.9, "score": 8.5, '
+            '"reasoning": "test", "key_risks": []}'
+        )
+
+        class _Msg:
+            def __init__(self, text):
+                self.content = [SimpleNamespace(text=text)]
+
+        calls = {"n": 0}
+
+        class _Messages:
+            def create(self, **kw):
+                calls["n"] += 1
+                # 1st call = the trader, 2nd = the independent risk judge.
+                return _Msg(trader_json if calls["n"] == 1 else risk_judge_json)
+
+        class _Client:
+            messages = _Messages()
+
+        fake_anthropic = SimpleNamespace(Anthropic=lambda **kw: _Client())
+        monkeypatch.setitem(sys.modules, "anthropic", fake_anthropic)
+
+        from backend.config.settings import Settings
+
+        settings = Settings(
+            anthropic_api_key="test-key",
+            paper_use_claude_code_route=False,
+        )
+        out = asyncio.run(al._run_claude_analysis("TST", settings))
+        assert calls["n"] == 2, (
+            f"expected 2 LLM calls (trader + risk judge), saw {calls['n']} -- "
+            "the stub did not drive the real path, so this test would pass vacuously"
+        )
+        return out
+
+    def test_judge_zero_pct_survives_the_route_and_produces_no_order(self, monkeypatch):
+        """THE N1 GUARD. A judge that says 0% must reach `decide_trades` as 0.0
+        and produce NO order. A caller-side pre-mangle turns the 0.0 into 3.0
+        and an order appears -- which is exactly what this asserts against."""
+        analysis = self._drive(monkeypatch, '{"decision": "APPROVE_REDUCED", '
+                                            '"recommended_position_pct": 0, '
+                                            '"risk_level": "HIGH", "reasoning": "no size"}')
+        assert analysis["risk_assessment"]["recommended_position_pct"] == 0.0, (
+            "the judge's explicit 0% did not survive the ROUTE -- something "
+            "between the judge and the producer rewrote it"
+        )
+
+    def test_judge_three_pct_still_sizes_at_three(self, monkeypatch):
+        """CONTROL. Without this, the assertion above would pass on a path that
+        returns 0.0 for everything."""
+        analysis = self._drive(monkeypatch, '{"decision": "APPROVE_REDUCED", '
+                                            '"recommended_position_pct": 3, '
+                                            '"risk_level": "MODERATE", "reasoning": "ok"}')
+        assert analysis["risk_assessment"]["recommended_position_pct"] == 3.0
+
+    def test_unparseable_judge_output_takes_the_whole_dict_route(self, monkeypatch):
+        """Criterion 6 -- the no-JSON route DRIVEN, not read.
+
+        The judge returns prose with no JSON object, so the production handler
+        assigns `risk_dict = dict(_LITE_RISK_DEFAULT)`. phase-86.88 resolves that
+        at the seam as ABSENT rather than as an explicit SIZE(3.0). The NUMBER is
+        deliberately unchanged -- only the provenance is corrected -- so this
+        asserts the sizing is still the default.
+        """
+        analysis = self._drive(monkeypatch, "the risk judge failed to answer in JSON")
+        assert analysis["risk_assessment"]["recommended_position_pct"] == 3.0
+        assert analysis["risk_assessment"]["decision"] == "APPROVE_REDUCED"
+
+    # ── THE SECOND ROUTE ───────────────────────────────────────────────────
+    # Measured 2026-08-16: with only the Claude route driven, the identical N1
+    # pre-mangle injected at the GEMINI producer call still SURVIVED (65 passed).
+    # Criterion 2 asks for "at least one" real path, so one would satisfy it --
+    # but shipping a guard that provably covers one of two routes is the
+    # guards-stop-one-seam-short failure this whole step is about. `_run_gemini_
+    # analysis` takes `client_override`, a designed injection point, so the
+    # second route costs almost nothing to cover.
+
+    @staticmethod
+    def _drive_gemini(monkeypatch, risk_judge_json: str):
+        import asyncio
+
+        import pandas as pd
+
+        from backend.services import autonomous_loop as al
+
+        info = {
+            "currentPrice": 100.0, "regularMarketPrice": 100.0,
+            "marketCap": 5_000_000_000, "trailingPE": 15.0,
+            "sector": "Technology", "industry": "Software", "shortName": "Test Co",
+        }
+        hist = pd.DataFrame({"Close": [90.0] * 70})
+        monkeypatch.setattr(al, "_fetch_yf_market_data", lambda t: (info, hist), raising=True)
+
+        trader_json = ('{"action": "Buy", "confidence": 0.9, "score": 8.5, '
+                       '"reasoning": "test", "key_risks": []}')
+        calls = {"n": 0}
+
+        class _Client:
+            def generate_content(self, *a, **kw):
+                calls["n"] += 1
+                return SimpleNamespace(text=trader_json if calls["n"] == 1 else risk_judge_json)
+
+        from backend.config.settings import Settings
+
+        # `_run_gemini_analysis` is Gemini-only by an explicit guard, so the
+        # model must be a real Gemini id or the route refuses to run. Taken from
+        # the shipped constant rather than hardcoded, so a workhorse change does
+        # not silently skip this route.
+        from backend.config.model_tiers import GEMINI_WORKHORSE
+
+        settings = Settings(anthropic_api_key="test-key", gemini_model=GEMINI_WORKHORSE)
+        out = asyncio.run(al._run_gemini_analysis("TST", settings, client_override=_Client()))
+        assert calls["n"] == 2, (
+            f"expected 2 LLM calls on the Gemini route, saw {calls['n']} -- "
+            "the stub did not drive the real path"
+        )
+        return out
+
+    def test_gemini_route_judge_zero_pct_survives(self, monkeypatch):
+        """THE N1 GUARD, Gemini route. Without this the identical pre-mangle at
+        the Gemini producer call survives with the whole suite green."""
+        analysis = self._drive_gemini(monkeypatch, '{"decision": "APPROVE_REDUCED", '
+                                                   '"recommended_position_pct": 0, '
+                                                   '"risk_level": "HIGH", "reasoning": "no size"}')
+        assert analysis["risk_assessment"]["recommended_position_pct"] == 0.0
+
+    def test_gemini_route_three_pct_control(self, monkeypatch):
+        """CONTROL for the Gemini route."""
+        analysis = self._drive_gemini(monkeypatch, '{"decision": "APPROVE_REDUCED", '
+                                                   '"recommended_position_pct": 3, '
+                                                   '"risk_level": "MODERATE", "reasoning": "ok"}')
+        assert analysis["risk_assessment"]["recommended_position_pct"] == 3.0
+
+    # ── THE N2 GUARD ───────────────────────────────────────────────────────
+    # phase-86.88's seam fix resolves the whole-default (judge-failure) route as
+    # ABSENT rather than as an explicit SIZE(3.0). The NUMBER is deliberately
+    # unchanged -- ABSENT yields the same 3.0 -- precisely so no order outcome
+    # moves (criterion 7). That is also why reverting the fix initially SURVIVED
+    # the whole suite: a number-asserting test structurally cannot see a change
+    # that does not move the number.
+    #
+    # The fix's actual deliverable is the recorded PROVENANCE, so the provenance
+    # is what gets asserted. The negative case is not decoration: without it this
+    # would pass on an implementation that logged the line unconditionally.
+
+    def test_whole_default_route_is_recorded_as_ABSENT_not_as_an_explicit_size(
+        self, monkeypatch, caplog,
+    ):
+        import logging
+
+        with caplog.at_level(logging.WARNING, logger="backend.services.autonomous_loop"):
+            analysis = self._drive(monkeypatch, "the risk judge failed to answer in JSON")
+        assert analysis["risk_assessment"]["recommended_position_pct"] == 3.0, (
+            "criterion 7: the sizing must NOT move -- only the provenance changes"
+        )
+        assert any("resolving as ABSENT" in r.getMessage() for r in caplog.records), (
+            "the judge-failure route was resolved as an explicit SIZE again: a judge "
+            "that produced NOTHING is being persisted as a judge that chose 3%"
+        )
+
+    def test_a_real_judge_verdict_is_NOT_recorded_as_absent(self, monkeypatch, caplog):
+        """The discriminating negative. A judge that genuinely said 3% must not
+        be logged as ABSENT -- otherwise the assertion above passes on an
+        implementation that emits the line for every input."""
+        import logging
+
+        with caplog.at_level(logging.WARNING, logger="backend.services.autonomous_loop"):
+            self._drive(monkeypatch, '{"decision": "APPROVE_REDUCED", '
+                                     '"recommended_position_pct": 3, '
+                                     '"risk_level": "MODERATE", "reasoning": "ok"}')
+        assert not any("resolving as ABSENT" in r.getMessage() for r in caplog.records), (
+            "a real 3% verdict was recorded as ABSENT -- the seam is now collapsing "
+            "in the opposite direction"
+        )
+
+    # ── CRITERION 6: each whole-dict route REACHED BY DRIVING ──────────────
+    # Four routes exist: the no-JSON handler and the exception handler, on each
+    # of the two lite paths. The no-JSON pair is driven by
+    # `test_unparseable_judge_output_takes_the_whole_dict_route` and
+    # `test_gemini_route_*`; these two drive the EXCEPTION pair by making the
+    # risk-judge transport raise. Reachability is established by execution, not
+    # by reading the handler that contains the assignment.
+
+    def test_claude_route_risk_judge_EXCEPTION_takes_the_whole_dict_route(
+        self, monkeypatch, caplog,
+    ):
+        import asyncio
+        import logging
+
+        import pandas as pd
+
+        from backend.config.settings import Settings
+        from backend.services import autonomous_loop as al
+
+        info = {"currentPrice": 100.0, "regularMarketPrice": 100.0, "marketCap": 5e9,
+                "trailingPE": 15.0, "sector": "Technology", "industry": "Software",
+                "shortName": "Test Co"}
+        monkeypatch.setattr(al, "_fetch_yf_market_data",
+                            lambda t: (info, pd.DataFrame({"Close": [90.0] * 70})), raising=True)
+        calls = {"n": 0}
+
+        class _Messages:
+            def create(self, **kw):
+                calls["n"] += 1
+                if calls["n"] == 1:
+                    return SimpleNamespace(content=[SimpleNamespace(
+                        text='{"action": "Buy", "confidence": 0.9, "score": 8.5, '
+                             '"reasoning": "t", "key_risks": []}')])
+                raise RuntimeError("risk-judge transport exploded")
+
+        monkeypatch.setitem(sys.modules, "anthropic",
+                            SimpleNamespace(Anthropic=lambda **kw: SimpleNamespace(messages=_Messages())))
+        with caplog.at_level(logging.WARNING, logger="backend.services.autonomous_loop"):
+            out = asyncio.run(al._run_claude_analysis(
+                "TST", Settings(anthropic_api_key="k", paper_use_claude_code_route=False)))
+        assert calls["n"] == 2, "the risk-judge leg never ran, so the exception route was not reached"
+        # The route was taken AND resolved as ABSENT, not as an explicit SIZE.
+        assert any("resolving as ABSENT" in r.getMessage() for r in caplog.records), (
+            "the exception route did not resolve as ABSENT -- a judge that CRASHED "
+            "is being persisted as a judge that chose 3%"
+        )
+        assert out["risk_assessment"]["recommended_position_pct"] == 3.0
+
+    def test_gemini_route_risk_judge_EXCEPTION_takes_the_whole_dict_route(
+        self, monkeypatch, caplog,
+    ):
+        import asyncio
+        import logging
+
+        import pandas as pd
+
+        from backend.config.model_tiers import GEMINI_WORKHORSE
+        from backend.config.settings import Settings
+        from backend.services import autonomous_loop as al
+
+        info = {"currentPrice": 100.0, "regularMarketPrice": 100.0, "marketCap": 5e9,
+                "trailingPE": 15.0, "sector": "Technology", "industry": "Software",
+                "shortName": "Test Co"}
+        monkeypatch.setattr(al, "_fetch_yf_market_data",
+                            lambda t: (info, pd.DataFrame({"Close": [90.0] * 70})), raising=True)
+        calls = {"n": 0}
+
+        class _Client:
+            def generate_content(self, *a, **kw):
+                calls["n"] += 1
+                if calls["n"] == 1:
+                    return SimpleNamespace(
+                        text='{"action": "Buy", "confidence": 0.9, "score": 8.5, '
+                             '"reasoning": "t", "key_risks": []}')
+                raise RuntimeError("risk-judge transport exploded")
+
+        with caplog.at_level(logging.WARNING, logger="backend.services.autonomous_loop"):
+            out = asyncio.run(al._run_gemini_analysis(
+                "TST", Settings(anthropic_api_key="k", gemini_model=GEMINI_WORKHORSE),
+                client_override=_Client()))
+        assert calls["n"] == 2, "the risk-judge leg never ran, so the exception route was not reached"
+        assert any("resolving as ABSENT" in r.getMessage() for r in caplog.records)
+        assert out["risk_assessment"]["recommended_position_pct"] == 3.0
+
+    def test_gemini_route_no_JSON_takes_the_whole_dict_route(self, monkeypatch, caplog):
+        """The FOURTH route. Counted rather than assumed: the four whole-dict
+        routes are {Claude,Gemini} x {no-JSON,exception}, and driving three of
+        them would leave criterion 6 unmet on a route that behaves identically
+        in the shipped code but is reached by a different handler."""
+        import logging
+
+        with caplog.at_level(logging.WARNING, logger="backend.services.autonomous_loop"):
+            out = self._drive_gemini(monkeypatch, "the risk judge answered in prose, no JSON")
+        assert any("resolving as ABSENT" in r.getMessage() for r in caplog.records)
+        assert out["risk_assessment"]["recommended_position_pct"] == 3.0

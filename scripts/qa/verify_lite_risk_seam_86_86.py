@@ -49,6 +49,27 @@ FORBIDDEN_KEY = "recommended_position_pct"
 #: and is filed as step 86.87 -- not silently fixed here.
 RETAINED_KEYS = {"decision", "reasoning", "risk_level", "risk_limits"}
 
+#: phase-86.88 (criteria 4 + 5). The WHOLE-DICT COPY routes -- the shape the
+#: `<whole-dict>` branch above could never see, because `dict(_LITE_RISK_DEFAULT)`
+#: is an `ast.Call` and the branch only inspected `BoolOp` operands.
+#:
+#: CLASSIFICATION, per criterion 5. These four are the JUDGE-FAILURE routes: the
+#: no-JSON and exception handlers of both lite paths. They hand the producer a
+#: complete copy of the default, so before phase-86.88 the seam resolved
+#: SIZE(3.0) and a judge that produced NOTHING was persisted as a judge that
+#: chose 3%. Same number, destroyed provenance -- which is why no
+#: number-asserting test saw it.
+#:
+#: They are now BENIGN, and benign for a stated reason rather than by assertion:
+#: `_lite_position_pct` detects the whole-default by VALUE EQUALITY and resolves
+#: ABSENT. The sizing is deliberately unchanged (ABSENT yields the same 3.0), so
+#: no order outcome moves; only the recorded provenance is corrected.
+#:
+#: They are enumerated here so that a FIFTH route added later shows up as
+#: unclassified and fails this checker, exactly as `<whole-dict-copy>` itself did
+#: on the run that introduced it.
+WHOLE_DICT_COPY = "<whole-dict-copy>"
+
 
 def or_default_sites(tree: ast.AST) -> list[tuple[int, str]]:
     """Every `<x> or _LITE_RISK_DEFAULT[<key>]` in an AST, as (lineno, key)."""
@@ -64,6 +85,24 @@ def or_default_sites(tree: ast.AST) -> list[tuple[int, str]]:
                 out.append((operand.lineno, key))
             elif isinstance(operand, ast.Name) and operand.id == "_LITE_RISK_DEFAULT":
                 out.append((operand.lineno, "<whole-dict>"))
+    # phase-86.88 (criterion 4). WIDENED NODE SHAPES -- and the reason matters,
+    # because the step that filed this called the branch above DEAD and it is
+    # not. Measured: it FIRES on `x or _LITE_RISK_DEFAULT` (a bare Name operand)
+    # and is blind ONLY to the `dict(_LITE_RISK_DEFAULT)` **Call** shape, which
+    # is the shape this codebase actually uses -- so it was unreachable on the
+    # shipped file while being perfectly capable in general.
+    #
+    # "Made LIVE" therefore means widening what counts as a reference, not
+    # resurrecting a corpse. A whole-dict COPY is exactly as capable of carrying
+    # the default into the seam as a bare reference is -- more so, since all
+    # four production routes take that form.
+    for node in ast.walk(tree):
+        if not (isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
+                and node.func.id in ("dict", "copy", "deepcopy")):
+            continue
+        for arg in node.args:
+            if isinstance(arg, ast.Name) and arg.id == "_LITE_RISK_DEFAULT":
+                out.append((arg.lineno, "<whole-dict-copy>"))
     return sorted(out)
 
 
@@ -191,9 +230,21 @@ def main() -> int:
         bad(f"{FORBIDDEN_KEY!r} is back behind an `or` at line(s) {offending} -- "
             "an explicit 0.0 verdict is being destroyed at ingress again")
 
-    unexpected = keys - RETAINED_KEYS
+    # phase-86.88: the whole-dict copies are a CLASSIFIED member, not an
+    # unexpected one. Asserted separately below so their count is pinned rather
+    # than merely tolerated.
+    copies = sorted(ln for ln, k in sites if k == WHOLE_DICT_COPY)
+    if len(copies) == 4:
+        ok(f"the 4 judge-failure whole-dict routes are SEEN by the scanner at {copies} "
+           "(phase-86.88: the branch now fires on a real match, not only on a control)")
+    else:
+        bad(f"expected 4 whole-dict copy routes, found {len(copies)} at {copies} -- "
+            "a route was added or removed; classify it before shipping")
+
+    unexpected = keys - RETAINED_KEYS - {WHOLE_DICT_COPY}
     if not unexpected:
-        ok(f"remaining members are exactly the retained set {sorted(RETAINED_KEYS)}")
+        ok(f"remaining members are exactly the retained set {sorted(RETAINED_KEYS)} "
+           f"plus the classified {WHOLE_DICT_COPY} routes")
     else:
         bad(f"unexpected member(s) in the class: {sorted(unexpected)} -- "
             "classify them before shipping (criterion 3)")
