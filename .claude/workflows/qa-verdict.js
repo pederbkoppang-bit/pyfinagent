@@ -98,14 +98,162 @@ function classifyArgs(bound, raw) {
   return { status: 'ok', blind: false, args: v }
 }
 
+const RENDER_SCRIPT = 'qa-verdict'
+// ── phase-86.90: THE FIELD RENDER BOUNDARY ─── BYTE-IDENTICAL IN BOTH SCRIPTS ─
+// phase-86.17 hardened the args ENVELOPE (object / JSON string / array / scalar /
+// absent). This is ONE LEVEL IN: a FIELD inside a well-formed envelope.
+//
+// `'EVIDENCE / FILES TO READ: ' + evidence` applies ToPrimitive, so a plain
+// object became the literal 15 characters `[object Object]`. MEASURED on 22
+// production Q/A spawns between 2026-08-08 and 2026-08-15 across nine step ids,
+// including the PASS on step 86.86: the evaluator then RECONSTRUCTED an evidence
+// set from the repo and returned a confident verdict, so the loss was INVISIBLE
+// FROM THE VERDICT. Provenance: one commit, ccddeff4 (phase-71.1).
+//
+// TWO MEASURED TRAPS, both of which LOOK like fixes and are not:
+//   * A TEMPLATE LITERAL IS A NO-OP. `+` coerces via ToPrimitive (valueOf
+//     first) and `${}` via ToString (toString first), but for a plain object
+//     BOTH end at Object.prototype.toString and yield the same [object Object].
+//   * A BARE JSON.stringify TRADES ONE SILENT LOSS FOR FIVE. It drops
+//     undefined-valued keys, function-valued keys and Symbol-keyed properties,
+//     collapses Map/Set to {}, and renders NaN/Infinity as null.
+// An ARRAY is the quiet variant: ['a','b'] renders as `a,b` with NO marker at
+// all, so any census keyed on "[object Object]" is a FLOOR, never a total.
+//
+// THE RULE IS LOSSLESS-OR-THROW. Never coerce, never substitute. RFC 9413 s4.2:
+// "Tolerating unexpected input instead conceals problems, making it harder, if
+// not impossible, to fix them later." Shore, IEEE Software 21(5):21-25, whose
+// worked example is exactly a lookup that returns a DEFAULT when the real value
+// is missing -- "the software 'failing slowly'". Rendering a structure as JSON
+// is NOT a placeholder: it IS the value. Anything JSON cannot carry losslessly
+// throws, naming the field and the offending path.
+//
+// The two Layer-3 scripts CANNOT share a module -- the Workflow runtime has no
+// module loading -- so this duplication is deliberate, exactly as `classifyArgs`
+// already is, and scripts/qa/verify_prompt_render_86_90.mjs asserts the two
+// copies have not drifted. Only RENDER_SCRIPT above differs between them.
+function jsonLosslessViolation(value, path, seen) {
+  const t = typeof value
+  if (value === null || t === 'string' || t === 'boolean') return null
+  if (t === 'number') {
+    return Number.isFinite(value) ? null : path + ' is ' + String(value) + ' (JSON renders it as null)'
+  }
+  if (t === 'undefined') return path + ' is undefined (JSON drops the key entirely)'
+  if (t === 'function' || t === 'symbol' || t === 'bigint') return path + ' is a ' + t + ' (JSON cannot carry it)'
+  if (seen.has(value)) return path + ' is a circular reference'
+  seen.add(value)
+  if (Array.isArray(value)) {
+    for (let i = 0; i < value.length; i++) {
+      const v = jsonLosslessViolation(value[i], path + '[' + i + ']', seen)
+      if (v) return v
+    }
+    seen.delete(value)
+    return null
+  }
+  const proto = Object.getPrototypeOf(value)
+  if (proto !== Object.prototype && proto !== null) {
+    return path + ' is a ' + ((value.constructor && value.constructor.name) || 'non-plain')
+      + ' instance -- only plain objects and arrays render losslessly (Map/Set collapse to {}, '
+      + 'a Date silently becomes a string)'
+  }
+  if (Object.getOwnPropertySymbols(value).length > 0) {
+    return path + ' has Symbol-keyed properties (JSON drops them)'
+  }
+  for (const k of Object.keys(value)) {
+    const v = jsonLosslessViolation(value[k], path + '.' + k, seen)
+    if (v) return v
+  }
+  seen.delete(value)
+  return null
+}
+
+function previewArgValue(value) {
+  let p
+  try { p = JSON.stringify(value) } catch (_e) { p = '(unstringifiable)' }
+  p = String(p === undefined ? String(value) : p)
+  return p.length > 80 ? p.slice(0, 77) + '...' : p
+}
+
+/** Prose-shaped fields. `fallback === null` means REQUIRED (blank throws). */
+function renderArgField(name, value, fallback) {
+  const where = 'args.' + name
+  if (value === undefined || value === null || value === '') {
+    if (fallback === null) {
+      throw new Error(RENDER_SCRIPT + ': ' + where + ' is REQUIRED but arrived '
+        + (value === '' ? 'blank' : String(value)) + '. Pass a non-empty value.')
+    }
+    return fallback
+  }
+  const t = typeof value
+  if (t === 'string') return value
+  if (t === 'boolean') return String(value)
+  if (t === 'number') {
+    if (Number.isFinite(value)) return String(value)
+    throw new Error(RENDER_SCRIPT + ': ' + where + ' is ' + String(value)
+      + ', which cannot be rendered into the prompt. Pass a finite number or a string.')
+  }
+  if (t !== 'object') {
+    throw new Error(RENDER_SCRIPT + ': ' + where + ' is a ' + t + ', which cannot be rendered '
+      + 'into the prompt. Pass a string, a finite number, a boolean, or a plain '
+      + 'JSON-serialisable object/array.')
+  }
+  const violation = jsonLosslessViolation(value, where, new Set())
+  if (violation) {
+    throw new Error(RENDER_SCRIPT + ': ' + where + ' cannot be rendered WITHOUT SILENT LOSS -- '
+      + violation + '. Nothing is substituted: a placeholder is precisely the defect '
+      + 'phase-86.90 closed. Pass a plain JSON-serialisable value.')
+  }
+  let json
+  try { json = JSON.stringify(value, null, 2) } catch (e) {
+    throw new Error(RENDER_SCRIPT + ': ' + where + ' failed to serialise ('
+      + String((e && e.message) || e) + '). Pass a plain JSON-serialisable value.')
+  }
+  if (typeof json !== 'string') {
+    throw new Error(RENDER_SCRIPT + ': ' + where + ' serialised to ' + String(json)
+      + ' -- there is nothing to put in the prompt.')
+  }
+  return '\n```json\n' + json + '\n```'
+}
+
+/** Identity/path/command-shaped fields: a structure here would reach a FILENAME
+ *  or a command line, so it is refused outright rather than rendered. */
+function renderIdentityArg(name, value, fallback) {
+  const where = 'args.' + name
+  if (value === undefined || value === null || value === '') {
+    if (fallback === null) {
+      throw new Error(RENDER_SCRIPT + ': ' + where + ' is REQUIRED but arrived empty.')
+    }
+    return fallback
+  }
+  if (typeof value === 'string') return value
+  if (typeof value === 'number' && Number.isFinite(value)) return String(value)
+  throw new Error(RENDER_SCRIPT + ': ' + where + ' must be a string -- it is used as an '
+    + 'identifier, a path or a shell command -- but arrived as '
+    + (Array.isArray(value) ? 'an array' : 'a ' + typeof value) + ': ' + previewArgValue(value)
+    + '. Rendering it would put that into a filename or a command line.')
+}
+// ── end of the byte-identical phase-86.90 block ─────────────────────────────
+
 const ARGS_BOUND = typeof args !== 'undefined'
 const inputHealth = classifyArgs(ARGS_BOUND, ARGS_BOUND ? args : null)
 const a = inputHealth.args
-const stepId = a.step_id || a.stepId || 'UNSPECIFIED'
+const stepId = renderIdentityArg('step_id', a.step_id || a.stepId, 'UNSPECIFIED')
 const criteria = Array.isArray(a.criteria) ? a.criteria : []
-const verificationCommand = a.verification_command || a.verificationCommand || '(none provided -- read it from .claude/masterplan.json for this step)'
-const evidence = a.evidence || 'handoff/current/{contract.md, experiment_results.md, evaluator_critique.md} + the files changed this step (git status --short / git diff)'
-const extra = a.extra || ''
+const verificationCommand = renderIdentityArg('verification_command',
+  a.verification_command || a.verificationCommand,
+  '(none provided -- read it from .claude/masterplan.json for this step)')
+const evidence = renderArgField('evidence', a.evidence,
+  'handoff/current/{contract.md, experiment_results.md, evaluator_critique.md} + the files changed this step (git status --short / git diff)')
+const extra = renderArgField('extra', a.extra, '')
+// Silent input loss has a second shape: a key the script never reads. MEASURED
+// during the 86.90 blast-radius scan -- 11 research-gate runs passed a
+// `questions` array that script does not consume, and nothing said so. Reported
+// via log() ONLY, never merged into the returned object: phase-86.78 forbids
+// caller-authored fields appearing as siblings of the judge's own output.
+const KNOWN_ARG_KEYS = ['step_id', 'stepId', 'criteria', 'verification_command',
+  'verificationCommand', 'evidence', 'extra', 'verdict_sequence', 'attempt_number',
+  'max_attempts']
+const UNKNOWN_ARG_KEYS = Object.keys(a).filter(k => !KNOWN_ARG_KEYS.includes(k))
 
 const PROMPT = [
   'You are the pyfinagent Layer-3 Q/A evaluator (merged qa-evaluator + harness-verifier) for masterplan step ' + stepId + ', EVALUATE phase.',
@@ -158,7 +306,9 @@ const PROMPT = [
   '   but wrong finding must be caught. For each criterion, state MET / NOT MET with cited evidence.',
   '',
   'IMMUTABLE SUCCESS CRITERIA for ' + stepId + ':',
-  ...(criteria.length ? criteria.map((c, i) => '  ' + (i + 1) + '. ' + c) : ['  (none passed in args -- read them from .claude/masterplan.json for this step and evaluate against them)']),
+  ...(criteria.length
+    ? criteria.map((c, i) => '  ' + (i + 1) + '. ' + renderArgField('criteria[' + i + ']', c, null))
+    : ['  (none passed in args -- read them from .claude/masterplan.json for this step and evaluate against them)']),
   '',
   'EVIDENCE / FILES TO READ: ' + evidence,
   extra ? ('\nADDITIONAL CONTEXT: ' + extra) : '',
@@ -235,6 +385,15 @@ const VERDICT_SCHEMA = {
 }
 
 phase('QA')
+
+// phase-86.90: emitted HERE, below the driver boundary, because the sliced
+// module-import path used by verify_workflow_args_boundary.mjs stubs no
+// runtime globals -- a log() above this line would break that checker.
+if (UNKNOWN_ARG_KEYS.length) {
+  log('qa-verdict: WARNING -- args carried ' + UNKNOWN_ARG_KEYS.length
+    + ' key(s) this script never reads, so they reached NOTHING: '
+    + UNKNOWN_ARG_KEYS.join(', ') + '. Known keys: ' + KNOWN_ARG_KEYS.join(', ') + '.')
+}
 
 // phase-86.17 (criterion 4): a BLIND run must not throw.
 // PLACED BELOW phase('QA') DELIBERATELY (cycle-2 correction). Checkers
