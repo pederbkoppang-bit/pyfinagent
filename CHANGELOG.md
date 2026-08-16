@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-16 | `20623492` | docs(session): record the 86.89 FAIL and the reverted repo-write hazard |
 | 2026-08-16 | `c2e7b264` | phase-86.89 cycle 2: FAIL -- revert a repo-write hazard I introduced, correct two false claims |
 | 2026-08-16 | `ce2785d7` | docs(session): day report 2026-08-16 + goal for 08-17 |
 | 2026-08-16 | `1864dba7` | phase-86.89 cycle 2: six findings closed, incl. two the floor structurally could not see |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-16 | `8dc70502` | phase-86.91: the changelog flip detector counts created-and-closed steps |
 | 2026-08-16 | `a21a5889` | phase-86.90: the Layer-3 prompt FIELD render boundary -- structured spawn input stops being coerced  |
 | 2026-08-16 | `c627a810` | chore(masterplan): file 86.91 -- changelog flip detector swallows created-and-closed steps |
-| 2026-08-15 | `7a3e3cf2` | docs(session): day report 2026-08-15b + regenerate the 08-16 goal |
 
 ---
 
