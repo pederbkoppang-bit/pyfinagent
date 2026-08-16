@@ -95,6 +95,20 @@ RELATIVE_WORD = re.compile(r"^(today|midnight|yesterday|now|\d+\.\w+|\d+\s+\w+\s
 
 SEARCH_ROOTS = ["scripts", ".claude/hooks", "backend"]
 
+# THIS FILE EXCLUDES ITSELF, AND THAT IS A BOUND TO STATE, NOT A CONVENIENCE.
+# Its section-[4] mutation cells are deliberately-sliding literals whose whole
+# job is to prove the rule fires; scanned as production code they are 14 false
+# findings. The exclusion was NOT needed until the file was COMMITTED -- an
+# untracked file is invisible to `git ls-files` -- so the defect appeared the
+# moment the guard shipped, which is exactly when a self-blind guard is worst.
+#
+# RESIDUAL, stated rather than hidden: a REAL sliding window introduced into
+# this checker would not be caught by this checker. The mitigation is that its
+# own fixtures are asserted in BOTH directions in [4], so a rule that stopped
+# working fails there instead. Section [2] also asserts that the exclusion is
+# exactly ONE file, so it cannot quietly grow into a general escape hatch.
+SELF_REL = "scripts/qa/verify_no_sliding_windows_86_94.py"
+
 # ── THE ALLOWLIST (criterion 4: the judgement is STATED, never silent) ───────
 #
 # Keyed on (path suffix, value). A relative window is permitted ONLY with a
@@ -148,7 +162,8 @@ def tracked_files() -> list[Path]:
     out = subprocess.run(["git", "ls-files", *SEARCH_ROOTS], cwd=REPO,
                          capture_output=True, text=True, check=False).stdout
     return [REPO / p for p in out.splitlines()
-            if p.endswith((".py", ".sh")) and p.strip()]
+            if p.endswith((".py", ".sh")) and p.strip()
+            and not p.endswith(SELF_REL)]
 
 
 CONST_RE_T = "^\\s*{name}\\s*=\\s*[\"'](?P<lit>[^\"']+)[\"']"
@@ -194,6 +209,34 @@ def classify(value: str) -> tuple[str, str]:
     return "SLIDING", f"unrecognised form {value!r} -- fails closed"
 
 
+DOC_DELIMS = ('\"\"\"', "\'\'\'")
+
+
+def strip_docstrings(text: str) -> str:
+    """Blank out triple-quoted blocks, preserving line numbering.
+
+    `is_prose` only knew about `#` lines. Module and function docstrings are
+    a THIRD comment form, and this file's own docstring quotes a bare-date
+    window while EXPLAINING the defect -- so an unstripped scan reported its
+    own explanation as findings. Lines are blanked rather than removed so
+    reported line numbers still point at the real source.
+    """
+    out, in_block, delim = [], False, ''
+    for line in text.splitlines():
+        if not in_block:
+            hit = next((d for d in DOC_DELIMS if d in line), None)
+            if hit is not None:
+                if line.count(hit) < 2:
+                    in_block, delim = True, hit
+                line = ''
+            out.append(line)
+        else:
+            if delim in line:
+                in_block = False
+            out.append('')
+    return '\n'.join(out)
+
+
 def is_prose(line: str) -> bool:
     """A comment line -- PROSE, not a window site.
 
@@ -217,7 +260,7 @@ def scan_text(rel: str, text: str) -> list[tuple[str, int, str, str, str]]:
     through the SAME code path the shipped enumeration uses."""
     found = []
     if True:
-        for i, line in enumerate(text.splitlines(), 1):
+        for i, line in enumerate(strip_docstrings(text).splitlines(), 1):
             if is_prose(line) or not WINDOW_RE.search(line):
                 continue
             m = VALUE_RE.search(line)
@@ -270,6 +313,15 @@ if blob.returncode == 0:
 print("\n[2] ENUMERATION of live window sites, by the written-down rule (criterion 2)\n")
 
 FILES = tracked_files()
+_all_py_sh = [p for p in subprocess.run(["git", "ls-files", *SEARCH_ROOTS],
+                                        cwd=REPO, capture_output=True, text=True,
+                                        check=False).stdout.splitlines()
+              if p.endswith((".py", ".sh"))]
+check("[2] the self-exclusion covers exactly ONE file (this checker), so it "
+      "cannot grow into a general escape hatch",
+      len(_all_py_sh) - len(FILES) == 1,
+      f"tracked={len(_all_py_sh)} scanned={len(FILES)} -- excluded "
+      f"{len(_all_py_sh) - len(FILES)} files, expected exactly 1")
 check("[2] the file set is non-empty (a scan over nothing is not a clean bill "
       "of health)", len(FILES) > 0, "git ls-files returned nothing")
 
@@ -408,6 +460,23 @@ _ok = [h for h in scan_text(CLEAN_REL, CLEAN_TEXT + '\nsh("git","log","--since=2
 check("[4] NEGATIVE CONTROL: a UTC-qualified window is NOT flagged", not _ok,
       f"flagged a reproducible form: {_ok} -- the rule cannot discriminate")
 
+# SHELL COVERAGE. The rule's file set is *.py AND *.sh (the hooks are shell), but
+# every cell above mutates Python. A guard demonstrated on one language only is
+# demonstrated on half its scope, and `#` comments plus bare `git log` calls look
+# different enough in shell to be worth an explicit cell rather than an argument.
+_sh_bad = 'git log --since=2026-08-11 --format=%H\n'
+_sh_ok = 'git log --since=2026-08-11T00:00:00Z --format=%H\n'
+_sh_prose = '# we used to run: git log --since=2026-08-11\n'
+check("[4] SHELL: a sliding window in a .sh body is flagged",
+      any(h[3] == "SLIDING" for h in scan_text("x.sh", _sh_bad)),
+      "the rule is Python-only in practice -- the hooks are shell and would be uncovered")
+check("[4] SHELL NEGATIVE CONTROL: a UTC-qualified shell window is NOT flagged",
+      not any(h[3] == "SLIDING" for h in scan_text("x.sh", _sh_ok)),
+      "flags a reproducible shell form -- cannot discriminate")
+check("[4] SHELL: a window in a `#` comment is not reported as a site",
+      not scan_text("x.sh", _sh_prose),
+      "shell prose is being matched")
+
 # The comment-stripper, in BOTH directions. Without this the scan could be
 # silently matching nothing, or silently matching prose.
 _prose = '# the defect was `--since=2026-08-11`, a bare date\n'
@@ -415,6 +484,18 @@ check("[4] STRIPPER: a window quoted in PROSE is not reported as a site",
       not scan_text("x.py", _prose),
       "the scanner matches its own documentation -- it will report defects that "
       "do not exist")
+# The DOCSTRING stripper needs its own pair: `#` and triple-quoted blocks are
+# different code paths, and this file's own module docstring is what exposed
+# the gap -- it quotes a bare-date window while explaining the defect.
+_doc_prose = 'x = """\ndocs: git log --since=2026-08-11\n"""\n'
+_doc_code = 'sh("git","log","--since=2026-08-11")\n'
+check("[4] DOCSTRING STRIPPER: a window inside a triple-quoted block is not a site",
+      not scan_text("x.py", _doc_prose),
+      "docstrings are not stripped -- the checker reports its own explanation")
+check("[4] DOCSTRING STRIPPER CONTROL: the same window as CODE *is* reported",
+      bool(scan_text("x.py", _doc_code)),
+      "the control never landed, so the docstring check above proves nothing")
+
 check("[4] STRIPPER CONTROL: the same text as CODE *is* reported",
       bool(scan_text("x.py", _prose.lstrip("# "))),
       "the control never landed, so the stripper check above proves nothing")
