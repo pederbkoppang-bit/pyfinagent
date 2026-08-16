@@ -95,6 +95,14 @@ def classify_commit(subject: str, body: str) -> str:
 bump_type = classify_commit(commit_subject, commit_body)
 
 
+# phase-86.91: an IDENTITY sentinel for "this key was not present", so absence is
+# never confused with a legitimate None. PEP 661 is the documented pattern.
+_ABSENT = object()
+# The reason THIS invocation reached its bump, from a closed set. Populated by
+# _flip_magnitude and written by _log_decision below.
+_FLIP_DECISION: dict = {}
+
+
 def _flip_magnitude() -> str:
     """phase-86.68: a version bump means SHIPPED WORK, not an attempt.
 
@@ -149,14 +157,42 @@ def _flip_magnitude() -> str:
         after = _statuses("HEAD")
         before = _statuses("HEAD~1")
         if after is None:
+            _FLIP_DECISION["reason"] = "masterplan_unreadable_at_HEAD"
             return "none"
         if before is None:          # first commit -- nothing to compare against
+            _FLIP_DECISION["reason"] = "first_commit"
             return "none"
 
-        newly_done = [sid for sid, st in after.items()
-                      if st == "done" and before.get(sid) not in (None, "done")]
+        # phase-86.91: THREE STATES, NOT TWO. The predicate here used to read
+        #     before.get(sid) not in (None, "done")
+        # and `before.get(sid)` is None for a step that DID NOT EXIST at HEAD~1.
+        # The None term was meant to say "not a transition"; it actually said
+        # "ignore any step that appeared this commit" -- which is exactly the
+        # file-it-and-fix-it workflow this project runs on. MEASURED on commit
+        # e4f2e844 (phase-86.86): before=None -> after=done, newly_done == [],
+        # no bump, while the commit shipped a real fix to autonomous_loop.py.
+        # The version froze at v6.93.222 (2026-08-14) while rows kept landing.
+        #
+        # Absence must not be encoded as the same value as a legitimate null
+        # (PEP 661). `_ABSENT` is an identity sentinel, and the two populations
+        # are kept SEPARATE so the decision log below can name which one fired
+        # rather than emitting an unexplained "none".
+        created_done = [sid for sid, st in after.items()
+                        if st == "done" and before.get(sid, _ABSENT) is _ABSENT]
+        transitioned_done = [sid for sid, st in after.items()
+                             if st == "done"
+                             and before.get(sid, _ABSENT) is not _ABSENT
+                             and before.get(sid) != "done"]
+        newly_done = created_done + transitioned_done
+        _FLIP_DECISION["created_done"] = created_done
+        _FLIP_DECISION["transitioned_done"] = transitioned_done
         if not newly_done:
+            _FLIP_DECISION["reason"] = "no_flip"
             return "none"
+        _FLIP_DECISION["reason"] = (
+            "flip_created" if created_done and not transitioned_done
+            else "flip_transitioned" if transitioned_done and not created_done
+            else "flip_created_and_transitioned")
 
         for sid in newly_done:
             top = sid.split(".")[0]
@@ -168,6 +204,7 @@ def _flip_magnitude() -> str:
                 return "minor"      # phase kickoff closed
         return "patch"
     except Exception as _e:                                    # noqa: BLE001
+        _FLIP_DECISION["reason"] = f"detector_error:{type(_e).__name__}"
         print(f"[changelog] flip-detect FAILED ({type(_e).__name__}: {_e}) -> no bump",
               file=sys.stderr)
         return "none"
@@ -175,6 +212,54 @@ def _flip_magnitude() -> str:
 
 if bump_type != "major":
     bump_type = _flip_magnitude()
+else:
+    _FLIP_DECISION["reason"] = "subject_forced_major"
+
+
+def _log_decision(bump: str) -> None:
+    """phase-86.91 criterion 4: an unexplained 'none' is the defect.
+
+    Every invocation records WHY, from a closed set of reasons, so a
+    genuinely-chore commit, a declined flip and an internal error are no longer
+    indistinguishable from the CHANGELOG.
+
+    WHY A FILE AND NOT JUST STDERR. MEASURED: `grep -c "flip-detect FAILED"
+    handoff/logs/auto-push.log` = 0 over 976,895 bytes -- the marker has never
+    fired, so the frozen version was the SILENT [] all along. And git's "hook
+    stderr reaches the user" guarantee does not apply here: this is not a git
+    hook (.git/hooks/ holds only pre-commit), and auto-commit-and-push.sh runs it
+    with `>> "$LOG_FILE" 2>&1` into a gitignored log. A stderr line alone would
+    be as invisible as the silence it replaces.
+
+    NEVER RAISES, for the same reason the detector does not: this hook must not
+    break a commit. A decision that cannot be logged is still a decision made.
+    """
+    try:
+        import datetime as _dt
+        import subprocess as _sp2
+        log_dir = repo_root / "handoff" / "logs"
+        log_dir.mkdir(parents=True, exist_ok=True)
+        sha = "unknown"
+        try:
+            _r = _sp2.run(["git", "log", "-1", "--format=%h"], capture_output=True,
+                          text=True, cwd=repo_root, timeout=10)
+            if _r.returncode == 0 and _r.stdout.strip():
+                sha = _r.stdout.strip()
+        except Exception:                                      # noqa: BLE001
+            pass
+        stamp = _dt.datetime.now(_dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        reason = _FLIP_DECISION.get("reason", "unrecorded")
+        created = ",".join(_FLIP_DECISION.get("created_done", [])) or "-"
+        transitioned = ",".join(_FLIP_DECISION.get("transitioned_done", [])) or "-"
+        with open(log_dir / "changelog-decisions.log", "a", encoding="utf-8") as _fh:
+            _fh.write(f"{stamp} {sha} bump={bump} reason={reason} "
+                      f"created_done={created} transitioned_done={transitioned}\n")
+    except Exception as _e:                                    # noqa: BLE001
+        print(f"[changelog] decision-log FAILED ({type(_e).__name__}: {_e})",
+              file=sys.stderr)
+
+
+_log_decision(bump_type)
 # Back-compat alias used by the bullet-injection block below: "none" means
 # no version row AND no bullet (same semantics as the old is_chore flag).
 is_chore = bump_type == "none"

@@ -45,13 +45,33 @@ def statuses(ref):
     except Exception: return None
     return acc
 
-def flip_magnitude(sha, *, enabled=True):
-    """enabled=False is the MUTANT: the flip gate is removed."""
+_ABSENT = object()
+
+def newly_done_ids(after, before, *, count_created):
+    """The three-state membership test.
+
+    phase-86.91: `count_created=False` is the SHIPPED (defective) predicate --
+    `before.get(sid) not in (None, "done")` drops every step that DID NOT EXIST
+    at HEAD~1, i.e. exactly the file-it-and-fix-it workflow. `count_created=True`
+    is the FIXED one. Keeping BOTH here is what lets this script report three
+    numbers from one execution; when only the hook was fixed, this file kept
+    measuring the old predicate and the "baseline" silently went stale.
+    """
+    created = [s for s,st in after.items()
+               if st=="done" and before.get(s, _ABSENT) is _ABSENT]
+    transitioned = [s for s,st in after.items()
+                    if st=="done" and before.get(s, _ABSENT) is not _ABSENT
+                    and before.get(s) != "done"]
+    return (created + transitioned) if count_created else transitioned
+
+def flip_magnitude(sha, *, enabled=True, count_created=True):
+    """enabled=False is the MUTANT: the flip gate is removed.
+    count_created=False replays the SHIPPED pre-86.91 predicate."""
     if not enabled:
         return None  # caller falls back to the subject verdict = old behaviour
     after, before = statuses(sha), statuses(sha + "~1")
     if after is None or before is None: return "none"
-    newly = [s for s,st in after.items() if st=="done" and before.get(s) not in (None,"done")]
+    newly = newly_done_ids(after, before, count_created=count_created)
     if not newly: return "none"
     for sid in newly:
         top = sid.split(".")[0]
@@ -61,15 +81,26 @@ def flip_magnitude(sha, *, enabled=True):
         if re.fullmatch(r"\d+\.0", sid): return "minor"
     return "patch"
 
-def new_rule(sha, subject, body, *, flip_enabled=True):
+def new_rule(sha, subject, body, *, flip_enabled=True, count_created=True):
     bt = old_rule(subject, body)
     if bt != "major":
-        fm = flip_magnitude(sha, enabled=flip_enabled)
+        fm = flip_magnitude(sha, enabled=flip_enabled, count_created=count_created)
         if fm is not None: bt = fm
     return bt
 
 # ---- corpus ---------------------------------------------------------------
-rc, out = sh("git","log","--since=2026-08-11","--format=%H%x1f%s%x1f%b%x1e")
+# phase-86.91: PINNED, and the pin is the point. `--since=2026-08-11` (a BARE
+# date) is applied by git at the CURRENT TIME OF DAY, so the corpus SLIDES as the
+# clock advances: measured 2026-08-16, the identical command returned 621 commits
+# at 09:56 and 592 at 10:17, while `--since=2026-08-11T00:00:00` returns 706. The
+# phase-86.68 artifacts' "348 commits from 2026-08-11" was produced by that
+# sliding cutoff and is NOT reproducible -- it is a number about a clock, not
+# about a corpus. An explicit timestamp makes the replay deterministic.
+CORPUS_SINCE = "2026-08-11T00:00:00"
+CORPUS_UNTIL = None   # None = HEAD; set a sha to replay a historical window
+_log_args = ["git","log",f"--since={CORPUS_SINCE}","--format=%H%x1f%s%x1f%b%x1e"]
+if CORPUS_UNTIL: _log_args.append(CORPUS_UNTIL)
+rc, out = sh(*_log_args)
 commits = []
 for rec in out.split("\x1e"):
     rec = rec.strip("\n")
@@ -77,14 +108,31 @@ for rec in out.split("\x1e"):
     parts = rec.split("\x1f")
     if len(parts) >= 2: commits.append((parts[0], parts[1], parts[2] if len(parts)>2 else ""))
 
-print(f"corpus: {len(commits)} commits since 2026-08-11 (re-derived at execution time)")
+print(f"corpus: {len(commits)} commits since {CORPUS_SINCE} "
+      f"(PINNED timestamp -- deterministic; a bare date slides with the clock)")
 print("RULE STATED: OLD = subject-only (phase-X.Y -> patch). NEW = subject may force")
 print("             MAJOR only; otherwise the parsed masterplan id->status diff decides.\n")
 
 old_b = sum(1 for _,s,b in commits if old_rule(s,b) != "none")
-new_b = sum(1 for h,s,b in commits if new_rule(h,s,b) != "none")
-print(f"  version bumps under OLD rule : {old_b}")
-print(f"  version bumps under NEW rule : {new_b}\n")
+shipped_b = sum(1 for h,s,b in commits if new_rule(h,s,b, count_created=False) != "none")
+fixed_b   = sum(1 for h,s,b in commits if new_rule(h,s,b, count_created=True)  != "none")
+print(f"  version bumps under OLD rule (subject prefix)     : {old_b}")
+print(f"  version bumps under SHIPPED flip rule (pre-86.91) : {shipped_b}")
+print(f"  version bumps under FIXED flip rule (86.91)       : {fixed_b}\n")
+
+# phase-86.91 criterion 3: the increase must be accounted for COMMIT BY COMMIT.
+gained = [(h,s) for h,s,b in commits
+          if new_rule(h,s,b, count_created=False) == "none"
+          and new_rule(h,s,b, count_created=True)  != "none"]
+print(f"CRITERION 3 -- commits the SHIPPED rule swallowed and the FIXED rule bumps: {len(gained)}")
+for h,subj in gained:
+    after, before = statuses(h), statuses(h+"~1")
+    created = [x for x,st in after.items()
+               if st=="done" and before.get(x, _ABSENT) is _ABSENT]
+    print(f"  {h[:8]}  created-and-closed={created}  {subj[:64]}")
+if not gained:
+    print("  (none -- if this is empty the fix changed nothing on this corpus)")
+print()
 
 # ---- criterion 3: the two PARKED steps ------------------------------------
 print("CRITERION 3 -- PARKED steps must not bump:")

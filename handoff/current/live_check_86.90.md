@@ -232,9 +232,28 @@ changed file, every re-runnable check, and the `subject_sha256` string itself --
 across 59 tool-use blocks.
 
 **Re-graded** by a fresh Q/A on the fixed rail, run `wf_a09930e2-3d7`, with the
-evidence actually delivered (§4 is that receipt). The re-grade verdict is
-transcribed verbatim into `evaluator_critique_86.90.md` and governs. If it is not
-a PASS, 86.86 is reopened.
+evidence actually delivered (§4 is that receipt).
+
+```
+verdict: PASS | ok: True | verdict_unmodified: True
+escalation: {"sequence_supplied": ["PASS"], "sequence_status": "ok",
+             "consecutive_conditionals": 0, "would_auto_fail": false,
+             "attempt_number": 2, "budget_exhausted": false, "max_attempts": 5,
+             "burden_on": "the party departing from the computed escalation",
+             "override": null, "judge_was_told_consequence": false}
+violated_criteria: []   checks_run: 27   tokens: 237,098   duration: 851 s
+```
+
+**86.86's PASS is CONFIRMED; the step stays closed.** Transcribed VERBATIM into
+`handoff/current/evaluator_critique_86.86.md` under a `RE-GRADE` heading.
+
+The re-grading Q/A independently verified the re-grade's own premise rather than
+accepting it -- from its notes: *"I checked the prior run's own agent transcript
+(subagents/workflows/wf_b1747d75-eec/agent-abeb0c1a9dca29d03.jsonl) and it
+carries verbatim, at prompt line 61 `EVIDENCE / FILES TO READ: [object Object]`
+and at line 63 `ADDITIONAL CONTEXT: [object Object]` -- exactly the lines
+claimed."* That is a second, independent confirmation of this step's core finding,
+produced by an agent with no stake in it.
 
 The other three affected PASSes -- **85.5, 86.25, 86.34** -- also rest on
 reconstructed evidence sets. Queued, not silently accepted.

@@ -269,12 +269,37 @@ the lost evidence object named -- every handoff file, every changed file, every
 re-runnable check, and the `subject_sha256` string itself -- across 59 tool-use
 blocks. Its reconstruction was, item for item, at least the intended set.
 
-That is not enough to let the PASS stand, so **86.86 has been re-graded** by a
-fresh Q/A on the fixed rail (`wf_a09930e2-3d7`), with the evidence actually
-delivered (§6 shows the receipt). This is not verdict-shopping: the evidence
-DELIVERY measurably changed, which is the documented cycle-2 condition. The
-re-grade's verdict governs and is transcribed verbatim into
-`evaluator_critique_86.90.md`; if it is not a PASS, 86.86 is reopened.
+That is not enough to let the PASS stand, so **86.86 was re-graded** by a fresh
+Q/A on the fixed rail, with the evidence actually delivered (§6 is the receipt).
+Not verdict-shopping: the evidence DELIVERY measurably changed, which is the
+documented cycle-2 condition -- and the re-grading Q/A **verified that claim
+itself**, reading prompt lines 61 and 63 out of the prior run's own transcript
+rather than accepting Main's word for it.
+
+**RE-GRADE RESULT -- run `wf_a09930e2-3d7`, verdict `PASS`, `ok: true`,
+`violated_criteria: []`, 27 checks run, 851 s, 237,098 tokens.** All nine
+criteria MET on an independent re-derivation. The verdict is transcribed VERBATIM
+into `handoff/current/evaluator_critique_86.86.md` under a `RE-GRADE` heading.
+**86.86's PASS is CONFIRMED and the step stays closed.**
+
+Three things the re-grade settled that the original evaluation had left open, all
+of them tightening rather than loosening:
+
+- It pinned the subject by sha256 (`5b714a9e...`, equal to the spawn-prompt
+  value AND to the blob at `e4f2e844`) and confirmed `git diff e4f2e844..HEAD`
+  over the four changed files is EMPTY -- so it graded the same artifact.
+- It **ruled on the two findings Main flagged against itself**: N1 (the
+  caller-side pre-mangle) is REPRODUCED but falls OUTSIDE 86.86's criteria and
+  belongs to 86.88, and criterion 2's "exactly one" IS met -- verified by an AST
+  walk showing no subscript write to `risk_dict` anywhere in the module.
+- It ran its own novel mutation idiom the author never used (a falsy-filtering
+  comprehension upstream of the resolver) -- KILLED -- plus a fixture-side
+  mutation making ABSENT unexpressible, also killed.
+
+**Harness-compliance item 4 (log-last) was disclosed, not charged:** 86.86 is
+already in `harness_log` and already `done`, because this is a POST-CLOSE
+re-grade rather than an in-flight EVALUATE. The original cycle respected the
+order (the prior Q/A observed `pending` and no log row at its spawn time).
 
 ### The other three PASSes
 
