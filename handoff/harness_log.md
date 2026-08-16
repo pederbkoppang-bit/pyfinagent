@@ -35601,3 +35601,39 @@ handoff/current/escalation_86.90_86.91.md (addendum).
 Recurring lesson across the three escalated steps: I called something provenance
 three times at three levels -- a log line, an in-memory key, a persisted blob --
 and only the third was checkable by a reader.
+
+## Cycle 227 -- 2026-08-16 -- phase=86.89 result=FAIL
+
+The research gate reframed the step and the reframing was upheld: the missing
+half is a VACUITY check, not a richer AST rule (Kupferman -- vacuity mutates the
+SPECIFICATION, coverage mutates the SYSTEM; both shipped artefacts mutate the
+system). Criterion 1's 1-of-4 recall REPRODUCED, with a positive control proving
+the probe live -- my first two probe versions reported "0 of 5" from regexes that
+matched nothing.
+
+The mechanism finds exactly the five cells the audit_basis names. Cycle 1 was
+CONDITIONAL on six findings; all six were addressed, and cycle 2 returned FAIL.
+
+WHAT FAILED, and it is a good FAIL: my [6] fingerprint binding is CIRCULAR -- it
+compares against the whole cell text INCLUDING the description the fingerprint
+was copied from, so it asserts the description still contains words from the
+description. A payload swap passes at 8/8; duplicating another cell's payload
+leaves NOTHING mutating emit_sequence ordering -- the defect that opened this
+series -- with the whole composite gate green. My cycle-2 claim that the Q/A's
+repurpose mutant "now KILLS" was a MIS-ATTRIBUTED CREDIT: it dies in the matrix by
+a different mechanism and survives this checker.
+
+Also: C4 and C6 were fixed in the SCRIPT while both named artifacts stayed at
+cycle 1, so the masterplan live_check requirement went unsatisfied and the only
+6-of-6 demonstration on disk was the EVALUATOR's own -- the author leaning on the
+judge's evidence.
+
+SESSION-END ACTIONS (not a cycle 3 -- a FAIL is handed over, not raced):
+reverted the cycle-2 wiring, which made mutation_matrix_86_85.py rewrite ITSELF
+(14 measured truncated states, 11,734..12,228 bytes vs a pristine 12,407, in a
+tree whose auto-commit hook runs git add -A); repo writes per matrix run 14 -> 0.
+Corrected the checker's false "read-only" docstring and the [6] over-claim.
+
+Ruled in the author's favour: criterion 5's named ast.Try shape IS caught by the
+shipped mechanism -- the Q/A built it and measured it; only the demonstration was
+missing.

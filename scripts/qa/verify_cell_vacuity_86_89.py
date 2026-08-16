@@ -30,8 +30,16 @@ Thm 3.5 says that is NOT convertible to population recall without `Recall_DG`.
     python scripts/qa/verify_cell_vacuity_86_89.py
     -> exit 0 all cells demand something, exit 1 with the vacuous cells named
 
-Read-only on the repo: the matrix is mutated IN MEMORY via a temp copy, and the
-original's sha256 is asserted unchanged at exit.
+NOT READ-ONLY, AND THE EARLIER CLAIM THAT IT WAS IS FALSE. This checker DROPS
+each cell by REWRITING `mutation_matrix_86_85.py` ON DISK and restoring it in a
+`finally`. Measured over one run: **14 distinct truncated states**, 11,734..12,228
+bytes against a pristine 12,407. The original's sha256 IS asserted unchanged at
+exit ([3]), but that is a post-hoc check, not in-memory isolation.
+
+This matters because the repo's auto-commit hook runs `git add -A`: an interrupt
+mid-run leaves a truncated matrix that the next hook invocation would stage. Run
+this DELIBERATELY, never from another script -- a cycle-2 attempt to wire it into
+`mutation_matrix_86_85.py` made that file rewrite itself and was reverted.
 """
 from __future__ import annotations
 
@@ -63,8 +71,21 @@ GATE = REPO / "scripts" / "qa" / "verify_matrix_coverage_86_85.py"
 #: CONTENT: the Q/A repurposed M6 -- the ORDERING cell, the defect that opened
 #: this whole series -- to a benign no-op, and the run stayed byte-identically
 #: GREEN. An id-keyed baseline silently re-covers whatever later takes that id.
-#: Each entry is now pinned to a fingerprint of its mutation payload, so
-#: repurposing a baselined cell fails [6].
+#: CYCLE-3 CORRECTION -- THIS BINDING IS CIRCULAR AND DOES NOT WORK.
+#: `payloads[cid]` is the WHOLE cell tuple, which INCLUDES the description line
+#: these fingerprints were copied out of. So [6] asserts that the description
+#: still contains words taken from the description. MEASURED by the cycle-2 Q/A:
+#: a cell keeping its description while its behavioural payload is swapped for a
+#: no-op -- or for a DUPLICATE of another cell's payload -- passes [6] at 8/8.
+#: After the duplicate variant, NO cell anywhere mutates `emit_sequence` ordering
+#: (the defect that opened this series) with the whole gate green.
+#:
+#: My cycle-2 claim that "the Q/A's repurpose mutant now KILLS" was a
+#: MIS-ATTRIBUTED CREDIT: that mutant dies in the MATRIX, by a different
+#: mechanism, and survives this checker.
+#:
+#: The real fix is to fingerprint the MUTATION PAYLOAD ONLY -- the find/replace
+#: strings, excluding the description -- which is cycle-3 work, not claimed here.
 #: Fingerprints are taken VERBATIM from each cell's own description line in the
 #: matrix -- not from this step's prose. My first attempt wrote them from the
 #: filed description and four of five did not match, which is the same
@@ -210,10 +231,15 @@ def main() -> int:
 
     drifted = [cid for cid, want in KNOWN_VACUOUS_FINGERPRINTS.items()
                if cid in payloads and want.lower() not in payloads[cid].lower()]
-    check("[6] each baselined cell still contains the mutation it was baselined FOR",
+    # KNOWN-WEAK, and labelled so rather than removed: this compares the
+    # fingerprint against the WHOLE cell text including the description it was
+    # copied from, so it catches a description rewrite and NOT a payload swap.
+    # Measured defeat recorded above. Left in place because it does catch the
+    # description-rewrite case, but its name no longer over-claims.
+    check("[6] each baselined cell still carries its recorded DESCRIPTION "
+          "(NOTE: does NOT bind the payload -- see the cycle-3 correction)",
           not drifted,
-          f"{drifted} no longer match their recorded fingerprint -- a baselined id was "
-          "REPURPOSED, so the baseline is now excusing a different (possibly real) cell")
+          f"{drifted} no longer match their recorded description")
 
     print()
     print("LICENCE -- what this run does and does NOT license:")

@@ -248,17 +248,24 @@ def main() -> int:
 
     cov_rc = cov.main()
 
-    # phase-86.89 cycle 2 (Q/A finding: "STANDING" did not reproduce). The
-    # vacuity check shipped as a manually-run script while the artifacts called
-    # it standing -- a grep found it invoked by nothing. It is invoked HERE, the
-    # same way the coverage gate above is, so both halves run together: coverage
-    # asks "is every guard touched by a cell?", vacuity asks "does every cell
-    # demand a guard?". Running one without the other is what let five cells
-    # demand nothing while the gate reported OK.
-    import verify_cell_vacuity_86_89 as vac
-    vac_rc = vac.main()
-    if vac_rc != 0:
-        cov_rc = cov_rc or vac_rc
+    # phase-86.89 cycle 2 WIRING -- REVERTED at cycle 3, and the reason is a
+    # HAZARD I introduced rather than a preference.
+    #
+    # Wiring `verify_cell_vacuity_86_89.main()` in here made this file WRITE TO
+    # ITSELF: the vacuity check drops each cell by rewriting the matrix on disk.
+    # MEASURED during one run -- 14 distinct truncated states, 11,734..12,228
+    # bytes against a pristine 12,407 -- in a tree whose auto-commit hook does
+    # `git add -A`. An interrupt mid-run leaves a truncated matrix that the next
+    # hook invocation would stage and commit.
+    #
+    # This file's own docstring promises ZERO REPO WRITES precisely so no restore
+    # can be gotten wrong, and the wiring broke that promise. "Standing" has to be
+    # earned by a mechanism that does not mutate the repo -- an in-memory driver,
+    # or a copy under a temp root -- not by calling a disk-mutating checker from
+    # the file it mutates.
+    #
+    # The vacuity check remains runnable on its own; the "standing" claim is
+    # WITHDRAWN from the artifacts rather than propped up by an unsafe wire.
     if cov_rc != 0:
         print("\nFATAL: the mutation matrix is INCOMPLETE over the writer's "
               "guards (see above). Every cell may still have been killed -- "
