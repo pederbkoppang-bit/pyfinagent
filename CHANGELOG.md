@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-16 | `1cf84c57` | phase-86.88: harness_log cycle 226 -- FAIL by escalation |
 | 2026-08-16 | `acd13c57` | phase-86.88: ESCALATE -- F1 auto-FAIL applied after four CONDITIONALs |
 | 2026-08-16 | `b0edad8e` | phase-86.89: the missing half is a VACUITY check, not a richer AST rule |
 | 2026-08-16 | `617ba2c0` | phase-86.88 cycle 4: per-path cells, class-wide exactness, and a SHIPPED count assertion |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-15 | `9a18150f` | phase-86.85: cycle 4 (C8) -- derived guard coverage; CONDITIONAL, step ESCALATED |
 | 2026-08-15 | `e4f2e844` | phase-86.86: D6 -- the lite risk judge's explicit 0% verdict survives ingress |
 | 2026-08-15 | `6723206e` | docs(session): day report 2026-08-15 + regenerate the 08-16 goal |
-| 2026-08-15 | `d75aa320` | phase-86.84: post-boundary evidence -- the maxTurns removal is VERIFIED |
 
 ---
 
