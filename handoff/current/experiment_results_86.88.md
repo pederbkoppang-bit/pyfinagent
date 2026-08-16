@@ -250,3 +250,62 @@ by relaxing the check.
   stated rather than implied.
 - `86.87` (the retained `or _LITE_RISK_DEFAULT[...]` keys fabricating the
   persisted audit trail) remains separate and unfixed, as filed.
+
+
+---
+
+# Follow-up -- cycle 2 (2026-08-16)
+
+Cycle-1 verdict **CONDITIONAL** (`wf_ef7e372c-e18`), four findings, all accepted.
+The Q/A confirmed the product was correct and safe -- it drove the real route
+into `decide_trades` itself under both flag states -- and confirmed criterion 4's
+premise correction is legitimate. What did not survive measurement were three
+durable CLAIMS and one bound.
+
+| # | Finding | Fix |
+|---|---|---|
+| **1** | **Criterion 2 was NOT met.** `decide_trades` appeared in the new class exactly once -- inside a docstring -- while the class docstring said *"asserts the downstream ORDER outcome"* and the test was named `..._produces_no_order`. **I disclosed this in the spawn prompt and NOT in the artifacts' Stated-gaps section** | `decide_trades` is now DRIVEN, under BOTH `paper_risk_judge_reject_binding` states, using the suite's own `PORTFOLIO` / `_settings` / `_buy` helpers rather than a hand-rolled copy -- a re-implementation there would be the "test a copy of the code" failure criterion 2 forbids, one level up |
+| **2** | **Criterion 5's claim REACH was false.** Post-fix the persisted record still carried `recommended_position_pct = 3.0` and `_resolve_position_pct` still returned `SIZE(3.0)` -- byte-identical to a real 3% judge. My early return handed back the default float BEFORE the resolver ran, so **no ABSENT verdict was ever constructed. Only a `logger.warning` changed**, while contract and artifacts said "resolves ABSENT" three times | The Q/A named the fix I had not taken: an **ADDITIVE provenance key**. `judge_verdict_absent` now distinguishes judge-failed from judge-said-3% **in the record**, where a downstream reader or auditor can see it, with the number untouched so criterion 7 still holds |
+| **3** | **The matrix ran against a 69-test tree while the shipped suite was 72** -- every row summed to 69, and the three absent tests were exactly the criterion-6 route tests I added AFTER running it | Re-run against the shipped tree, **75 tests**, with the control observed GREEN first and every restore sha256-verified |
+| **4** | **The stated bound UNDERSTATED the checker's real blindness.** Only `dict(X)` and bare `deepcopy(X)` were seen; `copy.deepcopy(X)`, `copy.copy(X)`, `dict(**X)`, `X.copy()` and `{**X}` were not, while the artifact claimed "dict(), copy() and deepcopy() call shapes" | All seven shapes are now SEEN, verified against the Q/A's own probe set with a negative control still invisible. The bound is covered rather than the sentence softened |
+
+## A repair of my own, disclosed
+
+Applying fix 2, I first inserted the new helper **inside** `_lite_position_pct`,
+orphaning its resolver logic into dead code after an early `return`. Caught
+immediately -- the direct drive showed `recommended_position_pct: None` for real
+judges. Relocated to top level; `0.0 -> 0.0`, `3.0 -> 3.0`, `ABSENT -> 3.0`
+verified before proceeding.
+
+## Mutation matrix -- 10 cells, all KILLED, on the SHIPPED tree
+
+```
+CONTROL: 75 passed | checker exit 0 -> GREEN
+
+  KILLED  M1 N1 pre-mangle @ Claude route              2 failed, 73 passed
+  KILLED  M2 N1 pre-mangle @ Gemini route              1 failed, 74 passed
+  KILLED  M3 N1 pre-mangle @ BOTH routes               3 failed, 72 passed
+  KILLED  M4 revert the whole-default seam detection   4 failed, 71 passed
+  KILLED  M5 over-fire: EVERY dict is the default     16 failed, 59 passed
+  KILLED  M6 restore the D6 falsy-or at the seam      18 failed, 57 passed | checker exit 1
+  KILLED  M7 neuter _lite_position_pct entirely       18 failed, 57 passed
+  KILLED  M8 drop the additive provenance key          3 failed, 72 passed
+  KILLED  M9 provenance key always False               1 failed, 74 passed
+  KILLED  M10 provenance key always True               2 failed, 73 passed
+
+10/10 killed | restore byte-identical: True
+```
+
+**M8/M9/M10 exist because M8 and M9 SURVIVED when the additive key first
+shipped.** I added a fix and no guard for it -- the identical failure cycle 1 was
+CONDITIONAL for. M10 is the over-fire direction, added because M9 alone would
+pass on an implementation that hardcodes `True`.
+
+**This matrix licenses exactly one claim: these ten mutations were killed.**
+
+## Gates after cycle 2
+
+```
+$ python scripts/qa/verify_lite_risk_seam_86_86.py     RESULT: OK (9 PASS / 0 FAIL)   # immutable
+$ python -m pytest backend/tests/test_phase_66_2_risk_judge_shape.py -q     75 passed
+```

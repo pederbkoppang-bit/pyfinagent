@@ -2310,6 +2310,28 @@ _LITE_RISK_DEFAULT = {
 }
 
 
+def _lite_judge_produced_no_verdict(risk_dict: dict) -> bool:
+    """True when the caller handed the producer the WHOLE default dict.
+
+    phase-86.88 cycle 2, from the cycle-1 Q/A. The cycle-1 fix logged a sentence
+    and returned the same number, and the artifacts then claimed the value was
+    "resolved as ABSENT". Measured, that was FALSE in the only place it matters:
+    the persisted `recommended_position_pct` was still 3.0, and
+    `_resolve_position_pct` on that record still returned
+    `PositionVerdict(SIZE, 3.0)` -- byte-identical to a judge that really said
+    3%. The early return above hands back the default float BEFORE the resolver
+    is ever called, so no ABSENT verdict was ever constructed.
+
+    A log line is not provenance: nothing downstream, and no auditor reading the
+    persisted row, can see it. The remedy is an ADDITIVE key -- it distinguishes
+    judge-failed from judge-said-3% in the record itself while leaving the number
+    (and therefore every order outcome) untouched, satisfying criterion 5 and
+    criterion 7 at once. The cycle-1 choice to leave the record unchanged was a
+    choice, not a constraint.
+    """
+    return risk_dict == _LITE_RISK_DEFAULT
+
+
 def _lite_position_pct(risk_dict: dict, ticker: str = "?") -> float:
     """THE single seam at which the LITE judge's position size is resolved.
 
@@ -2381,6 +2403,7 @@ def _lite_position_pct(risk_dict: dict, ticker: str = "?") -> float:
         )
         return float(_LITE_RISK_DEFAULT["recommended_position_pct"])
 
+
     verdict = _resolve_position_pct(risk_dict, {})
     if verdict.kind == SIZE:
         # A SIZE with no number is contradictory; fail closed rather than let a
@@ -2438,6 +2461,12 @@ def _build_lite_risk_assessment(risk_dict: dict, ticker: str = "?") -> dict:
         "recommended_position_pct": _lite_position_pct(risk_dict, ticker),
         "risk_level": str(risk_dict.get("risk_level") or _LITE_RISK_DEFAULT["risk_level"]),
         "risk_limits": dict(risk_dict.get("risk_limits") or _LITE_RISK_DEFAULT["risk_limits"]),
+        # phase-86.88 cycle 2: ADDITIVE provenance. Distinguishes "the judge
+        # produced nothing parseable and we fell back" from "the judge chose 3%"
+        # IN THE RECORD, where a downstream reader or an auditor can see it. The
+        # number is untouched, so no order outcome moves (criterion 7); what
+        # changes is that the two states stop being byte-identical.
+        "judge_verdict_absent": _lite_judge_produced_no_verdict(risk_dict),
     }
 
 

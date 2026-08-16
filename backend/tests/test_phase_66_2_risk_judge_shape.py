@@ -927,6 +927,24 @@ class TestLiteRouteEndToEnd:
             "the judge's explicit 0% did not survive the ROUTE -- something "
             "between the judge and the producer rewrote it"
         )
+        # CYCLE 2 (Q/A finding 1). The criterion says "asserts no order results",
+        # and cycle 1 asserted only the resolved pct while the class docstring
+        # and this test's own NAME claimed the order outcome. `decide_trades`
+        # appeared in the file exactly once -- inside a docstring. It is DRIVEN
+        # now, so the name and the assertion agree.
+        # Uses this suite's OWN helpers (PORTFOLIO / _settings / _buy) rather
+        # than a hand-rolled portfolio and settings object -- a re-implementation
+        # here would be the very "test a copy of the code" failure criterion 2
+        # forbids, one level up.
+        for binding in BOTH_FLAG_STATES:
+            orders = decide_trades(
+                [], [analysis], [], PORTFOLIO,
+                _settings(paper_risk_judge_reject_binding=binding),
+            )
+            assert _buy(orders) is None, (
+                "a judge verdict of 0% produced a BUY -- the strongest risk signal "
+                f"the judge can issue was overridden downstream (binding={binding})"
+            )
 
     def test_judge_three_pct_still_sizes_at_three(self, monkeypatch):
         """CONTROL. Without this, the assertion above would pass on a path that
@@ -1151,3 +1169,45 @@ class TestLiteRouteEndToEnd:
             out = self._drive_gemini(monkeypatch, "the risk judge answered in prose, no JSON")
         assert any("resolving as ABSENT" in r.getMessage() for r in caplog.records)
         assert out["risk_assessment"]["recommended_position_pct"] == 3.0
+
+    # ── THE ADDITIVE PROVENANCE KEY ────────────────────────────────────────
+    # phase-86.88 cycle 2. The cycle-1 seam fix logged a sentence and the
+    # artifacts then claimed the value was "resolved as ABSENT". Measured by the
+    # Q/A, that was FALSE where it matters: the persisted record still carried
+    # recommended_position_pct = 3.0 and _resolve_position_pct still returned
+    # SIZE(3.0) -- byte-identical to a judge that really said 3%. A log line is
+    # not provenance. The remedy is an ADDITIVE key, which distinguishes the two
+    # states IN THE RECORD while leaving the number untouched.
+    #
+    # These tests exist because BOTH mutations against that key -- deleting it,
+    # and pinning it to False -- SURVIVED the 72-test suite when it shipped.
+
+    def test_judge_failure_is_marked_absent_IN_THE_RECORD_not_only_in_a_log(
+        self, monkeypatch,
+    ):
+        analysis = self._drive(monkeypatch, "the risk judge failed to answer in JSON")
+        ra = analysis["risk_assessment"]
+        assert ra["judge_verdict_absent"] is True, (
+            "a judge that produced NOTHING is persisted byte-identically to a "
+            "judge that chose 3% -- the provenance exists only in a log line"
+        )
+        # criterion 7: the NUMBER must not move.
+        assert ra["recommended_position_pct"] == 3.0
+
+    def test_a_real_judge_verdict_is_not_marked_absent_in_the_record(self, monkeypatch):
+        """The discriminating negative -- without it the assertion above passes
+        on an implementation that hardcodes True."""
+        analysis = self._drive(monkeypatch, '{"decision": "APPROVE_REDUCED", '
+                                            '"recommended_position_pct": 3, '
+                                            '"risk_level": "MODERATE", "reasoning": "ok"}')
+        assert analysis["risk_assessment"]["judge_verdict_absent"] is False
+        assert analysis["risk_assessment"]["recommended_position_pct"] == 3.0
+
+    def test_explicit_zero_is_not_marked_absent_either(self, monkeypatch):
+        """A judge that said 0% expressed the STRONGEST opinion available. It
+        must never be recorded as 'nobody expressed an opinion'."""
+        analysis = self._drive(monkeypatch, '{"decision": "REJECT", '
+                                            '"recommended_position_pct": 0, '
+                                            '"risk_level": "HIGH", "reasoning": "no"}')
+        assert analysis["risk_assessment"]["judge_verdict_absent"] is False
+        assert analysis["risk_assessment"]["recommended_position_pct"] == 0.0

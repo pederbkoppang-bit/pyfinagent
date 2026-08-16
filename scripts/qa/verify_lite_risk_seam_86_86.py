@@ -96,13 +96,40 @@ def or_default_sites(tree: ast.AST) -> list[tuple[int, str]]:
     # resurrecting a corpse. A whole-dict COPY is exactly as capable of carrying
     # the default into the seam as a bare reference is -- more so, since all
     # four production routes take that form.
+    # phase-86.88 cycle 2 (Q/A finding 4). The cycle-1 widening saw only
+    # BARE-NAME calls -- `dict(X)` and `deepcopy(X)` -- while the artifact claimed
+    # coverage of "dict(), copy() and deepcopy() call shapes". MEASURED by the
+    # Q/A against 7 shapes, these were still INVISIBLE: `copy.deepcopy(X)`,
+    # `copy.copy(X)`, `dict(**X)`, `X.copy()` and `{**X}`. A stated bound that is
+    # narrower than the tool's real blindness is worse than no bound, so the
+    # shapes are covered rather than the sentence softened.
+    def _is_default(n) -> bool:
+        return isinstance(n, ast.Name) and n.id == "_LITE_RISK_DEFAULT"
+
     for node in ast.walk(tree):
-        if not (isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
-                and node.func.id in ("dict", "copy", "deepcopy")):
-            continue
-        for arg in node.args:
-            if isinstance(arg, ast.Name) and arg.id == "_LITE_RISK_DEFAULT":
-                out.append((arg.lineno, "<whole-dict-copy>"))
+        # dict(X) / copy(X) / deepcopy(X)  AND  copy.copy(X) / copy.deepcopy(X)
+        if isinstance(node, ast.Call):
+            fn = node.func
+            bare = isinstance(fn, ast.Name) and fn.id in ("dict", "copy", "deepcopy")
+            dotted = isinstance(fn, ast.Attribute) and fn.attr in ("copy", "deepcopy")
+            # X.copy()  -- the receiver IS the default
+            receiver = isinstance(fn, ast.Attribute) and fn.attr == "copy" and _is_default(fn.value)
+            if receiver:
+                out.append((fn.value.lineno, "<whole-dict-copy>"))
+                continue
+            if bare or dotted:
+                for arg in node.args:
+                    if _is_default(arg):
+                        out.append((arg.lineno, "<whole-dict-copy>"))
+                # dict(**X)
+                for kw in node.keywords:
+                    if kw.arg is None and _is_default(kw.value):
+                        out.append((kw.value.lineno, "<whole-dict-copy>"))
+        # {**X}
+        elif isinstance(node, ast.Dict):
+            for k, v in zip(node.keys, node.values):
+                if k is None and _is_default(v):
+                    out.append((v.lineno, "<whole-dict-copy>"))
     return sorted(out)
 
 
