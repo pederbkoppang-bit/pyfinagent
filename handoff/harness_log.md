@@ -35690,3 +35690,52 @@ documentation edit).
 
 Attempts: 2 of the night's cap of 3. Tokens: 190,482 (research) + 224,595
 (cycle-1 Q/A) + 220,929 (cycle-2 Q/A).
+
+## Cycle 229 -- 2026-08-16 -- phase=86.97 result=FAIL (PARKED at the 3-attempt cap)
+
+**The guard ships and works; the step is parked on two claims of mine that did
+not reproduce.**
+
+RESEARCH: gate PASSED (enforced, `wf_71bc038d-45a`): 8 sources read in full, 23
+URLs, recency scan corroborated, 0 violations.
+
+WHAT WAS BUILT AND IS COMMITTED. `scripts/qa/verify_decision_log_86_97.py`, 35
+assertions, exit 0. The 86.91 guard turned out to be not weak but **structurally
+blind**: `detector_source()` collects only definition nodes, so a bare
+`_log_decision(bump_type)` (`ast.Expr(Call)`, binds nothing) is **invisible** --
+deleting it leaves the extracted source byte-identical, so no assertion in that
+file could ever kill it. The new guard drives the REAL hook in a temp repo and
+asserts on the decision-log FILE. The mutant that SURVIVED at 42/0 is now KILLED.
+Enumeration is source-derived with a self-test and asserted lexical
+preconditions; classification keys on guard CONDITION TEXT (proven live when my
+own docstring edit moved the heredoc `43..371` -> `43..387` and the scan tracked
+it unedited). Recursion guard driven and judged a **BOUND**.
+
+VERDICTS: CONDITIONAL (`wf_3be25861-bde`) -> CONDITIONAL (`wf_2dd1efc9-d0c`) ->
+**FAIL** (`wf_7657af01-9fb`). At cycle 3 the evaluator re-executed criteria
+1,2,3,4,6,7 and found them MET. Both earlier WARNs were genuinely fixed.
+
+WHY IT FAILED -- two defects, both mine, both re-measured by me before recording:
+
+1. **A justification that does not reproduce.** I wrote that hook `:214`
+   `bump_type = _flip_magnitude()` is "covered incidentally by the end-to-end
+   driver (if it were deleted the hook would fail)". Measured: it does **not**
+   fail. `rc=0`, and it writes `bump=minor reason=unrecorded` where the base
+   writes `bump=none reason=no_flip` -- a **spurious bump**, exactly what 86.68
+   exists to prevent, plus the unexplained reason 86.91 criterion 4 exists to
+   close. The shipped checker stays ALL GREEN. `[3]` asserts only that a line
+   exists containing `reason=`, never *what the decision was*.
+
+2. **Criterion 5 genuinely NOT MET.** `live_check_86.91.md:104` still reads
+   "Criterion 4 -- every decision now explains itself", unbounded, untouched by
+   every 86.97 commit. My §F completeness sweep searched `"every invocation"` --
+   **my own wording** -- while the survivor says `"every decision"`. It is a
+   KNOWN MEMBER: `experiment_results_86.91.md:441` quotes that exact phrase, in
+   a file I read during this step. A completeness probe built from the author's
+   own phrasings is the same defect class criterion 2 forbids for the exit scan,
+   committed by me one criterion away from where I enforced it.
+
+PARKED per the overnight rail (3 attempts, no PASS). Both fixes are named in the
+masterplan notes and neither touches the product; the next cycle should be short.
+
+Tokens: 191,440 (research) + 207,808 + 249,564 + 242,368 (three Q/A cycles).
