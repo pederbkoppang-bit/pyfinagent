@@ -40,6 +40,7 @@ compile), but the oracle has since been strengthened to `bash -n` **plus** a
 never match. **Enlarging `NEEDED` cannot help.** Measured:
 
 ```
+# measured at 52358053 -- this step's PARENT commit. See the re-derivation below.
 extracted SHIPPED, unmutated   : 7,597 B  sha1 f7458a6ab1f5fe96
 extracted SHIPPED, call DELETED: 7,597 B  sha1 f7458a6ab1f5fe96
 BYTE-IDENTICAL: True   -> the mutant is INVISIBLE to the extraction, not merely surviving
@@ -251,7 +252,7 @@ unrelated subjects (pytest-subprocess, the harness cycle index, Bolt listeners).
 
 ```
 bash -n .claude/hooks/post-commit-changelog.sh   parses
-verify_decision_log_86_97.py                     ALL GREEN: 27 passed, 0 failed
+verify_decision_log_86_97.py                     ALL GREEN: 35 passed, 0 failed
 verify_changelog_flip_86_91.py                   ALL GREEN: 42 passed, 0 failed
 verify_workflow_args_boundary.mjs                ALL GREEN: 96 passed, 0 failed
 verify_research_gate_workflow.mjs                ALL GREEN: 124 passed, 0 failed
@@ -344,3 +345,103 @@ an explicit assertion that the input exists.
 Assertions **20 → 27**. No criterion reinterpreted; nothing weakened. The two
 WARN findings were both real defects in my work, and both were of the class this
 step exists to attack.
+
+---
+
+## I. CYCLE-3 REMEDIATION — a figure that expired, and guards with no cells
+
+Cycle-2 verdict `wf_2dd1efc9-d0c`: **CONDITIONAL**. All 7 criteria MET and every
+one independently re-executed by the evaluator, capped on two WARNs. Both were
+real; both were instances of defect classes this step is about.
+
+### I1. My measured figure was invalidated by my own edit, in the commit that stated it
+
+I wrote `7,597 B / sha1 f7458a6ab1f5fe96` as MEASURED. It was exact — **at the
+parent commit**. The criterion-5 docstring correction I made to `_log_decision`
+(one of the four names the extractor lifts) rode in **the same commit** that
+stated the number, and moved it. Re-derived with the shipped extractor:
+
+```
+  52358053: 7,597 B  sha1 f7458a6ab1f5fe96
+  WORKTREE: 8,617 B  sha1 072056e58af2befa
+
+AT HEAD, call DELETED: 8,617 B  sha1 072056e58af2befa
+BYTE-IDENTICAL at HEAD: True  <- the PROPERTY still holds; only the cycle-1 FIGURE was stale
+CONTROL (edit inside the def): 8,641 B  differs: True  (+24 B)
+```
+
+**The property is invariant; the byte count is not.** Every one of the six sites
+carrying it now names the commit it was measured at — including
+`.claude/agent-memory/researcher/project_uncalled_function_86_97.md`, which is
+auto-loaded into every future researcher session and was therefore the most
+forward-looking consumer of the wrong number.
+
+The lesson generalises past this step: a figure labelled *measured* with no
+commit attached is a claim that quietly expires, and it expires most easily when
+the thing that invalidates it is your own edit in the same commit.
+
+### I2. Criterion 6 says "every new guard" — sections [1] and [2] had no cells
+
+Cycles 1–2 mutation-tested only the `[3]`/`[4]` guards. The preconditions, the
+enumeration recall and the classification keying had **no cell at all**, and
+unlike the disclosed `:214` gap this subsetting was not in the scope-honesty list.
+The cycle-2 Q/A ran four such mutations itself and found zero survivors — but
+zero survivors is not the same as tested.
+
+To make those guards reachable, the `[1]`/`[2]` logic was refactored into a single
+`analyse(src)` function that **both** the shipped assertions and the new cells
+consume. That detail is load-bearing: a mutation section driving a
+re-implementation would be testing a copy, not the guard.
+
+```
+[5] MUTATION of the [1]/[2] guards (criterion 6, 'every new guard')
+
+  ok   [5] CONTROL: the real hook satisfies all four [1]/[2] properties
+  ok   [5] bash-function-defined: KILLED -- the lexical rule stops being sound and [1] must say so
+  ok   [5] trap-reorders-execution: KILLED -- execution order no longer matches source order
+  ok   [5] exit-the-RULE-under-matches: KILLED -- the dumber scan sees an exit the rule missed
+  ok   [5] unclassified-pre-detector-exit: KILLED -- a fourth early exit nobody has classified
+  ok   [5] classification-keys-on-condition-text: KILLED -- rewording the recursion guard's condition makes it UNCLASSIFIED
+  ok   [5] isolation-check: KILLED -- a corrupted snapshot makes it report FALSE
+  ok   [5] isolation-check CONTROL: the true snapshot still reports TRUE
+
+ALL GREEN: 35 passed, 0 failed
+```
+
+Note the two paired assertions on the isolation check. Cycle 2's version of this
+probe corrupted the snapshot, let the real assertion FAIL, then popped the entry
+off `_failures` and decremented the counter by hand — a cell that edits the
+scoreboard to run. It is now a pure predicate (`isolation_holds`) probed in both
+directions, so nothing is patched and no spurious `FAIL` line is printed.
+
+### I3. Two diagnostics named the wrong leg (NOTE)
+
+The UNSCORABLE message said *"bash -n rejected the mutant"* unconditionally — but
+after cycle 2 the rejection usually comes from the `compile()` leg, which is
+exactly the leg cycle 2 added. And the KILLED message said *"the mutant STILL
+produced a decision line"* even when the real cause was a non-zero rc and the log
+was in fact empty. A maintainer debugging a red run was being sent to the wrong
+place. Both now name the leg that actually fired, verified in both directions:
+
+```
+python-syntax-error-in-heredoc     bash_parses=True  buildable=False -> message would name: the heredoc compile() leg
+unclosed-if (REAL bash error):     bash_parses=False buildable=False -> names: bash -n
+```
+
+*(My first attempt at the bash-side control was invalid — a missing `]` is still
+syntactically valid bash, so `bash -n` accepted it. That is the probe being
+wrong, not the code, and it is recorded rather than quietly replaced.)*
+
+### I4. The accompany-form residual in `experiment_results_86.91.md` (NOTE)
+
+Line 186 still read *"An unexplained `none` is no longer expressible *(bounded —
+see below)*"* — a pointer, 15 lines inside the very section rewritten for
+accompanying rather than replacing. Now stated in place: *"no longer expressible
+**BY THE DETECTOR**"*. Pre-existing from 86.91 cycle-3 (`468c7908`), not
+introduced here, but my artifact claimed the correction was complete.
+
+### Net
+
+Assertions **27 → 35**. Nothing weakened; no criterion reinterpreted. The
+refactor moved section-[1]/[2] logic into a shared function so it could be
+mutated, and every new cell kills.

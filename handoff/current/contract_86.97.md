@@ -47,6 +47,7 @@ Measured, and this is the load-bearing distinction: deleting the production call
 leaves the extracted source **byte-identical**.
 
 ```
+# measured at 52358053 (this step's PARENT commit)
 extracted SHIPPED, unmutated   : 7,597 B  sha1 f7458a6ab1f5fe96
 extracted SHIPPED, call DELETED: 7,597 B  sha1 f7458a6ab1f5fe96
 BYTE-IDENTICAL: True

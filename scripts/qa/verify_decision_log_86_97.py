@@ -12,10 +12,20 @@ match, so **enlarging the NEEDED tuple cannot help**.
 
 That is not a weak assertion, it is structural blindness, and the difference
 matters. MEASURED: deleting the production call leaves the extracted source
-BYTE-IDENTICAL (7,597 B, sha1 f7458a6ab1f5fe96), while an edit *inside* the
-definition changes it (+24 B). So the extraction is live -- it is specifically
-the call it cannot see. The mutant is therefore INVISIBLE, not merely surviving:
-no assertion added to that file, however clever, could ever kill it.
+BYTE-IDENTICAL, while an edit *inside* the definition changes it (+24 B). So the
+extraction is live -- it is specifically the call it cannot see.
+
+THE FIGURE IS PINNED TO A COMMIT, because it moves. At 52358053 (this step's
+parent) the extraction was 7,597 B / sha1 f7458a6ab1f5fe96; at HEAD it is
+8,617 B / sha1 072056e58af2befa. What changed it was THIS STEP's own criterion-5
+docstring correction inside `_log_decision` -- one of the four extracted names --
+which rode in the same commit that first stated the number. The PROPERTY is
+invariant (call-deleted is byte-identical to base at both commits); only the
+byte count is not. A measured figure without the commit it was measured at is a
+claim that quietly expires.
+
+The mutant is therefore INVISIBLE, not merely surviving: no assertion added to
+that file, however clever, could ever kill it.
 
 The literature name for a method whose removal breaks no test is
 **pseudo-tested** (Vera-Perez et al.; Niedermayr et al. found 291/2041, and 14
@@ -32,8 +42,10 @@ Sections:
   [2] ENUMERATION of every exit path FROM SOURCE, by a written-down rule that
       self-tests, plus a classification keyed on guard CONDITION text
   [3] END-TO-END: drive the REAL hook in a temp git repo, assert on the FILE
-  [4] MUTATION: control GREEN first, then kill the delete-the-call mutant;
-      a mutant that does not BUILD is UNSCORABLE and FAILS
+  [4] MUTATION of the production guards: control GREEN first, then kill the
+      delete-the-call mutant; a mutant that does not BUILD is UNSCORABLE and FAILS
+  [5] MUTATION of the [1]/[2] guards themselves -- criterion 6 says EVERY new
+      guard, and cycles 1-2 covered only [3]/[4]
 
 Run:  python scripts/qa/verify_decision_log_86_97.py
 """
@@ -74,67 +86,12 @@ LINES = HOOK_SRC.splitlines()
 # order. Three things would break it, so all three are asserted rather than
 # assumed -- and if any ever becomes false, this section goes red and says why,
 # instead of the classification silently becoming wrong.
-print("\n[1] PRECONDITIONS for the lexical rule (criterion 2)\n")
-
 FUNC_RE = re.compile(r"^\s*(function\s+)?[A-Za-z_][A-Za-z0-9_]*\s*\(\)\s*\{")
-funcs = [i + 1 for i, l in enumerate(LINES) if FUNC_RE.match(l)]
-check("[1] the hook defines NO bash functions (so lexical order == execution order)",
-      not funcs, f"functions at lines {funcs} -- a lexical rule is no longer sound")
-
 REORDER_RE = re.compile(r"^\s*(trap|source|\.|eval)\s")
-reorder = [i + 1 for i, l in enumerate(LINES) if REORDER_RE.match(l)]
-check("[1] no trap / source / . / eval (nothing reorders execution)",
-      not reorder, f"found at lines {reorder}")
-
 HEREDOC_RE = re.compile(r"<<\s*'?([A-Za-z_][A-Za-z0-9_]*)'?\s*$")
-heredocs = [(i + 1, m.group(1)) for i, l in enumerate(LINES) if (m := HEREDOC_RE.search(l))]
-check("[1] exactly ONE heredoc -- the detector", len(heredocs) == 1,
-      f"found {len(heredocs)}: {heredocs}")
-DETECTOR_START = heredocs[0][0] if heredocs else 10**9
-TERM = heredocs[0][1] if heredocs else "PYEOF"
-term_lines = [i + 1 for i, l in enumerate(LINES) if l.rstrip() == TERM]
-check("[1] the heredoc terminator is found exactly once", len(term_lines) == 1,
-      f"'{TERM}' at {term_lines}")
-DETECTOR_END = term_lines[0] if len(term_lines) == 1 else 10**9
-check("[1] the detector region is non-empty and ordered",
-      DETECTOR_START < DETECTOR_END, f"{DETECTOR_START}..{DETECTOR_END}")
-print(f"       detector heredoc: lines {DETECTOR_START}..{DETECTOR_END} (terminator {TERM!r})")
-
-# ── [2] ENUMERATION FROM SOURCE, BY A WRITTEN-DOWN RULE ─────────────────────
-#
-# THE RULE (this is the "written-down rule" criterion 2 requires):
-#   An EXIT PATH is any line, outside the detector heredoc, on which the token
-#   `exit` appears as a command -- i.e. matching  (^|;|&&|\|\|)\s*exit\b .
-#
-# THE SELF-TEST: a scan that quietly matches nothing looks identical to a clean
-# bill of health, so the rule is cross-checked against a deliberately DUMBER
-# one (every line containing the substring "exit" at all). Every line the dumb
-# scan finds and the rule does not must be explainable as a comment or prose;
-# anything else means the rule is under-matching and the gate FAILS.
-print("\n[2] ENUMERATION of exit paths from source (criterion 2)\n")
-
 RULE = re.compile(r"(?:^|;|&&|\|\|)\s*exit\b")
 DUMB = re.compile(r"\bexit\b")
 
-
-def in_detector(lineno: int) -> bool:
-    return DETECTOR_START < lineno < DETECTOR_END
-
-
-rule_hits = [(i + 1, l) for i, l in enumerate(LINES)
-             if RULE.search(l) and not in_detector(i + 1)]
-dumb_hits = [(i + 1, l) for i, l in enumerate(LINES)
-             if DUMB.search(l) and not in_detector(i + 1)]
-
-check("[2] the rule finds a non-zero number of exit paths (a scan that matches "
-      "nothing is not a clean bill of health)", len(rule_hits) > 0,
-      "the rule matched NOTHING -- it is broken, not the hook")
-
-missed = [(n, l) for (n, l) in dumb_hits if (n, l) not in rule_hits]
-unexplained = [(n, l) for (n, l) in missed if not l.lstrip().startswith("#")]
-check("[2] every line the dumber scan finds but the rule does not is a comment "
-      "(so the rule is not under-matching)", not unexplained,
-      f"unexplained at {[n for n, _ in unexplained]}")
 
 # CLASSIFICATION.
 #
@@ -165,26 +122,109 @@ PRE_DETECTOR_CLASSIFICATION = [
      "do' from outside.")),
 ]
 
-pre = [(n, l) for (n, l) in rule_hits if n < DETECTOR_START]
-post = [(n, l) for (n, l) in rule_hits if n > DETECTOR_END]
+
+def analyse(src: str) -> dict:
+    """Everything sections [1] and [2] assert on, as data, from ONE source of truth.
+
+    THIS IS A FUNCTION SO THE SECTION-[1]/[2] GUARDS CAN BE MUTATION-TESTED.
+    Cycle 2 computed all of this inline at module scope, which made those guards
+    unreachable by any mutant: the only way to re-run them was to re-run the
+    whole file against the real hook. Section [5] now feeds mutated sources
+    through THIS function -- the same code path the shipped assertions use, not
+    a re-implementation, which would test a copy instead of the guard.
+    """
+    lines = src.splitlines()
+    heredocs = [(i + 1, m.group(1)) for i, l in enumerate(lines)
+                if (m := HEREDOC_RE.search(l))]
+    start = heredocs[0][0] if heredocs else 10**9
+    term = heredocs[0][1] if heredocs else "PYEOF"
+    term_lines = [i + 1 for i, l in enumerate(lines) if l.rstrip() == term]
+    end = term_lines[0] if len(term_lines) == 1 else 10**9
+
+    def outside(n: int) -> bool:
+        return not (start < n < end)
+
+    rule_hits = [(i + 1, l) for i, l in enumerate(lines)
+                 if RULE.search(l) and outside(i + 1)]
+    dumb_hits = [(i + 1, l) for i, l in enumerate(lines)
+                 if DUMB.search(l) and outside(i + 1)]
+    missed = [(n, l) for (n, l) in dumb_hits if (n, l) not in rule_hits]
+    pre = [(n, l) for (n, l) in rule_hits if n < start]
+    unclassified = []
+    for n, _l in pre:
+        cond = guard_condition(lines, n)
+        if not any(re.search(pat, cond) for (pat, _k, _w) in PRE_DETECTOR_CLASSIFICATION):
+            unclassified.append((n, cond))
+    return {
+        "lines": lines,
+        "funcs": [i + 1 for i, l in enumerate(lines) if FUNC_RE.match(l)],
+        "reorder": [i + 1 for i, l in enumerate(lines) if REORDER_RE.match(l)],
+        "heredocs": heredocs, "term": term, "term_lines": term_lines,
+        "start": start, "end": end,
+        "rule_hits": rule_hits,
+        "unexplained": [(n, l) for (n, l) in missed if not l.lstrip().startswith("#")],
+        "pre": pre,
+        "post": [(n, l) for (n, l) in rule_hits if n > end],
+        "unclassified": unclassified,
+    }
+
+
+def guard_condition(lines: list[str], lineno: int) -> str:
+    """The nearest preceding `if`/`||` line -- the condition this exit serves."""
+    for j in range(lineno - 1, max(0, lineno - 6), -1):
+        text = lines[j - 1]
+        if re.search(r"^\s*(if|elif)\b", text) or "||" in text:
+            return text.strip()
+    return lines[lineno - 1].strip()
+
+
+print("\n[1] PRECONDITIONS for the lexical rule (criterion 2)\n")
+A = analyse(HOOK_SRC)
+check("[1] the hook defines NO bash functions (so lexical order == execution order)",
+      not A["funcs"], f"functions at lines {A['funcs']} -- a lexical rule is no longer sound")
+check("[1] no trap / source / . / eval (nothing reorders execution)",
+      not A["reorder"], f"found at lines {A['reorder']}")
+check("[1] exactly ONE heredoc -- the detector", len(A["heredocs"]) == 1,
+      f"found {len(A['heredocs'])}: {A['heredocs']}")
+check("[1] the heredoc terminator is found exactly once", len(A["term_lines"]) == 1,
+      f"'{A['term']}' at {A['term_lines']}")
+check("[1] the detector region is non-empty and ordered",
+      A["start"] < A["end"], f"{A['start']}..{A['end']}")
+DETECTOR_START, DETECTOR_END = A["start"], A["end"]
+print(f"       detector heredoc: lines {DETECTOR_START}..{DETECTOR_END} (terminator {A['term']!r})")
+
+# ── [2] ENUMERATION FROM SOURCE, BY A WRITTEN-DOWN RULE ─────────────────────
+#
+# THE RULE (this is the "written-down rule" criterion 2 requires):
+#   An EXIT PATH is any line, outside the detector heredoc, on which the token
+#   `exit` appears as a command -- i.e. matching  (^|;|&&|\|\|)\s*exit\b .
+#
+# THE SELF-TEST: a scan that quietly matches nothing looks identical to a clean
+# bill of health, so the rule is cross-checked against a deliberately DUMBER
+# one (every line containing the substring "exit" at all). Every line the dumb
+# scan finds and the rule does not must be explainable as a comment or prose;
+# anything else means the rule is under-matching and the gate FAILS.
+print("\n[2] ENUMERATION of exit paths from source (criterion 2)\n")
+
+check("[2] the rule finds a non-zero number of exit paths (a scan that matches "
+      "nothing is not a clean bill of health)", len(A["rule_hits"]) > 0,
+      "the rule matched NOTHING -- it is broken, not the hook")
+
+check("[2] every line the dumber scan finds but the rule does not is a comment "
+      "(so the rule is not under-matching)", not A["unexplained"],
+      f"unexplained at {[n for n, _ in A['unexplained']]}")
+
+
+pre, post = A["pre"], A["post"]
 check("[2] at least one PRE-detector exit path exists (else this step's premise "
       "is void)", len(pre) > 0)
 check("[2] at least one POST-detector exit path exists", len(post) > 0)
 
 
-def guard_condition(lineno: int) -> str:
-    """The nearest preceding `if`/`||` line -- the condition this exit serves."""
-    for j in range(lineno - 1, max(0, lineno - 6), -1):
-        text = LINES[j - 1]
-        if re.search(r"^\s*(if|elif)\b", text) or "||" in text:
-            return text.strip()
-    return LINES[lineno - 1].strip()
-
-
 print(f"       {len(pre)} pre-detector exit path(s), {len(post)} post-detector\n")
 classified = 0
 for n, _l in pre:
-    cond = guard_condition(n)
+    cond = guard_condition(A["lines"], n)
     hit = next(((pat, kind, why) for (pat, kind, why) in PRE_DETECTOR_CLASSIFICATION
                 if re.search(pat, cond)), None)
     if hit is None:
@@ -265,6 +305,18 @@ check("[3] a decision line is WRITTEN TO THE FILE (the observable effect, not an
 check("[3] the decision line carries a reason", "reason=" in log_text,
       f"line: {log_text.strip()[:120]!r}")
 
+def isolation_holds(snapshot: bytes) -> bool:
+    """Pure predicate: is the real log still byte-identical to `snapshot`?
+
+    Separated from the assertion so section [5] can probe it with a deliberately
+    corrupted snapshot WITHOUT emitting a spurious FAIL line and without the
+    caller hand-patching the pass/fail counters. A mutation cell that has to
+    edit the scoreboard to run is a cell nobody will trust.
+    """
+    now = real_log.read_bytes() if real_log.exists() else b""
+    return snapshot == now
+
+
 def assert_isolated(where: str) -> None:
     """Re-check after EVERY drive, not just the first.
 
@@ -273,9 +325,8 @@ def assert_isolated(where: str) -> None:
     artifact claimed the property broadly. The check is cheap; the claim has to
     be true for every drive that exists, not for the first one.
     """
-    now = real_log.read_bytes() if real_log.exists() else b""
     check(f"[3] ISOLATION after {where}: the real repo's decision log is untouched",
-          real_before == now,
+          isolation_holds(real_before),
           "the driver wrote into the real repo -- it is contaminating its own evidence")
 
 
@@ -336,6 +387,16 @@ def heredoc_body(src: str) -> str | None:
     return "\n".join(ls[s + 1:e]) if e > s else None
 
 
+def _bash_parses(src: str) -> bool:
+    """The bash half of the buildability oracle, named so a failure can say which
+    leg rejected the mutant rather than always blaming `bash -n`."""
+    with tempfile.TemporaryDirectory() as td:
+        p = Path(td) / "m.sh"
+        p.write_text(src, encoding="utf-8")
+        return subprocess.run(["bash", "-n", str(p)], capture_output=True,
+                              check=False).returncode == 0
+
+
 def buildable(src: str) -> bool:
     """A mutant that does not BUILD is UNSCORABLE, never a kill.
 
@@ -355,12 +416,8 @@ def buildable(src: str) -> bool:
     that cannot observe the failure mode it is nominally guarding -- reproduced
     inside the guard itself. Found by the phase-86.97 cycle-1 Q/A.
     """
-    with tempfile.TemporaryDirectory() as td:
-        p = Path(td) / "m.sh"
-        p.write_text(src, encoding="utf-8")
-        if subprocess.run(["bash", "-n", str(p)], capture_output=True,
-                          check=False).returncode != 0:
-            return False
+    if not _bash_parses(src):
+        return False
     body = heredoc_body(src)
     if body is None:
         return False          # cannot locate it -> cannot vouch for it
@@ -418,8 +475,10 @@ for mid, frm, to, why in MUTANTS:
         check(f"[4] {mid}: the mutation changed bytes", False, "no-op replace")
         continue
     if not buildable(mutated):
+        _bash_ok = _bash_parses(mutated)
+        _leg = "bash -n" if not _bash_ok else "the heredoc compile() leg"
         check(f"[4] {mid}: UNSCORABLE -- the mutant does not build, so it cannot "
-              "be scored as a kill", False, "bash -n rejected the mutant")
+              "be scored as a kill", False, f"{_leg} rejected the mutant")
         continue
     if not control_ok:
         continue
@@ -430,12 +489,93 @@ for mid, frm, to, why in MUTANTS:
     check(f"[4] {mid}: the mutant still runs cleanly (rc=0), so an empty log means "
           "the GUARD caught it and not that the hook crashed", m_rc == 0,
           f"rc={m_rc} stderr={m_err.strip()[-160:]!r}")
+    _detail = (f"the mutant exited rc={m_rc}, so the empty log says nothing about "
+               "the guard -- see the rc assertion above"
+               if m_rc != 0 else
+               f"the mutant STILL produced a decision line ({m_log.strip()[:90]!r}) "
+               "-- this guard is not the one doing the work")
     check(f"[4] {mid}: KILLED -- removing {why} makes the guard RED",
-          m_rc == 0 and m_log.strip() == "",
-          f"the mutant STILL produced a decision line ({m_log.strip()[:90]!r}) -- "
-          "this guard is not the one doing the work")
+          m_rc == 0 and m_log.strip() == "", _detail)
 
 assert_isolated("all mutant drives")
+
+# ── [5] MUTATION OF THE SECTION-[1]/[2] GUARDS ──────────────────────────────
+#
+# WHY THIS SECTION EXISTS. Criterion 6 says "EVERY new guard is mutation-tested".
+# Cycles 1 and 2 mutation-tested only the [3]/[4] guards, and the [1]/[2] guards
+# -- preconditions, enumeration recall, classification keying -- had no cell at
+# all. The cycle-2 Q/A ran four such mutations itself, found zero survivors, and
+# correctly recorded the gap as coverage-and-disclosure rather than vacuity.
+# Zero survivors is not the same as tested, so the cells are now SHIPPED, and
+# they run through `analyse()` -- the same function the shipped assertions use,
+# never a re-implementation.
+#
+# Each cell is a DIFFERENTIAL: the property must hold on the real hook and FAIL
+# on the mutant. A cell that only checks the mutant proves nothing about whether
+# the guard was ever satisfied to begin with.
+print("\n[5] MUTATION of the [1]/[2] guards (criterion 6, 'every new guard')\n")
+
+BASE = analyse(HOOK_SRC)
+check("[5] CONTROL: the real hook satisfies all four [1]/[2] properties",
+      not BASE["funcs"] and not BASE["reorder"] and not BASE["unexplained"]
+      and not BASE["unclassified"],
+      "the control is already violated -- no differential below can be believed")
+
+_ins = HOOK_SRC.index("\nNEW_ROW=")   # a stable pre-detector insertion point
+
+
+def _mutate(text: str) -> str:
+    return HOOK_SRC[:_ins] + "\n" + text + HOOK_SRC[_ins:]
+
+
+SECTION12_MUTANTS = [
+    ("bash-function-defined", 'helper() {\n  echo hi\n}',
+     "funcs", "the lexical rule stops being sound and [1] must say so"),
+    ("trap-reorders-execution", 'trap "echo bye" EXIT',
+     "reorder", "execution order no longer matches source order"),
+    ("exit-the-RULE-under-matches", 'if true; then exit 0; fi   # same-line exit',
+     "unexplained", "the dumber scan sees an exit the rule missed"),
+    ("unclassified-pre-detector-exit",
+     'if [ -n "${SOME_NEW_FLAG:-}" ]; then\n    exit 0\nfi',
+     "unclassified", "a fourth early exit nobody has classified"),
+]
+
+for mid, injected, key, why in SECTION12_MUTANTS:
+    mutated = _mutate(injected)
+    if mutated == HOOK_SRC:
+        check(f"[5] {mid}: the mutation changed bytes", False, "no-op insert")
+        continue
+    if not buildable(mutated):
+        check(f"[5] {mid}: UNSCORABLE -- the mutant does not build", False,
+              "cannot score a mutant that does not build")
+        continue
+    found = analyse(mutated)[key]
+    check(f"[5] {mid}: KILLED -- {why}", bool(found),
+          f"analyse()['{key}'] is still empty -- this guard is not doing the work")
+
+# The classification must key on CONDITION TEXT, not position. Reword the
+# recursion guard's condition and the entry must stop matching -- which is what
+# makes "an unclassified exit FAILS" a real gate rather than a line-number
+# coincidence.
+_reworded = HOOK_SRC.replace('^chore: (auto-changelog|changelog drift)',
+                             '^chore: (SOMETHING-ELSE-ENTIRELY)')
+if _reworded == HOOK_SRC:
+    check("[5] classification-keying: anchor is unique", False, "condition text not found")
+else:
+    check("[5] classification-keys-on-condition-text: KILLED -- rewording the "
+          "recursion guard's condition makes it UNCLASSIFIED",
+          bool(analyse(_reworded)["unclassified"]),
+          "the entry still matched after its condition changed -- the table is "
+          "keyed on something other than the condition text")
+
+# And the isolation check itself: probe it with a snapshot that cannot match.
+check("[5] isolation-check: KILLED -- a corrupted snapshot makes it report FALSE",
+      not isolation_holds(b"__CORRUPTED_SNAPSHOT__"),
+      "isolation_holds() returned True against a snapshot that cannot match -- "
+      "it is not comparing what it claims to compare")
+check("[5] isolation-check CONTROL: the true snapshot still reports TRUE",
+      isolation_holds(real_before),
+      "the control is broken, so the kill above proves nothing")
 
 print()
 if _failures:

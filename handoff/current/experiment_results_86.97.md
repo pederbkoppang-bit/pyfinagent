@@ -21,9 +21,17 @@ INVISIBLE rather than surviving.**
 `detector_source()` collects only definition nodes (`FunctionDef` / `Assign` /
 `AnnAssign`). A bare `_log_decision(bump_type)` is `ast.Expr(Call)` and binds no
 name, so it can never match. Deleting the production call leaves the extracted
-source **byte-identical** (7,597 B, sha1 `f7458a6ab1f5fe96`), while an edit
-inside the definition changes it (+24 B) — so the extraction is live, and it is
-specifically the *call* it cannot see.
+source **byte-identical**, while an edit inside the definition changes it
+(+24 B) — so the extraction is live, and it is specifically the *call* it cannot
+see.
+
+**The byte figure is pinned to a commit, because it moves.** At `52358053` (this
+step's parent) the extraction is 7,597 B / sha1 `f7458a6ab1f5fe96`; at HEAD it is
+**8,617 B / sha1 `072056e58af2befa`**. The mover was this step's *own* criterion-5
+docstring correction inside `_log_decision` — one of the four extracted names —
+which rode in the same commit that first stated the number. The **property** is
+invariant at both commits (call-deleted is byte-identical to base); only the count
+is not. Flagged by the cycle-2 Q/A.
 
 The consequence is the reason criterion 4 is worded as it is: **no assertion
 added to that file could ever kill this mutant.** Patching `NEEDED` would be
@@ -49,7 +57,7 @@ After this step, the same mutant is **KILLED**.
 
 ## The guard
 
-`scripts/qa/verify_decision_log_86_97.py`, four sections, 27 assertions, exit 0.
+`scripts/qa/verify_decision_log_86_97.py`, five sections, 35 assertions, exit 0.
 
 1. **Preconditions.** The classification rule is lexical, so its three soundness
    conditions are *asserted*: no bash functions, no `trap`/`source`/`.`/`eval`,
@@ -64,9 +72,17 @@ After this step, the same mutant is **KILLED**.
    isolation) and asserts on the **decision-log file**. Isolation is asserted,
    not hoped for: the real log is snapshotted and required byte-identical, since
    the hook ends in `git add` + `git commit`.
-4. **Mutation.** An oracle self-test in both directions, control first, then two
-   cells: delete the call, and retarget the write. The second exists because the
-   first alone would let a "the call text is present" check pass.
+4. **Mutation of the production guards.** An oracle self-test in both directions,
+   control first, then two cells: delete the call, and retarget the write. The
+   second exists because the first alone would let a "the call text is present"
+   check pass.
+5. **Mutation of the `[1]`/`[2]` guards themselves.** Criterion 6 says *every* new
+   guard, and cycles 1–2 covered only `[3]`/`[4]`. Seven cells now mutate the
+   preconditions, the enumeration recall, the classification keying and the
+   isolation check. To make them reachable, the `[1]`/`[2]` logic was refactored
+   into one `analyse(src)` function that **both** the shipped assertions and the
+   cells consume — a section driving a re-implementation would test a copy, not
+   the guard.
 
 **The buildability oracle was wrong in cycle 1, and the failure was the step's
 own subject.** `buildable()` was `bash -n` alone — which does **not** parse
@@ -159,6 +175,12 @@ rewrite); and the verbatim checker output in `live_check_86.91.md`.
   pre-detector bash path is a behavioural change to a hook that runs on every
   commit, and it belongs in its own step with its own criteria. **Filed as
   86.103** rather than left as prose.
+- Until cycle 3, the mutation matrix covered only the `[3]`/`[4]` guards; the
+  `[1]`/`[2]` guards had no cell and that subsetting was not disclosed. Now
+  covered by section `[5]`, seven cells, all killing.
+- The `7,597 B` extraction figure was exact at the parent commit and was
+  invalidated by this step's own criterion-5 docstring edit **in the commit that
+  stated it**. All six sites now name the commit; the *property* was never wrong.
 - `bump_type = _flip_magnitude()` (hook `:214`) is the second call site the
   research surfaced. It is covered incidentally by the end-to-end driver (if it
   were deleted the hook would fail), but it has **no dedicated mutation cell**.
@@ -173,7 +195,7 @@ $ bash -c 'bash -n .claude/hooks/post-commit-changelog.sh && echo parses'
 parses
 
 $ python scripts/qa/verify_decision_log_86_97.py ; echo $?
-ALL GREEN: 27 passed, 0 failed
+ALL GREEN: 35 passed, 0 failed
 0
 ```
 

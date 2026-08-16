@@ -119,6 +119,8 @@ classes. A call site is never a definition, so no `ast.Expr` can ever match. The
 
 ```
 anchor occurrences in hook: 1
+# measured at 52358053; at the phase-86.97 HEAD both are 8617 / 072056e58af2befa
+# (the phase-86.97 criterion-5 docstring edit moved the count; the IDENTITY holds at both)
 SHIPPED (control) bytes: 7597 sha1: f7458a6ab1f5fe96
 SHIPPED (mutant)  bytes: 7597 sha1: f7458a6ab1f5fe96
 BYTE-IDENTICAL: True

@@ -183,7 +183,7 @@ coverage that can actually execute them:
 The `reason` comes from a closed set: `subject_forced_major`, `flip_created`,
 `flip_transitioned`, `flip_created_and_transitioned`, `no_flip`,
 `masterplan_unreadable_at_HEAD`, `first_commit`, `detector_error:<Type>`. **An
-unexplained `none` is no longer expressible** *(bounded -- see below)* -- section `[2]` of the checker
+unexplained `none` is no longer expressible BY THE DETECTOR** -- section `[2]` of the checker
 asserts that every branch returning `"none"` sets a reason, and mutation cell M3
 (deleting one reason assignment) is KILLED.
 
