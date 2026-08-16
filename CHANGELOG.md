@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-16 | `952ed521` | phase-86.91: live_check -- the three pinned bump counts, the decision log, and the sliding-corpus co |
 | 2026-08-16 | `8dc70502` | phase-86.91: the changelog flip detector counts created-and-closed steps |
 | 2026-08-16 | `a21a5889` | phase-86.90: the Layer-3 prompt FIELD render boundary -- structured spawn input stops being coerced  |
 | 2026-08-16 | `c627a810` | chore(masterplan): file 86.91 -- changelog flip detector swallows created-and-closed steps |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-14 | `9c431237` | docs(86.74): D5 archaeology + D2 corrected to 14 undetermined |
 | 2026-08-14 | `a400a987` | phase-86.74: remediate cycle 6 -- undetermined is 14 not 33, and the stale claim was in the BINDING  |
 | 2026-08-14 | `f0c4ad0c` | phase-86.74: remediate the cycle-5 CONDITIONAL -- the artifact of record denied its own measurement |
-| 2026-08-14 | `9034ddfb` | phase-86.74: C4 MEASURED and satisfied; the 19/14/0 split independently re-derived |
 
 ---
 
