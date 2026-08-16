@@ -34,12 +34,13 @@ can reach the three pre-detector `exit 0` paths at all, since those live in bash
 
 Reproduced with the control observed GREEN first, and the mutant checked to
 **build** before being scored (an unbuildable mutant is UNSCORABLE, never a
-kill):
+kill). The buildability oracle is `bash -n` **plus** a `compile()` of the
+heredoc body — see below for why the bash half alone is not enough:
 
 ```
 control INSIDE the worktree : ALL GREEN: 42 passed, 0 failed
 MUTANT (call deleted, 25 B) : ALL GREEN: 42 passed, 0 failed   <- SURVIVED
-bash -n on the mutant        : parses -> BUILDABLE, so the score is valid
+mutant buildability          : bash -n rc=0 AND heredoc compiles -> BUILDABLE, score valid
 ```
 
 After this step, the same mutant is **KILLED**.
@@ -48,7 +49,7 @@ After this step, the same mutant is **KILLED**.
 
 ## The guard
 
-`scripts/qa/verify_decision_log_86_97.py`, four sections, 20 assertions, exit 0.
+`scripts/qa/verify_decision_log_86_97.py`, four sections, 27 assertions, exit 0.
 
 1. **Preconditions.** The classification rule is lexical, so its three soundness
    conditions are *asserted*: no bash functions, no `trap`/`source`/`.`/`eval`,
@@ -63,9 +64,25 @@ After this step, the same mutant is **KILLED**.
    isolation) and asserts on the **decision-log file**. Isolation is asserted,
    not hoped for: the real log is snapshotted and required byte-identical, since
    the hook ends in `git add` + `git commit`.
-4. **Mutation.** Control first, then two cells: delete the call, and neuter the
-   write. The second exists because the first alone would let a
-   "the call text is present" check pass.
+4. **Mutation.** An oracle self-test in both directions, control first, then two
+   cells: delete the call, and retarget the write. The second exists because the
+   first alone would let a "the call text is present" check pass.
+
+**The buildability oracle was wrong in cycle 1, and the failure was the step's
+own subject.** `buildable()` was `bash -n` alone — which does **not** parse
+inside a quoted heredoc (`<< 'PYEOF'`), and *both* mutants are Python-side edits
+inside exactly that heredoc. Measured: the mutant `_log_decision(bump_type`
+(unbalanced paren) gave `bash -n` rc=0 while `compile()` raised
+`SyntaxError: '(' was never closed`; driven, it produced rc=1 and an empty log,
+and the scoring rule `m_log.strip() == ""` recorded it as **KILLED**. A crash was
+being counted as a kill — an oracle blind to the failure mode it guards, which is
+the same category of defect this step exists to close, reproduced inside the
+guard. Found by the cycle-1 Q/A.
+
+Now: `buildable()` checks the bash half **and** compiles the heredoc body; the
+oracle is self-tested in both directions (YES to the real hook, NO to a heredoc
+`SyntaxError`); and every cell additionally asserts the mutant's **rc == 0**, so
+an empty log can only mean the guard caught it and not that the hook crashed.
 
 ### The classification is keyed on condition text, and that was proven live
 
@@ -103,6 +120,7 @@ timestamp (a bare date would slide with the clock). Measured twice, hours apart:
 ```
 21:03 -> commits=47  decision lines=24  gap=23  recursion-guard commits=24
 21:52 -> commits=51  decision lines=26  gap=25  recursion-guard commits=26
+22:12 -> commits=53  decision lines=27  gap=26  recursion-guard commits=27
 ```
 
 It moves — which is the point, and why the checker asserts the *relationship*
@@ -155,7 +173,7 @@ $ bash -c 'bash -n .claude/hooks/post-commit-changelog.sh && echo parses'
 parses
 
 $ python scripts/qa/verify_decision_log_86_97.py ; echo $?
-ALL GREEN: 20 passed, 0 failed
+ALL GREEN: 27 passed, 0 failed
 0
 ```
 

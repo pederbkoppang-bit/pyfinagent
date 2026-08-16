@@ -26,6 +26,12 @@ ALL GREEN: 42 passed, 0 failed
 The buildability check is not ceremony: a mutant that does not build is
 **UNSCORABLE**, and scoring it as a kill is how a guard flatters itself.
 
+*Cycle-2 note on that captured line:* `bash -n` alone turned out to be the wrong
+oracle — it does not parse inside a quoted heredoc, which is where this mutation
+lands. It happens to give the right answer **here** (a clean deletion does
+compile), but the oracle has since been strengthened to `bash -n` **plus** a
+`compile()` of the heredoc body. See §H.
+
 ### It is worse than "surviving" — it is INVISIBLE
 
 `detector_source()` walks `tree.body` collecting only `FunctionDef` / `Assign` /
@@ -66,10 +72,11 @@ bare date would slide with the clock:
   ok   [3] the gap is explained by the recursion guard (criterion 3: a BOUND, not an unexplained loss)
 ```
 
-Measured twice, hours apart, and it moves — which is the point: at 21:03 it was
-`commits=47 lines=24 gap=23 recursion=24`; at 21:52, `51 / 26 / 25 / 26`. A
-pinned figure would already be wrong. The gap tracks the recursion-guard count,
-not a mystery.
+Measured three times across the session, and it moves — which is the point:
+21:03 → `47 / 24 / 23 / 24`; 21:52 → `51 / 26 / 25 / 26`; 22:12 → `53 / 27 / 26 / 27`
+(commits / decision lines / gap / recursion-guard commits). A pinned figure would
+already be wrong three times over. The gap tracks the recursion-guard count, not
+a mystery — which is why the checker asserts the *relationship*, never a number.
 
 ---
 
@@ -161,30 +168,29 @@ looks identical to "nothing to do".
   ok   [3] the real hook runs to completion in a temp repo
   ok   [3] a decision line is WRITTEN TO THE FILE (the observable effect, not an extracted namespace)
   ok   [3] the decision line carries a reason
-  ok   [3] ISOLATION: the real repo's decision log is untouched by this driver
+  ok   [3] ISOLATION after the baseline drive: the real repo's decision log is untouched
+  ok   [3] recursion guard: an auto-changelog commit exits 0
+  ok   [3] recursion guard: and writes NO decision line (the BOUND, measured)
+  ok   [3] ISOLATION after the recursion-guard drive: the real repo's decision log is untouched
+  ok   [3] the real decision log exists, so the gap CAN be re-derived
+
+       RE-DERIVED at execution time (window pinned to 2026-08-16T08:23:33Z):
+         commits=53  decision lines=27  gap=26
+         commits matching the recursion guard=27
+  ok   [3] the gap is explained by the recursion guard (criterion 3: a BOUND, not an unexplained loss)
 
 [4] MUTATION -- the guard must SEE a deleted call (criteria 4, 6)
 
+  ok   [4] ORACLE: buildable() says YES to the unmutated hook
+  ok   [4] ORACLE: buildable() says NO to a Python SyntaxError INSIDE the heredoc
   ok   [4] CONTROL: the UNMUTATED hook writes a decision line
+  ok   [4] delete-the-production-call: the mutant still runs cleanly (rc=0), so an empty log means the GUARD caught it and not that the hook crashed
   ok   [4] delete-the-production-call: KILLED -- removing the call the 86.91 extraction is structurally blind to makes the guard RED
-  ok   [4] neuter-the-log-write: KILLED -- removing the write itself, so the effect disappears without the call moving makes the guard RED
-```
+  ok   [4] retarget-the-log-write: the mutant still runs cleanly (rc=0), so an empty log means the GUARD caught it and not that the hook crashed
+  ok   [4] retarget-the-log-write: KILLED -- removing the write's destination, with no name left undefined and no exception raised makes the guard RED
+  ok   [3] ISOLATION after all mutant drives: the real repo's decision log is untouched
 
-`delete-the-production-call` is **the same mutant that SURVIVED in §A**. That
-before/after pair is the whole step in two lines.
-
-The second mutant exists because the first alone is not enough: it removes the
-*write* while leaving the call in place, so a guard that merely checked "the call
-text is present" would pass. Both are checked for **buildability** before being
-scored.
-
-**Isolation is asserted, not hoped for.** The driver runs the real hook, which
-ends in `git add` + `git commit` — so the real repo's decision log is snapshotted
-and required byte-identical afterwards. A driver that contaminated the log would
-be corrupting the very evidence §B reasons about.
-
-```
-ALL GREEN: 20 passed, 0 failed        (exit 0)
+ALL GREEN: 27 passed, 0 failed
 ```
 
 Immutable command:
@@ -245,7 +251,7 @@ unrelated subjects (pytest-subprocess, the harness cycle index, Bolt listeners).
 
 ```
 bash -n .claude/hooks/post-commit-changelog.sh   parses
-verify_decision_log_86_97.py                     ALL GREEN: 20 passed, 0 failed
+verify_decision_log_86_97.py                     ALL GREEN: 27 passed, 0 failed
 verify_changelog_flip_86_91.py                   ALL GREEN: 42 passed, 0 failed
 verify_workflow_args_boundary.mjs                ALL GREEN: 96 passed, 0 failed
 verify_research_gate_workflow.mjs                ALL GREEN: 124 passed, 0 failed
@@ -253,3 +259,88 @@ verify_research_gate_workflow.mjs                ALL GREEN: 124 passed, 0 failed
 
 No masterplan step was flipped and no verdict altered by this work. The only
 behavioural change to production code is **none**: the hook edit is a docstring.
+
+---
+
+## H. CYCLE-2 REMEDIATION — my buildability oracle had the step's own defect
+
+Cycle-1 verdict `wf_3be25861-bde`: **CONDITIONAL**. Criteria 1, 2, 3, 4, 5 and 7
+MET and independently re-executed by the evaluator. Capped on **criterion 6**,
+and the finding is the sharpest kind — the guard reproduced, in its own scoring,
+the exact blindness it was built to close.
+
+### H1. `buildable()` could not fail for the mutants it gated (WARN)
+
+`buildable()` was `bash -n` alone. **`bash -n` does not parse inside a quoted
+heredoc** (`<< 'PYEOF'`), and *both* mutants are Python-side edits inside exactly
+that heredoc. I re-measured it myself rather than taking the verdict's word:
+
+```
+bash -n on a mutant with a Python SyntaxError inside the heredoc -> rc = 0 (0 means bash -n CANNOT see it)
+unmutated heredoc compiles: True
+MUTANT heredoc compile -> SyntaxError: '(' was never closed (<heredoc>, line 235)
+```
+
+So a crashing mutant produced an empty log, and the scoring rule
+`m_log.strip() == ""` recorded it as **KILLED**. Criterion 6's UNSCORABLE arm
+existed but its oracle was structurally blind to the only build failures these
+cells could have.
+
+**Fixed two ways.** `buildable()` now checks the bash half **and** compiles the
+heredoc body; and every cell additionally asserts the mutant's **`rc == 0`**, so
+an empty log can only mean the guard caught it, never that the hook crashed. The
+oracle is now self-tested **in both directions** — a one-sided control proves
+nothing:
+
+```
+  ok   [4] ORACLE: buildable() says YES to the unmutated hook
+  ok   [4] ORACLE: buildable() says NO to a Python SyntaxError INSIDE the heredoc
+```
+
+### H2. The second mutant killed by the WRONG mechanism (WARN)
+
+`neuter-the-log-write` redirected the write to `os.devnull` — but `os` is
+imported **zero** times inside the heredoc. Confirmed by driving both:
+
+```
+=== OLD mutant (os.devnull) -- the mis-attributed one ===
+  rc=0 log_empty=True
+  stderr: ["[changelog] decision-log FAILED (NameError: name 'os' is not defined)"]
+
+=== NEW mutant (retarget the filename) -- the intended mechanism ===
+  rc=0 log_empty=True
+  stderr mentions any error?: False
+  -> kills by the STATED mechanism (bytes land elsewhere), no exception path
+```
+
+The cell passed for a mechanism nobody intended, and two artifacts repeated the
+wrong explanation. It is now `retarget-the-log-write`: every name stays defined,
+the write succeeds, nothing raises — the *only* change is that the bytes land
+where the guard does not read. That isolates the property under test (the guard
+is bound to the FILE, not to call text). The claim text in
+`experiment_results_86.97.md` was **replaced**, not annotated.
+
+### H3. Isolation covered only the first drive (NOTE)
+
+The snapshot was taken once and checked once, so the recursion-guard drive and
+both mutant drives ran with no isolation assertion — while the artifact claimed
+the property broadly. Now asserted after **every** drive:
+
+```
+  ok   [3] ISOLATION after the baseline drive: the real repo's decision log is untouched
+  ok   [3] ISOLATION after the recursion-guard drive: the real repo's decision log is untouched
+  ok   [3] ISOLATION after all mutant drives: the real repo's decision log is untouched
+```
+
+### H4. The gap re-derivation could vanish silently (NOTE)
+
+It sat inside `if real_before:`, so a missing decision log would have made the
+whole block — including its `check()` — disappear rather than go red. A skipped
+check is indistinguishable from a passing one in the summary line. There is now
+an explicit assertion that the input exists.
+
+### Net
+
+Assertions **20 → 27**. No criterion reinterpreted; nothing weakened. The two
+WARN findings were both real defects in my work, and both were of the class this
+step exists to attack.

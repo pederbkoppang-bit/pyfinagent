@@ -149,20 +149,20 @@ check("[2] every line the dumber scan finds but the rule does not is a comment "
 # gate to get green".
 PRE_DETECTOR_CLASSIFICATION = [
     (r"chore: \(auto-changelog\|changelog drift\)", "LEGITIMATELY-SILENT",
-     "The recursion guard. The hook is re-entering itself: the commit it is "
+     ("The recursion guard. The hook is re-entering itself: the commit it is "
      "looking at is the one IT created. Such a commit is by construction not a "
      "bump candidate, so there is no decision to explain. Logging it would "
      "double the log with entries about the logger. This is a BOUND to state, "
      "not a defect to fix -- and it accounts for essentially the whole "
-     "commits-vs-lines gap (re-derived in [3])."),
+     "commits-vs-lines gap (re-derived in [3]).")),
     (r"! -f \"\$CHANGELOG\"", "MUST-LOG",
-     "The CHANGELOG is missing entirely. That is machinery breakage, not a "
+     ("The CHANGELOG is missing entirely. That is machinery breakage, not a "
      "routine skip: every subsequent commit will silently produce nothing, and "
-     "the decision log is the only place an operator would find out."),
+     "the decision log is the only place an operator would find out.")),
     (r"### Recent Activity", "MUST-LOG",
-     "The CHANGELOG exists but has lost its anchor section. Same class as "
+     ("The CHANGELOG exists but has lost its anchor section. Same class as "
      "above -- silent structural breakage that looks identical to 'nothing to "
-     "do' from outside."),
+     "do' from outside.")),
 ]
 
 pre = [(n, l) for (n, l) in rule_hits if n < DETECTOR_START]
@@ -242,7 +242,7 @@ def drive(hook_src: str, subject: str = "feat: a real change") -> tuple[int, str
         hp = tmp / "hook.sh"
         hp.write_text(hook_src, encoding="utf-8")
         hp.chmod(0o755)
-        r = subprocess.run(["bash", str(hp)], cwd=tmp, env=env,
+        r = subprocess.run(["bash", str(hp)], cwd=tmp, env=env, check=False,
                            capture_output=True, text=True, timeout=120)
         log = tmp / "handoff" / "logs" / "changelog-decisions.log"
         return r.returncode, (log.read_text(encoding="utf-8") if log.exists() else ""), r.stderr
@@ -265,10 +265,21 @@ check("[3] a decision line is WRITTEN TO THE FILE (the observable effect, not an
 check("[3] the decision line carries a reason", "reason=" in log_text,
       f"line: {log_text.strip()[:120]!r}")
 
-real_after = real_log.read_bytes() if real_log.exists() else b""
-check("[3] ISOLATION: the real repo's decision log is untouched by this driver",
-      real_before == real_after,
-      "the driver wrote into the real repo -- it is contaminating its own evidence")
+def assert_isolated(where: str) -> None:
+    """Re-check after EVERY drive, not just the first.
+
+    Cycle 1 snapshotted once and checked once, so the recursion-guard drive and
+    both mutant drives ran with no isolation assertion at all -- while the
+    artifact claimed the property broadly. The check is cheap; the claim has to
+    be true for every drive that exists, not for the first one.
+    """
+    now = real_log.read_bytes() if real_log.exists() else b""
+    check(f"[3] ISOLATION after {where}: the real repo's decision log is untouched",
+          real_before == now,
+          "the driver wrote into the real repo -- it is contaminating its own evidence")
+
+
+assert_isolated("the baseline drive")
 
 # The recursion guard, driven for real: an auto-changelog subject must produce
 # NO decision line. This is criterion 3's evidence, executed rather than argued.
@@ -276,19 +287,31 @@ rc2, log2, _ = drive(HOOK_SRC, subject="chore: auto-changelog hook entry for abc
 check("[3] recursion guard: an auto-changelog commit exits 0", rc2 == 0, f"rc={rc2}")
 check("[3] recursion guard: and writes NO decision line (the BOUND, measured)",
       log2.strip() == "", f"unexpectedly logged: {log2.strip()[:120]!r}")
+assert_isolated("the recursion-guard drive")
 
 # Re-derive the commits-vs-lines gap AT EXECUTION TIME. Never pin the figure:
 # the step was filed as "10 commits vs 5 lines" and that snapshot is already
 # stale. The window is anchored to the log's own first timestamp -- a bare date
 # would slide with the clock.
+#
+# FAIL LOUDLY IF THE INPUT IS ABSENT. Cycle 1 wrapped this whole block --
+# including its check() -- in `if real_before:`, so a missing decision log made
+# the re-derivation SILENTLY VANISH rather than go red. A guard whose input can
+# disappear must say so; a skipped check is indistinguishable from a passing one
+# in the summary line.
+check("[3] the real decision log exists, so the gap CAN be re-derived",
+      bool(real_before),
+      "handoff/logs/changelog-decisions.log is missing -- the re-derivation below "
+      "is SKIPPED, and that is reported rather than passed over in silence")
 if real_before:
     first_stamp = real_before.decode("utf-8", "replace").splitlines()[0].split()[0]
     n_lines = len(real_before.decode("utf-8", "replace").strip().splitlines())
     out = subprocess.run(["git", "log", f"--since={first_stamp}", "--format=%s"],
-                         cwd=REPO, capture_output=True, text=True, timeout=30).stdout
+                         cwd=REPO, capture_output=True, text=True, timeout=30,
+                         check=False).stdout
     subjects = [s for s in out.splitlines() if s.strip()]
     recursion = [s for s in subjects
-                 if re.match(r"^chore: (auto-changelog|changelog drift)", s, re.I)]
+                 if re.match(r"^chore: (auto-changelog|changelog drift)", s, re.IGNORECASE)]
     gap = len(subjects) - n_lines
     print(f"\n       RE-DERIVED at execution time (window pinned to {first_stamp}):")
     print(f"         commits={len(subjects)}  decision lines={n_lines}  gap={gap}")
@@ -302,22 +325,81 @@ if real_before:
 print("\n[4] MUTATION -- the guard must SEE a deleted call (criteria 4, 6)\n")
 
 
+def heredoc_body(src: str) -> str | None:
+    """The Python inside the detector heredoc, or None if it cannot be located."""
+    ls = src.splitlines()
+    try:
+        s = next(i for i, l in enumerate(ls) if "<< 'PYEOF'" in l)
+        e = next(i for i, l in enumerate(ls) if l.rstrip() == "PYEOF")
+    except StopIteration:
+        return None
+    return "\n".join(ls[s + 1:e]) if e > s else None
+
+
 def buildable(src: str) -> bool:
-    """A mutant that does not BUILD is UNSCORABLE, never a kill."""
+    """A mutant that does not BUILD is UNSCORABLE, never a kill.
+
+    BOTH HALVES ARE CHECKED, AND THE SECOND HALF IS THE WHOLE POINT.
+    The first version of this oracle was `bash -n` alone. That is structurally
+    blind to the mutants it gates: `bash -n` does NOT parse inside a QUOTED
+    heredoc (`<< 'PYEOF'`), and every mutation this file performs is a
+    Python-side edit inside exactly that heredoc.
+
+    MEASURED, with this file's own helper, before the fix: the mutant
+    `_log_decision(bump_type` (unbalanced paren) gave bash -n rc=0 -- "buildable"
+    -- while `compile()` raised `SyntaxError: '(' was never closed`. Driven, it
+    produced rc=1 and an EMPTY log, and the cell's `m_log.strip() == ""` scoring
+    rule therefore recorded it as KILLED. A crash was being counted as a kill.
+
+    That is the same category of blindness this step exists to close -- an oracle
+    that cannot observe the failure mode it is nominally guarding -- reproduced
+    inside the guard itself. Found by the phase-86.97 cycle-1 Q/A.
+    """
     with tempfile.TemporaryDirectory() as td:
         p = Path(td) / "m.sh"
         p.write_text(src, encoding="utf-8")
-        return subprocess.run(["bash", "-n", str(p)],
-                              capture_output=True).returncode == 0
+        if subprocess.run(["bash", "-n", str(p)], capture_output=True,
+                          check=False).returncode != 0:
+            return False
+    body = heredoc_body(src)
+    if body is None:
+        return False          # cannot locate it -> cannot vouch for it
+    try:
+        compile(body, "<heredoc>", "exec")
+    except SyntaxError:
+        return False
+    return True
 
 
 MUTANTS = [
     ("delete-the-production-call", "\n_log_decision(bump_type)\n", "\n",
      "the call the 86.91 extraction is structurally blind to"),
-    ("neuter-the-log-write", 'with open(log_dir / "changelog-decisions.log", "a", encoding="utf-8") as _fh:',
-     'with open(os.devnull, "a", encoding="utf-8") as _fh:',
-     "the write itself, so the effect disappears without the call moving"),
+    # THE SECOND CELL'S MUTATION WAS WRONG IN CYCLE 1 AND THE FIX IS INSTRUCTIVE.
+    # It redirected the write to `os.devnull` -- but `os` is imported ZERO times
+    # inside the heredoc, so it actually killed via
+    # `NameError: name 'os' is not defined`, swallowed by _log_decision's broad
+    # `except Exception`. The cell passed, for a mechanism nobody intended, and
+    # two artifacts repeated the wrong explanation. A mutation that kills by
+    # accident is not evidence about the thing it names.
+    # It now retargets the FILENAME: every name stays defined, the write still
+    # succeeds, no exception is raised anywhere -- the only thing that changes is
+    # that the bytes land somewhere the guard does not read. That isolates the
+    # property under test: the guard is bound to the FILE, not to call text.
+    ("retarget-the-log-write", 'log_dir / "changelog-decisions.log"',
+     'log_dir / "changelog-decisions.log.RETARGETED"',
+     "the write's destination, with no name left undefined and no exception raised"),
 ]
+
+# ORACLE SELF-TEST. buildable() gates every cell below, so a buildable() that
+# cannot say NO would silently disarm criterion 6's UNSCORABLE arm. Both
+# directions are asserted -- a one-sided control proves nothing.
+check("[4] ORACLE: buildable() says YES to the unmutated hook", buildable(HOOK_SRC),
+      "the oracle rejects the real hook -- every cell below would be skipped")
+_syntax_mutant = HOOK_SRC.replace("\n_log_decision(bump_type)\n", "\n_log_decision(bump_type\n")
+check("[4] ORACLE: buildable() says NO to a Python SyntaxError INSIDE the heredoc",
+      _syntax_mutant != HOOK_SRC and not buildable(_syntax_mutant),
+      "bash -n alone cannot see inside a quoted heredoc; without the compile() leg "
+      "a crashing mutant scores as a KILL")
 
 # CONTROL FIRST: the unmutated hook must produce a line, or every 'kill' below
 # would be measuring a driver that never worked.
@@ -342,12 +424,20 @@ for mid, frm, to, why in MUTANTS:
     if not control_ok:
         continue
     m_rc, m_log, m_err = drive(mutated)
+    # THE MUTANT MUST STILL RUN CLEANLY. Without this, ANY mutant that crashes
+    # the hook produces an empty log and scores as a kill -- so the cell would
+    # be measuring "did I break the hook", not "is this guard load-bearing".
+    check(f"[4] {mid}: the mutant still runs cleanly (rc=0), so an empty log means "
+          "the GUARD caught it and not that the hook crashed", m_rc == 0,
+          f"rc={m_rc} stderr={m_err.strip()[-160:]!r}")
     check(f"[4] {mid}: KILLED -- removing {why} makes the guard RED",
-          m_log.strip() == "",
+          m_rc == 0 and m_log.strip() == "",
           f"the mutant STILL produced a decision line ({m_log.strip()[:90]!r}) -- "
           "this guard is not the one doing the work")
 
-print("")
+assert_isolated("all mutant drives")
+
+print()
 if _failures:
     print(f"FAILED: {_pass} passed, {len(_failures)} failed")
     for f in _failures:
