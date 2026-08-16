@@ -25832,6 +25832,26 @@
           "notes": "Filed 2026-08-16 by Main during 86.90. Sibling of the 86.90/86.91 pair: all three are gates that stopped signalling without anyone noticing. Related memory: feedback_a_zero_assertion_guard_passes_vacuously, feedback_suspect_the_clean_check (this is its mirror -- a check red for the wrong reason)."
         },
         {
+          "id": "86.101",
+          "priority": "P3",
+          "status": "pending",
+          "harness_required": true,
+          "name": "enforceGate renders an ABSENT-value sentinel as if it were a measurement of the brief: `urls_collected=40 but only -1 distinct URLs appear in the brief` states a count that was never taken, and the true condition is that stage 2 supplied no count",
+          "audit_basis": "FOUND AND MEASURED during phase-86.92, filed rather than fixed inline for two reasons: the repair is inside .claude/workflows/research-gate.js, which the 2026-08-16 overnight rail (R5) puts off limits unattended because it is the gate that grades the harness; and the fix is a message-semantics change that deserves its own criteria. THE MECHANISM, measured by driving enforceGate directly rather than read from source: `const n = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : -1)` at research-gate.js:632 coerces a non-finite value to -1. That coercion is DELIBERATE AND CORRECT -- it is the fail-closed path, so an absent `distinct_urls_in_brief` makes `urls > briefUrls` true and the gate refuses rather than passing on an unsupplied count. It is the same discipline as the `briefStatus === 'ABSENT'` branch a few lines above, which is explicitly documented as reporting ABSENT distinctly from INCOMPLETE because 'saying which is more useful than degrading both to the same word'. THE DEFECT is that the violation TEXT at :740 does not extend that discipline to the numeric case: it renders the sentinel as a measurement, telling the reader 'only -1 distinct URLs appear in the brief'. No such measurement was taken. An operator reading that violation is told THE BRIEF is deficient when the VERIFICATION INPUT was, and the two have different remedies -- re-run the research vs fix stage 2. THIS IS NOT HYPOTHETICAL HARM: this exact sentence is the most likely reason phase-86.92 was originally filed against the wrong artifact (a stale on-disk brief) rather than against the checker's own stale verification fixture, which is what execution proved the cause to be. Same class as 86.87 (a fallback that writes an audit trail the judge never authored).",
+          "verification": {
+            "success_criteria": [
+              "the sentinel's dual role is preserved: the fail-closed BEHAVIOUR must not change -- an absent distinct_urls_in_brief must still produce a violation, proven by a cell that fails if the gate starts passing on an unsupplied count",
+              "the message distinguishes ABSENT from MEASURED, in the numeric case as the brief_status branch already does for the categorical case; a reader must be able to tell 'stage 2 supplied no count' from 'the brief really does carry fewer URLs than claimed'",
+              "the same audit is applied to EVERY other consumer of the `n()` sentinel, not just this one call site -- `sources` and `urls` pass through the identical coercion, so a fix that repairs one rendering and leaves the siblings is incomplete and fails this criterion",
+              "a mutation cell shows the new message is load-bearing: reverting it must change the reported diagnosis, not merely the wording of a message nothing asserts on",
+              "verdict semantics are UNCHANGED -- no input that fails the gate today may pass after this change, proven exhaustively over the absent/finite/negative cases"
+            ],
+            "command": "bash -c 'node scripts/qa/verify_research_gate_workflow.mjs && node scripts/qa/verify_workflow_args_boundary.mjs'",
+            "live_check": "live_check_86.101.md showing, from a driven enforceGate, the before/after violation text for an ABSENT count AND for a genuinely-short brief, plus the sibling audit of every n() consumer"
+          },
+          "notes": "Filed 2026-08-16 by Main during phase-86.92, criterion 2 ('either the sentinel is deliberate and documented, or it is a second defect and is filed as such' -- the answer measured was BOTH: the sentinel is deliberate, its rendering is a defect). Do NOT start while a rail forbids editing research-gate.js. Related memory: feedback_a_provenance_fix_that_only_logs, feedback_recording_an_absence_as_a_value_can_invert_a_rule."
+        },
+        {
           "id": "86.93",
           "priority": "P2",
           "status": "pending",

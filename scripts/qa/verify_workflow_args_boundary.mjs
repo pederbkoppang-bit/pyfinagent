@@ -51,6 +51,77 @@ function check(name, cond, detail) {
   else { failures.push(`${name}${detail ? ' -- ' + detail : ''}`); console.log(`  FAIL ${name}${detail ? ' -- ' + detail : ''}`) }
 }
 
+// ── THE HEALTHY `verification` FIXTURE -- SYNTHETIC AND OWNED BY THIS FILE ──
+//
+// WHY THIS IS A FACTORY AND NOT AN OBJECT LITERAL (phase-86.92).
+//
+// It used to be a hand-written literal, cloned in two places. The failure mode
+// is worth stating precisely, because it was not "the fixture was wrong" -- it
+// was "the fixture rotted SILENTLY, in a direction that produced a MISLEADING
+// message, and disabled a mutation cell on the way out".
+//
+// `enforceGate` grew three `verification.*` fields after this checker was
+// written: `recency_section_present` + `distinct_urls_in_brief` (phase-86.6,
+// cad38647, 2026-08-10 08:51) and `brief_status_in_brief` (phase-86.37,
+// d3bb1dfb). The literal kept supplying the original four. An absent field is
+// not an error to `enforceGate` -- it is coerced and FAILS CLOSED, which is
+// exactly right for a gate and catastrophic for a fixture: the "healthy run"
+// case began failing with violations that talk about A BRIEF ON DISK. For six
+// days the red was therefore read as a stale-artifact problem. It never was.
+// `enforceGate` is pure; `env.brief_path` is an inert string it interpolates
+// into the message. MEASURED: pointing it at a nonexistent file yields the
+// byte-identical violations, and one of the three failing cells used
+// `brief_path: 'p'`, which was never a file at all.
+//
+// The fixture is therefore now derived from `BRIEF_VERIFICATION_SCHEMA.required`
+// -- the script's OWN declaration of what stage 2 must return. When the next
+// field is added there, ONE assertion fails, BY NAME, in ONE place, saying what
+// to do. Golden-file practice is explicit that a fixture nobody regenerates
+// degrades into an assertion about history rather than about behaviour; the
+// repair is to derive it from the contract instead of re-recording it.
+const HEALTHY_VERIFICATION_VALUES = {
+  brief_exists: true,
+  brief_non_empty: true,
+  char_count: 9000,
+  urls_checked: 9,
+  urls_present: 9,
+  urls_missing: [],
+  recency_section_present: true,
+  distinct_urls_in_brief: 40, // >= the envelope's urls_collected, or it over-claims
+  brief_status_in_brief: 'COMPLETE',
+}
+/** A fresh healthy stage-2 return. Never share the object between cases. */
+function healthyVerification(overrides) {
+  return { ...HEALTHY_VERIFICATION_VALUES, urls_missing: [], ...(overrides || {}) }
+}
+
+/** Every `verification.<field>` that `enforceGate` actually READS.
+ *
+ *  Comments are stripped FIRST. Without that, a field named only in prose would
+ *  be demanded of the fixture and this guard would invent a false red -- the
+ *  same class of defect it exists to catch. The positive control in section [3]
+ *  proves the stripping is live rather than decorative, by injecting a bogus
+ *  field into a comment and requiring the un-stripped scan to see it and the
+ *  stripped scan to reject it. A control that cannot fail is not a control.
+ *
+ *  Returns `{fields, anchored}`. `anchored` is false when either boundary
+ *  marker has moved, so a silently-mis-sliced region is reported rather than
+ *  scanned -- a slicing checker cannot cover what it slices away. */
+function verificationFieldsRead(scriptSource) {
+  const START = 'function enforceGate'
+  const END = '// NO `export { ... }` LIST HERE'
+  const start = scriptSource.indexOf(START)
+  const end = scriptSource.indexOf(END)
+  if (start === -1 || end === -1 || end <= start) return { fields: [], anchored: false }
+  const body = scriptSource.slice(start, end)
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .split('\n').map(l => l.replace(/(^|[^:])\/\/.*$/, '$1')).join('\n')
+  return {
+    fields: [...new Set([...body.matchAll(/verification\.([A-Za-z0-9_]+)/g)].map(m => m[1]))].sort(),
+    anchored: true,
+  }
+}
+
 /** The eight shapes criterion 1 names, plus the two the research measured. */
 const SHAPES = [
   { id: 'plain-object', literal: '{ step_id: "86.17", topic: "t" }', usable: true },
@@ -167,8 +238,51 @@ console.log('\n[3] BLIND CANNOT PASS -- enforceGate defence in depth (criterion 
   const idx = src.indexOf("phase('Research')")
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'argsb-eg-'))
   const tmp = path.join(dir, 'eg.mjs')
-  fs.writeFileSync(tmp, src.slice(0, idx) + '\nexport { enforceGate }\n')
-  const { enforceGate } = await import(pathToFileURL(tmp).href)
+  // The schema is exported ALONGSIDE enforceGate. research-gate.js itself is
+  // NOT edited -- this file already appends its own export line to a stripped
+  // COPY, so the fixture can be derived from the script's own declaration
+  // without touching the graded gate (phase-86.92 rail R5 + criterion 3).
+  fs.writeFileSync(tmp, src.slice(0, idx) + '\nexport { enforceGate, BRIEF_VERIFICATION_SCHEMA }\n')
+  const { enforceGate, BRIEF_VERIFICATION_SCHEMA } = await import(pathToFileURL(tmp).href)
+
+  // ── FIXTURE-ROT CANARY (phase-86.92, criterion 4) ────────────────────────
+  // Two directions, because they catch different regressions:
+  //   (a) DECLARED -- every field the schema requires has a healthy value. This
+  //       is the one that would have fired on 2026-08-10 instead of three
+  //       unrelated cells failing with messages about a brief.
+  //   (b) CONSUMED -- every field enforceGate actually READS is supplied. A
+  //       field read but never declared is itself a finding, so this is not
+  //       redundant with (a).
+  const declared = [...(BRIEF_VERIFICATION_SCHEMA.required || [])].sort()
+  const noValue = declared.filter(f => !(f in HEALTHY_VERIFICATION_VALUES))
+  check('[3] fixture canary (declared): every BRIEF_VERIFICATION_SCHEMA.required field has a healthy value',
+        declared.length > 0 && noValue.length === 0,
+        declared.length === 0 ? 'schema.required is EMPTY or unreachable -- the canary would pass vacuously'
+                              : `add a value to HEALTHY_VERIFICATION_VALUES for: ${noValue.join(', ')}`)
+
+  const readInfo = verificationFieldsRead(src)
+  check('[3] fixture canary: the enforceGate region was located (boundary markers still present)',
+        readInfo.anchored, 'a boundary marker moved -- the scanned region is not enforceGate')
+  const unsupplied = readInfo.fields.filter(f => !(f in HEALTHY_VERIFICATION_VALUES))
+  check('[3] fixture canary (consumed): every verification.* field enforceGate READS is supplied',
+        readInfo.anchored && readInfo.fields.length > 0 && unsupplied.length === 0,
+        `enforceGate reads ${readInfo.fields.length} field(s); missing from the fixture: ${unsupplied.join(', ') || '(none)'}`)
+  const undeclared = readInfo.fields.filter(f => !declared.includes(f))
+  check('[3] fixture canary: enforceGate reads no field the schema does not require',
+        undeclared.length === 0, `read but not declared: ${undeclared.join(', ')}`)
+
+  // POSITIVE CONTROL for the comment-stripper. Without this, the scan above
+  // could be silently matching nothing and every fixture would look complete.
+  {
+    const poisoned = src.replace('function enforceGate',
+      '// verification.__bogusProseOnlyField__ appears only in prose here\nfunction enforceGate')
+    const naive = /verification\.__bogusProseOnlyField__/.test(poisoned)
+    const stripped = verificationFieldsRead(poisoned).fields.includes('__bogusProseOnlyField__')
+    check('[3] fixture canary CONTROL: a comment-only field IS present in the raw source', naive,
+          'the control never injected anything -- it proves nothing')
+    check('[3] fixture canary CONTROL: the stripper rejects a comment-only field', naive && !stripped,
+          'comment stripping is inert -- a field named in prose would be demanded of the fixture')
+  }
 
   // A PERFECT envelope -- the gate must still refuse it when the run was blind.
   const env = {
@@ -176,10 +290,32 @@ console.log('\n[3] BLIND CANNOT PASS -- enforceGate defence in depth (criterion 
     recency_scan_performed: true, sources_read_in_full: Array.from({ length: 9 }, (_, i) => `https://x/${i}`),
     brief_path: 'handoff/current/research_brief_86.17.md', coverage: { audit_class: false },
   }
-  const verification = { brief_exists: true, brief_non_empty: true, char_count: 9000, urls_missing: [] }
+  const verification = healthyVerification()
 
   const ok = enforceGate(env, verification, { inputHealth: { status: 'ok', blind: false } })
   check('[3] a healthy run with a perfect envelope PASSES', ok.gate_passed === true, JSON.stringify(ok.violations))
+
+  // MUTATION of the canary itself: a guard that cannot fail does not count.
+  // Drop one required field from a COPY of the fixture -- the healthy case must
+  // stop passing AND the canary must name the missing field.
+  {
+    const crippled = healthyVerification()
+    delete crippled.brief_status_in_brief
+    const r = enforceGate(env, crippled, { inputHealth: { status: 'ok', blind: false } })
+    check('[3] fixture canary KILLED: dropping one required field breaks the healthy case',
+          r.gate_passed === false, 'the fixture is not load-bearing -- the healthy case passed without the field')
+    // DIFFERENTIAL, not absolute. An absolute "names exactly one field" cell is
+    // coupled to a baseline that happens to be complete: rot the fixture for an
+    // unrelated reason and this cell fails too, reporting a second defect that
+    // does not exist. Compare the missing-set BEFORE and AFTER instead, so the
+    // cell measures what the mutation did and nothing else.
+    const missingBefore = declared.filter(f => !(f in HEALTHY_VERIFICATION_VALUES))
+    const missingAfter = declared.filter(f => !(f in crippled))
+    const introduced = missingAfter.filter(f => !missingBefore.includes(f))
+    check('[3] fixture canary KILLED: the canary names exactly the dropped field',
+          introduced.length === 1 && introduced[0] === 'brief_status_in_brief',
+          `newly-missing after the mutation: ${introduced.join(', ') || '(none -- the canary did not notice)'}`)
+  }
 
   const blind = enforceGate(env, verification, { inputHealth: { status: 'dry_run', blind: true } })
   check('[3] the SAME perfect envelope CANNOT pass when the run was blind', blind.gate_passed === false)
@@ -316,7 +452,15 @@ for (const m of MUTANTS) {
       recency_scan_performed: true, sources_read_in_full: Array.from({ length: 9 }, (_, i) => `https://x/${i}`),
       brief_path: 'p', coverage: { audit_class: false },
     }
-    const verification = { brief_exists: true, brief_non_empty: true, char_count: 9000, urls_missing: [] }
+    // THIS CELL IS WHY FIXTURE ROT IS WORSE THAN A RED CHECKER (phase-86.92).
+    // With the stale literal it reported FAIL whether the blind guard was
+    // PRESENT or ABSENT -- residual violations from the missing fields held
+    // gate_passed at false either way, so the cell could not DISCRIMINATE and
+    // had silently stopped being a mutation test. MEASURED both ways:
+    //     stale   fixture: guard present -> false, guard absent -> false  (dead)
+    //     healthy fixture: guard present -> false, guard absent -> true   (kills)
+    // A cell whose control answer and mutant answer agree tests nothing.
+    const verification = healthyVerification()
     const blind = enforceGate(env, verification, { inputHealth: { status: 'dry_run', blind: true } })
     check('[4] drop-blind-violation: KILLED (a blind run would pass without it)', blind.gate_passed === true)
   }

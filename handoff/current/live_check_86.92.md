@@ -168,7 +168,22 @@ harm is instead in two other places:
 1. **86.23 is PENDING and blocked by it.** Its immutable verification command is
    `bash -c 'node scripts/qa/verify_research_gate_workflow.mjs && node scripts/qa/verify_workflow_args_boundary.mjs'`
    — it cannot go green while this checker exits 1.
-2. **86.90 had to prove its own innocence manually.** With no green gate to read,
+2. **A CLOSED step's evidence has rotted.** 86.17 is `status: done`, and its
+   immutable command shares that same shape. Run today:
+
+   ```
+   $ node scripts/qa/verify_research_gate_workflow.mjs && node scripts/qa/verify_workflow_args_boundary.mjs
+   ALL GREEN: 124 passed, 0 failed
+   FAILED: 84 passed, 3 failed
+   $ echo $?
+   1
+   ```
+
+   Its `done` is therefore no longer reproducible. Note this is **not** the same
+   claim as "a step closed on a false green" — 86.17 closed 2026-08-09, a day
+   *before* the break, so the gate was genuinely green when it certified. The
+   damage is retrospective auditability, not a wrongly-admitted step.
+3. **86.90 had to prove its own innocence manually.** With no green gate to read,
    that step established "I did not break this" with a detached worktree — and
    the first version of that proof was itself wrong (a worktree at HEAD already
    contains the commit under suspicion), which the 86.90 cycle-2 Q/A caught.
@@ -177,4 +192,121 @@ harm is instead in two other places:
 
 ## E. POST-FIX EVIDENCE (criteria 3, 4, 5, 7)
 
-*Written after GENERATE.*
+### E1. The checker exits 0 (criterion 5, first half)
+
+```
+$ node scripts/qa/verify_workflow_args_boundary.mjs ; echo $?
+ALL GREEN: 95 passed, 0 failed
+0
+```
+
+Was `FAILED: 84 passed, 3 failed`. The immutable command, for completeness —
+and with its weakness restated, since it was green all six days the gate was dead:
+
+```
+$ bash -c 'node --check scripts/qa/verify_workflow_args_boundary.mjs && echo parses'
+parses
+exit=0
+```
+
+### E2. Every mutation cell still KILLS (criterion 5, second half)
+
+```
+  ok   [3] fixture canary KILLED: dropping one required field breaks the healthy case
+  ok   [3] fixture canary KILLED: the canary names exactly the dropped field
+  ok   [4] restore-silent-catch: KILLED -- reverting it changes the outcome for malformed-json-string
+  ok   [4] drop-post-parse-plain-object-check: KILLED -- reverting it changes the outcome for double-encoded-json
+  ok   [4] drop-step_id-requirement: KILLED -- reverting it changes the outcome for object-without-step_id
+  ok   [4] qa-restore-silent-catch: KILLED -- reverting it changes the outcome for malformed-json-string
+  ok   [4] qa-drop-post-parse-plain-object-check: KILLED -- reverting it changes the outcome for double-encoded-json
+  ok   [4] drop-empty-string-guard: KILLED -- reverting it changes the outcome for empty-string
+  ok   [4] qa-drop-empty-string-guard: KILLED -- reverting it changes the outcome for empty-string
+  ok   [4] qa-drop-step_id-requirement: KILLED -- reverting it changes the outcome for object-without-step_id
+  ok   [4] drop-blind-violation: KILLED (a blind run would pass without it)
+  ok   [5] qa-verdict.js: KILLED -- removing the blind early-return makes it spawn
+  ok   [5] research-gate.js: KILLED -- removing the blind early-return makes it spawn
+```
+
+**`[4] drop-blind-violation` had been NON-DISCRIMINATING, not merely failing.**
+That is the sharpest statement of the harm and it is measured, not asserted:
+
+```
+THE CELL ASSERTS blind.gate_passed === true ("without the guard it WOULD pass")
+                          guard PRESENT   guard ABSENT   discriminates?
+  STALE fixture    cell=false        cell=false     NO  <-- dead cell
+  HEALTHY fixture  cell=false        cell=true      YES
+```
+
+The `guard PRESENT → false` column in the healthy row is the control: with the
+fixture repaired, the blind guard **still refuses** a blind run. Completing the
+fixture restored the cell's ability to discriminate; it did not disarm anything.
+
+### E3. The canary catches the REAL historical rot (criterion 4)
+
+Replayed in a `git worktree` (the repo file is never mutated — a disk-mutating
+checker one interrupt away from `git add -A` is its own hazard) by deleting the
+exact three fields `cad38647` and `d3bb1dfb` introduced:
+
+```
+=== baseline in worktree (patched checker) ===
+ALL GREEN: 95 passed, 0 failed
+
+=== REPLAY THE 2026-08-10 ROT: delete the 3 fields phase-86.6/86.37 added ===
+  fixture shrunk by 155 bytes -- 3 fields removed, verified by assertion
+  FAIL [3] fixture canary (declared): every BRIEF_VERIFICATION_SCHEMA.required field has a healthy value -- add a value to HEALTHY_VERIFICATION_VALUES for: brief_status_in_brief, distinct_urls_in_brief, recency_section_present
+  FAIL [3] fixture canary (consumed): every verification.* field enforceGate READS is supplied -- enforceGate reads 7 field(s); missing from the fixture: brief_status_in_brief, distinct_urls_in_brief, recency_section_present
+FAILED: 89 passed, 6 failed
+```
+
+The three original 2026-08-10 failures reappear alongside the two canary
+failures, which is how the replay is shown to reproduce the historical state
+rather than approximate it. Every anchor was `assert`ed present before
+replacement and the byte delta asserted non-zero — a no-match `str.replace`
+looks identical to success.
+
+**Why this fixture cannot rot the same way.** It is no longer a transcription of
+what `enforceGate` needed on the day it was written; it is derived from
+`BRIEF_VERIFICATION_SCHEMA.required`, the script's own declaration of what stage
+2 must return. A new required field therefore fails ONE named assertion in ONE
+place with the remedy in the message, instead of three unrelated cells failing
+with prose about a brief.
+
+### E4. Nothing in the graded gate moved (criteria 3 and 7)
+
+```
+$ git status --porcelain -- scripts/qa/ .claude/workflows/ .claude/agents/
+ M scripts/qa/verify_workflow_args_boundary.mjs
+
+$ git diff --stat HEAD -- .claude/workflows/research-gate.js .claude/workflows/qa-verdict.js .claude/agents/qa.md
+(empty)
+```
+
+Exactly one file changed, and it is the checker — not the thing being checked.
+No `enforceGate` rule was relaxed, so no input that fails the gate today can
+pass after this change. The schema is reached by appending an export to a
+stripped **copy**, which is the mechanism the checker already used.
+
+Sibling gates, re-run after the change:
+
+```
+verify_research_gate_workflow.mjs  ALL GREEN: 124 passed, 0 failed
+verify_prompt_render_86_90.mjs     ALL GREEN: 95 passed, 0 failed
+verify_rail_retry.mjs              ALL GREEN: 38 passed, 0 failed
+verify_escalation_86_78.mjs        ALL CHECKS PASS (failed: 0)
+```
+
+### E5. The blocked step is unblocked
+
+```
+86.23 command exit code now: 0  (was 1)
+```
+
+### E6. The `-1` defect is FILED, not merely mentioned (criterion 2)
+
+```
+86.101 REPRODUCES from disk: True | status: pending | criteria: 5
+$ git diff --numstat .claude/masterplan.json
+20	0
+```
+
+Pure addition; no existing step mutated.
