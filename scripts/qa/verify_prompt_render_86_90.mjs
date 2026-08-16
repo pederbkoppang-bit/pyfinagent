@@ -317,8 +317,13 @@ const MUTANTS = [
   {
     id: 'placeholder-instead-of-throw',
     file: 'qa-verdict.js',
-    from: "      + violation + '. Nothing is substituted: a placeholder is precisely the defect '",
-    to: "      + violation + '')\n    return '(unrenderable)'\n    void ('",
+    // CYCLE-3 REPAIR. The cycle-2 form ended `void ('` -- an unterminated string,
+    // so the mutant was a SyntaxError -- and injected the return AFTER the throw
+    // it was meant to replace, i.e. dead code even had it parsed. The harness's
+    // catch scored that crash as KILLED, so the cell measured nothing. This form
+    // is valid and REACHABLE: the placeholder is returned instead of throwing.
+    from: "  if (violation) {\n    throw new Error(RENDER_SCRIPT + ': ' + where + ' cannot be rendered WITHOUT SILENT LOSS -- '",
+    to: "  if (violation) {\n    return '(unrenderable)'\n    // eslint-disable-next-line no-unreachable\n    throw new Error(RENDER_SCRIPT + ': ' + where + ' cannot be rendered WITHOUT SILENT LOSS -- '",
     expect: async (src) => {
       const r = await runDriverRaw(src, '{ step_id: "86.90", criteria: ["c"], evidence: new Map([["a", 1]]) }')
       return !r.threw   // KILLED iff swapping the throw for a placeholder stops it throwing
@@ -337,14 +342,28 @@ const MUTANTS = [
     why: 'an object step id must not be allowed to reach a filename',
   },
 ]
+// CYCLE-3: three outcomes, not two. `catch -> KILLED` is how cell M3 scored a
+// SyntaxError as a kill for a whole cycle. A mutant that does not BUILD has not
+// been tested by anything, so it is UNSCORABLE -- which FAILS the check rather
+// than passing it. And each cell is CONTROLLED first: its own expect() must
+// return false on the UNMUTATED source, or the cell proves nothing about the
+// mutation (arXiv 2408.01760: equivalent mutants are 4-39% and undecidable).
 for (const m of MUTANTS) {
   const src = fs.readFileSync(SCRIPTS[m.file], 'utf8')
   const n = src.split(m.from).length - 1
   if (n !== 1) { check(`[5] ${m.id}: anchor is unique`, false, `found ${n} occurrences -- a no-match replace looks identical to success`); continue }
+
+  let control
+  try { control = (await m.expect(src)) ? 'DETECTED-ON-CONTROL' : 'clean' }
+  catch (e) { control = 'CONTROL-THREW: ' + String((e && e.message) || e).slice(0, 90) }
+  check(`[5] ${m.id}: CONTROL is clean (expect() false on the UNMUTATED source)`,
+        control === 'clean', control)
+
   const mutated = src.replace(m.from, m.to)
-  let survived = true
-  try { survived = !(await m.expect(mutated)) } catch (_e) { survived = false }
-  check(`[5] ${m.id}: KILLED (${m.why})`, !survived, 'the mutant SURVIVED -- this guard is not the one doing the work')
+  let outcome
+  try { outcome = (await m.expect(mutated)) ? 'DETECTED' : 'SURVIVED -- this guard is not the one doing the work' }
+  catch (e) { outcome = 'UNSCORABLE: the mutant did not build (' + String((e && e.message) || e).slice(0, 90) + ')' }
+  check(`[5] ${m.id}: KILLED (${m.why})`, outcome === 'DETECTED', outcome)
 }
 
 // ── [6] the two copies have not drifted ─────────────────────────────────────

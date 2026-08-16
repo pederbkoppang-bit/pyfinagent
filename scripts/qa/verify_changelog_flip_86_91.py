@@ -314,7 +314,12 @@ def replay_predicate(src_text: str):
 
 
 REPLAY_SRC = REPLAY.read_text(encoding="utf-8")
-AFTER_R = {"86.1": "done", "86.7": "pending", "86.86": "done"}
+# CYCLE-3 (Q/A finding QA-C2-6): the fixture used the single id 86.86, so
+# narrowing the shipped predicate to `... and s == "86.86"` left every [5]
+# assertion green -- including "the two arms genuinely DISAGREE". A single-id
+# fixture cannot distinguish the CLASS from the instance, which is exactly what
+# criterion 2 forbids. TWO unrelated created ids, in different top-level phases.
+AFTER_R = {"86.1": "done", "86.7": "pending", "86.86": "done", "12.7": "done"}
 BEFORE_R = {"86.1": "done", "86.7": "pending"}
 try:
     pred = replay_predicate(REPLAY_SRC)
@@ -325,17 +330,84 @@ except Exception as exc:                                       # noqa: BLE001
     check("[5] the replay predicate is extractable and runnable", False, repr(exc))
 else:
     check("[5] the replay predicate is extractable and runnable", True)
-    check("[5] count_created=True COUNTS a created-and-closed step", fixed == ["86.86"], f"got {fixed!r}")
+    check("[5] count_created=True COUNTS created-and-closed steps in UNRELATED phases",
+          sorted(fixed) == ["12.7", "86.86"], f"got {fixed!r} -- a single-id fixture cannot tell the CLASS from the instance")
     check("[5] count_created=False reproduces the SHIPPED (defective) result", shipped == [], f"got {shipped!r}")
     # The whole point: the two arms must DISAGREE, or the replay's three numbers
     # are three names for one measurement.
     check("[5] the two arms genuinely DISAGREE (not two names for one number)",
           fixed != shipped, f"both arms returned {fixed!r}")
 
-check("[5] the replay corpus is PINNED AT BOTH ENDS",
-      "CORPUS_SINCE" in REPLAY_SRC and "2026-08-11T00:00:00" in REPLAY_SRC
-      and "CORPUS_UNTIL" in REPLAY_SRC and "CORPUS_UNTIL = None" not in REPLAY_SRC,
-      "an unpinned end slides -- a bare --since with the clock, an unpinned until with HEAD")
+# CYCLE-3 (Q/A finding QA-C2-1). This was a SUBSTRING SCAN, and the Q/A killed it:
+# replacing the single line `if CORPUS_UNTIL: _log_args.append(CORPUS_UNTIL)` with
+# `pass` keeps every scanned literal, leaves this checker ALL GREEN, and
+# measurably unpins the corpus (707 -> 712) -- while the printed header still says
+# `= 8dc70502`, because the endpoint is rev-parse'd from the CONSTANT and never
+# compared to the commits actually selected. That is the same vacuity shape the
+# cycle-1 W2 finding killed one guard over; I fixed it there and left it here.
+#
+# So the pin is now DRIVEN: build the corpus the way the shipped script does and
+# require the NEWEST SELECTED COMMIT to be the pinned endpoint. A scan cannot see
+# the difference; this can.
+def corpus_head(src_text: str) -> str | None:
+    """DRIVE the shipped corpus selection and return the newest selected sha.
+
+    CYCLE-3 SECOND REPAIR, and the reason it is written this way. The first
+    attempt re-implemented the selection -- it re-read CORPUS_SINCE/CORPUS_UNTIL
+    and built its own argv with its own `if CORPUS_UNTIL: append(...)`. Mutating
+    the SHIPPED append line therefore changed nothing my probe could see, and the
+    QA-C2-1 cell scored SURVIVED. That is the same defect the Q/A had just charged
+    me with, one level down: a re-implementation cannot detect a mutation of the
+    original.
+
+    So the shipped lines are EXECUTED. The block from `CORPUS_SINCE =` through
+    `rc, out = sh(*_log_args)` is sliced out and exec'd with `sh` stubbed to
+    CAPTURE the argv the shipped code actually assembles; git is then run with
+    that captured argv.
+    """
+    lines = src_text.splitlines(keepends=True)
+    start = next((i for i, ln in enumerate(lines) if ln.startswith("CORPUS_SINCE =")), None)
+    end = next((i for i, ln in enumerate(lines) if ln.startswith("rc, out = sh(*_log_args)")), None)
+    if start is None or end is None:
+        return None
+    captured: list[list[str]] = []
+
+    def _sh(*a):
+        captured.append(list(a))
+        return 0, ""
+
+    ns_c: dict = {"sh": _sh, "os": __import__("os")}
+    try:
+        exec(compile("".join(lines[start:end + 1]), "<shipped-corpus>", "exec"), ns_c)  # noqa: S102
+    except Exception:                                          # noqa: BLE001
+        return None
+    if not captured:
+        return None
+    out = subprocess.run(captured[0], capture_output=True, text=True, cwd=REPO, timeout=120).stdout
+    recs = [r for r in out.split("\x1e") if r.strip()]
+    if not recs:
+        return None
+    return recs[0].strip("\n").split("\x1f")[0]
+
+
+def resolve(rev: str) -> str | None:
+    r = subprocess.run(["git", "rev-parse", rev], capture_output=True, text=True, cwd=REPO, timeout=30)
+    return r.stdout.strip() if r.returncode == 0 else None
+
+
+_pin = None
+for _line in REPLAY_SRC.splitlines():
+    if _line.startswith("CORPUS_UNTIL ="):
+        _pin = eval(_line.split("=", 1)[1].strip(), {"os": __import__("os")})  # noqa: S307
+        break
+_head = corpus_head(REPLAY_SRC)
+check("[5] the corpus UPPER bound is pinned BEHAVIOURALLY (newest selected commit == the pin)",
+      bool(_pin) and _head is not None and _head == resolve(_pin),
+      f"pin={_pin!r} newest_selected={_head!r} resolved_pin={resolve(_pin) if _pin else None!r} "
+      f"-- if these differ the corpus still floats with HEAD")
+check("[5] the corpus LOWER bound is an explicit timestamp, not a bare date",
+      "2026-08-11T00:00:00" in REPLAY_SRC,
+      "a bare --since date is applied at the CURRENT time of day and slides")
 
 print("\n[6] MUTATION of the REPLAY predicate -- the cycle-1 survivors\n")
 REPLAY_MUTANTS = [
@@ -354,19 +426,55 @@ REPLAY_MUTANTS = [
         "why": "the defect reworded is invisible to a literal scan",
     },
 ]
+REPLAY_MUTANTS.append({
+    # The cycle-2 Q/A's own mutant. With the single-id fixture it SURVIVED every
+    # [5] assertion, including "the two arms genuinely DISAGREE". It is a cell now
+    # so the two-id fixture's class-coverage is PROVEN rather than asserted.
+    "id": "QA-C2-6 special-case a single step id (the shape criterion 2 forbids)",
+    "from": '               if st=="done" and before.get(s, _ABSENT) is _ABSENT]',
+    "to": '               if st=="done" and before.get(s, _ABSENT) is _ABSENT and s=="86.86"]',
+    "probe": lambda f: sorted(f(AFTER_R, BEFORE_R, count_created=True)) != ["12.7", "86.86"],
+    "why": "a single-id fixture cannot tell the CLASS from the instance",
+})
+REPLAY_MUTANTS.append({
+    "id": "QA-C2-1 unpin the upper bound (literals all kept)",
+    "from": "if CORPUS_UNTIL: _log_args.append(CORPUS_UNTIL)",
+    "to": "pass  # upper bound unpinned",
+    "probe": None,   # scored against corpus_head, not against the predicate
+    "why": "a substring scan cannot see this; the behavioural pin check can",
+})
+
+# CYCLE-3: THREE outcomes, not two. `except -> killed = True` scores a mutant
+# that never ran as a kill -- the shape the cycle-2 Q/A flagged as latent here and
+# proved live in the sibling checker, where a SyntaxError mutant was counted
+# KILLED for a whole cycle. A mutant that does not BUILD is UNSCORABLE, which
+# FAILS the check rather than passing it.
 for mut in REPLAY_MUTANTS:
     n = REPLAY_SRC.count(mut["from"])
     if n != 1:
         check(f"[6] {mut['id']}: anchor is unique", False,
               f"found {n} occurrences -- a no-match replace looks identical to success")
         continue
-    try:
-        mpred = replay_predicate(REPLAY_SRC.replace(mut["from"], mut["to"]))
-        killed = bool(mut["probe"](mpred))
-    except Exception:                                          # noqa: BLE001
-        killed = True
-    check(f"[6] {mut['id']}: KILLED ({mut['why']})", killed,
-          "the mutant SURVIVED -- this guard is not the one doing the work")
+    mutated_src = REPLAY_SRC.replace(mut["from"], mut["to"])
+    if mut["probe"] is None:
+        # Scored against the CORPUS SELECTION, not the predicate.
+        try:
+            mh = corpus_head(mutated_src)
+            outcome = "DETECTED" if (mh is None or mh != resolve(_pin)) else "SURVIVED"
+        except Exception as exc:                               # noqa: BLE001
+            outcome = f"UNSCORABLE: mutant did not run ({exc})"
+    else:
+        try:
+            mpred = replay_predicate(mutated_src)
+        except Exception as exc:                               # noqa: BLE001
+            outcome = f"UNSCORABLE: mutant did not build ({exc})"
+        else:
+            try:
+                outcome = "DETECTED" if mut["probe"](mpred) else "SURVIVED"
+            except Exception as exc:                           # noqa: BLE001
+                outcome = f"UNSCORABLE: probe raised ({exc})"
+    check(f"[6] {mut['id']}: KILLED ({mut['why']})", outcome == "DETECTED",
+          f"{outcome} -- a mutant that did not run has not been tested by anything")
 
 print()
 if FAILURES:

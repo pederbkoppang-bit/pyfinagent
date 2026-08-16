@@ -139,13 +139,21 @@ A stderr-only fix would have been as invisible as the silence it replaced.
 
 ## 4. Criterion 6 + 7 -- the guard, and the never-raises proof
 
+*(REGENERATED in cycle 3. The cycle-2 edit updated section 2 of this file and
+left this block at its cycle-1 state -- it still quoted `ALL GREEN: 24 passed`,
+"74 lines extracted", three `[4]` cells and no `[6]` section, so a reader of the
+live_check alone would have concluded the W2 and W3 remediations were never
+applied. Found by the cycle-2 Q/A. The block below is the literal output of a
+fresh run, not an edit of the old one.)*
+
 ```
 $ python scripts/qa/verify_changelog_flip_86_91.py
 phase-86.91 -- changelog flip detector, three-state membership test
 
-  (driving the SHIPPED detector, 74 lines extracted from post-commit-changelog.sh)
+  (driving the SHIPPED detector, 109 lines extracted from post-commit-changelog.sh)
 
 [0] CONTROL -- behaviour that was already correct must still hold
+
   ok   [0] a NORMAL transition pending->done still bumps
   ok   [0] and it is recorded as a transition
   ok   [0] an ALREADY-done step does NOT bump
@@ -153,6 +161,7 @@ phase-86.91 -- changelog flip detector, three-state membership test
   ok   [0] a chore commit that moves nothing does NOT bump
 
 [1] THE CLASS -- a step created AND closed in one commit (criteria 1, 2)
+
   ok   [1] created-and-closed BUMPS
   ok   [1] the created step is NAMED in the decision
   ok   [1] the reason distinguishes created from transitioned
@@ -161,42 +170,53 @@ phase-86.91 -- changelog flip detector, three-state membership test
   ok   [1] magnitude: closing the last step of a phase is major
 
 [2] NO UNEXPLAINED 'none' -- the silent-swallow class (criterion 4)
+
   ok   [2] 'no_flip' is reported as its own reason
   ok   [2] 'first_commit' is reported as its own reason
+  ok   [2] 'masterplan_unreadable_at_HEAD' is reported as its own reason
   ok   [2] an internal error is reported as detector_error
   ok   [2] EVERY branch that returns 'none' sets a reason -- none is left unrecorded
+  ok   [2] known-member RECALL: all 4 none-returning branches are DRIVEN (denominator derived from source, not hand-listed)
 
 [3] NEVER RAISES -- proven by injecting a fault, not by reading the source
+
   ok   [3] the injected fault does NOT propagate
   ok   [3] a fault bumps NOTHING
   ok   [3] the FAILED marker still reaches stderr
 
 [4] MUTATION -- each cell must turn a check above RED (criterion 6)
-  ok   [4] restore-the-None-exclusion: KILLED
-  ok   [4] over-credit-already-done: KILLED
-  ok   [4] drop-the-reason: KILLED
 
-[5] THE SIBLING REPLAY HARNESS must express the fixed predicate too
-  ok   [5] the replay no longer carries the raw None-exclusion predicate
-  ok   [5] the replay can express BOTH arms (count_created)
-  ok   [5] the replay corpus is PINNED to an explicit timestamp
+  ok   [4] restore-the-None-exclusion: KILLED (check [1] must go RED when created steps are excluded again)
+  ok   [4] over-credit-already-done: KILLED (check [0] must go RED when a no-op commit starts bumping)
+  ok   [4] drop-the-unreadable-reason: KILLED (check [2] must go RED when the masterplan-unreadable branch stops explaining itself)
+  ok   [4] drop-the-reason: KILLED (check [2] must go RED when a 'none' stops explaining itself)
 
-ALL GREEN: 24 passed, 0 failed
+[5] THE SIBLING REPLAY HARNESS -- guarded BEHAVIOURALLY, not by substring
+
+  ok   [5] the replay predicate is extractable and runnable
+  ok   [5] count_created=True COUNTS created-and-closed steps in UNRELATED phases
+  ok   [5] count_created=False reproduces the SHIPPED (defective) result
+  ok   [5] the two arms genuinely DISAGREE (not two names for one number)
+  ok   [5] the corpus UPPER bound is pinned BEHAVIOURALLY (newest selected commit == the pin)
+  ok   [5] the corpus LOWER bound is an explicit timestamp, not a bare date
+
+[6] MUTATION of the REPLAY predicate -- the cycle-1 survivors
+
+  ok   [6] QA-11 ignore-count_created (literal kept, behaviour stripped): KILLED (a scan for the word 'count_created' cannot see this; the drive can)
+  ok   [6] QA-12 reworded None exclusion: KILLED (the defect reworded is invisible to a literal scan)
+  ok   [6] QA-C2-6 special-case a single step id (the shape criterion 2 forbids): KILLED (a single-id fixture cannot tell the CLASS from the instance)
+  ok   [6] QA-C2-1 unpin the upper bound (literals all kept): KILLED (a substring scan cannot see this; the behavioural pin check can)
+
+ALL GREEN: 34 passed, 0 failed
 ```
 
 The checker EXTRACTS the shipped `_flip_magnitude` from the `.sh` heredoc via
-`ast` and drives it with `subprocess.run` stubbed. A re-implemented copy would
-have stayed green while production drifted -- which is exactly how
-`replay_changelog_rule_86_68.py:54` came to carry a byte-copy of the same defect
-(research finding I5, now fixed in the same commit; section `[5]` guards it).
-
-**A fixture bug this checker caught in itself.** Its first run reported three
-failures that were mine, not the detector's: my synthetic masterplans had every
-step of one top-level phase `done`, so the "whole phase shipped" rule returned
-`major` where I asserted `patch`. A fixture without a pending sibling silently
-tests a different branch. Fixed, with the reason written into the file.
-
----
+`ast` and drives it with `subprocess.run` stubbed, and it EXTRACTS and drives
+the shipped `newly_done_ids` from the replay. A re-implemented copy would have
+stayed green while production drifted -- which is exactly how
+`replay_changelog_rule_86_68.py:54` came to carry a byte-copy of the same
+defect, and exactly how this checker's own first corpus-pin probe failed to
+detect a mutation of the line it was guarding.
 
 ## 5. Criterion 5 -- CHANGELOG.md not hand-edited
 

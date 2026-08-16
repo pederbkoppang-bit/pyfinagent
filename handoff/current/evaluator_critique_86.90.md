@@ -129,3 +129,129 @@ whole series is about.
   "verdict_unmodified": true
 }
 ```
+
+
+---
+
+# Cycle 2 verdict: CONDITIONAL
+
+Run `wf_8f83d0d5-0c9` · 76 tool uses · 244,647 tokens · 970 s ·
+`verdict_sequence: ["CONDITIONAL"]` passed as DATA, `attempt_number: 2`.
+
+All 7 criteria MET on independent re-derivation -- the blast-radius symmetric
+difference was EMPTY against the Q/A's own **1,392-transcript** scan, the 86.86
+re-grade PASS was read from run record `wf_a09930e2-3d7` itself, the criterion-1
+receipt was quoted from the pre-fix transcript and **timestamped 15 minutes
+BEFORE the fix commit**, and the verdict machinery has 0 changed lines. Harness
+compliance 5/5.
+
+Capped by four WARN findings and one NOTE.
+
+| # | Finding | Why it lands |
+|---|---|---|
+| **1** | Mutation cell **M3 is an ARTIFACT-KILL**. Its replacement ends `void ('` -- an unterminated string, so the mutant is a **SyntaxError** -- and the injected `return '(unrenderable)'` sits AFTER the throw it replaces, i.e. dead code even if it parsed. `verify_prompt_render_86_90.mjs:346`'s `catch (_e) { survived = false }` converted that crash into KILLED | **"5 cells, all KILLED" does not reproduce.** A mutation matrix licenses only what it actually scored. M1/M2/M4/M5 ARE genuine (control `expect()=false`, mutant `expect()=true`), and M5 specifically builds, runs, spawns 1 and renders `REPLACED`, so it is not an artifact. The Q/A built **M3-prime** (valid syntax, placed before the throw) and confirmed section `[3]` does go RED -- so criterion 5's behavioural coverage is real; the CLAIM was not |
+| **2** | Two stale figures survived the cycle-2 edit **inside a verbatim-labelled block**: `experiment_results:423` records `ALL GREEN: 53 passed` while the same document says 78 at `:159` and `:453`; `live_check:281` carries the same stale 53; and `:410` says "all 14 unrenderable cases" against the checker's actual **12** | **The same defect class as the D1 finding this cycle was fixing, recurring in the artifact that fixes it.** A correction must REPLACE, and a "verbatim" capture must be REGENERATED |
+| **3** | Newly-filed **86.94's criterion 1 is un-meetable as written** -- it pins 621 / 592 / 706, which measured **560 / 712** at 08:52:52Z. By the step's OWN thesis none of them can reproduce: the bare-date count slides DOWN with the clock and the midnight-pinned count climbs UP because its upper bound is HEAD | **The identical trap 86.91 hit, re-committed inside the criterion written to prevent it.** 86.92 / 86.93 / 86.95 were walked (not grepped), exist, and have substantive meetable criteria -- so the D2 remediation is otherwise real |
+| **4** | The pre-existing-RED claim is justified with the **wrong instrument**: `git worktree add --detach <path> HEAD` -- but HEAD already CONTAINS `a21a5889`, so that worktree excludes only UNCOMMITTED edits and cannot exclude this step | The CONCLUSION is true and the Q/A established it independently (the failing rule entered at `d3bb1dfb`, 2026-08-10, phase-86.37; 86.90's only hunk near `enforceGate` adds a `log()` warning; the cycle-2 diff to `research-gate.js` contains **0** occurrences of `enforceGate`; the 84/3 reproduced exactly). **A conclusion that is correct for a reason that does not establish it is still a finding** |
+| NOTE | **Sixth hole found** in the widened walk: a **Proxy** whose `getOwnPropertyDescriptor` trap returns a DATA descriptor (so `d.get \|\| d.set` is false) while its `get` trap is non-deterministic. Measured: walk saw call1/call2, rendered JSON carried call2, an independent `JSON.stringify` gave call3 -- the exact TOCTOU the accessor refusal closes, through a shape that check cannot see | **Does NOT falsify the stated claim**, because cycle 2 narrowed it to "over the value shapes this boundary can actually receive" and a Proxy cannot arrive through JSON-derived args. The Q/A also examined and REJECTED four candidate holes as **equivalent mutants** (proxy-consistent, own `__proto__`, nested proxy, proxy-over-array) where walk and stringify agree, and confirmed four shapes are correctly refused |
+
+Named fixes, all accepted: give M3 a reachable valid-syntax substitution and make
+the harness distinguish *"mutant did not build"* from *"guard detected it"*;
+regenerate the section-11 block and correct 14 -> 12 in both files; restate
+86.94's criterion 1 with no pinned figures; cite the `git log -S` date and the
+`enforceGate`-untouched count instead of the worktree, in both
+`experiment_results` 9.1 and 86.92's `audit_basis`.
+
+---
+
+## Verdict, VERBATIM
+
+```json
+{
+  "ok": false,
+  "verdict": "CONDITIONAL",
+  "reason": "All 7 immutable criteria MET on independent re-derivation (blast-radius symmetric difference EMPTY vs my own 1392-transcript scan; 86.86 re-grade PASS read from run record wf_a09930e2-3d7 itself; criterion-1 receipt quoted from the pre-fix transcript, timestamped 15 min BEFORE the fix commit; verdict machinery 0 changed lines), harness compliance 5/5, no unintended production change, immutable command exit=0 -- but CONDITIONAL on four fixable findings: mutation cell M3 is an ARTIFACT-KILL (the mutant is a SyntaxError AND dead code after the throw, scored KILLED by the harness catch), so \"5 cells, all KILLED\" does not reproduce; two stale figures survived the cycle-2 edit inside a verbatim-labelled block (53 vs the actual 78; \"14 unrenderable cases\" vs 12); newly-filed 86.94's criterion 1 is un-meetable as written (its pinned 621/592/706 measured 560/712 today); and the pre-existing-RED claim is justified with the wrong instrument (a worktree at HEAD cannot exclude a commit HEAD contains).",
+  "violated_criteria": [
+    "WARN mutation-cell-artifact-kill (M3): the shipped matrix claim '5 cells, all KILLED' does not reproduce",
+    "WARN stale-figure-in-verbatim-block: experiment_results 53-vs-78 and 14-vs-12, live_check 53",
+    "WARN un-meetable-criterion-in-filed-remediation: 86.94 criterion 1 pins unreproducible counts",
+    "WARN wrong-instrument-for-pre-existing-claim: git worktree at HEAD cannot exclude a21a5889",
+    "NOTE sixth-hole-in-the-widened-walk: non-deterministic-get Proxy presenting a data descriptor (not reachable through JSON-derived args)"
+  ],
+  "violation_details": [
+    {
+      "violation_type": "Circular_Reasoning",
+      "action": "SEVERITY=WARN. node scripts/qa/verify_prompt_render_86_90.mjs -- section [5] cell M3 'placeholder-instead-of-throw'; I re-ran every cell's own expect() against the unmutated control AND the mutant, recording RETURNED-false / RETURNED-true / THREW",
+      "state": "M3 mutant THREW 'Invalid or unexpected token' -- its replacement ends `void ('` followed by a newline (unterminated single-quoted string), and the injected `return '(unrenderable)'` sits AFTER the throw it is meant to replace, i.e. dead code even if it parsed. verify_prompt_render_86_90.mjs:346 `catch (_e) { survived = false }` converts that crash into KILLED. Cells M1/M2/M4/M5 are GENUINE discriminating kills (control expect()=false, mutant expect()=true) -- M5 specifically BUILDS, RUNS, spawns 1 and renders 'REPLACED', so it is NOT a construction artifact. The guard itself is sound: my independently-built M3-prime (valid syntax, placed before the throw) does turn section [3] RED, so criterion 5's behavioural coverage is real.",
+      "constraint": "qa.md 4c -- a guard that cannot fail when its subject is broken does not count; a mutation matrix licenses only 'these N mutations were killed'. experiment_results_86.90.md:175 claims 'Mutation matrix (5 cells, all KILLED)' and :185 'This matrix licenses exactly one claim: these five mutations were killed'. FIX: replace M3's `to` with a reachable valid-syntax substitution (insert `return '(unrenderable)'` immediately after `if (violation) {`), and make the harness distinguish 'mutant did not build' from 'guard detected it'."
+    },
+    {
+      "violation_type": "Contradiction",
+      "action": "SEVERITY=WARN. Re-ran `node scripts/qa/verify_prompt_render_86_90.mjs | tail -1` and enumerated the checker's UNRENDERABLE array from source",
+      "state": "experiment_results_86.90.md:423 (inside '## 11. Verification commands run') records `ALL GREEN: 53 passed, 0 failed`; the command prints 78 today and the SAME document says 78 at :159 and :453. live_check_86.90.md:281 carries the same stale 53. Separately :410 says 'spawns.length === 0 on all 14 unrenderable cases' while the checker's array has 12 entries (circular, bigint, function-valued, undefined-valued, Map, NaN, object step_id, A1, A2, A4, A6, A7) and :170 of the same doc says 12.",
+      "constraint": "qa.md 4b -- a 'verbatim' capture must be REGENERATED, never left stale; a correction must REPLACE, not accompany. This is the same defect class as the D1 finding this cycle was fixing, recurring in the artifact that fixes it. FIX: regenerate the 11 block and correct 14 -> 12 in both files."
+    },
+    {
+      "violation_type": "Threshold_Not_Met",
+      "action": "SEVERITY=WARN. Ran 86.94's own criterion-1 commands at 2026-08-16T08:52:52Z: `git log --since=2026-08-11 --format=%H | wc -l` and `git log --since=2026-08-11T00:00:00 --format=%H | wc -l`",
+      "state": "Returned 560 and 712. Criterion 1 of the newly-filed step 86.94 reads 'the 621 -> 592 -> 706 drift is REPRODUCED first, with the commands and their verbatim output'. None of 621/592/706 reproduces, and by the step's OWN thesis none can: the bare-date count slides DOWN as the clock advances, and the midnight-pinned count climbs UP because its upper bound is still HEAD. The other three filed steps (86.92/86.93/86.95) have substantive, meetable criteria and DO exist in masterplan.json (walked, not grepped), so the D2 remediation is otherwise real.",
+      "constraint": "The D2 remediation must file steps whose criteria are answerable. This is the identical trap 86.91 hit -- a criterion naming a number that cannot be regenerated -- re-committed inside the criterion written to prevent it. FIX: restate 86.94 criterion 1 as 'two runs of the bare-date command at different times of day return DIFFERENT counts, and the midnight-pinned form differs from both', with no pinned figures."
+    },
+    {
+      "violation_type": "Unjustified_Inference",
+      "action": "SEVERITY=WARN. git log -S'carries NO brief_status marker' -- .claude/workflows/research-gate.js; git diff a21a5889 98c5b6ab -- .claude/workflows/research-gate.js | grep -c enforceGate",
+      "state": "experiment_results_86.90.md section 9.1 and 86.92's audit_basis both justify 'the 84/3 RED is not my change' with `git worktree add --detach <path> HEAD`. HEAD already contains a21a5889, so that worktree excludes only UNCOMMITTED edits and cannot exclude this step. The CONCLUSION is nevertheless TRUE and I established it independently: the failing rule entered at d3bb1dfb (2026-08-10, phase-86.37), 86.90's only hunk near enforceGate adds a log() warning, and the cycle-2 diff to research-gate.js contains 0 occurrences of enforceGate. I reproduced the 84/3 exactly.",
+      "constraint": "A conclusion that is correct for a reason that does not establish it is still a finding -- the stated proof must support the claim. FIX: cite the git log -S date and the enforceGate-untouched count instead of the worktree, in both experiment_results 9.1 and 86.92's audit_basis."
+    },
+    {
+      "violation_type": "Overgeneralization",
+      "action": "SEVERITY=NOTE. Adversarial sixth-hole hunt against the WIDENED walk: drove renderArgField/jsonLosslessViolation in-memory (data:-URL import, no tree mutation) over 9 new constructions -- proxies, revoked proxy, prototype-chain toJSON, sparse array, non-enumerable array index, own __proto__ key, nested proxy, proxy-over-array -- with two render-still-works controls run FIRST",
+      "state": "SIXTH HOLE FOUND: a Proxy whose getOwnPropertyDescriptor trap returns a DATA descriptor (so `d.get || d.set` is false) while its get trap is non-deterministic. Measured: the walk inspected call1/call2, the rendered JSON carried call2, an independent JSON.stringify gave call3 -- the exact TOCTOU the accessor refusal was added to close, through a shape the accessor check cannot see. NOT reachable from a real caller (args are JSON-derived; a Proxy cannot arrive through JSON), and the cycle-2 in-code claim was narrowed to 'over the value shapes this boundary can actually receive', so this does NOT falsify the stated claim. Examined and REJECTED as false findings: H1/H7/H8/H9 (proxy-consistent, own __proto__, nested proxy, proxy-over-array) are EQUIVALENT mutants -- the walk and stringify agree on the observed [[Get]] value, so no loss occurs. Correctly REFUSED: revoked proxy (loud TypeError), prototype-chain toJSON, sparse array, non-enumerable array index. All five cycle-1 constructions (A1/A2/A4/A6/A7) now refused.",
+      "constraint": "Per Goodenough-Gerhart no matrix licenses a global no-holes claim; the narrowed in-code wording is the correct response and holds. Queue the Proxy shape rather than widening now."
+    }
+  ],
+  "certified_fallback": false,
+  "checks_run": [
+    "immutable_verification_command (node --check qa-verdict.js) -> parses, EXIT=0",
+    "harness_compliance_audit_5_items (research<contract<artifact by mtime; masterplan 86.90 still pending; harness_log has 0 rows for 86.90/86.91; evidence changed between cycles)",
+    "research_gate_envelope (brief_status COMPLETE, 12 sources read in full, 45 urls, recency_scan true, gate_passed true)",
+    "python_lint_gate F821/F401/F811 over git-DERIVED scope (commit-range UNION uncommitted, 3 files, non-empty set asserted first, xargs -0) -> All checks passed, exit 0",
+    "backend_runtime_smoke (import backend.api.sovereign_api OK; ast.parse on both scripts/qa .py)",
+    "rerunnable_checks: verify_prompt_render_86_90 78/0 exit 0, verify_research_gate_workflow 124/0 exit 0, verify_escalation_86_78 51/0 exit 0, verify_rail_retry 38/0 exit 0",
+    "verify_workflow_args_boundary reproduced at 84/3 exit 1 and proven pre-existing by git log -S (d3bb1dfb 2026-08-10) + 0 enforceGate lines in this cycle's diff",
+    "unintended_production_change_scan (uncommitted backend/frontend edits mtime 2026-08-14, absent from both commits -> pre-existing peer work)",
+    "mutation_matrix_reinstrumented_per_cell (control-unmutated first; THREW vs RETURNED distinguished; M1/M2/M4/M5 genuine, M3 artifact-kill)",
+    "M3-prime independently constructed (valid-syntax reachable placeholder) -> section [3] goes RED, guard load-bearing",
+    "blanket-refusal mutant -> both [3] CONTROL cases go RED while UNRENDERABLE stay green (controls proven discriminating by mutation)",
+    "enumerable-toJSON arm exercised (refused at any enumerability)",
+    "sixth_hole_hunt (9 constructions + 2 controls; 1 real survivor, 4 equivalent mutants rejected)",
+    "blast_radius_independent_re_derivation over 1392 agent transcripts -> SYMMETRIC DIFFERENCE EMPTY vs the 22-row table, 9 step ids, 6 also-lost-extra",
+    "D1 rollup arithmetic re-derived programmatically from the table (4 PASS + 7 DROP + 7 CONDITIONAL + 4 FAIL = 22)",
+    "86.86 re-grade verdict read from run record wf_a09930e2-3d7 (verdict PASS, ok true, violated_criteria [])",
+    "criterion-1 receipt quoted from wf_4588d8a7-e70 transcript; run 07:57:30Z precedes fix commit 08:12:48Z",
+    "section-6 discriminating measurement reproduced (naive grep True, coerced-field lines 0)",
+    "criterion-7 verdict-semantics scan (enforceEscalation/VERDICT_SCHEMA/verdict_unmodified/consecutive_conditionals = 0 changed lines each)",
+    "masterplan walk for 86.92-86.95 existence + criteria review; 86.94 criterion 1 measured un-meetable",
+    "cycle-2 guard diff reviewed for weakened assertions (purely additive, 0 deletions)",
+    "code_review_heuristics"
+  ],
+  "harness_compliance_ok": true,
+  "notes": "SEQUENCE: UNKNOWN. `verdict_history_86_21.py --step 86.90 --evidence-only` returns status=`no_rows_for_step`, verdicts=(none). `qa_wip.py 86.90 --spawned-at 2026-08-16T08:51:22Z` returns source_present=true, attempt_number=2 (status=ok, is_lower_bound=false), prior_attempts=1, records_retained=2 (gauge). CROSS-CHECK per qa.md: attempt_number (2, auto) > ledger verdict count (0) => THE LEDGER IS STALE for this step; the sequence source is unreliable here and I did not hand-roll a substitute. The prior CONDITIONAL is known only from Main's advisory disclosure. No aggregate computed; any threshold is the caller's.\n\nWHAT I ANSWERED FROM MAIN'S FOUR SPECIFIC ASKS: (1) SIXTH HOLE: yes, one -- a non-deterministic-get Proxy presenting a data descriptor; NOT reachable through JSON-derived args, and the narrowed in-code claim already bounds itself correctly, so NOTE not blocker. Four other proxy/__proto__ shapes are equivalent mutants, not holes. (2) M5 IS DISCRIMINATING, not a construction artifact -- the mutant builds, runs, spawns 1 and renders \"REPLACED\" while the control throws naming the non-enumerable toJSON. The artifact-kill is elsewhere: M3, a cycle-1 cell nobody re-instrumented. (3) The four filed steps EXIST with real criteria; 86.94 criterion 1 is un-meetable as written (measured 560/712 against its pinned 621/592/706). NOTE on 86.93: its immutable command is `test -f handoff/current/experiment_results_86.90.md` -- the archive hook COPIES so a flip survives it, but the documented handoff/current invariant (verify_handoff_layout.py) would turn it RED for a reason unrelated to 86.93. (4) The two [3] CONTROL cases DO discriminate -- proven by a blanket-refusal mutant, which Main believed but had not shown: both controls go RED while every UNRENDERABLE assertion stays green.\n\nON THE DISCLOSED WEAK POINTS: the `>= 1` correction is in a NEW assertion, not a loosened old one, and the blanket-refusal mutant shows it still catches what it exists to catch; the cycle-2 guard diff is purely additive with zero deleted assertions, so nothing else was weakened the same way. `.claude/agents/qa.md` is untouched -- separation of duties respected.\n\nMETHOD/SCOPE DISCLOSURES: no writes outside my WIP verdict file (.claude/agent-memory/qa/verdicts/verdict_wip_86.90__20260816T085122Z.md); all mutation testing was done in-memory via data:-URL module imports so the tree was never modified and nothing needed restoring. My blast-radius scan used a DIFFERENT operationalization from the author's (first user message of all 1392 agent transcripts vs their 583 run records / 507 prompts) and the member sets are identical, which is a genuine known-member recall result rather than a count match. No UI claims in this step, so gate 1c was not triggered and no Playwright capture was taken; no frontend/** in either commit, so gate 1b was not triggered. Uncommitted edits to backend/api/sovereign_api.py + 5 frontend files are dated 2026-08-14 and appear in neither commit -- pre-existing peer work, flagged so a later `git add -A` does not ship them under this step's name. The workflow-record corpus has grown 583 -> 589 since the author measured; the artifact already states its census is a floor.\n\nWHY CONDITIONAL AND NOT PASS: no criterion is unmet and the product code is correct under my own derivation, but three claims in the shipped artifacts do not reproduce -- \"5 cells, all KILLED\", \"ALL GREEN: 53 passed\" and \"14 unrenderable cases\" -- and one criterion in the remediation this cycle filed cannot be answered as written. All four are prose/matrix defects with named fixes, which is the CONDITIONAL band, not FAIL. WHY NOT PASS-WITH-FLAG: the M3 finding is a vacuity finding inside the step's own criterion-6 evidence, which qa.md 4c places at WARN, and WARN forces CONDITIONAL.",
+  "escalation": {
+    "sequence_supplied": [
+      "CONDITIONAL"
+    ],
+    "sequence_status": "ok",
+    "consecutive_conditionals": 1,
+    "would_auto_fail": false,
+    "attempt_number": 2,
+    "budget_exhausted": false,
+    "max_attempts": 5,
+    "burden_on": "the party departing from the computed escalation",
+    "override": null,
+    "override_reason": null,
+    "judge_was_told_consequence": false
+  },
+  "verdict_unmodified": true
+}
+```

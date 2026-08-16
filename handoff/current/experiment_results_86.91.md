@@ -170,7 +170,7 @@ Every invocation now appends one structured line to
 The `reason` comes from a closed set: `subject_forced_major`, `flip_created`,
 `flip_transitioned`, `flip_created_and_transitioned`, `no_flip`,
 `masterplan_unreadable_at_HEAD`, `first_commit`, `detector_error:<Type>`. **An
-unexplained `none` is no longer expressible** -- section `[2]` of the checker
+unexplained `none` is no longer expressible** *(bounded -- see below)* -- section `[2]` of the checker
 asserts that every branch returning `"none"` sets a reason, and mutation cell M3
 (deleting one reason assignment) is KILLED.
 
@@ -209,7 +209,7 @@ call), which is the real failure mode -- not a source reading.
 
 ```
 $ python scripts/qa/verify_changelog_flip_86_91.py
-ALL GREEN: 31 passed, 0 failed
+ALL GREEN: 34 passed, 0 failed
 ```
 
 It **drives the SHIPPED detector**: the `.sh` heredoc is extracted, parsed with
@@ -287,7 +287,7 @@ $ python -c "import ast; ast.parse(<the heredoc>)"
 heredoc python parses OK, 327 lines
 
 $ python scripts/qa/verify_changelog_flip_86_91.py
-ALL GREEN: 31 passed, 0 failed                           # exit 0
+ALL GREEN: 34 passed, 0 failed                           # exit 0
 
 $ python scripts/qa/replay_changelog_rule_86_68.py
 ... exit gate: control_green=True all_cells_killed=True cells_scored=2 -> exit 0
@@ -305,12 +305,59 @@ and fixed; the evidence changed, so a FRESH Q/A is spawned.
 |---|---|---|
 | **W1** | "Anyone re-running it gets 706 / 250 / 9 / 11, today and next month" did NOT reproduce -- the Q/A measured **710 / 252** two hours later, because `CORPUS_UNTIL = None` pinned only the LOWER bound | `CORPUS_UNTIL` is now pinned to `8dc70502` (env-overridable) and the resolved endpoint is PRINTED, so no count is quoted without its window. New figures **707 / 251 / 9 / 11**, verified by running the script twice and diffing: identical. Every superseded figure is listed and REPLACED in both artifacts |
 | **W2** | Section `[5]`'s replay guards were pure substring scans; **both** of the Q/A's replay mutants SURVIVED at 24/24 green | The replay predicate is now **DRIVEN**: `newly_done_ids` is extracted by `ast` from the shipped file and its two arms must genuinely DISAGREE (`['86.86']` vs `[]`). Both cycle-1 survivors are now mutation cells and both **KILL** -- QA-11 (behaviour stripped, literal kept) and QA-12 (the defect **reworded**, which no literal scan can see) |
-| **W3** | `QA-1` SURVIVED: deleting the `masterplan_unreadable_at_HEAD` reason left the guard green, while the assertion is *named* "EVERY branch sets a reason" | The 4th branch is now DRIVEN, and the **denominator is DERIVED FROM SOURCE** -- the checker counts `return "none"` sites inside the shipped `_flip_magnitude` by AST (**4**) and requires that many distinct reasons observed. A future 5th branch fails the check instead of slipping past it. New mutation cell **M4** deletes that reason and is KILLED |
+| **W3** | `QA-1` SURVIVED: deleting the `masterplan_unreadable_at_HEAD` reason left the guard green, while the assertion is *named* "EVERY branch sets a reason" | The 4th branch is now DRIVEN, and the **denominator is DERIVED FROM SOURCE** -- the checker counts `return "none"` sites inside the shipped `_flip_magnitude` by AST (**4**) and requires that many distinct reasons observed. A future 5th branch with a LITERAL `return "none"` fails the check instead of slipping past it -- see the bound recorded below, which the cycle-2 Q/A measured in both directions. New mutation cell **M4** deletes that reason and is KILLED |
 
-Guard after the fix: **`ALL GREEN: 31 passed, 0 failed`** (was 24), 6 mutation
+Guard after the fix: **`ALL GREEN: 34 passed, 0 failed`** (24 at cycle 1, 31 at cycle 2), 6 mutation
 cells, control observed GREEN first.
 
 W1 is the one worth keeping: this step's whole finding is *"that is a number
 about a clock"*, and I fixed one end of the window while claiming I had fixed
 both. The Q/A found it by simply re-running the command two hours later -- which
 is the cheapest possible check and the one I did not do.
+
+### The recall check's bound, stated (cycle-3 correction)
+
+The cycle-2 artifact claimed *"a future 5th branch fails the check instead of
+slipping past it."* The cycle-2 Q/A tested that in **both** directions, and it
+holds in only one:
+
+- **Detecting direction -- SOUND.** Adding a 5th literal `return "none"` branch
+  turns the recall check RED. Verified by execution.
+- **Evading direction -- FAILS OPEN.** Converting a branch to
+  `_v = "none"; return _v` drops `_none_sites` from 4 to 3 while the branch
+  behaves identically, and the check stays GREEN.
+
+The honest statement is therefore: **the denominator is derived from source for
+literal-constant `return "none"` sites only.** A branch that returns the string
+indirectly is outside the enumeration rule by construction. That is a real bound
+rather than a hedge, and it is the difference between "closed" and "closed
+against the shapes I enumerated" -- the distinction this pair of steps exists to
+enforce, and one I had again stated without its bound.
+
+
+---
+
+# Follow-up -- cycle 3 (2026-08-16)
+
+Cycle-2 verdict was **CONDITIONAL** (run `wf_fa56f83d-814`) with three WARN
+findings, **two of them mutants the Q/A executed and watched SURVIVE**. All
+accepted.
+
+| # | Finding | Fix |
+|---|---|---|
+| QA-C2-1 | The corpus-pin check was a **pure substring scan**: replacing `if CORPUS_UNTIL: _log_args.append(CORPUS_UNTIL)` with `pass` kept every literal, left the guard green, and unpinned the corpus 707 -> 712 | The pin is now **DRIVEN**: `corpus_head()` slices the shipped block from `CORPUS_SINCE =` through `rc, out = sh(*_log_args)`, execs it with `sh` stubbed to CAPTURE the argv the shipped code assembles, runs git with that argv, and requires the newest selected commit to equal the resolved pin. New cell **QA-C2-1** mutates the append line and KILLS |
+| QA-C2-6 | Every `[5]`/`[6]` fixture used the single id `86.86`, so narrowing the predicate to `... and s == "86.86"` left all four assertions green -- the shape criterion 2 forbids | Fixture now carries **two unrelated created ids in different top-level phases** (`86.86`, `12.7`). The Q/A's own mutant is now cell **QA-C2-6** and KILLS |
+| QA-C2-5 | `live_check` section 4's "verbatim" capture was stale -- 24 / 74 lines / 3 cells / no `[6]` -- because cycle 2 updated section 2 of the same file and left section 4 alone | Section 4 **regenerated wholesale** from a fresh run by a script, with the reason for the regeneration written into the block |
+| (bound) | The claim *"a future 5th branch fails the check instead of slipping past it"* was stated without its bound | Bounded: SOUND in the detecting direction (a 5th literal branch turns it RED) but **FAILS OPEN** in the evading direction (`_v = "none"; return _v` drops the count 4->3 and stays green). The enumeration rule covers **literal-constant returns only**, now stated |
+
+Also fixed, from the Q/A's latent-weakness note: `except: killed = True` scored a
+mutant that never ran as a kill. `[6]` now records `DETECTED` / `SURVIVED` /
+`UNSCORABLE`, and UNSCORABLE FAILS.
+
+**A second-order slip worth recording.** My first attempt at the QA-C2-1 fix
+*re-implemented* the corpus selection instead of driving it -- it rebuilt its own
+argv with its own `if CORPUS_UNTIL: append(...)` -- so mutating the shipped line
+changed nothing the probe could see and the cell scored SURVIVED. That is the
+identical defect the Q/A had just charged me with, one level down. It was caught
+only because the new cell went red; had I written the cell to scan instead of
+drive, I would have shipped the same vacuity a third time.

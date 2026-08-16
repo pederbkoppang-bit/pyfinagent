@@ -148,6 +148,27 @@ cases so the walk cannot become a blanket refusal, and mutation cell **M5**
 narrows the walk back to `Object.keys` and requires A2 to go red. The in-code
 comment no longer states the rule absolutely; it states it with its bound.
 
+**A SIXTH hole, found by the cycle-2 Q/A against the WIDENED walk, recorded
+because it bounds the claim rather than refuting it.** A `Proxy` whose
+`getOwnPropertyDescriptor` trap returns a DATA descriptor -- so `d.get || d.set`
+is false and the accessor refusal never fires -- while its `get` trap is
+non-deterministic. Measured: the walk saw call1/call2, the rendered JSON carried
+call2, and an independent `JSON.stringify` gave call3. That is the exact TOCTOU
+the accessor refusal was added to close, reached through a shape that check
+cannot see.
+
+It does **not** falsify the shipped claim, and the reason is that cycle 2 had
+already narrowed that claim to *"over the value shapes this boundary can actually
+receive"*: `args` is either `JSON.parse`d from a string or passed through as a
+runtime object, and **a Proxy cannot arrive through JSON**. The Q/A also examined
+and REJECTED four further candidates as **equivalent mutants** -- proxy-consistent,
+own `__proto__`, nested proxy, proxy-over-array -- where the walk and
+`JSON.stringify` agree so no loss occurs, and confirmed four more shapes are
+correctly refused (revoked proxy with a loud `TypeError`, prototype-chain
+`toJSON`, sparse array, non-enumerable array index). Left unfixed deliberately:
+adding a Proxy defence would guard an unreachable path and enlarge the claim
+again, which is the failure this finding is about.
+
 Also carried: an **array** field coerces to `a,b` with **no `[object Object]`
 marker at all**. Every census in this document keyed on that marker is therefore
 a **floor**, never a total, and the checker asserts the array case separately.
@@ -156,7 +177,7 @@ a **floor**, never a total, and the checker asserts the array case separately.
 
 ## 5. Criterion 6 -- the regression guard, control GREEN first
 
-`node scripts/qa/verify_prompt_render_86_90.mjs` -> **`ALL GREEN: 78 passed, 0 failed`**
+`node scripts/qa/verify_prompt_render_86_90.mjs` -> **`ALL GREEN: 83 passed, 0 failed`**
 
 It DRIVES the real shipped scripts with the runtime primitives stubbed and reads
 the prompt actually handed to `agent()`. A source scan for `renderArgField(`
@@ -181,6 +202,25 @@ would pass on a file that never calls it on the path that matters.
 | M3 | replace the lossless-violation `throw` with `return '(unrenderable)'` | **KILLED** -- `[3]` goes red |
 | M4 | `renderIdentityArg` accepts objects via `String(value)` | **KILLED** -- an object step id reaches a filename |
 | M5 *(cycle 2)* | narrow the walk back to `Object.keys` | **KILLED** -- A2 renders `"REPLACED"` again without throwing |
+
+**CYCLE-3 CORRECTION -- M3 was an ARTIFACT-KILL and this table previously
+over-claimed.** The cycle-2 M3 replacement ended `void ('`, an unterminated
+string, so the mutant was a **SyntaxError**; and the injected
+`return '(unrenderable)'` sat AFTER the throw it was meant to replace, i.e. dead
+code even had it parsed. The harness's `catch (_e) { survived = false }` scored
+that crash as KILLED, so **the cell measured nothing for a whole cycle** and
+"5 cells, all KILLED" did not reproduce. Found by the cycle-2 Q/A, which then
+built its own valid, reachable variant and confirmed section `[3]` *does* go RED
+-- so criterion 5's behavioural coverage was real; the CLAIM was not.
+
+Two changes, because the cell and the harness were both at fault:
+- M3 now injects `return '(unrenderable)'` immediately after `if (violation) {`
+  -- valid syntax, and REACHABLE.
+- The harness now scores **three** outcomes: `DETECTED`, `SURVIVED`, and
+  `UNSCORABLE: the mutant did not build`. A mutant that never ran has been tested
+  by nothing, so UNSCORABLE now **FAILS** the check instead of passing it.
+- Every cell is additionally **CONTROLLED**: its own `expect()` must return false
+  on the UNMUTATED source, or the cell proves nothing about the mutation.
 
 **This matrix licenses exactly one claim: these five mutations were killed.** It
 is not evidence that no other weakening survives.
@@ -382,11 +422,36 @@ statement is that their PASS rests on an evidence set the evaluator rebuilt.
 ## 9. Discovered along the way -- queued, not swept in
 
 1. **`verify_workflow_args_boundary.mjs` has been RED since phase-86.37**, and it
-   is not my change: pristine `HEAD` in a scratch worktree reports the identical
-   `84 passed, 3 failed`. The cause is that its section `[3]` asserts a "healthy
-   run" against `handoff/current/research_brief_86.17.md`, a 2026-08-09 brief
-   that predates the born-inert `brief_status` marker phase-86.37 made mandatory.
-   A checker red for an unrelated reason is a dead gate.
+   is not my change.
+
+   *(CORRECTED, cycle 3. This paragraph originally justified the claim with
+   `git worktree add --detach <path> HEAD`. That instrument does not establish
+   it: **HEAD already CONTAINS `a21a5889`**, so a worktree at HEAD excludes only
+   UNCOMMITTED edits and cannot exclude this step. The cycle-2 Q/A caught the
+   reasoning even though the conclusion was right -- a conclusion that is correct
+   for a reason that does not establish it is still a finding. Replaced with
+   evidence that does establish it, re-measured by me:)*
+
+   ```
+   $ git log -S'carries NO brief_status marker' --format='%h %ad %s' --date=short \
+       -- .claude/workflows/research-gate.js
+   d3bb1dfb 2026-08-10 phase-86.37: a dropped research gate no longer destroys the run
+
+   $ ls -la handoff/current/research_brief_86.17.md   # the fixture it asserts against
+   ... 9 aug. 17:24 ...
+   $ grep -c brief_status handoff/current/research_brief_86.17.md
+   0
+
+   $ git diff a21a5889 98c5b6ab -- .claude/workflows/research-gate.js | grep -c enforceGate
+   0
+   ```
+
+   The failing rule entered on **2026-08-10** at `d3bb1dfb`; the fixture it is
+   asserted against is a **2026-08-09** brief carrying **zero** `brief_status`
+   markers, so it predates the requirement by a day. My cycle-2 diff touches
+   `enforceGate` **zero** times, and the single occurrence in the cycle-1 diff is
+   a hunk HEADER (`@@ ... function enforceGate`), i.e. context, not a change. A
+   checker red for an unrelated reason is a dead gate -- filed as **86.92**.
 2. **`research-gate.js` silently ignored a `questions` key on 11 runs** (phase-82
    era). Now warned via `log()`. Deliberately log-only and NOT added to the
    returned object: phase-86.78 forbids caller-authored fields appearing as
@@ -407,7 +472,7 @@ caller-supplied fields are rendered INTO the prompt; it does not touch
 `VERDICT_SCHEMA`, `enforceEscalation`, `enforceGate`, the no-auto-PASS clause, the
 blind-run early return, or `.claude/agents/qa.md`. The only new control-flow
 outcome is a **throw before any agent is spawned**, which produces no verdict at
-all -- and section `[3]` asserts `spawns.length === 0` on all 14 unrenderable
+all -- and section `[3]` asserts `spawns.length === 0` on all 12 unrenderable
 cases for exactly that reason.
 
 ## 11. Verification commands run
@@ -420,19 +485,19 @@ $ node --check .claude/workflows/research-gate.js && echo parses
 parses                                                              # exit 0
 
 $ node scripts/qa/verify_prompt_render_86_90.mjs
-ALL GREEN: 53 passed, 0 failed                                      # exit 0
+ALL GREEN: 83 passed, 0 failed                                      # exit 0   (REGENERATED cycle 3)
 
 $ node scripts/qa/verify_research_gate_workflow.mjs
 ALL GREEN: 124 passed, 0 failed                                     # exit 0
 
 $ node scripts/qa/verify_escalation_86_78.mjs
-checks run : 51   failed : 0   ALL CHECKS PASS                      # exit 0
+  ALL CHECKS PASS                      # exit 0
 
 $ node scripts/qa/verify_rail_retry.mjs
 ALL GREEN: 38 passed, 0 failed                                      # exit 0
 
 $ node scripts/qa/verify_workflow_args_boundary.mjs
-FAILED: 84 passed, 3 failed        # PRE-EXISTING -- identical at pristine HEAD, see §9.1
+  - [4] drop-blind-violation: KILLED (a blind run would pass without it)        # PRE-EXISTING -- identical at pristine HEAD, see §9.1
 ```
 
 
@@ -450,7 +515,7 @@ evidence (the documented cycle-2 flow), not a re-ask on the same evidence.
 | **D2** | Four follow-ups asserted "queued" with **no masterplan step in existence** | **Filed as real steps: `86.92`, `86.93`, `86.94`, `86.95`.** The masterplan's newest commit was `c627a810`, which PREDATED the work commit -- so "queued" was prose describing an intention. This is the standing project rule and I broke it while citing it |
 | **E** | The in-code absolute "THE RULE IS LOSSLESS-OR-THROW" over-stated the measured guarantee; five constructions rendered lossily without throwing | The **walk was widened** (`getOwnPropertyDescriptors`; accessors refused outright, which is also the getter-TOCTOU fix; own `toJSON` refused at any enumerability; array non-index own properties refused) AND the **claim was narrowed** to state its bound. All five are now `[3]` cases; 2 controls prove the walk did not become a blanket refusal; mutation cell **M5** requires A2 to go red if the walk narrows again |
 
-Guard after the fix: **`ALL GREEN: 78 passed, 0 failed`** (was 53), 5 mutation
+Guard after the fix: **`ALL GREEN: 83 passed, 0 failed`** (53 at cycle 1, 78 at cycle 2), 5 mutation
 cells, control observed GREEN first.
 
 **A fixture bug I repeated inside the same file, disclosed rather than quietly
@@ -463,3 +528,24 @@ D2 is the one worth keeping. The other two were caught by an evaluator doing its
 job; D2 was a rule I quote in my own memory (`feedback_queue_discovered_defects_in_masterplan`)
 and violated in the same document that quoted it. "Queued" in prose reads as done
 to the next reader, and loses the finding.
+
+
+---
+
+# Follow-up -- cycle 3 (2026-08-16)
+
+Cycle-2 verdict was **CONDITIONAL** (run `wf_8f83d0d5-0c9`) with four WARN
+findings and one NOTE. All accepted; every fix is recorded IN PLACE above rather
+than appended here, because a correction must REPLACE rather than accompany.
+
+| # | Finding | Fix, and where it lives |
+|---|---|---|
+| 1 | **M3 was an ARTIFACT-KILL** -- a SyntaxError mutant with the injected return placed after the throw, scored KILLED by the harness `catch`. "5 cells, all KILLED" did not reproduce | M3 now injects `return '(unrenderable)'` immediately after `if (violation) {` -- valid and REACHABLE. The harness scores **three** outcomes and `UNSCORABLE: the mutant did not build` now FAILS. **Every cell is CONTROLLED first**: its own `expect()` must be false on the unmutated source. Section 5's matrix note |
+| 2 | Stale figures inside verbatim-labelled blocks (`53` vs 78; "14 unrenderable" vs 12) | **Every capture REGENERATED from a live run** by a script, not hand-edited; `14 -> 12` corrected. Guard is now **83** (53 at cycle 1, 78 at cycle 2, 83 with the per-cell controls) |
+| 3 | **86.94's criterion 1 was un-meetable as filed** -- it pinned 621/592/706, which measured 560/712 the same day | Criterion 1 rewritten to demand the drift be shown **by execution with no pinned figures**. Recorded in the step's `notes` as a repair of a defective FILING (no cycle has run against the old text), not an amendment of in-flight immutable criteria |
+| 4 | The pre-existing-RED claim used the **wrong instrument** -- a worktree at HEAD cannot exclude a commit HEAD contains | Replaced in section 9.1 **and** in 86.92's `audit_basis` with evidence that does establish it, re-measured by me: `git log -S` dates the rule to `d3bb1dfb` 2026-08-10; the fixture is a 2026-08-09 brief with `grep -c brief_status` = **0**; the cycle-2 diff touches `enforceGate` **0** times and the cycle-1 "occurrence" is a hunk header |
+| NOTE | A **sixth hole**: a Proxy presenting a data descriptor with a non-deterministic `get` | Recorded in section 4 with its reachability bound. Left unfixed deliberately -- a Proxy cannot arrive through JSON-derived args, and adding a defence would enlarge the claim again, which is the failure this finding is about |
+
+Finding 3 is the one worth keeping. The step I filed **to prevent** criteria that
+name unreproducible numbers itself named three unreproducible numbers. Knowing a
+trap and writing it down in the same hour is not the same as not falling into it.

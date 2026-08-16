@@ -278,7 +278,7 @@ $ node scripts/qa/verify_prompt_render_86_90.mjs
   ok   [6] research-gate.js: the block is present and delimited
   ok   [6] the two copies are BYTE-IDENTICAL
 
-ALL GREEN: 53 passed, 0 failed
+ALL GREEN: 83 passed, 0 failed   (REGENERATED cycle 3)
 ```
 
 Immutable command:
