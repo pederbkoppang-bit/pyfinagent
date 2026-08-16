@@ -59,7 +59,24 @@ GATE = REPO / "scripts" / "qa" / "verify_matrix_coverage_86_85.py"
 #: 86.85 artifacts recorded the reassuring one. Fixing them needs a mechanism
 #: that can SEE behavioural guards, which is not this check's job -- this check's
 #: job is to stop the count from being mistaken for coverage.
-KNOWN_VACUOUS = {"M5", "M6", "M9", "M11", "M12"}
+#: CYCLE 2 (Q/A C3). This was a bare id set, and nothing bound an id to its
+#: CONTENT: the Q/A repurposed M6 -- the ORDERING cell, the defect that opened
+#: this whole series -- to a benign no-op, and the run stayed byte-identically
+#: GREEN. An id-keyed baseline silently re-covers whatever later takes that id.
+#: Each entry is now pinned to a fingerprint of its mutation payload, so
+#: repurposing a baselined cell fails [6].
+#: Fingerprints are taken VERBATIM from each cell's own description line in the
+#: matrix -- not from this step's prose. My first attempt wrote them from the
+#: filed description and four of five did not match, which is the same
+#: assert-instead-of-measure habit this series keeps surfacing.
+KNOWN_VACUOUS_FINGERPRINTS = {
+    "M5":  "collapse event time into write time",
+    "M6":  "REVERSE emit_sequence",
+    "M9":  "drop step_id from the dedup key",
+    "M11": "make the cycle fallback key CONSTANT",
+    "M12": "DELETE the cycle fallback entirely",
+}
+KNOWN_VACUOUS = set(KNOWN_VACUOUS_FINGERPRINTS)
 
 PASSED: list[str] = []
 FAILURES: list[str] = []
@@ -124,6 +141,7 @@ def main() -> int:
         print("\n  control is not green -- every cell result below would be unscorable")
         return 1
 
+    payloads: dict[str, str] = {}
     demanding: list[str] = []
     vacuous: list[str] = []
     unscorable: list[str] = []
@@ -133,6 +151,7 @@ def main() -> int:
             if span is None:
                 unscorable.append(cid)
                 continue
+            payloads[cid] = "".join(lines[span[0]:span[1]])
             MATRIX.write_text("".join(lines[:span[0]] + lines[span[1]:]), encoding="utf-8")
             rc2, _ = run_gate()
             (demanding if rc2 != 0 else vacuous).append(cid)
@@ -173,15 +192,37 @@ def main() -> int:
     check("[4] no NEW vacuous cell", not new_vacuous,
           f"{len(new_vacuous)} cell(s) demand nothing and are not in the baseline: "
           f"{new_vacuous} -- a cell that cannot fail is not evidence")
+    # CYCLE 2 (Q/A C4 note): the old message said "now demand a guard", which is
+    # FALSE for the commonest cause -- the cell being ABSENT. Red for the right
+    # reason, diagnosed wrongly. The two causes are now distinguished.
     fixed = [c for c in KNOWN_VACUOUS if c not in vacuous]
-    check("[5] the baseline has not rotted (a baselined cell that now demands "
-          "something must be removed from it)", not fixed,
-          f"{fixed} now demand a guard -- delete them from KNOWN_VACUOUS so the "
-          "debt list shrinks instead of hiding progress")
+    absent = [c for c in fixed if c not in demanding]
+    now_demanding = [c for c in fixed if c in demanding]
+    detail = []
+    if now_demanding:
+        detail.append(f"{now_demanding} now DEMAND a guard -- delete them from "
+                      "KNOWN_VACUOUS so the debt list shrinks instead of hiding progress")
+    if absent:
+        detail.append(f"{absent} are baselined but NO LONGER PRESENT in the matrix -- "
+                      "a baselined cell was deleted; remove it from KNOWN_VACUOUS too")
+    check("[5] every baselined cell is still present AND still vacuous", not fixed,
+          " ; ".join(detail))
+
+    drifted = [cid for cid, want in KNOWN_VACUOUS_FINGERPRINTS.items()
+               if cid in payloads and want.lower() not in payloads[cid].lower()]
+    check("[6] each baselined cell still contains the mutation it was baselined FOR",
+          not drifted,
+          f"{drifted} no longer match their recorded fingerprint -- a baselined id was "
+          "REPURPOSED, so the baseline is now excusing a different (possibly real) cell")
 
     print()
     print("LICENCE -- what this run does and does NOT license:")
-    print("  DOES: 'every cell in this matrix demands at least one enumerated guard'.")
+    # CYCLE 2 (Q/A C6). This read "every cell in this matrix demands at least one
+    # enumerated guard" -- printed in the SAME output as "VACUOUS: 5". A
+    # completeness claim its own run contradicts, in exactly the object criterion
+    # 6 governs. The baseline carve-out is now part of the sentence.
+    print(f"  DOES: 'every cell OUTSIDE the acknowledged baseline demands at least one")
+    print(f"        enumerated guard'. {len(vacuous)} baselined cell(s) demand NOTHING: {sorted(vacuous)}.")
     print("  NOT : that the guard set is complete. This CANNOT discover a guard nobody")
     print("        wrote a cell for -- a matrix of one good cell scores 1/1 here.")
     print("  NOT : population recall. Any figure derived from a chosen known-member set")
@@ -192,7 +233,7 @@ def main() -> int:
     # basis. The floor is the standard remedy already used by
     # verify_escalation_86_78.mjs -- it makes a DELETED assertion fail rather
     # than silently shrink the evidence.
-    ASSERTION_FLOOR = 7
+    ASSERTION_FLOOR = 8
     emitted = len(PASSED) + len(FAILURES)
     if emitted < ASSERTION_FLOOR:
         FAILURES.append(
@@ -214,5 +255,59 @@ def main() -> int:
     return 0
 
 
+def self_test() -> int:
+    """Anti-NEUTERING check. phase-86.89 cycle 2, from the Q/A.
+
+    The cardinality floor catches a DELETED assertion (count drops below the
+    floor) but NOT a NEUTERED one: replacing a guard's condition with `True`
+    leaves the count at 8/8 and prints ALL GREEN over a genuinely red state.
+    Measured by the Q/A on two separate guards.
+
+    A count cannot detect that, because the assertion still runs -- it just
+    stops biting. So this drives the checker against a state it MUST reject and
+    requires a non-zero exit. If [4] or [5] is neutered, this returns GREEN on a
+    known-bad input and fails.
+
+        python scripts/qa/verify_cell_vacuity_86_89.py --self-test
+    """
+    import tempfile
+
+    print("SELF-TEST: the checker must REJECT a known-bad state\n")
+    src = MATRIX.read_text(encoding="utf-8")
+    before = hashlib.sha256(MATRIX.read_bytes()).hexdigest()
+    failures = 0
+
+    # Case A: a phantom id in the baseline -- [5] must fire.
+    globals()["KNOWN_VACUOUS"] = KNOWN_VACUOUS | {"M999"}
+    globals()["KNOWN_VACUOUS_FINGERPRINTS"] = {**KNOWN_VACUOUS_FINGERPRINTS, "M999": "phantom"}
+    PASSED.clear(); FAILURES.clear()
+    rc = main()
+    globals()["KNOWN_VACUOUS"] = set(KNOWN_VACUOUS_FINGERPRINTS) - {"M999"}
+    globals()["KNOWN_VACUOUS_FINGERPRINTS"] = {k: v for k, v in KNOWN_VACUOUS_FINGERPRINTS.items() if k != "M999"}
+    print(f"\n  case A (phantom baselined id): exit {rc} -> "
+          f"{'REJECTED (guard bites)' if rc != 0 else 'ACCEPTED -- [5] IS NEUTERED'}")
+    failures += rc == 0
+
+    # Case B: a baselined cell removed from the baseline -- [4] must fire.
+    globals()["KNOWN_VACUOUS"] = set(KNOWN_VACUOUS_FINGERPRINTS) - {"M6"}
+    PASSED.clear(); FAILURES.clear()
+    rc = main()
+    globals()["KNOWN_VACUOUS"] = set(KNOWN_VACUOUS_FINGERPRINTS)
+    print(f"  case B (M6 un-baselined):      exit {rc} -> "
+          f"{'REJECTED (guard bites)' if rc != 0 else 'ACCEPTED -- [4] IS NEUTERED'}")
+    failures += rc == 0
+
+    ok_restore = before == hashlib.sha256(MATRIX.read_bytes()).hexdigest()
+    print(f"  matrix restored byte-identical: {ok_restore}")
+    _ = tempfile
+    if failures or not ok_restore:
+        print(f"\nSELF-TEST FAILED: {failures} guard(s) accepted a known-bad state")
+        return 1
+    print("\nSELF-TEST OK: every guard bit on a state it must reject")
+    return 0
+
+
 if __name__ == "__main__":
+    if "--self-test" in sys.argv:
+        raise SystemExit(self_test())
     raise SystemExit(main())

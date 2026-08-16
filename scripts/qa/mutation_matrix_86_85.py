@@ -247,6 +247,18 @@ def main() -> int:
     import verify_matrix_coverage_86_85 as cov  # local import: same directory
 
     cov_rc = cov.main()
+
+    # phase-86.89 cycle 2 (Q/A finding: "STANDING" did not reproduce). The
+    # vacuity check shipped as a manually-run script while the artifacts called
+    # it standing -- a grep found it invoked by nothing. It is invoked HERE, the
+    # same way the coverage gate above is, so both halves run together: coverage
+    # asks "is every guard touched by a cell?", vacuity asks "does every cell
+    # demand a guard?". Running one without the other is what let five cells
+    # demand nothing while the gate reported OK.
+    import verify_cell_vacuity_86_89 as vac
+    vac_rc = vac.main()
+    if vac_rc != 0:
+        cov_rc = cov_rc or vac_rc
     if cov_rc != 0:
         print("\nFATAL: the mutation matrix is INCOMPLETE over the writer's "
               "guards (see above). Every cell may still have been killed -- "
