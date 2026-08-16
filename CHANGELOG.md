@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-16 | `ce2785d7` | docs(session): day report 2026-08-16 + goal for 08-17 |
 | 2026-08-16 | `1864dba7` | phase-86.89 cycle 2: six findings closed, incl. two the floor structurally could not see |
 | 2026-08-16 | `1cf84c57` | phase-86.88: harness_log cycle 226 -- FAIL by escalation |
 | 2026-08-16 | `acd13c57` | phase-86.88: ESCALATE -- F1 auto-FAIL applied after four CONDITIONALs |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-16 | `c627a810` | chore(masterplan): file 86.91 -- changelog flip detector swallows created-and-closed steps |
 | 2026-08-15 | `7a3e3cf2` | docs(session): day report 2026-08-15b + regenerate the 08-16 goal |
 | 2026-08-15 | `9a18150f` | phase-86.85: cycle 4 (C8) -- derived guard coverage; CONDITIONAL, step ESCALATED |
-| 2026-08-15 | `e4f2e844` | phase-86.86: D6 -- the lite risk judge's explicit 0% verdict survives ingress |
 
 ---
 
