@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-16 | `4e01f3b6` | phase-86.88 cycle 2: the provenance is now REAL, not a log line |
 | 2026-08-16 | `786b5a55` | phase-86.88: experiment_results + live_check; criterion 7 MEASURED under both flag states |
 | 2026-08-16 | `03386529` | phase-86.88: guard the ROUTES INTO the seam, not just the seam |
 | 2026-08-16 | `365fc515` | phase-86.90 + 86.91: ESCALATE to the operator -- F1 auto-FAIL applied after four CONDITIONALs |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-15 | `39999944` | phase-86.85: cycle-3 remediation -- cover the guard CLASS, not the reported instances |
 | 2026-08-15 | `5a3b0766` | phase-86.85: cycle-2 remediation -- the cycle-1 Q/A returned FAIL and it was right |
 | 2026-08-15 | `d1c4a79d` | phase-86.85: the verdict-ledger WRITER, plus the measurement that forced its shape |
-| 2026-08-15 | `e15caa9e` | phase-86.74: cycle-7 verdict CONDITIONAL -> recorded FAIL (3rd-CONDITIONAL rule) |
 
 ---
 
