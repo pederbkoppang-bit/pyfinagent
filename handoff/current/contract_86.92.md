@@ -62,7 +62,13 @@ with phase-86.37.
 2. The actual stale fixture is the checker's **own hand-written `verification`
    object literal** at `verify_workflow_args_boundary.mjs:179`, cloned at `:319`.
    It supplies 4 of the 9 fields `BRIEF_VERIFICATION_SCHEMA.required` has
-   declared since 86.28/86.37, and 4 of the 7 that `enforceGate` actually reads.
+   declared since 86.6/86.37, and 4 of the 7 that `enforceGate` actually reads.
+   (An earlier revision of this line said `86.28/86.37`. Re-derived per field:
+   `recency_section_present` and `distinct_urls_in_brief` both land in `cad38647`,
+   subject *phase-86.6*; `brief_status_in_brief` in `d3bb1dfb`, *phase-86.37*. The
+   `86.28` came from `research-gate.js:715`, whose in-code comment labels that block
+   `phase-86.28` — a discrepancy inside the gate's own source, recorded rather than
+   silently resolved. Nothing load-bearing depends on it.)
    Missing: `brief_status_in_brief`, `recency_section_present`,
    `distinct_urls_in_brief`.
 3. Breaking commit is **`cad38647` (phase-86.6, 2026-08-10 08:51:11 +0200)**, not

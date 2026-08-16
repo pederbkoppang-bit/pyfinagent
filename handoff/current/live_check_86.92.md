@@ -1,11 +1,19 @@
 # live_check — phase-86.92
 
-**STATUS: IN PROGRESS.** Sections A–D are MEASURED and final (they are the
-reproduction + diagnosis half, taken before any fix). Section E (post-fix exit 0
-+ surviving mutation cells) is written after GENERATE.
+**STATUS: COMPLETE.** All sections are written and final. (Cycle 1 left this
+marker at IN PROGRESS after section E was finished — flagged by the cycle-1 Q/A
+as a born-inert violation, and correct: a completed record must flip its own
+marker as its final act.)
 
-Every block below is verbatim tool output from this session unless labelled
-otherwise. Nothing here is transcribed from a previous session's notes.
+Every block below is verbatim tool output from this session, **complete and
+unelided**, unless a line explicitly says otherwise.
+
+*Cycle-2 correction:* the cycle-1 Q/A found that two blocks were declared
+verbatim while silently omitting lines — 4 of 6 FAIL lines in §E3 and 5 of 11
+KILLED lines in the sibling `experiment_results`. Every such block has been
+**regenerated from a fresh run**, not patched up by hand. The elided lines were
+all truthful, so no conclusion changed; the defect was disclosure completeness,
+and it is the kind that erodes trust in every other block on the page.
 
 ---
 
@@ -73,6 +81,23 @@ verification fields READ by enforceGate: brief_exists, brief_non_empty, brief_st
 fields the CHECKER fixture supplies      : brief_exists, brief_non_empty, char_count, urls_missing
 MISSING from the stale fixture           : brief_status_in_brief, distinct_urls_in_brief, recency_section_present
 ```
+
+Provenance of those three fields, re-derived per field (cycle-2 correction — an
+earlier revision of this line called them "the 86.28/86.37 fields", and the
+`86.28` half does not reproduce):
+
+```
+recency_section_present  cad38647 2026-08-10 phase-86.6: P1 THE CHANNELS A CONFTEST G
+distinct_urls_in_brief   cad38647 2026-08-10 phase-86.6: P1 THE CHANNELS A CONFTEST G
+brief_status_in_brief    d3bb1dfb 2026-08-10 phase-86.37: a dropped research gate no
+```
+
+So the correct attribution is **phase-86.6 / phase-86.37**. Worth recording
+separately: `research-gate.js:715` labels that block `phase-86.28: corroborate
+the two self-reports...` in its own comment, which disagrees with the subject of
+the commit that introduced it. The in-code label is where my `86.28` came from.
+Nothing load-bearing rests on it — the breaking-commit finding is `cad38647`
+either way — but it is a live inconsistency inside the gate's own source.
 
 Supplying the three missing fields — **with the same brief_path, the same
 `enforceGate`, nothing in the gate weakened** — makes the healthy case pass:
@@ -196,11 +221,13 @@ harm is instead in two other places:
 
 ```
 $ node scripts/qa/verify_workflow_args_boundary.mjs ; echo $?
-ALL GREEN: 95 passed, 0 failed
+ALL GREEN: 96 passed, 0 failed
 0
 ```
 
-Was `FAILED: 84 passed, 3 failed`. The immutable command, for completeness —
+Was `FAILED: 84 passed, 3 failed`. 96 = 87 (the pre-rot green count) + 9 new
+assertions. (Cycle 1 reported 95; the cycle-2 control repair added one more —
+the poison-anchor uniqueness check.) The immutable command, for completeness —
 and with its weakness restated, since it was green all six days the gate was dead:
 
 ```
@@ -247,22 +274,35 @@ Replayed in a `git worktree` (the repo file is never mutated — a disk-mutating
 checker one interrupt away from `git add -A` is its own hazard) by deleting the
 exact three fields `cad38647` and `d3bb1dfb` introduced:
 
-```
-=== baseline in worktree (patched checker) ===
-ALL GREEN: 95 passed, 0 failed
+Complete failure list, **regenerated** from a fresh run (cycle-2: this block
+previously showed 2 of the 6 lines with no ellipsis, while the page header
+declared every block verbatim):
 
-=== REPLAY THE 2026-08-10 ROT: delete the 3 fields phase-86.6/86.37 added ===
-  fixture shrunk by 155 bytes -- 3 fields removed, verified by assertion
-  FAIL [3] fixture canary (declared): every BRIEF_VERIFICATION_SCHEMA.required field has a healthy value -- add a value to HEALTHY_VERIFICATION_VALUES for: brief_status_in_brief, distinct_urls_in_brief, recency_section_present
-  FAIL [3] fixture canary (consumed): every verification.* field enforceGate READS is supplied -- enforceGate reads 7 field(s); missing from the fixture: brief_status_in_brief, distinct_urls_in_brief, recency_section_present
-FAILED: 89 passed, 6 failed
+```
+=== failure list ===
+FAILED: 90 passed, 6 failed
+  - [3] fixture canary (declared): every BRIEF_VERIFICATION_SCHEMA.required field has a healthy value -- add a value to HEALTHY_VERIFICATION_VALUES for: brief_status_in_brief, distinct_urls_in_brief, recency_section_present
+  - [3] fixture canary (consumed): every verification.* field enforceGate READS is supplied -- enforceGate reads 7 field(s); missing from the fixture: brief_status_in_brief, distinct_urls_in_brief, recency_section_present
+  - [3] a healthy run with a perfect envelope PASSES -- ["brief at handoff/current/research_brief_86.17.md carries NO brief_status marker -- it cannot be shown to be complete, so it does not pass. (Distinct from INCOMPLETE: a brief with no marker was not written by the write-first path at all.)","over-claim: recency_scan_performed=true but the brief carries NO dedicated recency-scan section (structural check -- .claude/rules/research-gate.md requires the section even when it reports no findings)","over-claim: urls_collected=40 but only -1 distinct URLs appear in the brief (the snippet-only set must be recorded there too)"]
+  - [3] fixture canary KILLED: the canary names exactly the dropped field -- newly-missing after the mutation: (none -- the canary did not notice)
+  - [3] no regression: enforceGate without inputHealth behaves as before
+  - [4] drop-blind-violation: KILLED (a blind run would pass without it)
 ```
 
-The three original 2026-08-10 failures reappear alongside the two canary
-failures, which is how the replay is shown to reproduce the historical state
-rather than approximate it. Every anchor was `assert`ed present before
-replacement and the byte delta asserted non-zero — a no-match `str.replace`
-looks identical to success.
+All six accounted for: **two** canary failures (the new guard doing its job),
+**three** original 2026-08-10 failures — which is how the replay is shown to
+reproduce the historical state rather than approximate it — and **one** that is
+the differential canary cell honestly reporting a no-op. Deleting a field the
+rotted baseline is *already* missing introduces nothing new, so the cell says
+`(none -- the canary did not notice)`. That is the correct answer to the question
+it asks, and it is left as-is rather than tuned to look tidier.
+
+(The pass count is 90 here and 96 in the unmutated tree because the mutation
+turns 6 assertions red; the baseline inside the same worktree run is
+`ALL GREEN: 96 passed, 0 failed`.)
+
+Every anchor was `assert`ed present before replacement and the byte delta
+asserted non-zero — a no-match `str.replace` looks identical to success.
 
 **Why this fixture cannot rot the same way.** It is no longer a transcription of
 what `enforceGate` needed on the day it was written; it is derived from
@@ -310,3 +350,92 @@ $ git diff --numstat .claude/masterplan.json
 ```
 
 Pure addition; no existing step mutated.
+
+---
+
+## F. CYCLE-2 REMEDIATION — the cycle-1 Q/A found a guard of mine that could not fail
+
+Verdict `wf_1afa11f6-75a`: **CONDITIONAL**. All 7 immutable criteria met on their
+letter and every headline claim independently re-derived by the evaluator, capped
+by one executed finding. It was right, and the finding is the exact class this
+step exists to attack — so it is recorded here rather than quietly fixed.
+
+### F1. The vacuous positive control (WARN — `illusory-guard`)
+
+My cycle-1 control injected `// verification.__bogusProseOnlyField__ ...`
+immediately **before** `function enforceGate` — which is the slice START anchor.
+The poison therefore landed *outside* the scanned region, so `stripped` was false
+whether the stripper worked or not, and `naive && !stripped` was true
+unconditionally. The evaluator proved it by mutation: with **both** strip
+operations replaced by an inert no-op, both control assertions still printed `ok`.
+
+The irony is the point. The in-source comment asserted *"A control that cannot
+fail is not a control"* — and the control it was attached to could not fail.
+
+**Fix, and the proof it discriminates.** The poison now goes INSIDE the region
+(anchored on `const selfReported`, verified unique and at index 36913 within the
+region 33457..44477), and the control is a **scan-vs-scan differential**: the same
+source, sliced identically, scanned once with the stripper live and once with it
+disabled, via a new `verificationFieldsReadNoStrip()`. The two must disagree.
+Re-running the evaluator's own M5 mutant:
+
+```
+unmutated:
+  ok   [3] fixture canary CONTROL: the poison anchor is unique and inside the region
+  ok   [3] fixture canary CONTROL: the poison IS visible when stripping is disabled
+  ok   [3] fixture canary CONTROL: the stripper rejects a comment-only field
+ALL GREEN: 96 passed, 0 failed
+
+M5 mutant (both strip operations neutered, -12 bytes, anchors asserted first):
+  ok   [3] fixture canary CONTROL: the poison anchor is unique and inside the region
+  ok   [3] fixture canary CONTROL: the poison IS visible when stripping is disabled
+  FAIL [3] fixture canary CONTROL: the stripper rejects a comment-only field -- comment stripping is inert -- a field named only in prose would be demanded of the fixture
+FAILED: 95 passed, 1 failed
+```
+
+M5 now **KILLS**. Note the middle assertion is what makes the first one
+meaningful: if the injection ever stops landing inside the region, *that* line
+goes red instead of the control silently passing.
+
+### F2. Disclosure completeness (WARN — `scope-honesty`)
+
+Two blocks were declared verbatim while omitting lines without an ellipsis. Both
+have been **regenerated from fresh runs** rather than hand-patched (§E2, §E3, and
+the sibling `experiment_results_86.92.md`). Every omitted line was truthful and no
+conclusion changed — but a page that says "verbatim" and isn't undermines every
+other block on it.
+
+### F3. Provenance (NOTE) — corrected in §B2 above
+
+`86.28/86.37` → `86.6/86.37`, re-derived per field, with the in-code `phase-86.28`
+label at `research-gate.js:715` recorded as the source of the error.
+
+### F4. Born-inert markers (NOTE)
+
+This file's header now reads COMPLETE. Separately, the evaluator observed that the
+**committed** copy of `research_brief_86.92.md` (in `687109bb`, 20:54:47) carries
+`brief_status=INCOMPLETE`, because the auto-commit caught the brief 47 seconds
+before its final write at 20:55:34. The gate read the finished file — run record
+`wf_2ee79ffe-d4f` shows `brief_status_in_brief: COMPLETE`, `gate_passed: true` —
+and the mtime ordering (research 20:55:34 < contract 20:57:37) is unaffected. The
+finished brief is committed in the cycle-2 commit.
+
+### What was NOT changed in response to the verdict
+
+No immutable criterion was reinterpreted, and no assertion was deleted or
+weakened to accommodate a finding. Assertion count went **up**:
+
+```
+b1469a06 (pre-fix):  22 check() CALL SITES (total occurrences 23 minus the 1 function definition)
+HEAD     (cycle-1):  30 check() CALL SITES (total occurrences 31 minus the 1 function definition)
+working tree (cyc-2): 31 check() CALL SITES (total 32 minus the definition)
+```
+
+**Counting rule stated because the numbers differ from the evaluator's.** The
+cycle-1 Q/A reported `23 -> 31`; I measure `22 -> 30`. Same underlying file — the
+Q/A counted every occurrence of `check(`, which includes the `function check(...)`
+definition itself; I subtract it and count only CALL SITES. Neither is wrong;
+the rule has to be stated with the ratio or the two look like a contradiction.
+
+These are call sites, not executed assertions — several sites run inside loops
+(one per mutant), which is why the executed totals are higher: **87 → 95 → 96**.

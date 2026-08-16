@@ -107,19 +107,34 @@ function healthyVerification(overrides) {
  *  Returns `{fields, anchored}`. `anchored` is false when either boundary
  *  marker has moved, so a silently-mis-sliced region is reported rather than
  *  scanned -- a slicing checker cannot cover what it slices away. */
+const EG_START = 'function enforceGate'
+const EG_END = '// NO `export { ... }` LIST HERE'
+
+/** The enforceGate region, or null when a boundary marker has moved. */
+function enforceGateRegion(scriptSource) {
+  const start = scriptSource.indexOf(EG_START)
+  const end = scriptSource.indexOf(EG_END)
+  if (start === -1 || end === -1 || end <= start) return null
+  return scriptSource.slice(start, end)
+}
+
+const FIELD_RE = /verification\.([A-Za-z0-9_]+)/g
+const collect = (text) => [...new Set([...text.matchAll(FIELD_RE)].map(m => m[1]))].sort()
+
 function verificationFieldsRead(scriptSource) {
-  const START = 'function enforceGate'
-  const END = '// NO `export { ... }` LIST HERE'
-  const start = scriptSource.indexOf(START)
-  const end = scriptSource.indexOf(END)
-  if (start === -1 || end === -1 || end <= start) return { fields: [], anchored: false }
-  const body = scriptSource.slice(start, end)
+  const region = enforceGateRegion(scriptSource)
+  if (region === null) return { fields: [], anchored: false }
+  const body = region
     .replace(/\/\*[\s\S]*?\*\//g, '')
     .split('\n').map(l => l.replace(/(^|[^:])\/\/.*$/, '$1')).join('\n')
-  return {
-    fields: [...new Set([...body.matchAll(/verification\.([A-Za-z0-9_]+)/g)].map(m => m[1]))].sort(),
-    anchored: true,
-  }
+  return { fields: collect(body), anchored: true }
+}
+
+/** The SAME region, scanned WITHOUT comment stripping. Exists only so the
+ *  control above can be a true differential: identical slicing, one variable. */
+function verificationFieldsReadNoStrip(scriptSource) {
+  const region = enforceGateRegion(scriptSource)
+  return region === null ? [] : collect(region)
 }
 
 /** The eight shapes criterion 1 names, plus the two the research measured. */
@@ -271,17 +286,38 @@ console.log('\n[3] BLIND CANNOT PASS -- enforceGate defence in depth (criterion 
   check('[3] fixture canary: enforceGate reads no field the schema does not require',
         undeclared.length === 0, `read but not declared: ${undeclared.join(', ')}`)
 
-  // POSITIVE CONTROL for the comment-stripper. Without this, the scan above
-  // could be silently matching nothing and every fixture would look complete.
+  // POSITIVE CONTROL for the comment-stripper.
+  //
+  // THE FIRST VERSION OF THIS CONTROL COULD NOT FAIL, and the way it failed to
+  // fail is worth keeping. It injected the poison comment immediately before
+  // `function enforceGate` -- which is the slice START anchor -- so the comment
+  // landed OUTSIDE the scanned region entirely. `stripped` was therefore false
+  // whether the stripper worked or not, and `naive && !stripped` was true
+  // unconditionally. Measured by the phase-86.92 cycle-1 Q/A: with BOTH strip
+  // operations replaced by an inert no-op, both control assertions still printed
+  // `ok`. A control placed outside the region it is controlling for is not a
+  // weaker control -- it is not a control.
+  //
+  // The poison now goes INSIDE the region, anchored on `const selfReported`, and
+  // the control is a scan-vs-scan DIFFERENTIAL rather than a regex-vs-scan
+  // comparison: the same source is scanned with the stripper live and with it
+  // disabled, and the two must DISAGREE. That is the property the comment claims,
+  // stated as the thing actually asserted.
   {
-    const poisoned = src.replace('function enforceGate',
-      '// verification.__bogusProseOnlyField__ appears only in prose here\nfunction enforceGate')
-    const naive = /verification\.__bogusProseOnlyField__/.test(poisoned)
-    const stripped = verificationFieldsRead(poisoned).fields.includes('__bogusProseOnlyField__')
-    check('[3] fixture canary CONTROL: a comment-only field IS present in the raw source', naive,
-          'the control never injected anything -- it proves nothing')
-    check('[3] fixture canary CONTROL: the stripper rejects a comment-only field', naive && !stripped,
-          'comment stripping is inert -- a field named in prose would be demanded of the fixture')
+    const ANCHOR = 'const selfReported'
+    const nAnchor = src.split(ANCHOR).length - 1
+    check('[3] fixture canary CONTROL: the poison anchor is unique and inside the region',
+          nAnchor === 1 && src.indexOf(ANCHOR) > src.indexOf('function enforceGate'),
+          `found ${nAnchor} occurrence(s) -- a no-match replace looks identical to success`)
+    const poisoned = src.replace(ANCHOR,
+      '// verification.__bogusProseOnlyField__ appears only in prose here\n  ' + ANCHOR)
+    const withStripper = verificationFieldsRead(poisoned).fields.includes('__bogusProseOnlyField__')
+    const withoutStripper = verificationFieldsReadNoStrip(poisoned).includes('__bogusProseOnlyField__')
+    check('[3] fixture canary CONTROL: the poison IS visible when stripping is disabled', withoutStripper,
+          'the injection never landed inside the scanned region -- this control proves nothing')
+    check('[3] fixture canary CONTROL: the stripper rejects a comment-only field',
+          withoutStripper && !withStripper,
+          'comment stripping is inert -- a field named only in prose would be demanded of the fixture')
   }
 
   // A PERFECT envelope -- the gate must still refuse it when the run was blind.

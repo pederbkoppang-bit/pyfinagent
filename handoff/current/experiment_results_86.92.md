@@ -63,10 +63,26 @@ appends `export { enforceGate, BRIEF_VERIFICATION_SCHEMA }`.
 
 The field scanner strips comments first — otherwise a field named only in prose
 would be demanded of the fixture, inventing a false red. That stripping has a
-**positive control**: a bogus field is injected into a comment, and the checker
-asserts the raw source *does* contain it while the stripped scan *rejects* it.
-If the injection ever stops landing, the control fails rather than passing
-vacuously.
+**positive control**.
+
+**Cycle-1's version of this control could not fail, and this paragraph used to
+claim the opposite.** It injected the poison comment immediately *before*
+`function enforceGate`, which is the slice START anchor — so the poison landed
+outside the scanned region and the "stripped scan rejects it" branch was true
+unconditionally. The cycle-1 Q/A proved it by neutering both strip operations and
+watching both control assertions still print `ok`.
+
+The control is now a **scan-vs-scan differential**: the poison is injected INSIDE
+the region (anchored on `const selfReported`, asserted unique), and the same
+source is scanned once with the stripper live and once with it disabled via
+`verificationFieldsReadNoStrip()`. The two must disagree. A third assertion
+requires the poison to be visible in the no-strip scan, so if the injection ever
+stops landing, *that* line goes red rather than the control silently passing.
+
+Re-running the evaluator's own mutant: with both strip operations neutered the
+checker now reports `FAILED: 95 passed, 1 failed`, the failing line being
+`[3] fixture canary CONTROL: the stripper rejects a comment-only field`. Full
+before/after in `live_check_86.92.md` §F1.
 
 ### 4. Mutation cells for the new guard
 
@@ -95,28 +111,35 @@ step's immutable command, not because it is evidence. The evidence is below.
 
 ```
 $ node scripts/qa/verify_workflow_args_boundary.mjs ; echo $?
-ALL GREEN: 95 passed, 0 failed
+ALL GREEN: 96 passed, 0 failed
 0
 ```
 
-Was `FAILED: 84 passed, 3 failed`. 95 = 87 (the pre-rot green count) + 8 new
-assertions.
+Was `FAILED: 84 passed, 3 failed`. 96 = 87 (the pre-rot green count) + 9 new
+assertions (cycle 1 reported 95; the cycle-2 control repair added one more).
 
 ### Mutation cells still KILL — including the one the rot had disabled
 
+Complete and unelided, regenerated (cycle-2: this block previously truncated 5 of
+the lines mid-sentence and omitted the two `[3]` cells):
+
 ```
-ok   [4] restore-silent-catch: KILLED -- reverting it changes the outcome for malformed-json-string
-ok   [4] drop-post-parse-plain-object-check: KILLED -- reverting it changes the outcome for double-encoded-json
-ok   [4] drop-step_id-requirement: KILLED -- reverting it changes the outcome for object-without-step_id
-ok   [4] qa-restore-silent-catch: KILLED
-ok   [4] qa-drop-post-parse-plain-object-check: KILLED
-ok   [4] drop-empty-string-guard: KILLED
-ok   [4] qa-drop-empty-string-guard: KILLED
-ok   [4] qa-drop-step_id-requirement: KILLED
-ok   [4] drop-blind-violation: KILLED (a blind run would pass without it)
-ok   [5] qa-verdict.js: KILLED -- removing the blind early-return makes it spawn
-ok   [5] research-gate.js: KILLED -- removing the blind early-return makes it spawn
+  ok   [3] fixture canary KILLED: dropping one required field breaks the healthy case
+  ok   [3] fixture canary KILLED: the canary names exactly the dropped field
+  ok   [4] restore-silent-catch: KILLED -- reverting it changes the outcome for malformed-json-string
+  ok   [4] drop-post-parse-plain-object-check: KILLED -- reverting it changes the outcome for double-encoded-json
+  ok   [4] drop-step_id-requirement: KILLED -- reverting it changes the outcome for object-without-step_id
+  ok   [4] qa-restore-silent-catch: KILLED -- reverting it changes the outcome for malformed-json-string
+  ok   [4] qa-drop-post-parse-plain-object-check: KILLED -- reverting it changes the outcome for double-encoded-json
+  ok   [4] drop-empty-string-guard: KILLED -- reverting it changes the outcome for empty-string
+  ok   [4] qa-drop-empty-string-guard: KILLED -- reverting it changes the outcome for empty-string
+  ok   [4] qa-drop-step_id-requirement: KILLED -- reverting it changes the outcome for object-without-step_id
+  ok   [4] drop-blind-violation: KILLED (a blind run would pass without it)
+  ok   [5] qa-verdict.js: KILLED -- removing the blind early-return makes it spawn
+  ok   [5] research-gate.js: KILLED -- removing the blind early-return makes it spawn
 ```
+
+13 cells, all green.
 
 **`[4] drop-blind-violation` is the important one.** The rot had not merely made
 it *fail* — it had made it **non-discriminating**. Measured both ways:
@@ -134,20 +157,32 @@ the concrete sense in which the rot was *worse* than a red checker.
 ### The canary catches the actual historical rot (criterion 4)
 
 Replayed in a `git worktree` — the repo file is never mutated — by deleting the
-exact three fields phase-86.6 and phase-86.37 added:
+exact three fields phase-86.6 and phase-86.37 added. Complete and unelided,
+regenerated (cycle-2: this block previously showed 2 of the 6 failures, with
+their messages hand-wrapped onto continuation lines):
 
 ```
+=== baseline in worktree (patched checker) ===
+ALL GREEN: 96 passed, 0 failed
+=== REPLAY THE 2026-08-10 ROT: delete the 3 fields phase-86.6/86.37 added ===
   fixture shrunk by 155 bytes -- 3 fields removed, verified by assertion
-  FAIL [3] fixture canary (declared): every BRIEF_VERIFICATION_SCHEMA.required field has a healthy value
-       -- add a value to HEALTHY_VERIFICATION_VALUES for: brief_status_in_brief, distinct_urls_in_brief, recency_section_present
-  FAIL [3] fixture canary (consumed): every verification.* field enforceGate READS is supplied
-       -- enforceGate reads 7 field(s); missing from the fixture: brief_status_in_brief, distinct_urls_in_brief, recency_section_present
+FAILED: 90 passed, 6 failed
+  - [3] fixture canary (declared): every BRIEF_VERIFICATION_SCHEMA.required field has a healthy value -- add a value to HEALTHY_VERIFICATION_VALUES for: brief_status_in_brief, distinct_urls_in_brief, recency_section_present
+  - [3] fixture canary (consumed): every verification.* field enforceGate READS is supplied -- enforceGate reads 7 field(s); missing from the fixture: brief_status_in_brief, distinct_urls_in_brief, recency_section_present
+  - [3] a healthy run with a perfect envelope PASSES -- ["brief at handoff/current/research_brief_86.17.md carries NO brief_status marker -- it cannot be shown to be complete, so it does not pass. (Distinct from INCOMPLETE: a brief with no marker was not written by the write-first path at all.)","over-claim: recency_scan_performed=true but the brief carries NO dedicated recency-scan section (structural check -- .claude/rules/research-gate.md requires the section even when it reports no findings)","over-claim: urls_collected=40 but only -1 distinct URLs appear in the brief (the snippet-only set must be recorded there too)"]
+  - [3] fixture canary KILLED: the canary names exactly the dropped field -- newly-missing after the mutation: (none -- the canary did not notice)
+  - [3] no regression: enforceGate without inputHealth behaves as before
+  - [4] drop-blind-violation: KILLED (a blind run would pass without it)
 ```
 
-The three original 2026-08-10 failures reappear alongside it, confirming the
-replay reproduces the historical state faithfully rather than approximating it.
+All six accounted for: two canary failures, the three original 2026-08-10
+failures — which is how the replay is shown to reproduce the historical state
+rather than approximate it — and one that is the differential canary cell
+honestly reporting a no-op against an already-rotted baseline.
+
 The mutation used an `assert` on every anchor before replacing — a no-match
 `str.replace` looks identical to success — and asserts the byte count changed.
+
 
 ### No regression in the sibling gates
 

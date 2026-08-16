@@ -10,22 +10,24 @@ for information only; `coverage.dry` is not required).
 
 ```json
 {
-  "brief_status": "INCOMPLETE",
+  "brief_status": "COMPLETE",
   "tier": "moderate",
-  "external_sources_read_in_full": 5,
-  "snippet_only_sources": 14,
-  "urls_collected": 19,
+  "external_sources_read_in_full": 7,
+  "snippet_only_sources": 15,
+  "urls_collected": 22,
   "recency_scan_performed": true,
   "internal_files_inspected": 6,
   "coverage": {
     "audit_class": false,
-    "rounds": 1,
+    "rounds": 2,
     "dry_rounds": 0,
     "K_required": 2,
-    "new_findings_last_round": 5,
+    "new_findings_last_round": 2,
     "dry": false
   },
-  "gate_passed": false
+  "summary": "The step's own premise is REFUTED by measurement: the RED is caused by the checker's hand-written `verification` literal (verify_workflow_args_boundary.mjs:179/:319), which omits 3 fields the schema has required since 86.28/86.37 -- not by research_brief_86.17.md. enforceGate is pure and never opens that brief; a fake path gives byte-identical violations, and adding the 3 fields turns the gate green. The `-1` is a documented sentinel (research-gate.js:632), mis-rendered as a count at :740. Fixture rot has DISABLED mutation cell [4] drop-blind-violation, which can no longer kill. 86.17 is `done` with a now-RED immutable command, and 86.92's own command is `node --check` (a parse check that cannot fail on this defect).",
+  "brief_path": "handoff/current/research_brief_86.92.md",
+  "gate_passed": true
 }
 ```
 
@@ -100,9 +102,14 @@ for information only; `coverage.dry` is not required).
    quality and project longevity". Paywalled (HTTP 402), so held as
    snippet-only and not leaned on for any claim below.
 
-**Not superseded:** Fowler's quarantine-with-a-bound prescription (2011) and
-Google SRE's "every page should be actionable" remain the operative doctrine
-for the *dead-gate* half; nothing in the 2024-2026 window replaces them.
+**Not superseded:** Fowler's quarantine-with-a-bound prescription (2011),
+Google SRE's "every page should be actionable", Banja's normalization-of-
+deviance mechanism (2010, cross-domain) and the golden-file self-sufficiency
+critique (ieftimov) remain the operative doctrine for the *dead-gate* and
+*borrowed-fixture* halves. All four were reached via the **year-less canonical**
+query variants precisely because a year-locked search buries them; nothing in
+the 2024-2026 window replaces them, and the 2026 work (TEBench) supplies
+prevalence numbers the older sources never had rather than contradicting them.
 
 ---
 
@@ -327,9 +334,17 @@ it is the sharpest local finding.
 1. **`jest -u` reflex** — "regenerating snapshots when test suites fail instead
    of examining the root causes" (Jest docs). Local form: widening
    `enforceGate`. Forbidden by criterion 3.
-2. **Quarantine without a bound** — Fowler requires a numeric or time cap.
-   Local form: "pre-existing, out of scope" with no step filed. 86.92 *is* the
-   bound arriving; it should not be re-deferred.
+2. **Quarantine without a bound** — Fowler requires a numeric or time cap;
+   Banja supplies the mechanism for what happens without one (rationalization →
+   "if no accident has happened by now, it never will"). Local form:
+   "pre-existing, out of scope" repeated across cycles with no step filed.
+   86.92 *is* the bound arriving; it should not be re-deferred.
+2b. **A fixture with no regeneration path can only rot.** Every golden-file
+   source assumes an `-update`-style mechanism (ieftimov). The checker has
+   none — so "keep the literal, just add three fields" repairs the instance and
+   leaves the class intact. Derive it from
+   `BRIEF_VERIFICATION_SCHEMA.required` instead, so the *next* field addition
+   fails one builder loudly rather than three assertions obscurely.
 3. **Fixing the artifact the message names** — TEBench's whole point is that
    the execution signal under-determines the cause. The message named a brief;
    the cause is a literal.
@@ -359,8 +374,8 @@ it is the sharpest local finding.
 ## Research Gate Checklist
 
 Hard blockers:
-- [x] >=5 authoritative external sources READ IN FULL via WebFetch (5: Fowler, Jest docs, Google SRE book, arXiv:2605.06125v1, arXiv:2511.21382v1)
-- [x] 10+ unique URLs total (19)
+- [x] >=5 authoritative external sources READ IN FULL via WebFetch — **7**: Fowler, Jest docs, Google SRE book, arXiv:2605.06125v1, arXiv:2511.21382v1, PMC2821100 (peer-reviewed, cross-domain), ieftimov. Tier mix satisfies the hierarchy: 1 peer-reviewed, 2 preprint, 2 official docs, 2 authoritative blogs — **zero community-tier** in the read-in-full set.
+- [x] 10+ unique URLs total (**22** distinct URLs, machine-counted in this file)
 - [x] Recency scan (last 2 years) performed + reported (3 superseding findings)
 - [x] Full pages read, not abstracts, for the read-in-full set
 - [x] file:line anchors for every internal claim
@@ -370,8 +385,9 @@ Soft checks:
 - [x] Contradictions / consensus noted (incl. one claim REFUTED by measurement)
 - [x] Claims cited per-claim
 - [ ] **Gap disclosed:** three high-value sources could not be fetched
-  (Wiley 402, xunitpatterns ECONNREFUSED, Google Testing Blog body not served).
-  The canonical *Fragile Fixture* reference is therefore snippet-only; no claim
-  above rests on it.
+  (Wiley `402 Payment Required`, xunitpatterns `ECONNREFUSED 52.1.13.203:443`,
+  Google Testing Blog body not served on two attempts). The canonical
+  *Fragile Fixture* reference (Meszaros) is therefore snippet-only; **no claim
+  above rests on it** — the golden-file half is carried by #7 read in full.
 - [ ] **Gap disclosed:** the exact red-onset commit is not pinned (`git log -S`
   on the fixture literal, to run during GENERATE).
