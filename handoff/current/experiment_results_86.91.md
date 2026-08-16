@@ -158,10 +158,23 @@ measurement of a different corpus, not a disagreement about the same one.
 
 ---
 
-## 5. Criterion 4 -- the silent-swallow CLASS, closed
+## 5. Criterion 4 -- the silent-swallow class, closed FOR INVOCATIONS THAT REACH THE DETECTOR
 
-Every invocation now appends one structured line to
-`handoff/logs/changelog-decisions.log`:
+**Scope corrected in phase-86.97.** This section previously read "the
+silent-swallow CLASS, closed" and "Every invocation now appends one structured
+line". That was an overclaim, and the bound was *accompanied* rather than
+*replaced*: the limitation was disclosed 265 lines further down (§ "Three bash
+`exit 0` paths run BEFORE the detector"), where a reader of this section would
+never meet it. The claim itself now carries its own bound.
+
+Every invocation **that reaches this detector** appends one structured line to
+`handoff/logs/changelog-decisions.log`. Three bash `exit 0` paths run *before*
+the heredoc and never reach it — the auto-changelog/drift recursion guard, a
+missing CHANGELOG, and a CHANGELOG with no `### Recent Activity` anchor.
+phase-86.97 enumerates and classifies them from source (the recursion guard is a
+BOUND, not a defect; the other two are MUST-LOG) and adds the end-to-end
+coverage that can actually execute them:
+`scripts/qa/verify_decision_log_86_97.py`. The line format is unchanged:
 
 ```
 2026-08-16T08:34:07Z 9f2c1ab bump=patch reason=flip_created created_done=86.90 transitioned_done=-

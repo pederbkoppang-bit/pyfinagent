@@ -219,9 +219,25 @@ else:
 def _log_decision(bump: str) -> None:
     """phase-86.91 criterion 4: an unexplained 'none' is the defect.
 
-    Every invocation records WHY, from a closed set of reasons, so a
-    genuinely-chore commit, a declined flip and an internal error are no longer
+    SCOPE, CORRECTED IN phase-86.97. Every invocation THAT REACHES THIS
+    DETECTOR records WHY, from a closed set of reasons, so a genuinely-chore
+    commit, a declined flip and an internal error are no longer
     indistinguishable from the CHANGELOG.
+
+    The earlier wording here was "Every invocation records WHY", and that was an
+    OVERCLAIM. Three bash `exit 0` paths run BEFORE this heredoc is ever
+    executed and therefore never reach any Python in this file: the
+    auto-changelog/drift recursion guard, a missing CHANGELOG, and a CHANGELOG
+    with no "### Recent Activity" anchor. For those commits the log is silent,
+    and no assertion inside the detector can change that.
+    MEASURED at the time of writing: the recursion guard alone accounted for
+    essentially the entire commits-vs-decision-lines gap.
+
+    The recursion guard is a BOUND, not a defect -- a commit this hook created
+    is by construction not a bump candidate, so there is no decision to explain.
+    The other two are genuine MUST-LOG gaps and are recorded as such.
+    Enumeration, classification and the end-to-end coverage that can actually
+    observe these paths live in scripts/qa/verify_decision_log_86_97.py.
 
     WHY A FILE AND NOT JUST STDERR. MEASURED: `grep -c "flip-detect FAILED"
     handoff/logs/auto-push.log` = 0 over 976,895 bytes -- the marker has never

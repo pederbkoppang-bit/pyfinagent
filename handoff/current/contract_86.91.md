@@ -142,11 +142,18 @@ newly_done       = created_done + transitioned_done
 This fixes the CLASS -- any step created-and-closed in one commit -- and names no
 step id. The magnitude rules (major/minor/patch) are untouched.
 
-**P2. The decision log** (criterion 4). Every invocation appends one structured
+**P2. The decision log** (criterion 4). Every invocation **that reaches the
+detector** appends one structured
 line to `handoff/logs/changelog-decisions.log` naming the sha, the chosen bump,
 and the REASON, from a closed set: `subject_forced_major`, `flip_created`,
 `flip_transitioned`, `no_flip` (a genuinely-chore commit), `masterplan_unreadable`,
-`first_commit`, `detector_error`. An unexplained `none` becomes impossible. The
+`first_commit`, `detector_error`. An unexplained `none` becomes impossible
+**within the detector**. *(Scope corrected in phase-86.97: this plan originally
+said "Every invocation ... An unexplained `none` becomes impossible", which
+overstates the reach. Three bash `exit 0` paths run before the heredoc and never
+reach any Python in the hook; they are enumerated and classified in
+`scripts/qa/verify_decision_log_86_97.py`. The immutable criterion text quoted
+verbatim at line 105 of this contract is deliberately NOT edited.)* The
 stderr `[changelog] flip-detect FAILED` marker is KEPT -- it is additive, and I3
 shows it is not sufficient on its own.
 

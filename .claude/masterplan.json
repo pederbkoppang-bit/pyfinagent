@@ -25874,6 +25874,27 @@
           "notes": "Filed 2026-08-16 by Main immediately on receiving the 86.92 cycle-2 PASS. Sibling of 86.101 (also raised during 86.92). The Q/A's own suggested remedy: inject the poison as a block comment as well, or assert each strip operation separately. Related memory: feedback_mutate_each_duplicated_site_individually, feedback_guards_stop_one_seam_short, feedback_control_injected_outside_the_region_it_controls."
         },
         {
+          "id": "86.103",
+          "priority": "P3",
+          "status": "pending",
+          "harness_required": true,
+          "name": "the two MUST-LOG pre-detector exit paths still emit nothing: a missing CHANGELOG and a lost `### Recent Activity` anchor are silent structural breakage that looks identical to 'nothing to do'",
+          "audit_basis": "ENUMERATED AND CLASSIFIED (not repaired) during phase-86.97, which scoped itself to enumeration + classification + the end-to-end guard. The three pre-detector `exit 0` paths in .claude/hooks/post-commit-changelog.sh run BEFORE the detector heredoc and therefore never reach any Python in the hook; phase-86.97 proved this by a lexical rule whose soundness preconditions it asserts (no bash functions, no trap/source/eval, exactly one heredoc). Of the three, the recursion guard was judged LEGITIMATELY-SILENT and recorded as a BOUND -- a commit the hook itself created is by construction not a bump candidate. The OTHER TWO were classified MUST-LOG and deliberately left unfixed: making a pre-detector bash path write to the decision log is a BEHAVIOURAL change to a hook that runs on EVERY commit, and phase-86.97's criteria scope it to classification only. THE HARM: if CHANGELOG.md is deleted or its `### Recent Activity` anchor is renamed, every subsequent commit produces no changelog row AND no decision line, and from outside that is indistinguishable from a run of genuinely-chore commits. The decision log is the only place an operator would find out, and it stays empty. NOTE the fix is not merely 'add a log line': the pre-detector paths are bash, the logger is Python inside the heredoc, so a repair has to either move the guards after the detector (changing when they run) or add a bash-side writer that agrees with the Python one on format -- a design question, which is why it is its own step.",
+          "verification": {
+            "success_criteria": [
+              "each MUST-LOG path is DRIVEN end-to-end to show it currently emits nothing -- a temp repo with the CHANGELOG deleted, and one with the anchor renamed -- rather than argued from source",
+              "the repair keeps ONE log format: whatever writes the line for a pre-detector path must produce a line the existing consumers parse identically, proven by driving both a pre-detector and a post-detector path in the same run and parsing both with the same reader",
+              "the recursion guard remains SILENT after the change -- phase-86.97 judged it a bound, and a fix that starts logging it would fill the log with entries about the logger; a cell must fail if an auto-changelog commit begins emitting a line",
+              "the hook still never breaks a commit: every new write path is exception-safe, proven by making the log destination unwritable and showing the hook still exits 0",
+              "every new guard is mutation-tested with the control observed GREEN first, and a mutant that does not BUILD is scored UNSCORABLE and FAILS rather than counting as a kill",
+              "verdict semantics and masterplan state are UNCHANGED: nothing here may flip a step or alter a verdict"
+            ],
+            "command": "bash -c 'bash -n .claude/hooks/post-commit-changelog.sh && python scripts/qa/verify_decision_log_86_97.py'",
+            "live_check": "live_check_86.103.md carrying the two driven before/after runs, the single-format proof, the still-silent recursion guard, and the unwritable-destination fail-safe"
+          },
+          "notes": "Filed 2026-08-16 by Main during phase-86.97, in the same turn as the claim. Sibling of 86.101/86.102 (filed during 86.92). Related memory: feedback_operations_that_cannot_fail_loudly, feedback_fail_open_guards_hide_their_own_breakage."
+        },
+        {
           "id": "86.93",
           "priority": "P2",
           "status": "pending",
