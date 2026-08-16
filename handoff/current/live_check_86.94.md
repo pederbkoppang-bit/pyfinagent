@@ -1,7 +1,6 @@
 # live_check — phase-86.94
 
-**STATUS: IN PROGRESS** — §A2 (measurement 2) is filled in once ≥1h has elapsed
-since measurement 1, as criterion 1 requires. Everything else is final.
+**STATUS: COMPLETE.** Both measurements taken, ≥1h apart, as criterion 1 requires.
 
 Every block is verbatim tool output from this session. **No count in this file
 is quoted without the clock time and HEAD it was taken at** — that is the whole
@@ -75,9 +74,56 @@ commits in the 22:52–23:52 band, so it straddles:
 silently stable whenever the slid band happens to be empty, and moves without
 warning when it is not.
 
-### A2. Measurement 2 — ≥1h after measurement 1
+### A2. Measurement 2 — 1h00m49s after measurement 1
 
-*Pending: taken after 23:50:20 CEST.*
+```
+MEASUREMENT 2
+local_time: 2026-08-16 23:51:09 CEST
+utc:        2026-08-16T21:51:09Z
+HEAD:       27f8c6f6371a5a6c8a391d7434206a13c19641f7
+bare   --since=2026-08-13          : 360
+pinned --since=2026-08-13T00:00:00 : 428
+bare   --since=2026-08-11          : 438
+pinned --since=2026-08-11T00:00:00 : 770
+```
+
+```
+$ git rev-parse --since=2026-08-13
+--max-age=1786657869   ->  2026-08-13 23:51:09 CEST
+```
+
+### A3. The result, and why it is the sharpest available statement of the defect
+
+**The bare-date count went DOWN while the repository GREW.**
+
+| form | 22:50:20 | 23:51:09 | change |
+|---|---|---|---|
+| `--since=2026-08-13` (bare) | 376 | **360** | **−16** |
+| `--since=2026-08-13T00:00:00` (pinned) | 424 | **428** | +4 |
+| `--since=2026-08-11` (bare) | 434 | 438 | +4 |
+| `--since=2026-08-11T00:00:00` (pinned) | 766 | 770 | +4 |
+
+A corpus that *shrinks* as history *grows* is not a corpus; it is a reading of
+the clock. The pinned form does the only correct thing — it grows by exactly the
+four commits that landed.
+
+**The arithmetic closes exactly, so this is not a correlation:**
+
+```
+commits ADDED between the two measurements                   : 4
+commits that SLID OUT of the 08-13 bare window (22:50->23:51): 20
+predicted bare count = 376 + 4 - 20 = 360   | measured: 360
+predicted pinned     = 424 + 4      = 428   | measured: 428
+```
+
+Both predictions land on the measured value with no residual.
+
+And the third row is the control that makes the point complete: `--since=2026-08-11`
+moved **+4**, exactly like the pinned forms — because that date's drift band was
+already exhausted (§A1b). **The same command is reproducible on one date and not
+on another**, decided entirely by where commits happen to sit relative to the
+current time of day. That is what makes this class dangerous rather than merely
+wrong, and it is why criterion 1 forbids pinning a count into it.
 
 ---
 
@@ -255,3 +301,59 @@ immutable command                    green
 ```
 
 No masterplan step was flipped and no verdict altered.
+
+---
+
+## H. THREE DEFECTS THE GUARD FOUND IN ITSELF, ON BEING COMMITTED
+
+These were found by running the guard, not by review, and all three are the
+step's own classes turned back on it.
+
+### H1. It flagged ITSELF — and only once it was committed
+
+`tracked_files()` uses `git ls-files`, so while the checker was untracked it was
+invisible to its own scan. The moment it was committed, its section-[4] mutation
+fixtures — deliberately-sliding literals whose whole job is to prove the rule
+fires — were scanned as production code and reported as **14 false findings**.
+
+A self-blind guard is worst exactly when it ships. It now excludes itself, and
+the exclusion is bounded by an assertion rather than trusted:
+
+```
+  ok   [2] the self-exclusion covers exactly ONE file (this checker), so it cannot grow into a general escape hatch
+```
+
+```
+tracked py/sh: 851   scanned: 850   excluded: 1
+```
+
+**Residual, stated rather than hidden:** a real sliding window introduced into
+this checker is not caught by this checker. The mitigation is that its own
+fixtures are asserted in both directions in [4], so a rule that stopped working
+fails there instead.
+
+### H2. Docstrings are a THIRD comment form
+
+`is_prose` only knew `#` lines. This file's **own module docstring** quotes a
+bare-date window while explaining the defect — so the scanner reported its own
+explanation. `strip_docstrings` now blanks triple-quoted blocks while preserving
+line numbering (so reported line numbers still point at real source), with its
+own control pair:
+
+```
+  ok   [4] DOCSTRING STRIPPER: a window inside a triple-quoted block is not a site
+  ok   [4] DOCSTRING STRIPPER CONTROL: the same window as CODE *is* reported
+```
+
+### H3. The rule covers `.sh`; every cell mutated `.py`
+
+A guard demonstrated on one language is demonstrated on half its scope, and the
+hooks are shell:
+
+```
+  ok   [4] SHELL: a sliding window in a .sh body is flagged
+  ok   [4] SHELL NEGATIVE CONTROL: a UTC-qualified shell window is NOT flagged
+  ok   [4] SHELL: a window in a `#` comment is not reported as a site
+```
+
+**24 → 30 assertions**, ruff clean, nothing weakened.

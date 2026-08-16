@@ -32,6 +32,12 @@ Defect 2 is the one that matters for the harness, because 86.91's remediation
 published figures are unchanged (707 / 251 / 9 / 11, exit gate green), and the
 corpus is now regenerable off this laptop.
 
+**Measured, ≥1h apart:** the bare-date count went **DOWN while the repo GREW**
+(376 → 360 across 22:50:20 → 23:51:09) while the pinned form went **up by exactly
+the four commits that landed** (424 → 428). The arithmetic closes with no
+residual: 376 + 4 added − 20 slid out = 360, and 424 + 4 = 428. A corpus that
+shrinks as history grows is a reading of the clock, not a corpus.
+
 **The drift is intermittently invisible, which is what makes it dangerous.** The
 obvious boundary date, `2026-08-11`, would have shown *no* change tonight: its
 last commit is 22:36:46, already behind the 22:50 cutoff, so its drift window is
