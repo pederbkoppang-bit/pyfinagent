@@ -368,3 +368,117 @@ to, applied to itself.
   "verdict_unmodified": true
 }
 ```
+
+
+---
+
+# Cycle 4 verdict: CONDITIONAL  -- sequence now [C, C, C, C]
+
+Run `wf_249feb74-c6d` · 48 tool uses · 231,038 tokens · 916 s · `attempt_number: 4`.
+
+All immutable criteria MET on the SHIPPED PRODUCT, re-derived by execution rather
+than read. The findings are in the GUARDS and the ARTIFACTS.
+
+## The caller's escalation, applied
+
+`escalation.would_auto_fail: true`, `burden_on: "the party departing from the
+computed escalation"`. Per CLAUDE.md F1, a step accumulating 3+ consecutive
+CONDITIONALs without an intervening PASS or FAIL must be treated as **FAIL** on
+the next pass. This is the fourth. The judge is deliberately not told the
+consequence (phase-86.78), so applying the rule is the CALLER's job -- mine.
+
+**I am NOT spawning a fifth Q/A.** Attempting one more in hope of a PASS is
+exactly the "log instead of correct" behaviour F1 exists to stop.
+
+**Recorded outcome: FAIL by escalation. Step PARKED for the operator.**
+See `handoff/current/escalation_86.90_86.91.md`.
+
+---
+
+## Verdict, VERBATIM
+
+```json
+{
+  "ok": false,
+  "verdict": "CONDITIONAL",
+  "reason": "All 8 immutable criteria are MET on the SHIPPED PRODUCT and I re-derived each rather than reading it: immutable cmd exit 0; criterion 1 independently reproduced by my own statuses() walk on e4f2e844 (before=None -> after=done, OLD [] / NEW ['86.86']); no step-id literal anywhere in the detector body; 707/251/9/11 reproduce exactly with the +2 accounted member by member (86.86 and 86.81 both `done` at HEAD); ruff clean on the git-derived scope; nothing flipped and no verdict-schema change. Main's three cycle-4 remediations partly verify: section [7] genuinely DRIVES the shipped _log_decision -- I built a SECOND, differently-constructed write mutant (redirect the filename, builds cleanly) and 5 of 6 [7] checks went RED, so the kill is real and the temp-dir redirection fails CLOSED; corpus_head's two stated raise conditions both verified by construction AND execution; and every count (24/31/34/42 assertions, 3/6/8/10 cells) reproduces when each cycle's checker is executed against its own hook, so no stale figure survives. CAPPED because two mutants I executed SURVIVED all 42 assertions. (1) Deleting the PRODUCTION CALL `_log_decision(bump_type)` at hook :262 leaves the checker ALL GREEN 42/0 -- provably invisible, since detector_source() extracts only FunctionDef/Assign nodes and a bare call Expr can never enter SHIPPED; that is the same production effect as the cycle-3 Q1 mutant, so cycle 4 closed the write and left the wiring. (2) The HOOK half of the cycle-3 Q4/Q2b finding is NOT closed: an authorable N-id whitelist over section [1]'s own fixture ids survives 42/0, because _RUNTIME_ID is computed at checker :341 -- after section [1] -- and is referenced only by the replay fixture, while experiment_results and the commit message both state the finding named as affecting \"both the replay and the hook\" is closed.",
+  "violated_criteria": [
+    "illusory-guard [WARN] criterion 4: deleting the production call `_log_decision(bump_type)` leaves the checker ALL GREEN 42/0 -- the cycle-4 fix guards the writer's body but not its only invocation (my mutant M-A SURVIVED)",
+    "illusory-guard + Contradiction [WARN] criterion 2: the HOOK half of the cycle-3 Q4/Q2b finding is still open -- an authorable N-id whitelist survives 42/0 -- while the artifacts state the finding is closed on both the replay and the hook (my mutants M-B2/M-D SURVIVED)",
+    "artifact-kill residual [NOTE]: corpus_head still returns None on two anchor-not-found paths (checker :397-398, :419-421), so a slice failure can still score DETECTED at the [6] call site -- the cycle-4 'it now RAISES' claim covers two of three shapes",
+    "silent-swallow residual [NOTE] criterion 4: three bash `exit 0` paths run BEFORE the detector and emit nothing (recursion guard, CHANGELOG absent, '### Recent Activity' renamed) -- measured 10 commits vs 5 decision lines; raised at cycles 1-3 and still undisclosed in every artifact",
+    "presentation [NOTE]: experiment_results section 7's matrix table lists 6 of the 10 cells; the header count is correct but four cells exist only in the follow-up prose"
+  ],
+  "violation_details": [
+    {
+      "violation_type": "Circular_Reasoning",
+      "action": "Mutate .claude/hooks/post-commit-changelog.sh: delete ONLY the production call `_log_decision(bump_type)` at :262, leaving the function definition byte-intact. Run the shipped checker with just its `HOOK_SRC = HOOK.read_text(...)` line repointed at the mutated copy in the scratchpad (REPO/__file__ preserved, no repo write).",
+      "state": "CONTROL first: ALL GREEN 42 passed, 0 failed. MUTANT: ALL GREEN 42 passed, 0 failed -- SURVIVED. Cause is structural, not incidental: detector_source() at verify_changelog_flip_86_91.py:81-95 collects only FunctionDef/Assign/AnnAssign nodes whose names are in NEEDED, so a module-level ast.Expr call can never enter SHIPPED; grep -n _log_decision on the checker returns :78 (NEEDED), :524 (comment), :532 (drive_log invoking it directly) and nothing that asserts the hook invokes it. Production effect of my mutant is IDENTICAL to the cycle-3 Q1 mutant (zero decision-log output). MITIGATION keeping this WARN and not BLOCK: handoff/logs/changelog-decisions.log holds 5 real production lines from this step's 5 commits, so criterion 4 is demonstrated end-to-end today; section [7] IS a genuine behavioural guard (my second, differently-constructed filename-redirect mutant turned 5 of its 6 checks RED, 36 passed / 6 failed); and criterion 6's mutation mandate is scoped to the None exclusion, which cell M1 covers.",
+      "constraint": "SEVERITY WARN. qa.md 4c vacuity shape #1 -- the guard asserts one seam short of the output the criterion names. Criterion 4 makes the hook's OWN OUTPUT the mechanism; the only production path to that output is unguarded. FIX: run the whole heredoc end-to-end against a temp repo, or add a cell that removes the call and requires the log to be absent."
+    },
+    {
+      "violation_type": "Overgeneralization",
+      "action": "Insert an authorable whitelist as a POST-FILTER in .claude/hooks/post-commit-changelog.sh so every checker anchor stays byte-identical (a first attempt inside the M1 anchor would have been 'killed' only by the anchor-uniqueness check -- discarded as mis-attributed): `created_done = [s for s in created_done if s in (\"86.86\",\"9.99\",\"12.7\",\"77.0\",\"78.1\")]` immediately before `_FLIP_DECISION[\"created_done\"] = created_done`. Repeat with 86.90/86.91 added.",
+      "state": "Both SURVIVED -- ALL GREEN 42 passed, 0 failed. Control direction confirmed: the 1-id form `sid == \"86.86\"` IS killed ('[1] magnitude: a created X.0 kickoff is minor, not patch -- got none'). Cause: _RUNTIME_ID is computed at verify_changelog_flip_86_91.py:341-343, AFTER section [1] (:164-182), and is used only in the replay fixture AFTER_R at :344; section [1]'s hook fixtures use only authored literals (86.1/86.7/86.86/9.1/9.5/9.99/12.5/12.7/77.0/77.1/78.1), and there is no whitelist cell among the four [4] hook mutants. So the runtime-id remediation closed the REPLAY half only. The shipped FIX itself is clean -- grep for any \"N.M\" literal in the detector body (hook :98-218) returns zero -- so criterion 2 is MET on the product; this is a residual on the GUARD plus a claim that overstates it.",
+      "constraint": "SEVERITY WARN. experiment_results_86.91.md cycle-4 table Q4/Q2b and the 0ecccafe commit message both name the finding as having survived 'on BOTH the replay and the hook' and present the runtime-derived id as closing 'the AUTHORABLE special-case', with the stated bound being only that a whitelist CONTAINING the runtime id would survive. Measured, a whitelist that does not contain it also survives on the hook. FIX (named, small): hoist the _RUNTIME_ID computation above section [1], put it in the hook fixtures too, and add the whitelist as a [4] cell."
+    },
+    {
+      "violation_type": "Invalid_Precondition",
+      "action": "Extract corpus_head()/resolve() from the shipped checker and drive them against mutated copies of replay_changelog_rule_86_68.py: (C1) make the sliced block raise; (C2) hoist `rc, out = sh(*_log_args)` above `CORPUS_SINCE =` so start>end; (R1) rename the start anchor to CORPUS_START; (R2) reword the end anchor to `sh(*list(_log_args))`.",
+      "state": "C1 -> RAISED RuntimeError('the sliced corpus block did not run: division by zero'). C2 -> RAISED RuntimeError('the sliced corpus block ran but never called sh() -- the slice boundary no longer covers the selection'). Both cycle-4 conditions verified by construction AND execution. RESIDUAL: R1 and R2 both RETURNED None via the surviving `return None` at :397-398 (and a third at :419-421 when git selects nothing). At the [6] call site `outcome = \"DETECTED\" if mh != resolve(_pin) else \"SURVIVED\"`, None != sha, so a mutant whose slice cannot be located still scores DETECTED -- a false kill. NOT harmful today: the shipped QA-C2-1 mutant touches neither anchor, and the same rename in the CONTROL turns '[5] the corpus UPPER bound is pinned BEHAVIOURALLY' RED so the checker exits 1 regardless.",
+      "constraint": "SEVERITY NOTE. The cycle-4 note states corpus_head 'now RAISES instead of returning None' so a refactor 'fails loudly rather than silently stopping coverage'. True for two of three shapes; the anchors-not-found shape still returns None silently and is reachable for a FUTURE cell whose own mutation renames an anchor."
+    },
+    {
+      "violation_type": "Missing_Assumption",
+      "action": "Read hook :7-42 and measure the invocation gap: `git rev-list --count 8dc70502~1..HEAD` vs `wc -l handoff/logs/changelog-decisions.log` vs `git log --format=%s ... | grep -c '^chore: auto-changelog'`; then grep contract/experiment_results/live_check for any disclosure of the bash early-exit paths.",
+      "state": "Three `exit 0` paths run BEFORE the python heredoc and emit nothing at all -- no decision line, no stderr marker: the `^chore: (auto-changelog|changelog drift)` recursion guard at :27-29, CHANGELOG.md-absent at :32-34, and `### Recent Activity`-absent at :36-38. MEASURED: 10 commits since 8dc70502, 5 decision-log lines, 5 auto-changelog commits -- the gap is exactly the recursion guard, which is self-evidently benign. The heading-rename path is not: rename '### Recent Activity' and every commit stops bumping with zero output, which is the silent-swallow class one layer up and the exact symptom this step was filed for. Grep of contract_86.91.md / experiment_results_86.91.md / live_check_86.91.md returns no disclosure.",
+      "constraint": "SEVERITY NOTE, carried forward rather than newly charged (raised at cycles 1-3 per the prior critique, still undisclosed at cycle 4). Criterion 4 demands the CLASS, and experiment_results section 5 claims 'an unexplained none is no longer expressible (bounded)' where the only stated bound is the literal-constant `return \"none\"` scoping -- which does not reach these paths."
+    }
+  ],
+  "certified_fallback": false,
+  "checks_run": [
+    "harness_compliance_audit_5_item",
+    "immutable_verification_command",
+    "syntax_bash_n_and_heredoc_ast_parse",
+    "python_lint_ruff_F821_F401_F811_git_derived_scope",
+    "scoped_regression_guard_verify_changelog_flip_86_91",
+    "replay_changelog_rule_86_68",
+    "independent_reproduction_criterion_1",
+    "independent_mutation_matrix_6_cells_hook_and_writer",
+    "second_mutant_form_artifact_vs_real_kill",
+    "corpus_head_raise_condition_probes_C1_C2_R1_R2",
+    "historical_count_re_derivation_by_execution_per_cycle_commit",
+    "verbatim_capture_regeneration_diff",
+    "guard_vacuity_check_4c",
+    "claim_auditing_numeric_reproduction",
+    "decision_log_census_and_invocation_gap",
+    "git_scope_and_unintended_change_check",
+    "masterplan_state_and_verdict_semantics_check",
+    "changelog_hand_edit_check",
+    "prior_attempt_evidence_qa_wip",
+    "verdict_ledger_evidence_only",
+    "code_review_heuristics",
+    "evaluator_critique"
+  ],
+  "harness_compliance_ok": true,
+  "notes": "SEQUENCE / ATTEMPT EVIDENCE (reported, not aggregated). `python scripts/qa/qa_wip.py 86.91 --spawned-at 2026-08-16T09:36:30Z` -> source_present=true, attempt_number=4, attempt_number_status=\"ok\", attempt_number_is_lower_bound=true, prior_attempts=3, records_retained=4 (gauge, includes my own write-first record), records_pruned_known=null, is_verdict=false; prior_records = verdict_wip_86.91__20260816T091637Z / __085153Z / __082544Z. `python scripts/qa/verdict_history_86_21.py --step 86.91 --evidence-only` -> status=`no_rows_for_step`, verdicts=(none). CROSS-CHECK: attempt_number (4) > the ledger's verdict count (0), so THE LEDGER IS STALE and its sequence is unreliable for this step; sequence: UNKNOWN from the authoritative source. Main's advisory [CONDITIONAL, CONDITIONAL, CONDITIONAL] is consistent with attempt_number=4 and with three `\"verdict\": \"CONDITIONAL\"` blocks in evaluator_critique_86.91.md, but it is advisory only and I did not word-scan prior_records bodies. `grep -cF \"phase=86.91\" handoff/harness_log.md` = 0, correct at EVALUATE time since LOG runs after. Any threshold or escalation that follows is the caller's to compute; I did not apply one.\n\nHARNESS COMPLIANCE, all 5 clean. (1) research_brief_86.91.md: brief_status COMPLETE, gate_passed true, external_sources_read_in_full=8 vs floor 5, urls_collected=28 vs floor 10, recency_scan_performed=true with the section present at :89. (2) mtime chain (LOCAL CEST): research 09:58:08 < contract 10:14:17 < hook 10:14:54 < checker 11:33:50 < experiment_results 11:35:04. (3) experiment_results present with cycle-2/3/4 follow-ups. (4) log-last respected: no harness_log row; 86.90 and 86.91 both still status=pending. (5) not verdict-shopping: 0ecccafe changed experiment_results, live_check, evaluator_critique and the checker -- the documented cycle-4 flow on CHANGED evidence.\n\nMAIN'S FOUR QUESTIONS, answered by execution. (A) Section [7] drives the SHIPPED _log_decision, not a copy, and the kill is real rather than a construction artifact: I built a SECOND mutant of a different shape -- redirect the open() target to \"elsewhere.log\", syntactically valid, builds cleanly -- and 5 of the 6 [7] checks went RED (36 passed, 6 failed). The temp-dir redirection cannot mask a failure: a write landing anywhere but root/handoff/logs/changelog-decisions.log yields None and FAILS. (B) The runtime-derived id does NOT close Q4; it closes the replay half and moves nothing on the hook. Residual, stated as measured rather than as Main's bound: _RUNTIME_ID is computed at :341-343, AFTER section [1], and appears only in AFTER_R, so a whitelist of section [1]'s own fixture ids survives 42/0 on the hook. Main's stated bound (a whitelist containing the runtime id would survive) is narrower than the live gap. (C) BOTH corpus_head raise conditions verified by construction and execution -- exec-raises and slice-ran-but-never-called-sh -- plus a third shape they did not enumerate: anchors-not-found still returns None (R1/R2), which scores DETECTED at the [6] call site. (D) No stale figure found. I re-derived the historical counts by EXECUTING each cycle's checker against that cycle's own hook and replay: 8dc70502 -> 24 passed / 3 cells, 98c5b6ab -> 31 / 6, 468c7908 -> 34 / 8, 0ecccafe -> 42 / 10, all matching the artifact; and live_check section 4 diffs byte-identical to a fresh run except the runtime id (811.38 captured vs 791.68 today -- by design) and the fence lines, so it was genuinely regenerated.\n\nMAIN'S SELF-FLAG, VERIFIED RATHER THAN ACCEPTED. \"The hook has been unchanged since cycle 1\" is TRUE: `git diff --stat 8dc70502 HEAD -- .claude/hooks/post-commit-changelog.sh` is EMPTY and `git log -- <hook>` lists 8dc70502 as the last commit touching it. So for four cycles the PRODUCT has been correct while the evidence for it was not -- and that holds again this cycle: both of my findings are in the guards and the prose, not in shipped behaviour. live_check section 6's PENDING disclosure is precise and its prediction is CORRECT -- the flip commit will read flip_transitioned, not flip_created, because 86.90 and 86.91 both exist at HEAD~1.\n\nSCOPE. No unintended production change attributable to this step. The working tree carries UNCOMMITTED, UNRELATED edits (backend/api/sovereign_api.py + 5 frontend components, mtime 2026-08-14) present in NONE of the 5 step commits -- peer-session work. FLAG FOR MAIN, unchanged from cycles 2 and 3: `git add -A` in auto-commit-and-push.sh would sweep them into the flip commit under 86.91's subject. Criterion 8 holds: 86.90/86.91 both still `pending`, zero removed `\"status\"` lines and zero retry_count changes in the window, and grep for VERDICT_SCHEMA / enforceEscalation / would_auto_fail / max_attempts across the window's qa-verdict.js diff returns 0 -- the qa-verdict.js/research-gate.js edits in 0ecccafe are 86.90's render-boundary scope and alter no verdict. Criterion 5: CHANGELOG.md is touched only by 5 single-file hook-authored `chore: auto-changelog` commits; the declined retro-bump of the two swallowed versions is disclosed as an operator call, so the frozen v6.93.222 header is a stated scope bound rather than an omission. No UI claims, so gate 1c does not apply and no Playwright capture was taken; the step-derived diff contains no frontend/** or backend/**, so 1b and 1d do not apply.\n\nMETHOD DISCLOSURE. Every mutation ran in memory: I exec'd the shipped checker source with ONLY its `HOOK_SRC = HOOK.read_text(...)` / `REPLAY_SRC = ...` lines repointed at mutated copies written to the session scratchpad, with __file__ and REPO preserved. No repo file was modified; the live handoff/logs/changelog-decisions.log is unchanged (5 lines, mtime 11:35:36 against a 11:48 clock). CONTROL was observed GREEN (42/0) before any cell was scored, and my whitelist mutants were built as post-filters specifically so no author anchor moved -- an earlier form was rejected because it would have been \"killed\" only by the anchor-uniqueness check. One self-caught harness bug worth recording: an unquoted `git show $c:path` in zsh silently degraded to `git show $c` and returned commit text instead of a file, which would have produced a false \"no historical counts\" result; re-run quoted. My write-first record is at .claude/agent-memory/qa/verdicts/verdict_wip_86.91__20260816T093630Z.md, marked COMPLETE -- it is a crash-survival record and is NOT a verdict. I appended to that one permitted path via a shell append and used scratchpad redirects for mutation fixtures; no other write was attempted and none was blocked.",
+  "escalation": {
+    "sequence_supplied": [
+      "CONDITIONAL",
+      "CONDITIONAL",
+      "CONDITIONAL"
+    ],
+    "sequence_status": "ok",
+    "consecutive_conditionals": 3,
+    "would_auto_fail": true,
+    "attempt_number": 4,
+    "budget_exhausted": false,
+    "max_attempts": 5,
+    "burden_on": "the party departing from the computed escalation",
+    "override": null,
+    "override_reason": null,
+    "judge_was_told_consequence": false
+  },
+  "verdict_unmodified": true
+}
+```

@@ -374,7 +374,7 @@ closed.
 | # | Finding | Fix |
 |---|---|---|
 | **Q1** | Deleting the ENTIRE decision-log write left the checker `ALL GREEN 34/0`. `_log_decision` was not in `NEEDED`, so it was never extracted or driven -- **every `[2]` assertion read the in-memory dict that FEEDS the file, never the file.** Criterion 4 names the hook's own OUTPUT as the mechanism | New section `[7]`: `_log_decision` is extracted and DRIVEN with `repo_root` pointed at a temp tree, and **the line is read back off disk**. 5 assertions + the cycle-3 survivor as a mutation cell, which now KILLS |
-| **Q4 / Q2b** | A whitelist matching the fixture's authored ids SURVIVED on **both** the replay and the hook. The two-id fixture **MOVED** the bound; cycle 3 claimed it closed it, without stating the bound | The fixture now includes a **RUNTIME-DERIVED id** (`700 + HEAD[:4] % 200` . `1 + HEAD[4:8] % 90`) that exists in **no source literal** and changes as the repo moves, so no whitelist can be authored for it in advance. The Q/A's own whitelist mutant is cell **Q4** and KILLS. **The bound is now stated in the checker itself**: a whitelist containing the runtime id would still survive -- what this closes is the AUTHORABLE special-case, not id-agnosticism for every id |
+| **Q4 / Q2b** | A whitelist matching the fixture's authored ids SURVIVED on **both** the replay and the hook. The two-id fixture **MOVED** the bound; cycle 3 claimed it closed it, without stating the bound | **PARTLY FIXED -- see the correction below; this row's original claim was FALSE.** The fixture now includes a **RUNTIME-DERIVED id** (`700 + HEAD[:4] % 200` . `1 + HEAD[4:8] % 90`) that exists in **no source literal** and changes as the repo moves, so no whitelist can be authored for it in advance. The Q/A's own whitelist mutant is cell **Q4** and KILLS. **The bound is now stated in the checker itself**: a whitelist containing the runtime id would still survive -- what this closes is the AUTHORABLE special-case, not id-agnosticism for every id |
 | NOTE | The QA-C2-1 cell scored a mutant that could not BUILD as **DETECTED**, because `corpus_head` swallowed the failure and returned `None` into a `mh is None or ...` test. The DETECTED/SURVIVED/UNSCORABLE repair had been applied to one `[6]` branch and not its sibling | `corpus_head` now **RAISES** instead of returning `None`, and the call site scores `UNSCORABLE` on any build failure. It also raises when the slice ran but never called `sh()` -- i.e. when a refactor moves the selection outside the sliced range, the probe fails loudly instead of silently stopping covering it |
 | NOTE | `experiment_results` sections 1 and 7 said 31 assertions / 6 cells against a measured 34 / 8 | Every count is **DERIVED** from a live run and the checker source, never typed, with a post-audit that fails on any survivor |
 
@@ -382,3 +382,48 @@ closed.
 cycles I asserted the dictionary that feeds it. That is vacuity shape #1 stated
 plainly: an assertion on an internal the output is derived from cannot fail when
 the output is removed.
+
+---
+
+## CORRECTION -- the Q4/Q2b remediation closed the REPLAY half ONLY
+
+**This artifact and the `0ecccafe` commit message both stated that the
+runtime-derived id closed a finding whose own wording was "survived on BOTH the
+replay and the hook". Measured by the cycle-4 Q/A, that is FALSE.**
+
+`_RUNTIME_ID` is computed at `verify_changelog_flip_86_91.py:341`, which is
+**after** section `[1]`, and it is referenced only by the replay fixture
+`AFTER_R` at `:344`. Section `[1]`'s hook fixtures use authored literals only
+(`86.1 / 86.7 / 86.86 / 9.1 / 9.5 / 9.99 / 12.5 / 12.7 / 77.0 / 77.1 / 78.1`),
+and there is **no whitelist cell among the four `[4]` hook mutants**.
+
+Measured consequence: an authorable whitelist inserted as a post-filter in the
+hook -- `created_done = [s for s in created_done if s in ("86.86","9.99","12.7","77.0","78.1")]`
+-- **SURVIVES all 42 assertions**. The control direction is confirmed: the
+one-id form IS killed. So the guard distinguishes 1 from N, and does not
+distinguish N from the class, on the hook side.
+
+**The shipped FIX remains clean** -- a grep for any `"N.M"` literal in the
+detector body returns zero, so criterion 2 is MET on the product. This is a
+residual on the GUARD plus a claim that overstated it, which is the fourth time
+in five cycles I have written a claim broader than what I measured.
+
+**Named fix, not applied here** (the step is PARKED at the escalation, see
+`handoff/current/escalation_86.90_86.91.md`): hoist the `_RUNTIME_ID`
+computation above section `[1]`, use it in the hook fixtures too, and add the
+whitelist as a `[4]` cell.
+
+## Two further residuals the cycle-4 Q/A measured, recorded so they are not lost
+
+1. **The production CALL is unguarded.** Deleting `_log_decision(bump_type)` at
+   the hook's `:262` -- leaving the function body byte-intact -- leaves the
+   checker `ALL GREEN 42/0`. `detector_source()` collects only
+   `FunctionDef`/`Assign` nodes, so a module-level call `Expr` can never enter
+   `SHIPPED`. Cycle 4 closed the writer's body and left its only invocation. The
+   production effect is identical to the cycle-3 Q1 mutant.
+2. **Three bash `exit 0` paths run BEFORE the detector and emit nothing** -- the
+   recursion guard, CHANGELOG-absent, and a renamed `### Recent Activity`
+   heading. Measured: **10 commits vs 5 decision lines**. The Q/A notes it raised
+   this at cycles 1-3 and it is still undisclosed in every artifact. It is
+   disclosed here now: criterion 4's "every decision explains itself" holds only
+   for invocations that REACH the detector.

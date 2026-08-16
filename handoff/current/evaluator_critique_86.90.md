@@ -360,3 +360,124 @@ The Q/A also re-tested the Proxy NOTE and confirmed both halves: it renders
   "verdict_unmodified": true
 }
 ```
+
+
+---
+
+# Cycle 4 verdict: CONDITIONAL  -- sequence now [C, C, C, C]
+
+Run `wf_c568a4c6-90b` · 56 tool uses · 249,940 tokens · 921 s · `attempt_number: 4`.
+
+All immutable criteria MET on the SHIPPED PRODUCT, re-derived by execution rather
+than read. The findings are in the GUARDS and the ARTIFACTS.
+
+## The caller's escalation, applied
+
+`escalation.would_auto_fail: true`, `burden_on: "the party departing from the
+computed escalation"`. Per CLAUDE.md F1, a step accumulating 3+ consecutive
+CONDITIONALs without an intervening PASS or FAIL must be treated as **FAIL** on
+the next pass. This is the fourth. The judge is deliberately not told the
+consequence (phase-86.78), so applying the rule is the CALLER's job -- mine.
+
+**I am NOT spawning a fifth Q/A.** Attempting one more in hope of a PASS is
+exactly the "log instead of correct" behaviour F1 exists to stop.
+
+**Recorded outcome: FAIL by escalation. Step PARKED for the operator.**
+See `handoff/current/escalation_86.90_86.91.md`.
+
+---
+
+## Verdict, VERBATIM
+
+```json
+{
+  "ok": false,
+  "verdict": "CONDITIONAL",
+  "reason": "All 7 immutable criteria are MET by my own execution (immutable cmd exit=0 \"parses\"; verify_prompt_render_86_90.mjs 95/0 with 6 mutation cells each controlled clean first; research_gate 124/0; escalation 0 failed; rail_retry 38/0), harness compliance is clean, and no unintended production change shipped -- but the cycle-4 EDIT ITSELF introduced three new instances of the exact class W2 claimed to close, two of them inside the operator-facing live_check gate artifact, so the evidence artifacts misdescribe this cycle's own mutation evidence. Independently verified rather than read: the criteria-CONTAINER hole IS closed for every JSON-reachable shape (string/object/numeric-key object/number/boolean/array-like-with-length all THROW naming args.criteria and spawn nothing) while ABSENT stays legal (blind run still returns verdict:null/ok:false; args=null likewise; a throw returns NOTHING, so criterion 7 holds); my own 3 mutants prove the [3b] controls DISCRIMINATE (a blanket-refusal guard turns both controls RED) and that a DIFFERENT silent fallback is caught; the blast-radius census reproduces by SYMMETRIC DIFFERENCE (author\\mine = EMPTY over 1,396 first-user-message prompts, my only extra being their own probe run wf_4588d8a7-e70, and \"6 also lost extra\" = 6 exact); the historical-caller census (386 list / 1 ABSENT / 0 wrong-shaped over 395 qa-verdict run records) shows requireArgArray cannot break any existing caller; and 53/78/83/95 all reproduce by re-running each historical checker blob. Findings are WARN/NOTE, all in the UNDERSTATING direction over re-runnable commands; none is a criterion miss, which is why this is not FAIL.",
+  "violated_criteria": [
+    "E3_live_check_regenerated_label_over_a_one_line_diff",
+    "E1_mutation_matrix_6_cells_over_a_5_row_table",
+    "E2_cycle4_figure_under_a_cycle3_regeneration_label",
+    "V4_research_gate_denominators_do_not_reproduce",
+    "V5_container_vs_prose_lossless_asymmetry_undisclosed"
+  ],
+  "violation_details": [
+    {
+      "violation_type": "Invalid_Precondition",
+      "action": "read handoff/current/live_check_86.90.md section 7 'Guard runs'; then `git show 0ecccafe -- handoff/current/live_check_86.90.md`; then `node scripts/qa/verify_prompt_render_86_90.mjs` and diff the [5] block",
+      "state": "live_check_86.90.md:281 reads 'ALL GREEN: 95 passed, 0 failed   (REGENERATED cycle 4)', but the cycle-4 diff to that file is exactly ONE line -- only the summary total. Its [5] body carries 4 ': KILLED' lines and 0 'CONTROL is clean' lines; a real run emits 6 and 6. `grep -c container-guard-reverted-to-silent-discard handoff/current/live_check_86.90.md` = 0, so the operator-facing live_check gate artifact never names the mutation cell that proves this cycle's fix, nor the per-cell controls that were cycle 3's headline remediation. The block omits 8 of 12 [5] lines with no ellipsis.",
+      "constraint": "qa.md 4b -- a 'verbatim' capture must be REGENERATED, never edited; an edited capture in a block labelled verbatim is a finding regardless of whether the underlying command passed. Severity WARN (the command is re-runnable and green; direction of error is understatement). FIX: paste the full [5]+[6] block from a live run."
+    },
+    {
+      "violation_type": "Contradiction",
+      "action": "python parse of the '### Mutation matrix (6 cells, all KILLED)' section at handoff/current/experiment_results_86.90.md:196, then `node scripts/qa/verify_prompt_render_86_90.mjs | grep -c ': KILLED'`",
+      "state": "heading claims 6 cells; the table under it enumerates 5 rows (M1..M5). The cell added THIS cycle (container-guard-reverted-to-silent-discard) is described at :565 but was never added to the matrix it introduced. The live run emits 6 ': KILLED' lines, so the COUNT is correct and the ENUMERATION is stale -- a reader consulting the matrix would conclude the container guard was never mutation-tested, which is exactly wrong.",
+      "constraint": "W2's own stated remedy -- 'every count is now DERIVED, not typed ... with a post-audit that fails if any stale count survives (STALE COUNTS REMAINING: none)' -- audits NUMBERS, not the lists each number heads. A correct derived count over a stale enumeration cannot be caught by the instrument that derived the count. Severity WARN."
+    },
+    {
+      "violation_type": "Contradiction",
+      "action": "sed -n '488p' handoff/current/experiment_results_86.90.md",
+      "state": "'ALL GREEN: 95 passed, 0 failed                                      # exit 0   (REGENERATED cycle 3)' -- the cycle-4 figure (95) sits under a cycle-3 regeneration label. The number and its provenance marker were updated inconsistently within the same cycle-4 edit; git show 0ecccafe confirms this line changed only in its numeral.",
+      "constraint": "Same rule as the live_check finding: a provenance marker on a captured block is a claim about WHEN it was produced, and must move with the figure it labels. Severity WARN."
+    },
+    {
+      "violation_type": "Overgeneralization",
+      "action": "independent re-derivation over the FIRST USER MESSAGE of all 1,396 agent transcripts across every pyfinagent project slug, matching both line-start and substring; plus a census of args shapes over all 595 `*/workflows/wf_*.json` run records",
+      "state": "live_check_86.90.md:179 claims '0 of 75 spawns carrying OBJECTIVE:, 0 of 72 carrying INTERNAL SCOPE:'. I measure OBJECTIVE: 71 (line-start) / 72 (substring), and INTERNAL SCOPE: 59 under BOTH operationalizations. Corpus growth can only RAISE my figures, so 72 -> 59 is not explained by growth. Related: 'args recovered ... a real object on 31 records' -> I measure 62 real-object records of 595 (413 JSON-string, consistent with the claimed 409 under growth); '507 prompts inspected' vs my 1,396 first-user messages, a unit difference the artifact does not state. The NUMERATORS (0 and 0) reproduce exactly, and criterion 3's by-execution half I re-ran myself, so this does not defeat the criterion.",
+      "constraint": "qa.md 4b -- every numeric or set-membership claim must carry, or be re-derivable from, the exact command that produces it; no reproducing command is supplied for these denominators. Severity WARN. FIX: cite the command, or state the unit and re-derive."
+    },
+    {
+      "violation_type": "Missing_Assumption",
+      "action": "drove the shipped .claude/workflows/qa-verdict.js with 15 container shapes the author did not choose (nested array, array-of-object, array-like with length, empty array, sparse array, undefined/null/'' elements, non-index own property, Array subclass, Proxy-over-array, boolean, JSON-string-of-array, absent)",
+      "state": "Two shapes still render SILENTLY on the criteria CONTAINER path: (a) a SPARSE array -- Array.prototype.map never calls renderArgField on a hole, so the REQUIRED-throw is bypassed and the prompt emits a blank numbered line; (b) an array carrying a NON-INDEX own property -- the property is dropped with no throw. The prose-field path REFUSES the identical shape (checker case 'A7 array with a non-index own property'), so the container and prose paths now disagree about the same value. Both are non-JSON-reachable, i.e. the same class as the Proxy hole the author disclosed -- but that bound is stated for the prose walk and is NOT stated for the new container guard.",
+      "constraint": "criterion 5 -- the fix must fail loudly on a value it cannot render. Severity NOTE: unreachable from JSON-derived args, so it bounds rather than refutes the claim. FIX: one sentence of disclosure on requireArgArray, or route the container through the same lossless walk."
+    }
+  ],
+  "certified_fallback": false,
+  "checks_run": [
+    "immutable_verification_command (exit=0, 'parses')",
+    "verify_prompt_render_86_90.mjs (exit 0, ALL GREEN 95/0, 6 mutation cells, each control clean first)",
+    "verify_research_gate_workflow.mjs (exit 0, 124/0)",
+    "verify_escalation_86_78.mjs (exit 0, failed: 0)",
+    "verify_rail_retry.mjs (exit 0, 38/0)",
+    "verify_workflow_args_boundary.mjs (exit 1, 84/3 -- matches Main's disclosure, filed 86.92)",
+    "python_lint_gate ruff F821/F401/F811 over the commit's only .py, non-empty set asserted first (exit 0)",
+    "git_scope_audit (0ecccafe: 10 files, ZERO backend/ or frontend/)",
+    "working_tree_clean_for_subject_files (git diff HEAD empty)",
+    "independent_container_shape_matrix (15 shapes driven against the shipped script)",
+    "independent_mutation_matrix (3 mutants: refuse-everything, different-silent-fallback, revert -- [3b] controls proven discriminating)",
+    "regression_probes (blind run, args=null, JSON-string args, throw-returns-nothing)",
+    "historical_caller_census (395 qa-verdict run records: 386 list / 1 ABSENT / 0 wrong-shaped)",
+    "blast_radius_re_derivation_by_symmetric_difference (1,396 first-user-message prompts; author\\mine = EMPTY)",
+    "assertion_count_re_derivation (each historical checker blob re-run: 53/78/83/95, all exact)",
+    "claim_audit_of_numeric_denominators",
+    "harness_compliance_audit (5 items + queued-is-real)",
+    "research_gate_envelope (brief_status COMPLETE, gate_passed true, 12 sources, coverage.dry true)",
+    "mtime_ordering (research < contract < results < critique)",
+    "log_last (0 harness_log rows for 86.90; masterplan status pending)",
+    "qa_wip_prior_attempt_evidence",
+    "verdict_ledger_cross_check (stale)",
+    "code_review_heuristics"
+  ],
+  "harness_compliance_ok": true,
+  "notes": "SEQUENCE: ADVISORY-ONLY, ledger STALE. `python scripts/qa/verdict_history_86_21.py --step 86.90 --evidence-only` returns status=no_rows_for_step, verdicts=(none). `python scripts/qa/qa_wip.py 86.90 --spawned-at 2026-08-16T09:36:03Z` returns source_present=true, attempt_number=4 (attempt_number_status=ok, attempt_number_is_lower_bound=true), prior_attempts=3, records_retained=4 (a GAUGE per records_retained_unit, not used as a counter). attempt_number (4) > ledger verdict count (0), so per qa.md the ledger is STALE and its sequence is unreliable; I did not substitute records_retained on the left of that comparison and did not scan prior_records bodies for verdict words. Main's disclosure of [CONDITIONAL, CONDITIONAL, CONDITIONAL] is recorded as ADVISORY data only (Main is the constrained party) and no aggregate is computed here -- any threshold or escalation is the caller's to derive after I return. I also read a consequence statement in the graded commit message of 0ecccafe (\"the computed escalation carries would_auto_fail: true, so the next verdict is PASS or FAIL\"); I am recording that I saw it and set it aside, and I graded the artifacts on their merits.\n\nWRITE-FIRST: .claude/agent-memory/qa/verdicts/verdict_wip_86.90__20260816T093603Z.md, born INCOMPLETE, appended throughout, flipped to COMPLETE with COMPLETED: 2026-08-16T09:49:42Z. No write was blocked; I ran every probe via `node --input-type=module` on stdin with temp files under os.tmpdir() so the repo tree was never mutated.\n\nWHAT I ANSWERED FOR MAIN'S FOUR HUNTS. (A) The criteria CONTAINER hole is genuinely CLOSED, not moved: an array-like object with a `length` property THROWS naming args.criteria and spawns nothing; a nested array and an array containing an object both render as lossless JSON fences; boolean, number, string and a JSON-STRING-of-an-array all throw. (B) The ABSENT path is untouched -- absent yields the documented placeholder with 1 spawn and no throw; an unbound `args` still returns {dry_run:true, verdict:null, ok:false}; args=null likewise; and no historical caller can be broken (386 pass a list, exactly 1 passes nothing, 0 pass a wrong shape, over 395 qa-verdict run records -- consistent with your 384/385 under corpus growth, though that figure appears only in the spawn prompt and not in the graded artifacts). (C) The [3b] CONTROLS ARE DISCRIMINATING -- I mutated requireArgArray to refuse everything and BOTH controls went RED; a \"different silent fallback\" mutant turned the 8 wrong-shape assertions RED; the revert mutant reproduced your cell. (D) YES, a fifth instance exists -- three, in fact, and all three were CREATED BY the cycle-4 edit (they did not exist at cycle 3): the 5-row table became wrong when its heading went 5->6, and both provenance markers became wrong when their totals went 83->95. The pattern is that the W2 remedy was pointed at the NUMBERS and stopped one seam short of the CAPTURES and the LISTS the numbers head -- which is why its own audit printed \"STALE COUNTS REMAINING: none\".\n\nWHAT WOULD CLOSE THIS: re-paste live_check section 7 from a live run (all 12 [5] lines plus [6]), add the 6th row to the experiment_results mutation matrix, fix the \":488 (REGENERATED cycle 3)\" marker to cycle 4, supply or correct the OBJECTIVE:/INTERNAL SCOPE: denominators with their command, and add one sentence bounding requireArgArray the way the prose walk is already bounded. All five are minutes of work over commands that already pass.\n\nSCOPE NOTES. The graded commit is a combined 86.90 + 86.91 commit; scripts/qa/verify_changelog_flip_86_91.py belongs to the paired step and is disclosed in the commit message. Uncommitted, unrelated edits sit in the tree (backend/api/sovereign_api.py and 5 frontend files); they predate this spawn, are absent from 0ecccafe, and are flagged only because a future `git add -A` would sweep them into some other step's commit. No live UI capture was needed (this step makes no UI claims) and no backend module changed, so gates 1c and 1d are N/A rather than skipped.",
+  "escalation": {
+    "sequence_supplied": [
+      "CONDITIONAL",
+      "CONDITIONAL",
+      "CONDITIONAL"
+    ],
+    "sequence_status": "ok",
+    "consecutive_conditionals": 3,
+    "would_auto_fail": true,
+    "attempt_number": 4,
+    "budget_exhausted": false,
+    "max_attempts": 5,
+    "burden_on": "the party departing from the computed escalation",
+    "override": null,
+    "override_reason": null,
+    "judge_was_told_consequence": false
+  },
+  "verdict_unmodified": true
+}
+```

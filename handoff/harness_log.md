@@ -35518,3 +35518,54 @@ by 86.90 rather than assumed clean.
 
 **Also queued this cycle:** 86.89 (behavioural-guard coverage, from the 1-of-4
 recall) and 86.90 (the `[object Object]` rail defect).
+
+## Cycle 224 -- 2026-08-16 -- phase=86.90 result=FAIL (escalated)
+
+The Q/A Workflow rail stringified nested `evidence`/`extra` objects to the literal
+`[object Object]`. Reproduced three ways pre-fix (the real 86.86 spawn's own
+transcript; a live minimal spawn `wf_4588d8a7-e70`; both scripts driven with
+object args). Layer localised BY EXECUTION: inside the real runtime
+`typeof args.evidence === "object"` with keys intact, the script's own `+`
+concatenation produced the literal, and the agent received it faithfully -- so
+marshalling and transport are innocent and the prompt template is guilty.
+
+Blast radius enumerated from the agents' OWN RECEIVED PROMPTS: 22 production
+spawns, 9 step-ids, 4 of them PASS verdicts. Symmetric difference EMPTY against
+two independent evaluator re-derivations over 1,392 and 1,396 transcripts.
+**86.86's PASS WAS graded on a reconstructed evidence set; it was re-graded on the
+fixed rail (`wf_a09930e2-3d7`) and CONFIRMED PASS.**
+
+Fix is lossless-or-throw. Research killed two designs before they shipped: a
+template literal is a NO-OP (both `+` and `${}` bottom out at
+`Object.prototype.toString`), and a bare `JSON.stringify` trades one silent loss
+for five. Guard: 95 assertions, 6 mutation cells, each control clean first.
+
+4 cycles, verdicts [CONDITIONAL x4]. Criteria all graded MET; findings migrated
+into the guards and artifacts. Caller applied F1's auto-FAIL rather than spawning
+a fifth. PARKED -> handoff/current/escalation_86.90_86.91.md.
+
+## Cycle 225 -- 2026-08-16 -- phase=86.91 result=FAIL (escalated)
+
+`before.get(sid) not in (None, "done")` silently swallowed every step FILED AND
+CLOSED IN THE SAME COMMIT, freezing the CHANGELOG version at v6.93.222 since
+2026-08-14 while Recent-Activity rows kept landing. Reproduced on `e4f2e844`:
+`86.86 before=None -> after=done`, shipped rule `[]`, fixed rule `['86.86']`,
+independently re-derived by three evaluators.
+
+Two states became three (CREATED / TRANSITIONED / ALREADY-done) with a PEP-661
+identity sentinel; no step id appears in the fix. Replay pinned at BOTH ends
+after a cycle-2 finding that pinning one end still slid: 707 / 251 / 9 / 11 over
+[2026-08-11T00:00:00 .. 8dc70502], the +2 accounted member by member. Criterion 4
+closed with a decision log rather than a stderr line -- the `flip-detect FAILED`
+marker has never once fired in 976,895 bytes, and this is not a git hook so
+stderr reaches nobody.
+
+SEPARATE FINDING, recorded: `git log --since=<bare date>` is applied at the
+CURRENT time of day, so 86.68's "348-commit corpus" is a number about a clock and
+cannot be regenerated. Filed as 86.94.
+
+4 cycles, verdicts [CONDITIONAL x4]. All 8 criteria graded MET on the shipped
+product; two mutants still survive the guard and one claim of mine ("closed on
+both the replay and the hook") was measured FALSE and is corrected in the
+artifact. Caller applied F1's auto-FAIL. PARKED ->
+handoff/current/escalation_86.90_86.91.md.

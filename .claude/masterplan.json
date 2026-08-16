@@ -25780,7 +25780,8 @@
             "command": "bash -c 'source .venv/bin/activate && node --check .claude/workflows/qa-verdict.js && echo parses'",
             "live_check": "live_check_86.90.md carrying the reproduced \"[object Object]\" prompt text, the localised layer, the research-gate.js result, and the enumerated blast radius including a disposition for 86.86"
           },
-          "notes": "Filed 2026-08-15. Found because the evaluator REPORTED a defect in its own input rather than silently working around it -- worth recording as the reason this was catchable at all. Related to the existing memory that structured input passed as prose reads as not_supplied; this is the object-shaped variant. The immutable command was run before these criteria were frozen and was green (2026-08-15)."
+          "notes": "Filed 2026-08-15. Found because the evaluator REPORTED a defect in its own input rather than silently working around it -- worth recording as the reason this was catchable at all. Related to the existing memory that structured input passed as prose reads as not_supplied; this is the object-shaped variant. The immutable command was run before these criteria were frozen and was green (2026-08-15). ESCALATED 2026-08-16: four attempts, verdict sequence [CONDITIONAL x4], escalation.would_auto_fail=true. Per CLAUDE.md F1 the caller applied the 3rd-CONDITIONAL auto-FAIL rule rather than spawning a fifth Q/A. Every immutable criterion is graded MET on the shipped product by four independent evaluators; the open findings are guard-coverage and artifact-accuracy, not behaviour. PARKED for the operator with named fixes and three options in handoff/current/escalation_86.90_86.91.md. status stays pending; nothing flipped.",
+          "retry_count": 4
         },
         {
           "id": "86.91",
@@ -25803,7 +25804,8 @@
             "command": "bash -c 'bash -n .claude/hooks/post-commit-changelog.sh && echo parses'",
             "live_check": "live_check_86.91.md carrying the reproduced before=None case with verbatim output, the three replay bump counts over the 348-commit corpus, the mutation cell, and the fault-injection proof that the hook still never raises"
           },
-          "notes": "Filed 2026-08-16 by Main under operator direction. Sibling of 86.90: both are SILENT INPUT/OUTPUT LOSS -- a value that never arrives and a transition that never registers, each invisible from the artifact a reader would check. Related memory: feedback_operations_that_cannot_fail_loudly."
+          "notes": "Filed 2026-08-16 by Main under operator direction. Sibling of 86.90: both are SILENT INPUT/OUTPUT LOSS -- a value that never arrives and a transition that never registers, each invisible from the artifact a reader would check. Related memory: feedback_operations_that_cannot_fail_loudly. ESCALATED 2026-08-16: four attempts, verdict sequence [CONDITIONAL x4], escalation.would_auto_fail=true. Per CLAUDE.md F1 the caller applied the 3rd-CONDITIONAL auto-FAIL rule rather than spawning a fifth Q/A. Every immutable criterion is graded MET on the shipped product by four independent evaluators; the open findings are guard-coverage and artifact-accuracy, not behaviour. PARKED for the operator with named fixes and three options in handoff/current/escalation_86.90_86.91.md. status stays pending; nothing flipped.",
+          "retry_count": 4
         },
         {
           "id": "86.92",
@@ -25890,6 +25892,50 @@
             "live_check": "live_check_86.95.md carrying the reproduced prompt text, the measured historical answer with its denominator, the source-derived site enumeration, and the mutation cell"
           },
           "notes": "Filed 2026-08-16 by Main during 86.90. Related: the phase-86.90 block in qa-verdict.js / research-gate.js is the reference implementation; memory feedback_render_structured_input_or_fail_loudly carries the traps (template literal is a no-op; bare JSON.stringify trades one silent loss for five; an array coerces with no marker)."
+        },
+        {
+          "id": "86.96",
+          "priority": "P2",
+          "status": "pending",
+          "harness_required": true,
+          "name": "the Q/A rail's args arrive as a JSON STRING on most launches and can fail to re-parse, killing the spawn before any agent runs -- and the workaround altered immutable criteria text in transit",
+          "audit_basis": "MEASURED 2026-08-16 during phase-86.90/86.91 cycle 3. Two Layer-3 Q/A spawns died at the phase-86.17 args boundary before any agent ran: `qa-verdict: args are PRESENT but not parseable as JSON (typeof=string isArray=false len=5481 ...)`, runs wf_1f6b0398-020 (86.90) and wf_88302c2a-d20 (86.91), 0 agents, 0 tokens. THE GUARD BEHAVED CORRECTLY -- it failed loudly and named what arrived, which is the doctrine phase-86.90 exists to enforce, one layer up. The finding is the CHANNEL, not the guard. Historical shape census over 583 run records: args arrive as a JSON STRING on 409 and as a real object on 31, so the string path is the COMMON one and it can fail. CONSEQUENCE THAT MAKES THIS MORE THAN AN ANNOYANCE: the re-spawn workaround passed the immutable success_criteria with punctuation NORMALISED (backticks and double quotes removed, e.g. `showing the literal \"[object Object]\"` became `showing the literal [object Object]`), so the criteria the evaluator received were semantically identical but NOT byte-verbatim. Verified and disclosed at the time: `.claude/masterplan.json` criteria for 86.90 and 86.91 are byte-identical from filing to HEAD, so nothing was weakened -- but 'the criteria could not be transmitted verbatim' is the same class 86.90 closes on the RENDER side, now appearing on the MARSHALLING side. NOT ESTABLISHED and to be measured rather than guessed: the trigger. The obvious explanations are ALREADY CONTRADICTED -- the cycle-2 payloads were comparably large AND contained escaped double quotes AND parsed fine. Do not write down size or escaped quotes as the cause without a bisect.",
+          "verification": {
+            "success_criteria": [
+              "the failure is REPRODUCED by execution before anything is changed, with the verbatim error, and the reproduction is shown to be deterministic rather than intermittent -- if it does not reproduce, say so and re-scope rather than building for a defect that is not there",
+              "the trigger is BISECTED from the two failing payloads rather than guessed: shrink and mutate them until the minimal failing input is isolated, and state explicitly that size and escaped quotes were each tested and either confirmed or ruled out, because both are contradicted by the cycle-2 payloads that parsed",
+              "the layer is localised -- caller serialisation, the Workflow args marshalling, or the script's own JSON.parse -- with evidence per layer, not by elimination",
+              "whatever the cause, a caller must be able to transmit the immutable criteria BYTE-VERBATIM, demonstrated by round-tripping a criteria array containing backticks, double quotes, newlines and non-ASCII, and asserting byte equality at the receiving end",
+              "the args-shape census is re-derived at execution time rather than copied (string vs object counts), and any figure quoted carries the command that produces it",
+              "a regression guard is added that would go RED if a verbatim-critical payload silently fails to round-trip, and it is mutation-tested with the control observed GREEN first",
+              "verdict semantics are UNCHANGED: nothing here may turn a non-PASS into a PASS"
+            ],
+            "command": "bash -c 'source .venv/bin/activate && node --check .claude/workflows/qa-verdict.js && echo parses'",
+            "live_check": "live_check_86.96.md carrying the verbatim spawn failures, the bisect to a minimal failing input, the per-layer localisation, and the byte-verbatim round-trip proof"
+          },
+          "notes": "Filed 2026-08-16 by Main during the 86.90/86.91 escalation. Sibling of 86.90 (render side) -- this is the marshalling side of the same class. Related memory: feedback_render_structured_input_or_fail_loudly, feedback_structured_input_passed_as_prose_is_not_supplied."
+        },
+        {
+          "id": "86.97",
+          "priority": "P2",
+          "status": "pending",
+          "harness_required": true,
+          "name": "the changelog decision log is blind to three bash exit-0 paths that run BEFORE the detector, and its only production invocation is unguarded -- measured 10 commits against 5 decision lines",
+          "audit_basis": "FOUND BY THE Q/A across phase-86.91 cycles 1-4 and, by its own account, RAISED AT CYCLES 1-3 WITHOUT BEING DISCLOSED IN ANY ARTIFACT until the cycle-4 escalation -- that omission is part of the finding and is why it gets its own step rather than a line in a follow-up. TWO MEASURED DEFECTS. (a) THREE bash `exit 0` paths in .claude/hooks/post-commit-changelog.sh run BEFORE the python heredoc is reached -- the recursion guard, CHANGELOG-absent, and a renamed `### Recent Activity` heading -- so those invocations produce NO decision line at all. Measured 2026-08-16: 10 commits in the window against 5 lines in handoff/logs/changelog-decisions.log. phase-86.91's criterion 4 ('an unexplained none is the defect') is therefore satisfied only for invocations that REACH the detector, and that bound was never stated. (b) The production CALL `_log_decision(bump_type)` is unguarded: deleting it while leaving the function body byte-intact leaves scripts/qa/verify_changelog_flip_86_91.py at ALL GREEN 42/0. The cause is structural -- detector_source() collects only FunctionDef/Assign/AnnAssign nodes whose names are in NEEDED, so a module-level call Expr can never enter the extracted source. The production effect of deleting the call is IDENTICAL to deleting the write, which is the mutant phase-86.91 cycle 4 was opened to kill. So cycle 4 closed the writer's BODY and left its only INVOCATION.",
+          "verification": {
+            "success_criteria": [
+              "both defects are REPRODUCED by execution first: the commits-vs-lines gap re-derived at execution time (not the 10-vs-5 figure copied), and the delete-the-call mutant shown SURVIVING the current guard with the control observed GREEN first",
+              "the early-exit paths are enumerated FROM SOURCE by a written-down rule, not hand-listed, and each is classified as MUST-LOG or LEGITIMATELY-SILENT with the reason per member; a scan that cannot find its own known members is a FAILED gate",
+              "the recursion guard specifically is judged rather than assumed: a hook re-entering itself may be correct to stay silent, and if so that is a BOUND to state, not a defect to fix",
+              "the production invocation is guarded by driving the WHOLE heredoc end-to-end against a temp repo, so that deleting the call turns the guard RED -- an extraction-based guard structurally cannot see a bare call and must not be patched to pretend otherwise",
+              "phase-86.91's criterion-4 claim is CORRECTED in every artifact that carries it, to state that decisions are explained for invocations that reach the detector; a correction must replace, not accompany",
+              "every new guard is mutation-tested with the control observed GREEN first, and a mutant that does not BUILD is scored UNSCORABLE and FAILS rather than counting as a kill",
+              "verdict semantics and masterplan state are UNCHANGED: nothing here may flip a step or alter a verdict"
+            ],
+            "command": "bash -c 'bash -n .claude/hooks/post-commit-changelog.sh && echo parses'",
+            "live_check": "live_check_86.97.md carrying the re-derived commits-vs-lines gap, the source-derived early-exit enumeration with its rule, the surviving delete-the-call mutant and its post-fix kill, and the corrected criterion-4 wording"
+          },
+          "notes": "Filed 2026-08-16 by Main at the 86.90/86.91 escalation. The evaluator raised (a) three times before it was written down anywhere -- a finding that is reported and not recorded is functionally undiscovered, which is the same failure mode as prose-queueing a defect without filing a step. Related memory: feedback_assert_the_output_not_its_feed, feedback_queue_discovered_defects_in_masterplan."
         }
       ]
     }
