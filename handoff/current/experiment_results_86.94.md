@@ -49,7 +49,7 @@ sit relative to the sliding band.
 
 ## The guard
 
-`scripts/qa/verify_no_sliding_windows_86_94.py`, 24 assertions, exit 0.
+`scripts/qa/verify_no_sliding_windows_86_94.py`, 30 assertions, exit 0.
 
 - **Known-member recall is a hard gate.** The rule must find the pre-86.91 form
   of the replay, recovered from git at `06c3265f`, and classify it SLIDING. If
@@ -75,6 +75,20 @@ sit relative to the sliding band.
    through one level of indirection and **fails closed** when it cannot. This is
    the leg that found the real defect — without it the guard would have shipped
    green over the very thing it was written for.
+3. **It flagged ITSELF, and only once committed.** `git ls-files` cannot see an
+   untracked file, so the checker was invisible to its own scan until the moment
+   it shipped — which is exactly when a self-blind guard is worst. Its section-[4]
+   fixtures are deliberately-sliding literals and became 14 false findings. Now
+   self-excluded, with an assertion that the exclusion is **exactly one file** so
+   it cannot grow into an escape hatch, and the residual stated: a real sliding
+   window in this checker is not caught by this checker.
+4. **Docstrings are a third comment form.** `is_prose` knew only `#` lines, so
+   the module docstring — which quotes a bare-date window while *explaining* the
+   defect — was reported as findings. `strip_docstrings` blanks triple-quoted
+   blocks while preserving line numbering, with its own control pair.
+5. **The rule covers `.sh`; every cell mutated `.py`.** A guard demonstrated on
+   one language is demonstrated on half its scope, and the hooks are shell.
+   Added a shell kill, a shell negative control and a shell-comment case.
 
 ---
 
@@ -129,7 +143,7 @@ today and would have stayed green through every defect this step is about. It
 cannot fail on the class. The real evidence is in `live_check_86.94.md`.
 
 ```
-verify_no_sliding_windows_86_94.py   ALL GREEN: 24 passed, 0 failed   (exit 0)
+verify_no_sliding_windows_86_94.py   ALL GREEN: 30 passed, 0 failed   (exit 0)
 verify_changelog_flip_86_91.py       ALL GREEN: 42 passed, 0 failed
 verify_workflow_args_boundary.mjs    ALL GREEN: 96 passed, 0 failed
 ruff (default ruleset, new file)     All checks passed!
