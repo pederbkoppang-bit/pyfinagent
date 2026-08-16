@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-16 | `45b74291` | phase-86.92: cycle-2 -- my own positive control could not fail |
 | 2026-08-16 | `b46f0e17` | phase-86.92: restore the dead args-boundary gate by fixing the CHECKER's fixture |
 | 2026-08-16 | `687109bb` | phase-86.92: reproduce the dead args-boundary gate and falsify its filed cause |
 | 2026-08-16 | `35062eb5` | docs(session): overnight drain goal with a preflight abort and a circuit breaker |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-16 | `786b5a55` | phase-86.88: experiment_results + live_check; criterion 7 MEASURED under both flag states |
 | 2026-08-16 | `03386529` | phase-86.88: guard the ROUTES INTO the seam, not just the seam |
 | 2026-08-16 | `365fc515` | phase-86.90 + 86.91: ESCALATE to the operator -- F1 auto-FAIL applied after four CONDITIONALs |
-| 2026-08-16 | `0ecccafe` | phase-86.90 + 86.91: cycle-4 -- close the reachable criterion-5 hole and the unguarded decision log |
 
 ---
 
