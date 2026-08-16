@@ -1,6 +1,6 @@
 # Day report -- 2026-08-16 (autonomous session, alone until 18:00 Oslo)
 
-**33 commits, all pushed. Nothing flipped `done`. THREE steps ESCALATED to you.**
+**35 commits, all pushed. Nothing flipped `done`. Three steps ESCALATED, one FAILED.**
 
 ---
 
@@ -16,7 +16,7 @@ evaluators kept finding the next one a seam further in. Two steps hit the
 | **86.90** `[object Object]` rail | 4 | `C,C,C,C` | **ESCALATED -- needs your call** |
 | **86.91** frozen CHANGELOG version | 4 | `C,C,C,C` | **ESCALATED -- needs your call** |
 | **86.88** lite seam routes | 4 | `C,C,C,C` | **ESCALATED -- joins the other two** |
-| **86.89** coverage-gate blindness | 2 | `C` + 1 in flight | in evaluation at session end |
+| **86.89** coverage-gate blindness | 2 | `C`, **FAIL** | **FAILED -- handed over, not raced** |
 
 **`v6.93.222` is still the newest version header.** That is 86.91's defect,
 still visible, because the fix has not been allowed to close.
@@ -225,3 +225,47 @@ Q/A spawns                    : 16
 research gates                : 5   (all PASSED)
 probe runs                    : 1
 ```
+
+---
+
+## 11. 86.89 returned FAIL, and I reverted a hazard I had introduced
+
+Cycle 2 came back **FAIL** -- correctly. The mechanism and the reframing away from
+a declared register were both upheld; what failed was my own work on top of them.
+
+**The `[6]` fingerprint binding is CIRCULAR.** `payloads[cid]` is the whole cell
+tuple, which includes the description line the fingerprints were copied from --
+so it asserts the description still contains words copied out of the description.
+A cell keeping its description while swapping its payload passes at 8/8. The
+worst variant: give `M6` a duplicate of `M5`'s payload and **nothing anywhere
+mutates `emit_sequence` ordering** -- the defect that opened this entire series --
+with the whole composite gate green.
+
+**And my cycle-2 claim that the Q/A's repurpose mutant "now KILLS" was a
+mis-attributed credit.** It dies in the *matrix*, by a different mechanism, and
+survives the checker I credited.
+
+**C4 and C6 were fixed in the script only.** Both named artifacts were still at
+cycle 1, so the sentence cycle 1 failed was still verbatim in both, and the only
+6-of-6 demonstration on disk was the *evaluator's* -- the author leaning on the
+judge's evidence.
+
+### The revert
+
+Wiring the vacuity check into `mutation_matrix_86_85.py` made that file **rewrite
+itself**. I verified it independently before acting: **14 distinct truncated
+states, 11,734..12,228 bytes against a pristine 12,407**, in a tree whose
+auto-commit hook runs `git add -A`, while the matrix's own docstring promises
+ZERO REPO WRITES. An interrupt mid-run would have left a truncated matrix for the
+next hook to stage.
+
+**Reverted; repo writes per matrix run 14 -> 0.** The word "standing" is withdrawn
+rather than propped up by an unsafe wire. I also corrected the checker's false
+"read-only" docstring and renamed `[6]` to state what it actually binds.
+
+**I did not attempt cycle 3.** A FAIL at the end of a session is handed over, not
+raced.
+
+Ruled in my favour and worth recording: criterion 5's named `ast.Try` shape IS
+caught by the shipped mechanism -- the Q/A built it and measured it. My stated
+bound was too pessimistic; only the demonstration was missing.
