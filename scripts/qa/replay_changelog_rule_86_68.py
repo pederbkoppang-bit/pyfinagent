@@ -96,7 +96,7 @@ def new_rule(sha, subject, body, *, flip_enabled=True, count_created=True):
 # phase-86.68 artifacts' "348 commits from 2026-08-11" was produced by that
 # sliding cutoff and is NOT reproducible -- it is a number about a clock, not
 # about a corpus. An explicit timestamp makes the replay deterministic.
-CORPUS_SINCE = "2026-08-11T00:00:00"
+CORPUS_SINCE = "2026-08-11T00:00:00Z"
 # PINNED AT BOTH ENDS, and the second pin is phase-86.91 cycle-2. Pinning only
 # CORPUS_SINCE fixed the LOWER bound while the upper bound still floated with
 # HEAD, so the headline counts still moved: this file's own artifact claimed

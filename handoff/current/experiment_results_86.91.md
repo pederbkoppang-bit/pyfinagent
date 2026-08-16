@@ -146,7 +146,7 @@ The reproducible figures are **707 / 251 / 9 / 11** over
 `[2026-08-11T00:00:00 .. 8dc70502]`, verified by running the script twice and
 diffing the output: identical. Reporting "348" would have been reporting a number
 I could not reproduce; reporting "706 ... next month" was reporting one I could
-not reproduce *either*, for a subtler reason.
+not reproduce *either*, for a subtler reason. *(Corrected phase-86.94: that claim was TZ-DEPENDENT when written. `2026-08-11T00:00:00` is a TZ-LOCAL timestamp, so the same both-ends-pinned command measured 707 under Europe/Oslo, UTC and America/New_York but **787** under Asia/Seoul -- an 80-commit spread decided by `$TZ`. `CORPUS_SINCE` is now `2026-08-11T00:00:00Z`; the figures are UNCHANGED on this machine (707 / 251 / 9 / 11, exit gate green) and are now identical in every timezone. Pinning both ends was necessary and was not sufficient.)*
 
 **Consequence for the earlier figures in this session:** "621 / 210 / 5" (09:56),
 "592 / 196 / 5 / 7" (10:17), "706 / 250 / 9 / 11" (10:22, lower bound pinned only)

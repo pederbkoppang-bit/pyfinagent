@@ -437,6 +437,13 @@ check("[5] the corpus UPPER bound is pinned BEHAVIOURALLY (newest selected commi
       f"pin={_pin!r} newest_selected={_head!r} resolved_pin={resolve(_pin) if _pin else None!r} "
       f"-- if these differ the corpus still floats with HEAD")
 check("[5] the corpus LOWER bound is an explicit timestamp, not a bare date",
+      # phase-86.94: this is a SUBSTRING test, so it still matches the
+      # TZ-qualified "2026-08-11T00:00:00Z" the replay now pins. That is why
+      # this checker stayed green through the TZ fix -- but note it would
+      # ALSO stay green if the Z were removed again, so it is a pin-presence
+      # check and not a TZ check. The TZ property is asserted by
+      # scripts/qa/verify_no_sliding_windows_86_94.py, which resolves the
+      # constant and classifies its VALUE.
       "2026-08-11T00:00:00" in REPLAY_SRC,
       "a bare --since date is applied at the CURRENT time of day and slides")
 

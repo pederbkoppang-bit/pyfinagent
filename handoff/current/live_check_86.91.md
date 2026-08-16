@@ -97,7 +97,7 @@ here. Same defect, other end. The reproducible figures are **707 / 251 / 9 / 11*
 verified by running the script twice and diffing: identical. Every earlier figure
 in this session -- "621 / 210 / 5", "592 / 196 / 5 / 7", "706 / 250 / 9 / 11" and
 the Q/A's "710 / 252 / 9 / 11" -- is SUPERSEDED, and each was a measurement of a
-different corpus rather than a disagreement about one.
+different corpus rather than a disagreement about one. *(Corrected phase-86.94: that claim was TZ-DEPENDENT when written. `2026-08-11T00:00:00` is a TZ-LOCAL timestamp, so the same both-ends-pinned command measured 707 under Europe/Oslo, UTC and America/New_York but **787** under Asia/Seoul -- an 80-commit spread decided by `$TZ`. `CORPUS_SINCE` is now `2026-08-11T00:00:00Z`; the figures are UNCHANGED on this machine (707 / 251 / 9 / 11, exit gate green) and are now identical in every timezone. Pinning both ends was necessary and was not sufficient.)*
 
 ---
 
