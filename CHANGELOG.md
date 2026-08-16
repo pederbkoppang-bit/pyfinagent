@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-16 | `03386529` | phase-86.88: guard the ROUTES INTO the seam, not just the seam |
 | 2026-08-16 | `365fc515` | phase-86.90 + 86.91: ESCALATE to the operator -- F1 auto-FAIL applied after four CONDITIONALs |
 | 2026-08-16 | `0ecccafe` | phase-86.90 + 86.91: cycle-4 -- close the reachable criterion-5 hole and the unguarded decision log |
 | 2026-08-16 | `468c7908` | phase-86.90 + 86.91: cycle-3 remediation -- seven findings, incl. two mutants that survived |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-15 | `d1c4a79d` | phase-86.85: the verdict-ledger WRITER, plus the measurement that forced its shape |
 | 2026-08-15 | `e15caa9e` | phase-86.74: cycle-7 verdict CONDITIONAL -> recorded FAIL (3rd-CONDITIONAL rule) |
 | 2026-08-15 | `77e4ae08` | phase-86.74: semantic sweep of every 86.74-touching artifact before cycle 7 |
-| 2026-08-15 | `714fe13f` | docs(goal): compress the 08-15 goal to 3994 chars for a full-day run |
 
 ---
 
