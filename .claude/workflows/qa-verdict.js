@@ -120,7 +120,12 @@ const RENDER_SCRIPT = 'qa-verdict'
 // An ARRAY is the quiet variant: ['a','b'] renders as `a,b` with NO marker at
 // all, so any census keyed on "[object Object]" is a FLOOR, never a total.
 //
-// THE RULE IS LOSSLESS-OR-THROW. Never coerce, never substitute. RFC 9413 s4.2:
+// THE RULE IS LOSSLESS-OR-THROW over the value shapes this boundary can actually
+// receive, and cycle 2 widened it to cover five that slipped through -- see
+// jsonLosslessViolation. Stated with its bound rather than absolutely: the
+// cycle-1 comment claimed the rule outright while the walk enumerated only own
+// ENUMERABLE keys, which is a broader claim than was measured.
+// Never coerce, never substitute. RFC 9413 s4.2:
 // "Tolerating unexpected input instead conceals problems, making it harder, if
 // not impossible, to fix them later." Shore, IEEE Software 21(5):21-25, whose
 // worked example is exactly a lookup that returns a DEFAULT when the real value
@@ -142,7 +147,42 @@ function jsonLosslessViolation(value, path, seen) {
   if (t === 'function' || t === 'symbol' || t === 'bigint') return path + ' is a ' + t + ' (JSON cannot carry it)'
   if (seen.has(value)) return path + ' is a circular reference'
   seen.add(value)
+  // phase-86.90 cycle-2. The cycle-1 walk used Object.keys -- OWN ENUMERABLE
+  // string keys only -- and the Q/A found FIVE constructions that rendered
+  // LOSSILY WITHOUT THROWING through the gap: a non-enumerable own data
+  // property (silently dropped), a non-enumerable `toJSON` (the WHOLE value
+  // replaced -- a substitution, i.e. the very thing criterion 5 forbids), a
+  // getter whose value the walk and JSON.stringify read SEPARATELY (a TOCTOU:
+  // inspected once, serialised again), a nested non-enumerable, and an array
+  // carrying a non-index own property. So the walk now enumerates
+  // getOwnPropertyNames + getOwnPropertySymbols and refuses ACCESSOR properties
+  // outright -- which is simultaneously the TOCTOU fix, because a pure data
+  // object cannot change between the walk and the serialise.
+  const descs = Object.getOwnPropertyDescriptors(value)
+  for (const k of Object.getOwnPropertyNames(descs)) {
+    const d = descs[k]
+    if (d.get || d.set) {
+      return path + '.' + k + ' is an accessor (getter/setter) -- its value could differ '
+        + 'between inspection and serialisation, so it cannot be rendered faithfully'
+    }
+    if (!d.enumerable && !(Array.isArray(value) && k === 'length')) {
+      return path + '.' + k + ' is a NON-ENUMERABLE own property (JSON drops it silently)'
+    }
+    if (k === 'toJSON') {
+      return path + '.toJSON would REPLACE the whole value during serialisation, so what '
+        + 'reaches the prompt would not be what was passed'
+    }
+  }
+  if (Object.getOwnPropertySymbols(value).length > 0) {
+    return path + ' has Symbol-keyed properties (JSON drops them)'
+  }
   if (Array.isArray(value)) {
+    for (const k of Object.getOwnPropertyNames(descs)) {
+      if (k === 'length') continue
+      if (!/^(0|[1-9][0-9]*)$/.test(k)) {
+        return path + '.' + k + ' is a non-index own property on an array (JSON drops it)'
+      }
+    }
     for (let i = 0; i < value.length; i++) {
       const v = jsonLosslessViolation(value[i], path + '[' + i + ']', seen)
       if (v) return v
@@ -156,10 +196,7 @@ function jsonLosslessViolation(value, path, seen) {
       + ' instance -- only plain objects and arrays render losslessly (Map/Set collapse to {}, '
       + 'a Date silently becomes a string)'
   }
-  if (Object.getOwnPropertySymbols(value).length > 0) {
-    return path + ' has Symbol-keyed properties (JSON drops them)'
-  }
-  for (const k of Object.keys(value)) {
+  for (const k of Object.getOwnPropertyNames(descs)) {
     const v = jsonLosslessViolation(value[k], path + '.' + k, seen)
     if (v) return v
   }

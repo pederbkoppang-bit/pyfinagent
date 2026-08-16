@@ -12,7 +12,7 @@ objects to the literal `[object Object]`
 |---|---|
 | `.claude/workflows/qa-verdict.js` | +160/-5 -- the phase-86.90 render boundary; `stepId`/`verification_command` via `renderIdentityArg`, `evidence`/`extra`/each criterion via `renderArgField`; unknown-arg-key warning |
 | `.claude/workflows/research-gate.js` | +155/-4 -- the BYTE-IDENTICAL render block; `step_id`/`brief_path` via `renderIdentityArg`, `topic`/`internal_scope` via `renderArgField`; unknown-arg-key warning |
-| `scripts/qa/verify_prompt_render_86_90.mjs` | NEW, 53 assertions -- behavioural driver + reproduce-from-git + unrenderable-throws + 4 mutation cells + duplicate-integrity |
+| `scripts/qa/verify_prompt_render_86_90.mjs` | NEW, **78** assertions -- behavioural driver + reproduce-from-git + unrenderable-throws (12 cases x 2 scripts) + 2 render-still-works controls + **5** mutation cells + duplicate-integrity |
 | `handoff/current/contract_86.90.md`, `research_brief_86.90.md`, `experiment_results_86.90.md`, `live_check_86.90.md`, `evaluator_critique_86.90.md` | handoff artifacts |
 | `.claude/masterplan.json` | filed step `86.91` (a separate, earlier commit `c627a810`) |
 
@@ -97,6 +97,7 @@ boundary of each workflow script.
 | finite number, boolean | `String(value)` |
 | plain object / array, all members JSON-lossless | pretty JSON in a fenced block |
 | circular, `BigInt`, function, Symbol key, `undefined` member, `Map`/`Set`/`Date`/class instance, `NaN`/`Infinity` | **THROWS**, naming `args.<field>` and the offending path |
+| *(cycle 2)* any **non-enumerable** own property, any **accessor** (getter/setter), any own **`toJSON`**, a non-index own property on an array | **THROWS** -- see the correction below |
 
 `renderIdentityArg` is stricter for `step_id`, `brief_path` and
 `verification_command`: string or finite number only. An object `step_id` would
@@ -116,6 +117,37 @@ a fix and a no-op:**
    `null`. Hence the explicit lossless walk before serialising, and a throw
    rather than a best-effort render.
 
+**CYCLE-2 CORRECTION -- the walk was one seam short, and the claim was broader
+than the walk.** The cycle-1 version enumerated with `Object.keys`, i.e. own
+**enumerable** string keys only, and the Q/A found **five** constructions that
+rendered LOSSILY WITHOUT THROWING through the gap:
+
+| # | Construction | What was lost |
+|---|---|---|
+| A1 | non-enumerable own data property | silently dropped |
+| A2 | **non-enumerable `toJSON`** | the WHOLE object replaced by the single string `"REPLACED"` -- a placeholder substitution reached *through* the guard written to forbid substitutions |
+| A4 | non-deterministic getter | the walk reads it once, `JSON.stringify` reads it AGAIN (a TOCTOU) |
+| A6 | nested non-enumerable | dropped |
+| A7 | array with a non-index own property | dropped |
+
+Controls behaved correctly throughout: an **enumerable** `toJSON` threw, and
+`Object.create(null)` rendered losslessly.
+
+**Reachability, stated so the severity is neither inflated nor deflated:** none of
+the five is reachable from a real caller. `classifyArgs` either `JSON.parse`s a
+string or passes the runtime object through, and a JSON-derived object has no
+non-enumerables, no getters and no `toJSON`. So this was a CLAIM defect rather
+than a live one -- and it is fixed anyway, because a guard whose stated rule is
+broader than its measured behaviour is the failure mode this series is about.
+
+The walk now enumerates `getOwnPropertyDescriptors` / `getOwnPropertyNames` and
+**refuses accessor properties outright**, which is simultaneously the TOCTOU fix:
+a pure data object cannot change between inspection and serialisation. All five
+are asserted as new `[3]` cases, both controls are asserted as `[3] CONTROL`
+cases so the walk cannot become a blanket refusal, and mutation cell **M5**
+narrows the walk back to `Object.keys` and requires A2 to go red. The in-code
+comment no longer states the rule absolutely; it states it with its bound.
+
 Also carried: an **array** field coerces to `a,b` with **no `[object Object]`
 marker at all**. Every census in this document keyed on that marker is therefore
 a **floor**, never a total, and the checker asserts the array case separately.
@@ -124,7 +156,7 @@ a **floor**, never a total, and the checker asserts the array case separately.
 
 ## 5. Criterion 6 -- the regression guard, control GREEN first
 
-`node scripts/qa/verify_prompt_render_86_90.mjs` -> **`ALL GREEN: 53 passed, 0 failed`**
+`node scripts/qa/verify_prompt_render_86_90.mjs` -> **`ALL GREEN: 78 passed, 0 failed`**
 
 It DRIVES the real shipped scripts with the runtime primitives stubbed and reads
 the prompt actually handed to `agent()`. A source scan for `renderArgField(`
@@ -135,12 +167,12 @@ would pass on a file that never calls it on the path that matters.
 | `[0]` CONTROL | a usable launch really does spawn and produce a prompt carrying the step id, and a STRING field is passed through unchanged -- without this, every "does not contain" assertion below could pass vacuously |
 | `[1]` REPRODUCE | the pre-fix blob at `75831f4c` still yields `[object Object]`, on BOTH scripts |
 | `[2]` FIXED | object AND array shapes render as JSON; every key and value reaches the prompt; no comma-joined collapse |
-| `[3]` UNRENDERABLE | 7 cases x 2 scripts THROW naming the field AND spawn nothing |
+| `[3]` UNRENDERABLE | **12** cases x 2 scripts THROW naming the field AND spawn nothing, PLUS 2 controls proving the walk is not a blanket refusal |
 | `[4]` research-gate | criterion 3, by execution |
-| `[5]` MUTATION | 4 cells, anchor uniqueness checked first |
+| `[5]` MUTATION | **5** cells, anchor uniqueness checked first |
 | `[6]` DUPLICATE INTEGRITY | the two copies of the block are byte-identical |
 
-### Mutation matrix (4 cells, all KILLED)
+### Mutation matrix (5 cells, all KILLED)
 
 | Cell | Mutation | Result |
 |---|---|---|
@@ -148,8 +180,9 @@ would pass on a file that never calls it on the path that matters.
 | M2 | `research-gate.js`: restore `'OBJECTIVE: ' + a.topic` | **KILLED** -- the second copy is doing work too |
 | M3 | replace the lossless-violation `throw` with `return '(unrenderable)'` | **KILLED** -- `[3]` goes red |
 | M4 | `renderIdentityArg` accepts objects via `String(value)` | **KILLED** -- an object step id reaches a filename |
+| M5 *(cycle 2)* | narrow the walk back to `Object.keys` | **KILLED** -- A2 renders `"REPLACED"` again without throwing |
 
-**This matrix licenses exactly one claim: these four mutations were killed.** It
+**This matrix licenses exactly one claim: these five mutations were killed.** It
 is not evidence that no other weakening survives.
 
 **A checker bug caught by its own anchor-uniqueness rule, disclosed because it is
@@ -247,12 +280,23 @@ concatenation has been there since the rail became first-class.
 
 ### Disposition, per verdict class
 
-- **13 non-PASS verdicts (CONDITIONAL/FAIL) and 6 rail drops.** A non-PASS
+- **11 non-PASS verdicts (7 CONDITIONAL + 4 FAIL) and 7 rail drops.** A non-PASS
   reached under *less* evidence than intended cannot have been made *more*
   lenient by the loss. The direction of harm is one-way here, so these need no
   re-grade. Stated as a bound, not a clearance: they may have been non-PASS for
   reasons a fuller evidence set would have changed, but none of them ADMITTED
   work.
+
+  *(CORRECTED, cycle 2. This sentence read "13 non-PASS verdicts (CONDITIONAL/FAIL)
+  and 6 rail drops" -- 13+6 = 19, which EXCEEDS the 18 non-PASS-or-dropped rows in
+  the table directly above it. Found by the cycle-1 Q/A and reproduced by me before
+  correcting. Origin: six rows read `*(rail drop)*` and one reads
+  `*(rail drop -- no verdict)*`, so a literal count misses the seventh; I then
+  asserted the split instead of counting it. The table was always right. The
+  figures are now COUNTED from the table itself -- 22 rows = 4 PASS + 7 drops +
+  7 CONDITIONAL + 4 FAIL -- and the Q/A independently re-derived the same split
+  from the run records. The disposition is unaffected: both sub-buckets are the
+  "no re-grade needed" class, and the 4 PASSes were enumerated correctly.)*
 - **4 PASS verdicts -- 85.5, 86.25, 86.34, 86.86 -- rested on a reconstructed
   evidence set.** This is the direction that matters, and it is stated plainly
   rather than reasoned away.
@@ -390,3 +434,32 @@ ALL GREEN: 38 passed, 0 failed                                      # exit 0
 $ node scripts/qa/verify_workflow_args_boundary.mjs
 FAILED: 84 passed, 3 failed        # PRE-EXISTING -- identical at pristine HEAD, see §9.1
 ```
+
+
+---
+
+# Follow-up -- cycle 2 (2026-08-16)
+
+Cycle-1 verdict was **CONDITIONAL** with three WARN findings. All three accepted
+and fixed; the evidence changed, so a FRESH Q/A is spawned on the changed
+evidence (the documented cycle-2 flow), not a re-ask on the same evidence.
+
+| # | Finding | What changed |
+|---|---|---|
+| **D1** | `experiment_results_86.90.md:250` said "13 non-PASS verdicts and 6 rail drops"; the table gives 11 and 7 (13+6=19 > 18 rows) | The sentence is **REPLACED**, not annotated, with figures COUNTED from the table (`4 PASS + 7 drops + 7 CONDITIONAL + 4 FAIL = 22`) and the origin of the miscount recorded. I reproduced the Q/A's count myself before correcting |
+| **D2** | Four follow-ups asserted "queued" with **no masterplan step in existence** | **Filed as real steps: `86.92`, `86.93`, `86.94`, `86.95`.** The masterplan's newest commit was `c627a810`, which PREDATED the work commit -- so "queued" was prose describing an intention. This is the standing project rule and I broke it while citing it |
+| **E** | The in-code absolute "THE RULE IS LOSSLESS-OR-THROW" over-stated the measured guarantee; five constructions rendered lossily without throwing | The **walk was widened** (`getOwnPropertyDescriptors`; accessors refused outright, which is also the getter-TOCTOU fix; own `toJSON` refused at any enumerability; array non-index own properties refused) AND the **claim was narrowed** to state its bound. All five are now `[3]` cases; 2 controls prove the walk did not become a blanket refusal; mutation cell **M5** requires A2 to go red if the walk narrows again |
+
+Guard after the fix: **`ALL GREEN: 78 passed, 0 failed`** (was 53), 5 mutation
+cells, control observed GREEN first.
+
+**A fixture bug I repeated inside the same file, disclosed rather than quietly
+fixed.** The new `[3] CONTROL` cases asserted `spawns.length === 1`, which fails
+on `research-gate.js` because it spawns two agents -- the *identical* mistake
+section `[0]` already carries a comment about, made one section later in the same
+edit. Corrected to `>= 1`, with the reason written into the file.
+
+D2 is the one worth keeping. The other two were caught by an evaluator doing its
+job; D2 was a rule I quote in my own memory (`feedback_queue_discovered_defects_in_masterplan`)
+and violated in the same document that quoted it. "Queued" in prose reads as done
+to the next reader, and loses the finding.

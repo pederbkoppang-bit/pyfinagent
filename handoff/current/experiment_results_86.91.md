@@ -12,7 +12,7 @@ FILED AND CLOSED IN THE SAME COMMIT
 |---|---|
 | `.claude/hooks/post-commit-changelog.sh` | the three-state membership test in `_flip_magnitude` + `_ABSENT` sentinel + `_FLIP_DECISION` + `_log_decision` |
 | `scripts/qa/replay_changelog_rule_86_68.py` | third arm (`count_created`), commit-by-commit accounting of the increase, and a **PINNED** corpus |
-| `scripts/qa/verify_changelog_flip_86_91.py` | NEW, 24 assertions -- drives the SHIPPED detector, 3 mutation cells, fault injection |
+| `scripts/qa/verify_changelog_flip_86_91.py` | NEW, **31** assertions -- drives the SHIPPED detector AND the shipped replay predicate, **6** mutation cells, fault injection, source-derived known-member recall |
 | `handoff/current/{contract,experiment_results,live_check,evaluator_critique}_86.91.md`, `research_brief_86.91.md` | handoff artifacts |
 
 `CHANGELOG.md` was **not hand-edited**. No masterplan step was flipped by this
@@ -74,10 +74,12 @@ bump. The magnitude rules (major/minor/patch) are untouched.
 
 ```
 $ python scripts/qa/replay_changelog_rule_86_68.py
-corpus: 706 commits since 2026-08-11T00:00:00 (PINNED timestamp -- deterministic;
-        a bare date slides with the clock)
+corpus: 707 commits in [2026-08-11T00:00:00 .. 8dc70502 = 8dc70502]
+        BOTH ENDS PINNED -- a bare --since date slides with the clock AND an
+        unpinned upper bound slides with HEAD; every count below is quoted
+        against the endpoint printed above.
 
-  version bumps under OLD rule (subject prefix)     : 250
+  version bumps under OLD rule (subject prefix)     : 251
   version bumps under SHIPPED flip rule (pre-86.91) : 9
   version bumps under FIXED flip rule (86.91)       : 11
 
@@ -126,15 +128,33 @@ sits around a `2026-08-11 ~09:00Z` cutoff (343 commits measured there), which is
 consistent with a sliding cutoff and with nothing else.
 
 The criterion is immutable and has **not** been amended. It is answered on the
-deterministic replacement, with the discrepancy stated rather than smoothed over:
-the replay now pins `CORPUS_SINCE = "2026-08-11T00:00:00"`. Anyone re-running it
-gets 706 / 250 / 9 / 11, today and next month. Reporting "348" would have been
-reporting a number I could not reproduce.
+deterministic replacement, with the discrepancy stated rather than smoothed over.
 
-**Consequence for the earlier figures in this session:** the "621 commits, OLD
-210, NEW 5" I quoted at 09:56 and the "592 / 196 / 5 / 7" at 10:17 were both
-products of the sliding window. The pinned numbers **supersede** them; the
-superseded ones are recorded here only so the drift is visible.
+**CORRECTED, cycle 2 -- and the correction is the same defect one end over.** This
+paragraph originally said the replay pins `CORPUS_SINCE` and that "anyone
+re-running it gets 706 / 250 / 9 / 11, today and next month". The cycle-1 Q/A
+re-ran it two hours later and measured **710 / 252 / 9 / 11**, the delta being
+exactly the four commits that landed in between. `CORPUS_UNTIL = None` pinned only
+the **lower** bound while the upper bound still floated with HEAD. In a step whose
+whole finding is *"that is a number about a clock"*, I fixed one end and claimed
+I had fixed both. The replay now pins **both** ends --
+`CORPUS_SINCE = "2026-08-11T00:00:00"`, `CORPUS_UNTIL = "8dc70502"` (overridable
+via the environment) -- and prints the resolved endpoint, so no count is ever
+quoted without the window it was measured against.
+
+The reproducible figures are **707 / 251 / 9 / 11** over
+`[2026-08-11T00:00:00 .. 8dc70502]`, verified by running the script twice and
+diffing the output: identical. Reporting "348" would have been reporting a number
+I could not reproduce; reporting "706 ... next month" was reporting one I could
+not reproduce *either*, for a subtler reason.
+
+**Consequence for the earlier figures in this session:** "621 / 210 / 5" (09:56),
+"592 / 196 / 5 / 7" (10:17), "706 / 250 / 9 / 11" (10:22, lower bound pinned only)
+and the Q/A's "710 / 252 / 9 / 11" (~12:30) were ALL products of a sliding window
+-- the first two at the lower end, the last two at the upper. **707 / 251 / 9 / 11
+over `[2026-08-11T00:00:00 .. 8dc70502]` supersedes every one of them.** The
+superseded figures are listed here only so the drift is visible; each is a
+measurement of a different corpus, not a disagreement about the same one.
 
 ---
 
@@ -189,7 +209,7 @@ call), which is the real failure mode -- not a source reading.
 
 ```
 $ python scripts/qa/verify_changelog_flip_86_91.py
-ALL GREEN: 24 passed, 0 failed
+ALL GREEN: 31 passed, 0 failed
 ```
 
 It **drives the SHIPPED detector**: the `.sh` heredoc is extracted, parsed with
@@ -198,18 +218,21 @@ It **drives the SHIPPED detector**: the `.sh` heredoc is extracted, parsed with
 drifted -- which is precisely how the sibling replay harness came to carry a
 byte-copy of the same defect at its own line 54 (research finding I5).
 
-### Mutation matrix (3 cells, all KILLED, anchors checked for uniqueness first)
+### Mutation matrix (6 cells, all KILLED, anchors checked for uniqueness first)
 
 | Cell | Mutation | Kill condition | Result |
 |---|---|---|---|
 | M1 | restore the `None` exclusion | created-and-closed stops bumping | **KILLED** |
 | M2 | drop the `!= "done"` term (over-credit) | an already-done step starts bumping | **KILLED** |
 | M3 | delete a `_FLIP_DECISION["reason"]` assignment | a `none` becomes unexplained | **KILLED** |
+| M4 *(cycle 2)* | delete the `masterplan_unreadable_at_HEAD` reason | that branch's `none` becomes unexplained | **KILLED** |
+| M5 *(cycle 2)* | `newly_done_ids` ignores `count_created`, literal kept | the replay's two arms stop disagreeing | **KILLED** |
+| M6 *(cycle 2)* | the None exclusion **reworded** as `not in ("done", None)` | the created-and-closed step stops counting | **KILLED** |
 
 M2 is deliberately the **over-crediting** direction -- the dangerous one, and the
 one this project has been bitten by before.
 
-**This matrix licenses exactly one claim: these three mutations were killed.** It
+**This matrix licenses exactly one claim: these six mutations were killed.** It
 is not evidence that no other weakening survives.
 
 ### A fixture bug this checker caught in itself, disclosed
@@ -264,8 +287,30 @@ $ python -c "import ast; ast.parse(<the heredoc>)"
 heredoc python parses OK, 327 lines
 
 $ python scripts/qa/verify_changelog_flip_86_91.py
-ALL GREEN: 24 passed, 0 failed                           # exit 0
+ALL GREEN: 31 passed, 0 failed                           # exit 0
 
 $ python scripts/qa/replay_changelog_rule_86_68.py
 ... exit gate: control_green=True all_cells_killed=True cells_scored=2 -> exit 0
 ```
+
+
+---
+
+# Follow-up -- cycle 2 (2026-08-16)
+
+Cycle-1 verdict was **CONDITIONAL** with three WARN findings. All three accepted
+and fixed; the evidence changed, so a FRESH Q/A is spawned.
+
+| # | Finding | What changed |
+|---|---|---|
+| **W1** | "Anyone re-running it gets 706 / 250 / 9 / 11, today and next month" did NOT reproduce -- the Q/A measured **710 / 252** two hours later, because `CORPUS_UNTIL = None` pinned only the LOWER bound | `CORPUS_UNTIL` is now pinned to `8dc70502` (env-overridable) and the resolved endpoint is PRINTED, so no count is quoted without its window. New figures **707 / 251 / 9 / 11**, verified by running the script twice and diffing: identical. Every superseded figure is listed and REPLACED in both artifacts |
+| **W2** | Section `[5]`'s replay guards were pure substring scans; **both** of the Q/A's replay mutants SURVIVED at 24/24 green | The replay predicate is now **DRIVEN**: `newly_done_ids` is extracted by `ast` from the shipped file and its two arms must genuinely DISAGREE (`['86.86']` vs `[]`). Both cycle-1 survivors are now mutation cells and both **KILL** -- QA-11 (behaviour stripped, literal kept) and QA-12 (the defect **reworded**, which no literal scan can see) |
+| **W3** | `QA-1` SURVIVED: deleting the `masterplan_unreadable_at_HEAD` reason left the guard green, while the assertion is *named* "EVERY branch sets a reason" | The 4th branch is now DRIVEN, and the **denominator is DERIVED FROM SOURCE** -- the checker counts `return "none"` sites inside the shipped `_flip_magnitude` by AST (**4**) and requires that many distinct reasons observed. A future 5th branch fails the check instead of slipping past it. New mutation cell **M4** deletes that reason and is KILLED |
+
+Guard after the fix: **`ALL GREEN: 31 passed, 0 failed`** (was 24), 6 mutation
+cells, control observed GREEN first.
+
+W1 is the one worth keeping: this step's whole finding is *"that is a number
+about a clock"*, and I fixed one end of the window while claiming I had fixed
+both. The Q/A found it by simply re-running the command two hours later -- which
+is the cheapest possible check and the one I did not do.

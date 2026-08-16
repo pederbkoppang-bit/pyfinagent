@@ -39,12 +39,14 @@ Rows through 2026-08-15; newest version header dated 2026-08-14.
 
 ```
 $ python scripts/qa/replay_changelog_rule_86_68.py
-corpus: 706 commits since 2026-08-11T00:00:00 (PINNED timestamp -- deterministic;
-        a bare date slides with the clock)
+corpus: 707 commits in [2026-08-11T00:00:00 .. 8dc70502 = 8dc70502]
+        BOTH ENDS PINNED -- a bare --since date slides with the clock AND an
+        unpinned upper bound slides with HEAD; every count below is quoted
+        against the endpoint printed above.
 RULE STATED: OLD = subject-only (phase-X.Y -> patch). NEW = subject may force
              MAJOR only; otherwise the parsed masterplan id->status diff decides.
 
-  version bumps under OLD rule (subject prefix)     : 250
+  version bumps under OLD rule (subject prefix)     : 251
   version bumps under SHIPPED flip rule (pre-86.91) : 9
   version bumps under FIXED flip rule (86.91)       : 11
 
@@ -84,10 +86,18 @@ the window slides forward as the clock advances. phase-86.68's *"348 commits fro
 sits near `2026-08-11 09:00Z` (343 commits measured there) -- consistent with a
 sliding window and with nothing else.
 
-The immutable criterion is not amended. It is answered on a **pinned**
-`CORPUS_SINCE = "2026-08-11T00:00:00"`, and the drift is reported rather than
-smoothed away. The earlier "621 / 210 / 5" and "592 / 196 / 5 / 7" figures quoted
-in this session are SUPERSEDED by 706 / 250 / 9 / 11.
+The immutable criterion is not amended. It is answered on a corpus **pinned at
+BOTH ends** -- `CORPUS_SINCE = "2026-08-11T00:00:00"` and
+`CORPUS_UNTIL = "8dc70502"` -- and the drift is reported rather than smoothed away.
+
+**Cycle-2 correction.** Pinning only `CORPUS_SINCE` fixed the lower bound while
+the upper still floated with HEAD, so the cycle-1 Q/A re-ran the script two hours
+later and measured 710 / 252 / 9 / 11 against the 706 / 250 / 9 / 11 recorded
+here. Same defect, other end. The reproducible figures are **707 / 251 / 9 / 11**,
+verified by running the script twice and diffing: identical. Every earlier figure
+in this session -- "621 / 210 / 5", "592 / 196 / 5 / 7", "706 / 250 / 9 / 11" and
+the Q/A's "710 / 252 / 9 / 11" -- is SUPERSEDED, and each was a measurement of a
+different corpus rather than a disagreement about one.
 
 ---
 

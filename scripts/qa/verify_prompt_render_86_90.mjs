@@ -208,6 +208,29 @@ const UNRENDERABLE = [
   { id: 'Map', literal: '{ step_id: "86.90", tier: "moderate", criteria: ["c"], evidence: new Map([["a", 1]]), topic: new Map([["a", 1]]) }' },
   { id: 'NaN', literal: '{ step_id: "86.90", tier: "moderate", criteria: ["c"], evidence: { n: NaN }, topic: { n: NaN } }' },
   { id: 'object step_id (would reach a FILENAME)', literal: '{ step_id: { id: "86.90" }, tier: "moderate", criteria: ["c"] }' },
+  // ── phase-86.90 cycle-2: the five the cycle-1 Q/A got PAST the walk ────────
+  // Each of these rendered LOSSILY WITHOUT THROWING against the cycle-1 code,
+  // because that walk used Object.keys -- own ENUMERABLE string keys only. A2 is
+  // the sharpest: a non-enumerable toJSON replaced the ENTIRE object with one
+  // string, i.e. a placeholder substitution reached THROUGH the guard written to
+  // forbid substitutions. None was reachable from a real caller (classifyArgs
+  // JSON.parses a string or passes the runtime object through, and a JSON-derived
+  // object has no non-enumerables, no getters and no toJSON) -- they are here
+  // because a guard whose stated rule is broader than its measured behaviour is
+  // the exact failure this step exists to close.
+  { id: 'A1 non-enumerable own data property', literal: '(() => { const o = { a: 1 }; Object.defineProperty(o, "hidden", { value: "LOST", enumerable: false }); return { step_id: "86.90", tier: "moderate", criteria: ["c"], evidence: o, topic: o } })()' },
+  { id: 'A2 non-enumerable toJSON (substitutes the WHOLE value)', literal: '(() => { const o = { real_evidence: "x", more: "y" }; Object.defineProperty(o, "toJSON", { value: () => "REPLACED", enumerable: false }); return { step_id: "86.90", tier: "moderate", criteria: ["c"], evidence: o, topic: o } })()' },
+  { id: 'A4 non-deterministic getter (walk reads once, stringify reads AGAIN)', literal: '(() => { let n = 0; const o = {}; Object.defineProperty(o, "v", { get: () => ++n, enumerable: true }); return { step_id: "86.90", tier: "moderate", criteria: ["c"], evidence: o, topic: o } })()' },
+  { id: 'A6 nested non-enumerable', literal: '(() => { const inner = { a: 1 }; Object.defineProperty(inner, "hidden", { value: "LOST", enumerable: false }); return { step_id: "86.90", tier: "moderate", criteria: ["c"], evidence: { outer: inner }, topic: { outer: inner } } })()' },
+  { id: 'A7 array with a non-index own property', literal: '(() => { const a = ["x"]; a.meta = "LOST"; return { step_id: "86.90", tier: "moderate", criteria: ["c"], evidence: a, topic: a } })()' },
+]
+
+// CONTROLS for section [3]: shapes that must still render, so the widened walk
+// is not simply refusing everything. A guard that throws on all input would pass
+// every assertion above and be useless.
+const STILL_RENDERS = [
+  { id: 'plain nested object', literal: '{ step_id: "86.90", tier: "moderate", criteria: ["c"], evidence: { a: [1, 2], b: { c: "d" } }, topic: { a: [1, 2] } }' },
+  { id: 'null-prototype object', literal: '(() => { const o = Object.create(null); o.a = 1; return { step_id: "86.90", tier: "moderate", criteria: ["c"], evidence: o, topic: o } })()' },
 ]
 for (const name of Object.keys(SCRIPTS)) {
   const src = fs.readFileSync(SCRIPTS[name], 'utf8')
@@ -218,6 +241,22 @@ for (const name of Object.keys(SCRIPTS)) {
           r.threw ? `threw but did not name the field: ${r.threw.slice(0, 120)}` : 'did NOT throw -- a silent substitution survived')
     check(`[3] ${name}: ${u.id} spawns NOTHING`, r.spawns.length === 0,
           `spawned ${r.spawns.length} despite an unrenderable field`)
+  }
+}
+
+// CONTROL for [3]: the widened walk must not have become a blanket refusal.
+for (const name of Object.keys(SCRIPTS)) {
+  const src = fs.readFileSync(SCRIPTS[name], 'utf8')
+  for (const c of STILL_RENDERS) {
+    const r = await runDriverRaw(src, c.literal)
+    // `>= 1`, not `=== 1`: research-gate.js spawns TWO agents (role, then brief
+    // verification). Section [0] already records this; asserting `=== 1` here
+    // repeated the same fixture bug one section later, which is why it is
+    // written out rather than silently corrected.
+    check(`[3] CONTROL ${name}: ${c.id} still RENDERS (the walk is not a blanket refusal)`,
+          !r.threw && r.spawns.length >= 1
+          && String(r.spawns[0].prompt).includes('```json'),
+          r.threw ? `threw: ${r.threw.slice(0, 140)}` : `spawned ${r.spawns.length}`)
   }
 }
 
@@ -261,6 +300,19 @@ const MUTANTS = [
       return String(r.spawns.length ? r.spawns[0].prompt : '').includes('[object Object]')
     },
     why: 'the research-gate copy must be doing the work too',
+  },
+  {
+    id: 'narrow-the-walk-back-to-Object.keys',
+    file: 'qa-verdict.js',
+    // Reverting the cycle-2 widening must make A2 -- the substitution case --
+    // render lossily again without throwing.
+    from: '  const descs = Object.getOwnPropertyDescriptors(value)',
+    to: '  const descs = Object.fromEntries(Object.keys(value).map(k => [k, { enumerable: true, value: value[k] }]))',
+    expect: async (src) => {
+      const r = await runDriverRaw(src, '(() => { const o = { real_evidence: "x" }; Object.defineProperty(o, "toJSON", { value: () => "REPLACED", enumerable: false }); return { step_id: "86.90", criteria: ["c"], evidence: o } })()')
+      return !r.threw && String(r.spawns.length ? r.spawns[0].prompt : '').includes('REPLACED')
+    },
+    why: 'section [3] A2 must go RED when the walk stops seeing non-enumerable properties',
   },
   {
     id: 'placeholder-instead-of-throw',

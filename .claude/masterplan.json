@@ -25804,6 +25804,92 @@
             "live_check": "live_check_86.91.md carrying the reproduced before=None case with verbatim output, the three replay bump counts over the 348-commit corpus, the mutation cell, and the fault-injection proof that the hook still never raises"
           },
           "notes": "Filed 2026-08-16 by Main under operator direction. Sibling of 86.90: both are SILENT INPUT/OUTPUT LOSS -- a value that never arrives and a transition that never registers, each invisible from the artifact a reader would check. Related memory: feedback_operations_that_cannot_fail_loudly."
+        },
+        {
+          "id": "86.92",
+          "priority": "P1",
+          "status": "pending",
+          "harness_required": true,
+          "name": "the args-boundary checker has been RED since phase-86.37 for an unrelated reason -- verify_workflow_args_boundary.mjs asserts a 'healthy run' against a phase-86.17-era brief that predates the born-inert brief_status marker, so a gate covering BOTH Layer-3 scripts has been failing unnoticed",
+          "audit_basis": "FOUND BY MAIN during phase-86.90 and PROVEN NOT to be caused by that change: the working tree reports `FAILED: 84 passed, 3 failed`, and a scratch `git worktree add --detach <path> HEAD` at pristine HEAD reports the IDENTICAL counts and the IDENTICAL failing case names. The three failures are: `[3] a healthy run with a perfect envelope PASSES`, `[3] no regression: enforceGate without inputHealth behaves as before`, and `[4] drop-blind-violation: KILLED (a blind run would pass without it)`. CAUSE, from the failure text itself: section [3] builds a 'perfect envelope' pointing at `handoff/current/research_brief_86.17.md` and drives the REAL `enforceGate` against it. That brief is 48,230 bytes dated 2026-08-09 and predates phase-86.37 (2026-08-15), which made a born-inert `brief_status` marker MANDATORY and added a recency-section structural check and a distinct-URL corroboration. enforceGate now reports `carries NO brief_status marker`, `carries NO dedicated recency-scan section`, and `urls_collected=40 but only -1 distinct URLs appear in the brief` -- note the `-1`, which is itself suspicious and should be diagnosed rather than assumed cosmetic. WHY THIS MATTERS: this is the ONLY checker that drives the args boundary of BOTH Layer-3 workflow scripts, and its sections [1] REPRODUCE, [4] MUTATION and [5] FULL DRIVER are the mutation coverage for the phase-86.17 guards. A checker that exits 1 for an unrelated reason is indistinguishable from a checker that exits 1 because a guard broke -- so it can no longer signal, and 86.90 had to prove its own innocence with a worktree rather than by reading a green gate. A gate that is red for a reason nobody acts on is a DEAD gate, which is this series' recurring failure class.",
+          "verification": {
+            "success_criteria": [
+              "the RED is REPRODUCED first and its cause is localised by execution -- which assertion, driving which fixture, failing on which enforceGate rule -- rather than inferred from the message text",
+              "the `-1 distinct URLs` figure is explained: a count of -1 is not a plausible corroboration result, so either the sentinel is deliberate and documented, or it is a second defect and is filed as such",
+              "the fix does NOT weaken enforceGate to accommodate a stale fixture: if the fixture is the problem, the fixture is replaced or pinned; loosening the brief_status / recency / URL rules to make an old artifact pass is a scope breach and fails this criterion",
+              "the fixture choice is made durable: state why the chosen brief cannot rot the same way when the next envelope rule lands, or make the fixture synthetic and owned by the checker",
+              "after the fix the checker exits 0, AND its mutation cells are shown still to KILL -- a green checker whose mutants now survive is worse than a red one",
+              "the blast radius is stated: how long the gate has been red (from git history of the two files), and whether any step closed in that window relied on it as evidence",
+              "verdict semantics are UNCHANGED: nothing here may turn a non-PASS into a PASS"
+            ],
+            "command": "bash -c 'node --check scripts/qa/verify_workflow_args_boundary.mjs && echo parses'",
+            "live_check": "live_check_86.92.md carrying the pristine-HEAD worktree reproduction, the localised failing assertion, the -1 explanation, and the post-fix exit-0 plus surviving mutation cells"
+          },
+          "notes": "Filed 2026-08-16 by Main during 86.90. Sibling of the 86.90/86.91 pair: all three are gates that stopped signalling without anyone noticing. Related memory: feedback_a_zero_assertion_guard_passes_vacuously, feedback_suspect_the_clean_check (this is its mirror -- a check red for the wrong reason)."
+        },
+        {
+          "id": "86.93",
+          "priority": "P2",
+          "status": "pending",
+          "harness_required": true,
+          "name": "three PASS verdicts besides 86.86 -- 85.5, 86.25 and 86.34 -- were graded on evidence sets the evaluator reconstructed after the caller's structured evidence was destroyed at render",
+          "audit_basis": "MEASURED during phase-86.90's blast-radius enumeration, from the agents' own received prompts rather than from caller intent. 22 production Q/A spawns received `EVIDENCE / FILES TO READ: [object Object]`; four of them returned PASS. 86.86 was re-graded on the fixed rail (run wf_a09930e2-3d7) and its PASS was CONFIRMED. The other three were queued rather than re-graded, and this step is that queue entry. The affected runs and their lost payloads: `wf_faf8bbd4-4af` (85.5, 2026-08-08T08:47:41Z) lost {subject, tests, artifacts, verification_result, remediation_commit}; `wf_8a3969ee-ae0` (86.25, 2026-08-11T06:26:47Z) lost {contract, experiment_results, evaluator_critique, live_check, research_brief, remediation_commit, prior_cycle_commits}; `wf_9d7e0010-66f` (86.34, 2026-08-11T06:40:16Z) lost {experiment_results, evaluator_critique, live_check, contract, research_brief, remediation_commit, latest_commit, cycle2_critique_commit}. NOT ESTABLISHED and to be settled rather than assumed: whether re-grading is the right remedy at all. Each of these steps closed weeks of commits ago and the tree has moved substantially, so a fresh Q/A would be grading a DIFFERENT artifact than the one that was passed -- which is a different question from the one the loss raises. The 86.86 re-grade was cheap and sound precisely because `git diff e4f2e844..HEAD` over its changed files was EMPTY and the subject sha256 still matched; that condition must be checked per step BEFORE deciding, not after. A re-grade of a step whose subject has moved is not a re-grade.",
+          "verification": {
+            "success_criteria": [
+              "for each of 85.5, 86.25 and 86.34, the SUBJECT IDENTITY is measured first: whether the files that step changed are byte-identical today to what they were at its closing commit, stated per step with the command and its output -- this decides whether a re-grade is even meaningful",
+              "the decision per step is stated and justified: RE-GRADE (subject unmoved), REOPEN AS A NEW STEP (subject moved, so the old artifact cannot be re-evaluated), or ACCEPT WITH THE LOSS RECORDED -- and 'accept' must give the reason, not merely the outcome",
+              "for any step actually re-graded, the evidence is DELIVERED (verified from the new spawn's own transcript, not assumed) and the verdict is transcribed VERBATIM",
+              "the reconstruction-coverage measurement is made per step, as it was for 86.86: how many of the lost evidence items the original evaluator independently reached, from its transcript. This is CONTEXT and must not be presented as a substitute for a decision",
+              "no verdict is overturned by assertion: a PASS may only be disturbed by an actual fresh Q/A verdict, never by Main's reading",
+              "verdict semantics are UNCHANGED: nothing here may turn a non-PASS into a PASS"
+            ],
+            "command": "bash -c 'test -f handoff/current/experiment_results_86.90.md && echo present'",
+            "live_check": "live_check_86.93.md carrying the per-step subject-identity measurement, the per-step decision with its reason, and any re-grade verdicts transcribed verbatim"
+          },
+          "notes": "Filed 2026-08-16 by Main during 86.90. The 13 non-PASS verdicts and 6 rail drops in the same blast radius are deliberately NOT in scope: a non-PASS reached under LESS evidence than intended cannot have been made more lenient by the loss, so the direction of harm is one-way. That bound is stated in experiment_results_86.90.md and should be re-checked, not inherited."
+        },
+        {
+          "id": "86.94",
+          "priority": "P2",
+          "status": "pending",
+          "harness_required": true,
+          "name": "corpora and windows defined relative to `now` are not reproducible: `git log --since=<bare date>` is applied at the CURRENT time of day, so at least one measurement frozen into an immutable criterion cannot be regenerated",
+          "audit_basis": "MEASURED during phase-86.91, on one unchanged command in this repo on 2026-08-16: `git log --since=2026-08-11 --format=%H | wc -l` returned 621 at 09:56 and 592 at 10:17, while `--since=2026-08-11T00:00:00` returned 706. Git applies the CURRENT TIME OF DAY to a bare date, so the window slides forward as the clock advances and commits made earlier on the boundary day silently leave the corpus. CONSEQUENCE ALREADY REALISED: `scripts/qa/replay_changelog_rule_86_68.py` defined its entire validation corpus this way, so phase-86.68's headline '348 commits from 2026-08-11' is a number about a clock rather than about a corpus, and step 86.91's criterion 3 -- which says 'the replay over the same 348-commit corpus' -- names something that cannot be regenerated. 86.91 pinned that one script to `CORPUS_SINCE = 2026-08-11T00:00:00` because the criterion could not otherwise be answered honestly. THIS STEP IS THE CLASS, NOT THE INSTANCE: the sweep for other relative-window definitions has NOT been done. Candidates to enumerate FROM SOURCE rather than by hand: every `--since` / `--until` / `--after` / `--before` in scripts and hooks; every `timedelta(days=N)` or `now() - N` window in a measurement script; every BigQuery `CURRENT_DATE()`-relative filter whose row count is later quoted; and any figure in a masterplan `audit_basis` or `success_criteria` that was produced by one. The enumeration rule must be written down, and a scan that cannot find its own known members (the replay script's pre-86.91 form) is a FAILED gate.",
+          "verification": {
+            "success_criteria": [
+              "the 621 -> 592 -> 706 drift is REPRODUCED first, with the commands and their verbatim output, before anything is changed",
+              "the class is enumerated FROM SOURCE, not hand-listed: the enumeration rule is written down, the command is quoted with its output, and each member is classified as REPRODUCIBLE or SLIDING with the reason per member",
+              "the enumeration finds its own known member -- the pre-86.91 form of replay_changelog_rule_86_68.py, recoverable from git -- and a scan that cannot is a FAILED gate",
+              "for each SLIDING member, state whether any figure derived from it has been quoted in a masterplan criterion, an audit_basis, a handoff artifact or CHANGELOG; a member whose numbers were never quoted is lower risk and may be left, but that judgement must be stated rather than silent",
+              "any figure found to be unreproducible is CORRECTED IN EVERY FILE THAT CARRIES IT, not merely annotated in one -- a correction must replace, not accompany",
+              "a regression guard is added that would go RED if a new bare-date or now-relative window is introduced into a measurement script, and it is mutation-tested with the control observed GREEN first",
+              "verdict semantics are UNCHANGED: nothing here may turn a non-PASS into a PASS"
+            ],
+            "command": "bash -c 'source .venv/bin/activate && python scripts/qa/verify_changelog_flip_86_91.py > /dev/null && echo green'",
+            "live_check": "live_check_86.94.md carrying the reproduced drift, the source-derived enumeration with its rule and its known-member recall, the per-member classification, and the mutation cell"
+          },
+          "notes": "Filed 2026-08-16 by Main during 86.91. Related memory: reference_git_since_bare_date_slides_with_clock, feedback_a_correction_must_replace_not_accompany, feedback_normalization_rule_must_be_stated_with_the_ratio."
+        },
+        {
+          "id": "86.95",
+          "priority": "P3",
+          "status": "pending",
+          "harness_required": true,
+          "name": "harness-self-audit.js concatenates an args-derived field into its prompt, the same shape phase-86.90 fixed on the two Layer-3 rails, and no checker covers it",
+          "audit_basis": "FOUND during phase-86.90's blast-radius enumeration of the code surface (as opposed to the run history). `.claude/workflows/harness-self-audit.js:68` builds `'AUDIT THIS DIMENSION: ' + d.focus`, where the dimension list comes from `args`: line 23 parses args and line ~26 reads `Array.isArray(a.dimensions) && a.dimensions.length ? a.dimensions : [defaults]`. A caller passing `dimensions: [{focus: {...}}]` therefore reproduces the phase-86.90 defect exactly -- the auditor would receive the literal `[object Object]` and, per the 86.90 measurement, would reconstruct a plausible dimension and return confident findings. NOT YET MEASURED and to be established rather than assumed: whether any historical run passed an object-shaped `focus` (86.90's receipt scan covered the qa-verdict and research-gate prompt headers only, so this shape was outside its denominator). WHY IT WAS NOT SWEPT INTO 86.90: harness-self-audit is not a Layer-3 gate, it is structurally report-only, and no verdict or masterplan flip depends on it -- so folding it in would have widened a P1 fix without a measured need. That is a reason to file it, not to skip it: the render boundary is now the project's stated rule for caller-supplied prompt fields, and one script exempt from it is exactly the kind of gap this series keeps finding.",
+          "verification": {
+            "success_criteria": [
+              "the defect is REPRODUCED by execution first -- drive harness-self-audit.js with an object-shaped `focus` and quote the prompt text produced, rather than reasoning from the source",
+              "the historical question is MEASURED and stated either way: whether any past run passed an object-shaped dimension, using the same receipt method as 86.90 (the agent's own received prompt), and stating the denominator",
+              "the fix reuses the phase-86.90 render boundary rather than inventing a third idiom, and if the byte-identical block is copied, the duplicate-integrity check is extended to cover the third copy",
+              "the code surface is enumerated FROM SOURCE: every remaining site in .claude/workflows/ that concatenates an args-derived value into a prompt is found by a rule that is written down, not by hand-listing, and the scan is shown to find its own known members",
+              "a regression guard covers the new site and is mutation-tested with the control observed GREEN first",
+              "verdict semantics are UNCHANGED: nothing here may turn a non-PASS into a PASS"
+            ],
+            "command": "bash -c 'node --check .claude/workflows/harness-self-audit.js && echo parses'",
+            "live_check": "live_check_86.95.md carrying the reproduced prompt text, the measured historical answer with its denominator, the source-derived site enumeration, and the mutation cell"
+          },
+          "notes": "Filed 2026-08-16 by Main during 86.90. Related: the phase-86.90 block in qa-verdict.js / research-gate.js is the reference implementation; memory feedback_render_structured_input_or_fail_loudly carries the traps (template literal is a no-op; bare JSON.stringify trades one silent loss for five; an array coerces with no marker)."
         }
       ]
     }

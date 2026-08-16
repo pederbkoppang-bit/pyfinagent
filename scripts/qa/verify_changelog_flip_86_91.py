@@ -176,9 +176,16 @@ check("[1] magnitude: closing the last step of a phase is major", b == "major", 
 
 # ── [2] EVERY 'none' IS EXPLAINED (criterion 4) ─────────────────────────────
 print("\n[2] NO UNEXPLAINED 'none' -- the silent-swallow class (criterion 4)\n")
+# phase-86.91 cycle-2 (Q/A finding W3): this list used to hold two entries while
+# the assertion below was NAMED "EVERY branch". Deleting the
+# masterplan_unreadable_at_HEAD assignment left the guard fully green -- 3 of 4
+# branches driven, on the very criterion that demands the CLASS be closed. The
+# denominator is now DERIVED FROM THE SHIPPED SOURCE rather than hand-listed, so
+# a future 5th branch fails this check instead of slipping past it.
 CASES = [
     ("no_flip", {"86.1": "done"}, {"86.1": "done"}),
     ("first_commit", None, {"86.1": "done"}),
+    ("masterplan_unreadable_at_HEAD", {"86.1": "pending"}, None),
 ]
 for expected, before, after in CASES:
     b, d, _ = run_detector(ns, before, after)
@@ -188,8 +195,24 @@ b, d, err = run_detector(ns, {"a": "pending"}, {"a": "done"}, explode=True)
 check("[2] an internal error is reported as detector_error",
       b == "none" and str(d.get("reason", "")).startswith("detector_error:"),
       f"bump={b!r} reason={d.get('reason')!r}")
+# KNOWN-MEMBER RECALL, with the member list taken from the code rather than from
+# me: count the `return "none"` sites inside the shipped _flip_magnitude and
+# require that many DISTINCT reasons to have been observed.
+_none_sites = 0
+for _n in ast.walk(ast.parse(SHIPPED)):
+    if isinstance(_n, ast.FunctionDef) and _n.name == "_flip_magnitude":
+        _none_sites = sum(1 for _r in ast.walk(_n)
+                          if isinstance(_r, ast.Return)
+                          and isinstance(_r.value, ast.Constant) and _r.value.value == "none")
+_observed = {run_detector(ns, bef, aft)[1].get("reason") for _, bef, aft in CASES}
+_observed.add(run_detector(ns, {"a": "pending"}, {"a": "done"}, explode=True)[1].get("reason", "").split(":")[0] or None)
+_observed.discard(None)
 check("[2] EVERY branch that returns 'none' sets a reason -- none is left unrecorded",
       all(run_detector(ns, bef, aft)[1].get("reason") for _, bef, aft in CASES), "a branch returned 'none' silently")
+check(f"[2] known-member RECALL: all {_none_sites} none-returning branches are DRIVEN "
+      f"(denominator derived from source, not hand-listed)",
+      _none_sites > 0 and len(_observed) >= _none_sites,
+      f"{len(_observed)} distinct reasons observed for {_none_sites} branches: {sorted(_observed)}")
 
 # ── [3] NEVER RAISES (criterion 7), by fault injection ──────────────────────
 print("\n[3] NEVER RAISES -- proven by injecting a fault, not by reading the source\n")
@@ -224,6 +247,14 @@ MUTANTS = [
         "why": "check [0] must go RED when a no-op commit starts bumping",
     },
     {
+        "id": "drop-the-unreadable-reason",
+        "from": '_FLIP_DECISION["reason"] = "masterplan_unreadable_at_HEAD"',
+        "to": "pass",
+        # This cell SURVIVED in cycle 1 -- the branch was never driven.
+        "probe": lambda m: not run_detector(m, {"86.1": "pending"}, None)[1].get("reason"),
+        "why": "check [2] must go RED when the masterplan-unreadable branch stops explaining itself",
+    },
+    {
         "id": "drop-the-reason",
         "from": '_FLIP_DECISION["reason"] = "no_flip"',
         "to": "pass",
@@ -251,17 +282,91 @@ for mut in MUTANTS:
 # Research finding I5: replay_changelog_rule_86_68.py carried a byte-copy of the
 # same predicate. Fixing only the hook would leave the replay measuring the OLD
 # rule, so criterion 3's three numbers would compare against a stale baseline.
-print("\n[5] THE SIBLING REPLAY HARNESS must express the fixed predicate too\n")
-replay = (REPO / "scripts" / "qa" / "replay_changelog_rule_86_68.py").read_text(encoding="utf-8")
-check("[5] the replay no longer carries the raw None-exclusion predicate",
-      'before.get(s) not in (None,"done")' not in replay
-      and 'before.get(s) not in (None, "done")' not in replay,
-      "the replay still mirrors the shipped defect")
-check("[5] the replay can express BOTH arms (count_created)", "count_created" in replay,
-      "the replay cannot produce the shipped-vs-fixed comparison")
-check("[5] the replay corpus is PINNED to an explicit timestamp",
-      "CORPUS_SINCE" in replay and "2026-08-11T00:00:00" in replay,
-      "a bare --since date slides with the clock and the corpus is not reproducible")
+print("\n[5] THE SIBLING REPLAY HARNESS -- guarded BEHAVIOURALLY, not by substring\n")
+# phase-86.91 cycle-2 (Q/A finding W2). This section used to be three substring
+# scans, and the cycle-1 Q/A killed it with two mutants that both SURVIVED at
+# 24/24 green: one made newly_done_ids ignore `count_created` while KEEPING the
+# literal in the file, the other restored the None exclusion REWORDED as
+# `not in ("done", None)`. A scan cannot see either. The replay is the instrument
+# that produces criterion 3's three numbers, so it is now DRIVEN: the predicate
+# is extracted from the shipped file and its two arms must actually DISAGREE.
+REPLAY = REPO / "scripts" / "qa" / "replay_changelog_rule_86_68.py"
+REPLAY_NEEDED = ("_ABSENT", "newly_done_ids")
+
+
+def replay_predicate(src_text: str):
+    """Extract and exec ONLY the predicate -- importing the module would run the
+    whole multi-minute replay and shell out to git."""
+    tree = ast.parse(src_text)
+    lines = src_text.splitlines(keepends=True)
+    chunks = []
+    for node in tree.body:
+        names: list[str] = []
+        if isinstance(node, ast.FunctionDef):
+            names = [node.name]
+        elif isinstance(node, ast.Assign):
+            names = [t.id for t in node.targets if isinstance(t, ast.Name)]
+        if any(n in REPLAY_NEEDED for n in names):
+            chunks.append("".join(lines[node.lineno - 1:node.end_lineno]))
+    ns_r: dict = {}
+    exec(compile("\n".join(chunks), "<shipped-replay>", "exec"), ns_r)  # noqa: S102
+    return ns_r["newly_done_ids"]
+
+
+REPLAY_SRC = REPLAY.read_text(encoding="utf-8")
+AFTER_R = {"86.1": "done", "86.7": "pending", "86.86": "done"}
+BEFORE_R = {"86.1": "done", "86.7": "pending"}
+try:
+    pred = replay_predicate(REPLAY_SRC)
+    fixed = pred(AFTER_R, BEFORE_R, count_created=True)
+    shipped = pred(AFTER_R, BEFORE_R, count_created=False)
+except Exception as exc:                                       # noqa: BLE001
+    fixed = shipped = None
+    check("[5] the replay predicate is extractable and runnable", False, repr(exc))
+else:
+    check("[5] the replay predicate is extractable and runnable", True)
+    check("[5] count_created=True COUNTS a created-and-closed step", fixed == ["86.86"], f"got {fixed!r}")
+    check("[5] count_created=False reproduces the SHIPPED (defective) result", shipped == [], f"got {shipped!r}")
+    # The whole point: the two arms must DISAGREE, or the replay's three numbers
+    # are three names for one measurement.
+    check("[5] the two arms genuinely DISAGREE (not two names for one number)",
+          fixed != shipped, f"both arms returned {fixed!r}")
+
+check("[5] the replay corpus is PINNED AT BOTH ENDS",
+      "CORPUS_SINCE" in REPLAY_SRC and "2026-08-11T00:00:00" in REPLAY_SRC
+      and "CORPUS_UNTIL" in REPLAY_SRC and "CORPUS_UNTIL = None" not in REPLAY_SRC,
+      "an unpinned end slides -- a bare --since with the clock, an unpinned until with HEAD")
+
+print("\n[6] MUTATION of the REPLAY predicate -- the cycle-1 survivors\n")
+REPLAY_MUTANTS = [
+    {
+        "id": "QA-11 ignore-count_created (literal kept, behaviour stripped)",
+        "from": "    return (created + transitioned) if count_created else transitioned",
+        "to": "    return transitioned  # count_created ignored",
+        "probe": lambda f: f(AFTER_R, BEFORE_R, count_created=True) == f(AFTER_R, BEFORE_R, count_created=False),
+        "why": "a scan for the word 'count_created' cannot see this; the drive can",
+    },
+    {
+        "id": "QA-12 reworded None exclusion",
+        "from": '               if st=="done" and before.get(s, _ABSENT) is _ABSENT]',
+        "to": '               if st=="done" and before.get(s) not in ("done", None) and False]',
+        "probe": lambda f: f(AFTER_R, BEFORE_R, count_created=True) == [],
+        "why": "the defect reworded is invisible to a literal scan",
+    },
+]
+for mut in REPLAY_MUTANTS:
+    n = REPLAY_SRC.count(mut["from"])
+    if n != 1:
+        check(f"[6] {mut['id']}: anchor is unique", False,
+              f"found {n} occurrences -- a no-match replace looks identical to success")
+        continue
+    try:
+        mpred = replay_predicate(REPLAY_SRC.replace(mut["from"], mut["to"]))
+        killed = bool(mut["probe"](mpred))
+    except Exception:                                          # noqa: BLE001
+        killed = True
+    check(f"[6] {mut['id']}: KILLED ({mut['why']})", killed,
+          "the mutant SURVIVED -- this guard is not the one doing the work")
 
 print()
 if FAILURES:

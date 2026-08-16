@@ -6,7 +6,7 @@ Read-only: runs `git show` and parses. Nothing is written, nothing is committed.
 Run as a FILE (macOS spawn re-imports __main__ by path).
 """
 from __future__ import annotations
-import json, re, subprocess, sys
+import json, os, re, subprocess, sys
 
 REPO = "."
 
@@ -97,7 +97,20 @@ def new_rule(sha, subject, body, *, flip_enabled=True, count_created=True):
 # sliding cutoff and is NOT reproducible -- it is a number about a clock, not
 # about a corpus. An explicit timestamp makes the replay deterministic.
 CORPUS_SINCE = "2026-08-11T00:00:00"
-CORPUS_UNTIL = None   # None = HEAD; set a sha to replay a historical window
+# PINNED AT BOTH ENDS, and the second pin is phase-86.91 cycle-2. Pinning only
+# CORPUS_SINCE fixed the LOWER bound while the upper bound still floated with
+# HEAD, so the headline counts still moved: this file's own artifact claimed
+# "anyone re-running it gets 706 / 250 / 9 / 11" and the cycle-1 Q/A measured
+# 710 / 252 / 9 / 11 two hours later, the delta being exactly the four commits
+# that landed in between. In a step whose finding is "that is a number about a
+# clock", a half-pinned corpus is the same defect one end over.
+#
+# This is a REPLAY of history, not a live gate: its job is to validate a rule
+# against a fixed corpus, and the live gate is verify_changelog_flip_86_91.py.
+# Override with CORPUS_UNTIL=HEAD to measure a moving window on purpose -- the
+# resolved endpoint is printed either way, so no count is ever quoted without
+# the endpoint it was measured against.
+CORPUS_UNTIL = os.environ.get("CORPUS_UNTIL", "8dc70502")
 _log_args = ["git","log",f"--since={CORPUS_SINCE}","--format=%H%x1f%s%x1f%b%x1e"]
 if CORPUS_UNTIL: _log_args.append(CORPUS_UNTIL)
 rc, out = sh(*_log_args)
@@ -108,8 +121,12 @@ for rec in out.split("\x1e"):
     parts = rec.split("\x1f")
     if len(parts) >= 2: commits.append((parts[0], parts[1], parts[2] if len(parts)>2 else ""))
 
-print(f"corpus: {len(commits)} commits since {CORPUS_SINCE} "
-      f"(PINNED timestamp -- deterministic; a bare date slides with the clock)")
+_rc_end, _end = sh("git", "rev-parse", "--short", CORPUS_UNTIL or "HEAD")
+print(f"corpus: {len(commits)} commits in [{CORPUS_SINCE} .. {(CORPUS_UNTIL or 'HEAD')}"
+      f" = {_end.strip()}]")
+print("        BOTH ENDS PINNED -- a bare --since date slides with the clock AND an")
+print("        unpinned upper bound slides with HEAD; every count below is quoted")
+print("        against the endpoint printed above.")
 print("RULE STATED: OLD = subject-only (phase-X.Y -> patch). NEW = subject may force")
 print("             MAJOR only; otherwise the parsed masterplan id->status diff decides.\n")
 
