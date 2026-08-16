@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-17 | `c4b84e4e` | docs(session): overnight day report + regenerated goal_next |
 | 2026-08-17 | `11de67e1` | docs(86.98-input): verdict population measured across 44 sessions -- 377 verdicts |
 | 2026-08-17 | `964b0255` | phase-86.94: PARK at the cap -- R2 circuit breaker tripped, step work stops |
 | 2026-08-17 | `d6c732b7` | phase-86.94: cycle-3 -- my correction accompanied instead of replacing |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-16 | `35062eb5` | docs(session): overnight drain goal with a preflight abort and a circuit breaker |
 | 2026-08-16 | `4e7886d1` | docs(session): route the harness-termination steps into the 08-17 goal and day report |
 | 2026-08-16 | `28ac5bd8` | chore(masterplan): file 86.98-86.100 -- harness-loop termination, from the 2026-08-16 measurement |
-| 2026-08-16 | `507974b3` | docs(session): correct a stale STATE line in the 08-17 goal |
 
 ---
 
