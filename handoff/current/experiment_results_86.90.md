@@ -12,7 +12,7 @@ objects to the literal `[object Object]`
 |---|---|
 | `.claude/workflows/qa-verdict.js` | +160/-5 -- the phase-86.90 render boundary; `stepId`/`verification_command` via `renderIdentityArg`, `evidence`/`extra`/each criterion via `renderArgField`; unknown-arg-key warning |
 | `.claude/workflows/research-gate.js` | +155/-4 -- the BYTE-IDENTICAL render block; `step_id`/`brief_path` via `renderIdentityArg`, `topic`/`internal_scope` via `renderArgField`; unknown-arg-key warning |
-| `scripts/qa/verify_prompt_render_86_90.mjs` | NEW, **78** assertions -- behavioural driver + reproduce-from-git + unrenderable-throws (12 cases x 2 scripts) + 2 render-still-works controls + **5** mutation cells + duplicate-integrity |
+| `scripts/qa/verify_prompt_render_86_90.mjs` | NEW, **95** assertions -- behavioural driver + reproduce-from-git + unrenderable-throws + the criteria-CONTAINER guard + render-still-works controls + **6** mutation cells each with its own control + duplicate-integrity |
 | `handoff/current/contract_86.90.md`, `research_brief_86.90.md`, `experiment_results_86.90.md`, `live_check_86.90.md`, `evaluator_critique_86.90.md` | handoff artifacts |
 | `.claude/masterplan.json` | filed step `86.91` (a separate, earlier commit `c627a810`) |
 
@@ -177,7 +177,7 @@ a **floor**, never a total, and the checker asserts the array case separately.
 
 ## 5. Criterion 6 -- the regression guard, control GREEN first
 
-`node scripts/qa/verify_prompt_render_86_90.mjs` -> **`ALL GREEN: 83 passed, 0 failed`**
+`node scripts/qa/verify_prompt_render_86_90.mjs` -> **`ALL GREEN: 95 passed, 0 failed`**
 
 It DRIVES the real shipped scripts with the runtime primitives stubbed and reads
 the prompt actually handed to `agent()`. A source scan for `renderArgField(`
@@ -190,10 +190,10 @@ would pass on a file that never calls it on the path that matters.
 | `[2]` FIXED | object AND array shapes render as JSON; every key and value reaches the prompt; no comma-joined collapse |
 | `[3]` UNRENDERABLE | **12** cases x 2 scripts THROW naming the field AND spawn nothing, PLUS 2 controls proving the walk is not a blanket refusal |
 | `[4]` research-gate | criterion 3, by execution |
-| `[5]` MUTATION | **5** cells, anchor uniqueness checked first |
+| `[5]` MUTATION | **6** cells, anchor uniqueness checked first |
 | `[6]` DUPLICATE INTEGRITY | the two copies of the block are byte-identical |
 
-### Mutation matrix (5 cells, all KILLED)
+### Mutation matrix (6 cells, all KILLED)
 
 | Cell | Mutation | Result |
 |---|---|---|
@@ -222,7 +222,7 @@ Two changes, because the cell and the harness were both at fault:
 - Every cell is additionally **CONTROLLED**: its own `expect()` must return false
   on the UNMUTATED source, or the cell proves nothing about the mutation.
 
-**This matrix licenses exactly one claim: these five mutations were killed.** It
+**This matrix licenses exactly one claim: these 6 mutations were killed.** It
 is not evidence that no other weakening survives.
 
 **A checker bug caught by its own anchor-uniqueness rule, disclosed because it is
@@ -485,7 +485,7 @@ $ node --check .claude/workflows/research-gate.js && echo parses
 parses                                                              # exit 0
 
 $ node scripts/qa/verify_prompt_render_86_90.mjs
-ALL GREEN: 83 passed, 0 failed                                      # exit 0   (REGENERATED cycle 3)
+ALL GREEN: 95 passed, 0 failed                                      # exit 0   (REGENERATED cycle 3)
 
 $ node scripts/qa/verify_research_gate_workflow.mjs
 ALL GREEN: 124 passed, 0 failed                                     # exit 0
@@ -515,8 +515,9 @@ evidence (the documented cycle-2 flow), not a re-ask on the same evidence.
 | **D2** | Four follow-ups asserted "queued" with **no masterplan step in existence** | **Filed as real steps: `86.92`, `86.93`, `86.94`, `86.95`.** The masterplan's newest commit was `c627a810`, which PREDATED the work commit -- so "queued" was prose describing an intention. This is the standing project rule and I broke it while citing it |
 | **E** | The in-code absolute "THE RULE IS LOSSLESS-OR-THROW" over-stated the measured guarantee; five constructions rendered lossily without throwing | The **walk was widened** (`getOwnPropertyDescriptors`; accessors refused outright, which is also the getter-TOCTOU fix; own `toJSON` refused at any enumerability; array non-index own properties refused) AND the **claim was narrowed** to state its bound. All five are now `[3]` cases; 2 controls prove the walk did not become a blanket refusal; mutation cell **M5** requires A2 to go red if the walk narrows again |
 
-Guard after the fix: **`ALL GREEN: 83 passed, 0 failed`** (53 at cycle 1, 78 at cycle 2), 5 mutation
-cells, control observed GREEN first.
+Guard after the fix: **`ALL GREEN: 95 passed, 0 failed`** (53 at cycle 1, 78 at
+cycle 2, 83 at cycle 3), 6 mutation cells, each with its own control observed
+GREEN first.
 
 **A fixture bug I repeated inside the same file, disclosed rather than quietly
 fixed.** The new `[3] CONTROL` cases asserted `spawns.length === 1`, which fails
@@ -549,3 +550,25 @@ than appended here, because a correction must REPLACE rather than accompany.
 Finding 3 is the one worth keeping. The step I filed **to prevent** criteria that
 name unreproducible numbers itself named three unreproducible numbers. Knowing a
 trap and writing it down in the same hour is not the same as not falling into it.
+
+---
+
+# Follow-up -- cycle 4 (2026-08-16)
+
+Cycle-3 verdict was **CONDITIONAL** (run `wf_7854f219-eaf`) with two WARN
+findings. Sequence is now `[C, C, C]`, so the escalation the caller computes
+carries `would_auto_fail: true` -- the next verdict is PASS or FAIL, not another
+CONDITIONAL. Both findings are closed.
+
+| # | Finding | Fix |
+|---|---|---|
+| **W1** | **Criterion 5 was NOT closed for the `criteria` CONTAINER.** `Array.isArray(a.criteria) ? a.criteria : []` sat UPSTREAM of the render boundary, so a present-but-wrong-shaped `criteria` was DISCARDED and the `(none passed in args)` placeholder substituted -- no throw, no log, agent spawned anyway, on **the field the evaluator grades against**. Measured by driving the real script: ARRAY -> criterion text present; STRING / OBJECT / numeric-key OBJECT -> text ABSENT, placeholder substituted | New `requireArgArray()` in the shared block: **absent stays legal** (still means "read them from the masterplan"), **present-but-wrong-shaped THROWS** naming the field. New section `[3b]` with 2 controls + 8 assertions across four wrong shapes, and mutation cell **container-guard-reverted-to-silent-discard** which KILLS |
+| **W2** | `experiment_results:15` still read "NEW, **78** assertions" while four other lines said 83 -- **inside the cycle-3 row claiming every capture had been regenerated** | Every count is now **DERIVED, not typed**: assertion counts from a live run, mutation-cell counts from the run's own `: KILLED` lines. The regeneration script ends with an audit that fails if any stale count survives (`STALE COUNTS REMAINING: none`) |
+
+**W1 is the one that matters**, and it is the sharpest finding of the four
+cycles. Every other render hole found in this step (Map, `toJSON`, getter,
+non-enumerable, Proxy) required an exotic construction that **cannot arrive
+through JSON-derived args**. This one needs only a caller passing a string. My
+own diff shows I edited that exact expression to route the ELEMENTS through
+`renderArgField` and left the CONTAINER guard one line above untouched -- the
+"guards stop one seam short" shape, on the seam I was building.

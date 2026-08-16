@@ -12,7 +12,7 @@ FILED AND CLOSED IN THE SAME COMMIT
 |---|---|
 | `.claude/hooks/post-commit-changelog.sh` | the three-state membership test in `_flip_magnitude` + `_ABSENT` sentinel + `_FLIP_DECISION` + `_log_decision` |
 | `scripts/qa/replay_changelog_rule_86_68.py` | third arm (`count_created`), commit-by-commit accounting of the increase, and a **PINNED** corpus |
-| `scripts/qa/verify_changelog_flip_86_91.py` | NEW, **31** assertions -- drives the SHIPPED detector AND the shipped replay predicate, **6** mutation cells, fault injection, source-derived known-member recall |
+| `scripts/qa/verify_changelog_flip_86_91.py` | NEW, **42** assertions -- drives the SHIPPED detector, the shipped replay predicate AND the shipped decision-log writer; **10** mutation cells; fault injection; source-derived known-member recall |
 | `handoff/current/{contract,experiment_results,live_check,evaluator_critique}_86.91.md`, `research_brief_86.91.md` | handoff artifacts |
 
 `CHANGELOG.md` was **not hand-edited**. No masterplan step was flipped by this
@@ -209,7 +209,7 @@ call), which is the real failure mode -- not a source reading.
 
 ```
 $ python scripts/qa/verify_changelog_flip_86_91.py
-ALL GREEN: 34 passed, 0 failed
+ALL GREEN: 42 passed, 0 failed
 ```
 
 It **drives the SHIPPED detector**: the `.sh` heredoc is extracted, parsed with
@@ -218,7 +218,7 @@ It **drives the SHIPPED detector**: the `.sh` heredoc is extracted, parsed with
 drifted -- which is precisely how the sibling replay harness came to carry a
 byte-copy of the same defect at its own line 54 (research finding I5).
 
-### Mutation matrix (6 cells, all KILLED, anchors checked for uniqueness first)
+### Mutation matrix (10 cells, all KILLED, anchors checked for uniqueness first)
 
 | Cell | Mutation | Kill condition | Result |
 |---|---|---|---|
@@ -232,7 +232,7 @@ byte-copy of the same defect at its own line 54 (research finding I5).
 M2 is deliberately the **over-crediting** direction -- the dangerous one, and the
 one this project has been bitten by before.
 
-**This matrix licenses exactly one claim: these six mutations were killed.** It
+**This matrix licenses exactly one claim: these 10 mutations were killed.** It
 is not evidence that no other weakening survives.
 
 ### A fixture bug this checker caught in itself, disclosed
@@ -287,7 +287,7 @@ $ python -c "import ast; ast.parse(<the heredoc>)"
 heredoc python parses OK, 327 lines
 
 $ python scripts/qa/verify_changelog_flip_86_91.py
-ALL GREEN: 34 passed, 0 failed                           # exit 0
+ALL GREEN: 42 passed, 0 failed                           # exit 0
 
 $ python scripts/qa/replay_changelog_rule_86_68.py
 ... exit gate: control_green=True all_cells_killed=True cells_scored=2 -> exit 0
@@ -307,7 +307,7 @@ and fixed; the evidence changed, so a FRESH Q/A is spawned.
 | **W2** | Section `[5]`'s replay guards were pure substring scans; **both** of the Q/A's replay mutants SURVIVED at 24/24 green | The replay predicate is now **DRIVEN**: `newly_done_ids` is extracted by `ast` from the shipped file and its two arms must genuinely DISAGREE (`['86.86']` vs `[]`). Both cycle-1 survivors are now mutation cells and both **KILL** -- QA-11 (behaviour stripped, literal kept) and QA-12 (the defect **reworded**, which no literal scan can see) |
 | **W3** | `QA-1` SURVIVED: deleting the `masterplan_unreadable_at_HEAD` reason left the guard green, while the assertion is *named* "EVERY branch sets a reason" | The 4th branch is now DRIVEN, and the **denominator is DERIVED FROM SOURCE** -- the checker counts `return "none"` sites inside the shipped `_flip_magnitude` by AST (**4**) and requires that many distinct reasons observed. A future 5th branch with a LITERAL `return "none"` fails the check instead of slipping past it -- see the bound recorded below, which the cycle-2 Q/A measured in both directions. New mutation cell **M4** deletes that reason and is KILLED |
 
-Guard after the fix: **`ALL GREEN: 34 passed, 0 failed`** (24 at cycle 1, 31 at cycle 2), 6 mutation
+Guard after the fix: **`ALL GREEN: 42 passed, 0 failed`** (24 at cycle 1, 31 at cycle 2, 34 at cycle 3), 10 mutation
 cells, control observed GREEN first.
 
 W1 is the one worth keeping: this step's whole finding is *"that is a number
@@ -346,7 +346,7 @@ accepted.
 | # | Finding | Fix |
 |---|---|---|
 | QA-C2-1 | The corpus-pin check was a **pure substring scan**: replacing `if CORPUS_UNTIL: _log_args.append(CORPUS_UNTIL)` with `pass` kept every literal, left the guard green, and unpinned the corpus 707 -> 712 | The pin is now **DRIVEN**: `corpus_head()` slices the shipped block from `CORPUS_SINCE =` through `rc, out = sh(*_log_args)`, execs it with `sh` stubbed to CAPTURE the argv the shipped code assembles, runs git with that argv, and requires the newest selected commit to equal the resolved pin. New cell **QA-C2-1** mutates the append line and KILLS |
-| QA-C2-6 | Every `[5]`/`[6]` fixture used the single id `86.86`, so narrowing the predicate to `... and s == "86.86"` left all four assertions green -- the shape criterion 2 forbids | Fixture now carries **two unrelated created ids in different top-level phases** (`86.86`, `12.7`). The Q/A's own mutant is now cell **QA-C2-6** and KILLS |
+| QA-C2-6 | Every `[5]`/`[6]` fixture used the single id `86.86`, so narrowing the predicate to `... and s == "86.86"` left all four assertions green -- the shape criterion 2 forbids | Fixture carries **two unrelated created ids** (`86.86`, `12.7`) PLUS, from cycle 4, a **runtime-derived id** -- see the cycle-4 follow-up, where the Q/A proved two ids were not enough |
 | QA-C2-5 | `live_check` section 4's "verbatim" capture was stale -- 24 / 74 lines / 3 cells / no `[6]` -- because cycle 2 updated section 2 of the same file and left section 4 alone | Section 4 **regenerated wholesale** from a fresh run by a script, with the reason for the regeneration written into the block |
 | (bound) | The claim *"a future 5th branch fails the check instead of slipping past it"* was stated without its bound | Bounded: SOUND in the detecting direction (a 5th literal branch turns it RED) but **FAILS OPEN** in the evading direction (`_v = "none"; return _v` drops the count 4->3 and stays green). The enumeration rule covers **literal-constant returns only**, now stated |
 
@@ -361,3 +361,24 @@ changed nothing the probe could see and the cell scored SURVIVED. That is the
 identical defect the Q/A had just charged me with, one level down. It was caught
 only because the new cell went red; had I written the cell to scan instead of
 drive, I would have shipped the same vacuity a third time.
+
+---
+
+# Follow-up -- cycle 4 (2026-08-16)
+
+Cycle-3 verdict was **CONDITIONAL** (run `wf_0d88fe11-241`), with **three mutants
+the Q/A executed and watched SURVIVE** all 34 assertions. Sequence is now
+`[C, C, C]` and the computed escalation carries `would_auto_fail: true`. All
+closed.
+
+| # | Finding | Fix |
+|---|---|---|
+| **Q1** | Deleting the ENTIRE decision-log write left the checker `ALL GREEN 34/0`. `_log_decision` was not in `NEEDED`, so it was never extracted or driven -- **every `[2]` assertion read the in-memory dict that FEEDS the file, never the file.** Criterion 4 names the hook's own OUTPUT as the mechanism | New section `[7]`: `_log_decision` is extracted and DRIVEN with `repo_root` pointed at a temp tree, and **the line is read back off disk**. 5 assertions + the cycle-3 survivor as a mutation cell, which now KILLS |
+| **Q4 / Q2b** | A whitelist matching the fixture's authored ids SURVIVED on **both** the replay and the hook. The two-id fixture **MOVED** the bound; cycle 3 claimed it closed it, without stating the bound | The fixture now includes a **RUNTIME-DERIVED id** (`700 + HEAD[:4] % 200` . `1 + HEAD[4:8] % 90`) that exists in **no source literal** and changes as the repo moves, so no whitelist can be authored for it in advance. The Q/A's own whitelist mutant is cell **Q4** and KILLS. **The bound is now stated in the checker itself**: a whitelist containing the runtime id would still survive -- what this closes is the AUTHORABLE special-case, not id-agnosticism for every id |
+| NOTE | The QA-C2-1 cell scored a mutant that could not BUILD as **DETECTED**, because `corpus_head` swallowed the failure and returned `None` into a `mh is None or ...` test. The DETECTED/SURVIVED/UNSCORABLE repair had been applied to one `[6]` branch and not its sibling | `corpus_head` now **RAISES** instead of returning `None`, and the call site scores `UNSCORABLE` on any build failure. It also raises when the slice ran but never called `sh()` -- i.e. when a refactor moves the selection outside the sliced range, the probe fails loudly instead of silently stopping covering it |
+| NOTE | `experiment_results` sections 1 and 7 said 31 assertions / 6 cells against a measured 34 / 8 | Every count is **DERIVED** from a live run and the checker source, never typed, with a post-audit that fails on any survivor |
+
+**Q1 is the one worth keeping.** Criterion 4's mechanism is a FILE, and for three
+cycles I asserted the dictionary that feeds it. That is vacuity shape #1 stated
+plainly: an assertion on an internal the output is derived from cannot fail when
+the output is removed.

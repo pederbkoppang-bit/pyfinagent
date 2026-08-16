@@ -255,3 +255,108 @@ regenerate the section-11 block and correct 14 -> 12 in both files; restate
   "verdict_unmodified": true
 }
 ```
+
+
+---
+
+# Cycle 3 verdict: CONDITIONAL  -- sequence now [C, C, C]
+
+Run `wf_7854f219-eaf` · 66 tool uses · 248,694 tokens · 931 s ·
+`attempt_number: 3`.
+
+Criteria 1, 2, 3, 4, 6, 7 MET on independent re-derivation. The blast-radius
+census had **symmetric difference 0** against the Q/A's own superset instrument
+(a strict header-line scan of the first user message of **all 1,394**
+`agent-*.jsonl`), and the split re-derived from the 22 run records' own
+`result.verdict` came to **7 CONDITIONAL + 7 NO_VERDICT + 4 PASS + 4 FAIL = 22**,
+matching the cycle-2 correction exactly.
+
+Cycle-3's own repairs verified decisively: the Q/A **replayed the cycle-2 M3
+mutant** against the current source and it now scores `UNSCORABLE: the mutant did
+not build` and FAILS, where the cycle-2 harness scored it KILLED. All five
+anchors unique, all five mutants build, every control discriminating. Cycle-3
+finding 4's replacement instrument reproduced in all three legs.
+
+**Criterion 5 was NOT closed**, and that is the finding.
+
+| # | Finding | Why it lands |
+|---|---|---|
+| **W1** | `qa-verdict.js:278` -- `Array.isArray(a.criteria) ? a.criteria : []` sits **UPSTREAM of the render boundary**. A present-but-non-array `criteria` is DISCARDED and the `(none passed in args)` placeholder substituted. Measured by driving the real script with the control first: ARRAY -> criterion text present; STRING / OBJECT / numeric-key OBJECT -> text **ABSENT**, placeholder substituted, 0 logs, **no throw**, agent spawned anyway | **Trivially JSON-reachable** -- unlike all six holes found so far, which need constructions that cannot survive `JSON.parse`. It lands on the field `qa.md` calls the rubric. And **the diff's own removed line shows I edited exactly that expression**, routing the ELEMENTS through `renderArgField` and leaving the CONTAINER one line above untouched. Bounded honestly by the Q/A: 384 list / 1 absent / 0 wrong-shaped across the corpus, so latent not live; the placeholder still redirects to masterplan.json -- hence WARN |
+| **W2** | `experiment_results:15` still read "NEW, **78** assertions" while `:180`, `:488`, `:518` and `:544` all said 83 -- and `:544` is the cycle-3 row claiming *"Every capture REGENERATED ... Guard is now 83"* | **The fourth instance of the class I asked it to hunt.** A correction that did not replace everywhere it was carried -- verbatim the rule 86.94's own criterion 5 states |
+
+The Q/A also re-tested the Proxy NOTE and confirmed both halves: it renders
+`"call4"` without throwing, **and** `util.types.isProxy` is false on the
+`JSON.parse` path, so the reachability bound I stated holds.
+
+---
+
+## Verdict, VERBATIM
+
+```json
+{
+  "ok": false,
+  "verdict": "CONDITIONAL",
+  "reason": "Criteria 1,2,3,4,6,7 MET on independent re-derivation; criterion 5 is NOT fully closed. Everything load-bearing reproduces: immutable cmd exit=0 (`parses`); guard ALL GREEN 83/0; the blast-radius census has SYMMETRIC DIFFERENCE 0 against my own superset instrument (strict header-line scan of the first user message of all 1,394 agent-*.jsonl -> 23 coerced runs, the 23rd being Main's own declared pre-fix probe wf_4588d8a7-e70), and the split re-derived from the 22 run records' own result.verdict is 7 CONDITIONAL + 7 NO_VERDICT + 4 PASS + 4 FAIL = 22, matching the cycle-2 correction exactly; 583 records and the 31 object-shaped qa-verdict args reproduce exactly once the corpus is cut at the cycle-3 commit (593/52 today, growth only); criterion 7 proven BY EXECUTION (unrenderable evidence -> throws, spawns 0, returns undefined; renderable -> 1 spawn, verdict returned). Cycle-3 finding 1 verified decisively: I replayed the cycle-2 M3 mutant against the current source under the new harness and it now scores `UNSCORABLE: the mutant did not build (Invalid or unexpected token)` and FAILS, where the cycle-2 harness scored it KILLED; all 5 anchors are unique and all 5 mutants BUILD, and each cell's expect() is required FALSE on clean source and TRUE on the mutant, so the controls discriminate. Cycle-3 finding 4's replacement instrument reproduces in all three legs (git log -S -> d3bb1dfb 2026-08-10; fixture grep -c brief_status = 0 on a 2026-08-09 brief; enforceGate touched 0 times, the cycle-1 hit being a hunk header). TWO WARN findings force CONDITIONAL. (W1) Criterion 5 is not closed for the `criteria` CONTAINER: qa-verdict.js:278 `Array.isArray(a.criteria) ? a.criteria : []` sits UPSTREAM of the render boundary, so a present-but-non-array `criteria` is discarded and the placeholder at :348 substituted -- measured by driving the real shipped script with the control first: ARRAY -> criterion text present, no fallback; STRING / OBJECT / numeric-key OBJECT -> criterion text ABSENT, placeholder substituted, 0 logs, 0 throw, agent spawned anyway. This is trivially JSON-reachable (unlike all six holes found so far) and lands on the field qa.md calls the rubric; the diff's own removed line shows the author edited exactly this expression and routed the ELEMENTS but not the CONTAINER. Bounded honestly: 384 list / 1 absent / 0 wrong-shaped across the corpus, so latent not live, the guard is pre-existing not a regression, and the placeholder still points at masterplan.json -- hence WARN, not BLOCK. Not raised in cycle 1 or 2 (grep = 0 in all three artifacts). (W2) The fourth instance of the self-flagged class, which Main asked me to hunt: experiment_results_86.90.md:15 still reads \"NEW, **78** assertions\" while :180, :488, :518 and :544 all say 83 -- and :544 is the cycle-3 row claiming \"Every capture REGENERATED ... Guard is now 83\". A correction that did not replace everywhere it was carried, which is verbatim the rule 86.94's own criterion 5 states.",
+  "violated_criteria": [
+    "5: the fix must FAIL LOUDLY on a value it cannot render, rather than substituting a placeholder",
+    "claim-reproduction: a figure in experiment_results does not reproduce"
+  ],
+  "violation_details": [
+    {
+      "violation_type": "Overgeneralization",
+      "action": "drive the shipped .claude/workflows/qa-verdict.js via a data:-URL module import with args.criteria in four shapes, control (array) first, and read the prompt actually handed to agent()",
+      "state": "ARRAY (control) -> criterion text present in prompt, fallback absent, 1 spawn. STRING \"1. c-one-ALPHA\\n2. c-two-BETA\" -> criterion text ABSENT, the placeholder '  (none passed in args -- read them from .claude/masterplan.json for this step and evaluate against them)' substituted, logs=[], threw=null, 1 spawn. OBJECT {a:...,b:...} and OBJECT with numeric keys -> identical. Cause: qa-verdict.js:278 `const criteria = Array.isArray(a.criteria) ? a.criteria : []` is UPSTREAM of the render boundary, so a present-but-wrong-shaped value never reaches renderArgField; :346-348 then substitute. `criteria` is in KNOWN_ARG_KEYS so the unknown-key log() warning does not fire either. The step's own diff removed `criteria.map((c,i) => '  '+(i+1)+'. '+c)` and added the renderArgField call on the ELEMENTS, leaving the CONTAINER guard one line above untouched. contract_86.90.md:156-157 generalises the fix as 'a render boundary for every caller-supplied field that reaches the prompt'; this field reaches the prompt and is not covered. SEVERITY WARN, bounded: 384 list / 1 absent / 0 wrong-shaped across the whole run-record corpus (latent, not live); the guard is pre-existing, not a regression; and the placeholder still redirects the evaluator to masterplan.json, so harm is bounded unlike [object Object].",
+      "constraint": "criterion 5 [WARN] -- 'the fix must FAIL LOUDLY on a value it cannot render, rather than substituting a placeholder ... replacing it with a different silent fallback does not close it'"
+    },
+    {
+      "violation_type": "Contradiction",
+      "action": "grep -n '78 assertions|83 passed|assertions' handoff/current/experiment_results_86.90.md and re-run node scripts/qa/verify_prompt_render_86_90.mjs",
+      "state": "experiment_results_86.90.md:15 (the section-1 FILES-CHANGED table, the first table a reader meets) reads 'NEW, **78** assertions'. The live checker prints 'ALL GREEN: 83 passed, 0 failed' and the same document states 83 at :180, :488, :518 and :544 -- :544 being the cycle-3 remediation row that claims 'Every capture REGENERATED from a live run by a script, not hand-edited ... Guard is now **83**'. 78 is the cycle-2 count. The rest of that line's parenthetical does reproduce: [3] emits 52 assertions of which 4 are CONTROL, 48/2 scripts = 12 cases x 2 scripts, and there are 5 mutation cells. SEVERITY WARN.",
+      "constraint": "cycle-3 finding 2's own remedy, and 86.94 criterion 5 as filed by this same session [WARN]: 'any figure found to be unreproducible is CORRECTED IN EVERY FILE THAT CARRIES IT, not merely annotated in one -- a correction must replace, not accompany'"
+    }
+  ],
+  "certified_fallback": false,
+  "checks_run": [
+    "immutable_verification_command (node --check qa-verdict.js) -> parses, EXIT=0",
+    "verify_prompt_render_86_90.mjs -> ALL GREEN: 83 passed, 0 failed, exit 0",
+    "verify_research_gate_workflow.mjs -> ALL GREEN: 124 passed, 0 failed, exit 0",
+    "verify_escalation_86_78.mjs -> ALL CHECKS PASS, exit 0",
+    "verify_rail_retry.mjs -> ALL GREEN: 38 passed, 0 failed, exit 0",
+    "verify_workflow_args_boundary.mjs -> FAILED: 84 passed, 3 failed, exit 1 (pre-existing, filed 86.92)",
+    "python_lint_gate (scope derived from git diff a21a5889^..468c7908 -- '*.py'; 2 files; run via xargs after a zsh no-word-split FALSE PASS was caught) -> All checks passed!, exit 0",
+    "harness_compliance_audit_5_items (all verified on disk, not from the contract)",
+    "research_gate_envelope_read_from_the_brief_itself (brief_status COMPLETE, 12 sources, 45 urls vs 46 present, recency section at line 208, coverage.dry true)",
+    "independent_blast_radius_census (strict header-line scan of the first user message of 1,394 agent-*.jsonl; symmetric difference 0 vs the 22-row table)",
+    "verdict_split_re-derivation_from_the_22_run_records (7 CONDITIONAL + 7 NO_VERDICT + 4 PASS + 4 FAIL = 22)",
+    "corpus_figure_re-derivation (583 records and 31 object-shaped qa-verdict args reproduce at the cycle-3 cut)",
+    "mutation_matrix_audit (5 anchors unique, all 5 mutants BUILD, per-cell CONTROL verified discriminating)",
+    "mutation_harness_repair_test (cycle-2 M3 form replayed -> UNSCORABLE: the mutant did not build -> check FAILS)",
+    "proxy_hole_reproduction_and_reachability_test (renders \"call4\" without throwing; util.types.isProxy false on the JSON.parse path)",
+    "criteria_container_probe (4 shapes, control first, driving the real shipped script)",
+    "criterion_7_by_execution (unrenderable -> spawns 0, returns undefined; renderable -> 1 spawn, verdict returned)",
+    "retired_candidate_finding_by_measurement (audit_class strict-equality hypothesis REFUTED)",
+    "unintended_production_change_scan (19 files in the 3 commits; uncommitted frontend/backend edits are mtime 2026-08-14, in none of them)",
+    "code_review_heuristics",
+    "qa_wip.py + verdict_history_86_21.py --evidence-only"
+  ],
+  "harness_compliance_ok": true,
+  "notes": "SEQUENCE: per the ledger, UNKNOWN. `verdict_history_86_21.py --step 86.90 --evidence-only` -> status=`no_rows_for_step`, verdicts=(none). `qa_wip.py 86.90 --spawned-at 2026-08-16T09:16:16Z` -> source_present=true, attempt_number=3 (status ok, is_lower_bound=true), prior_attempts=2, records_retained=3 (gauge), records_pruned_known=null, is_verdict=false. CROSS-CHECK per qa.md: attempt_number (3, auto) > ledger count (0) => THE LEDGER IS STALE for this step id; I did not hand-roll a substitute and computed no aggregate. Main's [CONDITIONAL, CONDITIONAL] is advisory only and recorded as such. Any threshold or escalation is the caller's.\n\nHARNESS COMPLIANCE 5/5, verified on disk rather than from the contract: (1) research_brief_86.90.md 09:59:05, envelope IN THE FILE reads brief_status COMPLETE / gate_passed true / external_sources_read_in_full 12 / urls_collected 45 against 46 distinct URLs actually present (no over-claim) / recency_scan_performed true with a real \"## Recency scan (last 2 years, 2024-2026)\" section at line 208 / coverage.dry true; (2) contract 10:01:10 < qa-verdict.js 10:42:14 < guard 11:09:19 < experiment_results 11:14:29, order holds; (3) experiment_results + live_check present; (4) log-last respected -- `grep -cF \"phase=86.90\" handoff/harness_log.md` = 0 and masterplan 86.90 is still \"pending\"; (5) not verdict-shopping -- 468c7908 changed 9 files (+602/-59) after the cycle-2 verdict, so the evidence moved.\n\nMAIN'S FOUR ASKS, RULED ON. (A) The 86.94 criterion edit is LEGITIMATE on the evidence, and I measured the premise rather than accepting it: 86.94 entered the masterplan at 98c5b6ab (10:50:45 today) and the 621/592/706 pin left at 468c7908 (11:14:29, 24 minutes later, same session), with ZERO handoff artifacts, ZERO qa_wip records and ZERO harness_log rows for 86.94 -- so \"no cycle has run against it\" is verified, not asserted. The old text embedded a false premise (correct work could not satisfy it); the new text demands a live differential with no pinned figures, i.e. strictly more demanding and answerable. NOTE, not a violation: the doctrine \"a filing no cycle has run against may be repaired\" appears nowhere in CLAUDE.md, whose never-amend rule is unqualified, and nothing but the author's own judgment separates \"repair\" from \"weaken\" -- codify it or get it operator-ratified, otherwise the exception is author-defined. Disclosing it to the evaluator is the right mitigation and I credit it. (B) The five per-cell CONTROLs are REAL, not five assertions that always pass: each requires expect() FALSE on the unmutated source and TRUE on the mutant, so the two answers must differ; I independently confirmed all 5 anchors are unique (1/1/1/1/1) and all 5 mutants BUILD; and decisively, replaying the cycle-2 M3 form against the current source under the cycle-3 harness now yields \"UNSCORABLE: the mutant did not build (Invalid or unexpected token)\" with the check FAILING, where the cycle-2 harness scored it KILLED. (C) Leaving the Proxy unfixed is RIGHT, not convenient. I reproduced the hole (the walk saw call1/call2; the rendered JSON carried \"real\": \"call4\"; no throw) and then TESTED the reachability bound instead of accepting it: JSON.parse cannot produce a Proxy, and classifyArgs admits only a JSON string it parses or a runtime object that is itself JSON-derived. Residual, and the artifact states it: the bound rests on an assumption about the Workflow runtime the script cannot itself enforce. (D) One figure fails to reproduce -- the 78 at experiment_results:15 (W2 above). Everything else I could re-derive reproduces, including 583/31/22, the 4-7-7-4 split, 83, 12 cases x 2 scripts, and the args-boundary checker's own \"FAILED: 84 passed, 3 failed\".\n\nMAIN'S SELF-FLAG (\"look for a fourth instance in the cycle-3 text\"): FOUND, and it is W2. And verify_workflow_args_boundary.mjs is indeed still RED at 84/3, filed as 86.92 -- confirmed live, correctly disclosed, correctly out of scope.\n\nA FINDING I RETIRED BY MEASUREMENT, disclosed so the record shows what I tried: I hypothesised that research-gate.js `auditClass = a.audit_class === true` silently reads \"true\"/1 as false and so disables the loop-until-dry requirement. REFUTED -- driving the real script with audit_class as true, \"true\", 1 and ABSENT all produced gate_passed:false with \"audit-class step but coverage.dry is not true\", because enforceGate recomputes audit-class from the AGENT's returned coverage, not from args. A plausible-sounding but wrong finding, not reported as one.\n\nMETHOD / SCOPE DISCLOSURES. All mutation and probe work was done in-memory via data:-URL module imports; the repository was never written and nothing needed restoring. My blast-radius instrument is a DIFFERENT operationalisation from the author's (first user message of all 1,394 agent-*.jsonl vs their 583 run records / 507 prompts) and the member sets are identical -- a known-member recall result, not a count match. A LOOSE substring scan returns 31 EVIDENCE / 4 OBJECTIVE / 4 INTERNAL SCOPE hits; those extras are prose contamination from 86.90's own documents, which is the self-matching-probe trap the artifact itself documents, and the strict header instrument gives 23 / 0 / 0. On my own lint gate: the first run was a FALSE PASS -- zsh does not word-split an unquoted variable, so ruff received one newline-joined path, printed \"All checks passed!\" and exited 0 having linted nothing; redone through xargs with file existence asserted first, it genuinely passes on both .py files. Gates 1b/1c/1d NOT triggered: the step's three commits touch 19 files, none under frontend/ or backend/, and no artifact makes a UI claim (grep = 0), so no Playwright capture was taken and none was required. Uncommitted edits to backend/api/sovereign_api.py and five frontend components are mtime 2026-08-14 and appear in none of the step's commits -- pre-existing peer work; flagged so a later `git add -A` does not ship them under this step's name. The run-record corpus has grown 583 -> 593 since the author measured; the artifact already states its census is a floor.\n\nWHY CONDITIONAL AND NOT PASS: criterion 5 is met for every field the contract enumerated but not for the criteria container, which is JSON-reachable and lands on the rubric; and one figure in the shipped artifact does not reproduce. WHY NOT FAIL: the product code is correct under my own derivation, the named defect is measurably closed, six of seven criteria are fully met, the criteria-container path is pre-existing with zero production occurrences and a bounded failure mode, and both findings have named one-line fixes. TO CLOSE: (a) route the criteria container through the same boundary -- throw on a present-but-non-array value instead of substituting -- and add a [3] case plus a mutation cell for it; (b) correct experiment_results:15 from 78 to 83 by regeneration, not by hand; (c) optionally codify or operator-ratify the \"repair a filing no cycle has run against\" doctrine. None of these touches the verdict machinery, the guard's existing cells, or any verdict.\n\nWIP record, EVIDENCE for any next spawn and NOT a verdict: /Users/ford/.openclaw/workspace/pyfinagent/.claude/agent-memory/qa/verdicts/verdict_wip_86.90__20260816T091616Z.md. No write was blocked. I also wrote one memory file and one MEMORY.md index line in my own agent-memory directory.",
+  "escalation": {
+    "sequence_supplied": [
+      "CONDITIONAL",
+      "CONDITIONAL"
+    ],
+    "sequence_status": "ok",
+    "consecutive_conditionals": 2,
+    "would_auto_fail": true,
+    "attempt_number": 3,
+    "budget_exhausted": false,
+    "max_attempts": 5,
+    "burden_on": "the party departing from the computed escalation",
+    "override": null,
+    "override_reason": null,
+    "judge_was_told_consequence": false
+  },
+  "verdict_unmodified": true
+}
+```

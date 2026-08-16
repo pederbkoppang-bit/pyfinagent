@@ -38,6 +38,7 @@ import json
 import re
 import subprocess
 import sys
+import tempfile
 from contextlib import redirect_stderr
 from pathlib import Path
 from unittest import mock
@@ -68,7 +69,13 @@ def heredoc_python(source: str) -> str:
     return source[start:end]
 
 
-NEEDED = ("_ABSENT", "_FLIP_DECISION", "_flip_magnitude")
+# CYCLE-4 (Q/A finding Q1). `_log_decision` was NOT in this tuple, so it was never
+# extracted, never exec'd and never driven -- and every [2] assertion read the
+# in-memory _FLIP_DECISION dict that FEEDS the file rather than the file itself.
+# The Q/A deleted the entire write and this checker stayed ALL GREEN 34/0.
+# Criterion 4 names the hook's OWN OUTPUT as the mechanism, so the output is what
+# has to be asserted.
+NEEDED = ("_ABSENT", "_FLIP_DECISION", "_flip_magnitude", "_log_decision")
 
 
 def detector_source(py: str) -> str:
@@ -319,7 +326,22 @@ REPLAY_SRC = REPLAY.read_text(encoding="utf-8")
 # assertion green -- including "the two arms genuinely DISAGREE". A single-id
 # fixture cannot distinguish the CLASS from the instance, which is exactly what
 # criterion 2 forbids. TWO unrelated created ids, in different top-level phases.
-AFTER_R = {"86.1": "done", "86.7": "pending", "86.86": "done", "12.7": "done"}
+# CYCLE-4 (Q/A findings Q4/Q2b). The two-id fixture MOVED the bound rather than
+# closing it: a whitelist matching exactly the fixture's ids SURVIVED on both the
+# replay and the hook. Adding exemplars can never win, because an N-id fixture is
+# defeated by an N-id whitelist. The closing move is an id that exists in NO
+# SOURCE LITERAL -- derived at runtime from HEAD, so it changes as the repo moves
+# and cannot be written into a whitelist in advance.
+#
+# THE BOUND, STATED (this step's own doctrine, which cycle 3 failed to apply to
+# itself): a whitelist containing _RUNTIME_ID would still survive. What this
+# closes is the AUTHORABLE special-case -- one a developer could write while
+# looking at the checker. It does not, and cannot, prove the predicate is
+# id-agnostic for every id.
+_HEAD_SHA = subprocess.run(["git", "rev-parse", "HEAD"], capture_output=True,
+                           text=True, cwd=REPO, timeout=30).stdout.strip()
+_RUNTIME_ID = f"{700 + int(_HEAD_SHA[:4], 16) % 200}.{1 + int(_HEAD_SHA[4:8], 16) % 90}"
+AFTER_R = {"86.1": "done", "86.7": "pending", "86.86": "done", "12.7": "done", _RUNTIME_ID: "done"}
 BEFORE_R = {"86.1": "done", "86.7": "pending"}
 try:
     pred = replay_predicate(REPLAY_SRC)
@@ -331,7 +353,11 @@ except Exception as exc:                                       # noqa: BLE001
 else:
     check("[5] the replay predicate is extractable and runnable", True)
     check("[5] count_created=True COUNTS created-and-closed steps in UNRELATED phases",
-          sorted(fixed) == ["12.7", "86.86"], f"got {fixed!r} -- a single-id fixture cannot tell the CLASS from the instance")
+          sorted(fixed) == sorted(["12.7", "86.86", _RUNTIME_ID]),
+          f"got {fixed!r} -- an N-id fixture is defeated by an N-id whitelist")
+    check(f"[5] and it counts a RUNTIME-DERIVED id ({_RUNTIME_ID}) present in no source literal",
+          _RUNTIME_ID in fixed,
+          "an id no whitelist could have been authored for was still dropped")
     check("[5] count_created=False reproduces the SHIPPED (defective) result", shipped == [], f"got {shipped!r}")
     # The whole point: the two arms must DISAGREE, or the replay's three numbers
     # are three names for one measurement.
@@ -379,10 +405,15 @@ def corpus_head(src_text: str) -> str | None:
     ns_c: dict = {"sh": _sh, "os": __import__("os")}
     try:
         exec(compile("".join(lines[start:end + 1]), "<shipped-corpus>", "exec"), ns_c)  # noqa: S102
-    except Exception:                                          # noqa: BLE001
-        return None
+    except Exception as exc:                                   # noqa: BLE001
+        # CYCLE-4: RAISE rather than return None. Returning None made a mutant
+        # that could not BUILD score as DETECTED at the call site (`mh is None or
+        # mh != pin`), i.e. a build failure counted as a kill -- the same defect
+        # the cycle-3 repair fixed in the sibling [6] branch and left here.
+        raise RuntimeError(f"the sliced corpus block did not run: {exc}") from exc
     if not captured:
-        return None
+        raise RuntimeError("the sliced corpus block ran but never called sh() -- "
+                           "the slice boundary no longer covers the selection")
     out = subprocess.run(captured[0], capture_output=True, text=True, cwd=REPO, timeout=120).stdout
     recs = [r for r in out.split("\x1e") if r.strip()]
     if not recs:
@@ -427,6 +458,16 @@ REPLAY_MUTANTS = [
     },
 ]
 REPLAY_MUTANTS.append({
+    # The cycle-3 Q/A's mutant, which SURVIVED the two-id fixture. It is scored
+    # against the RUNTIME id, which the whitelist cannot contain.
+    "id": "Q4 whitelist matching the fixture's authored ids",
+    "from": '    return (created + transitioned) if count_created else transitioned',
+    "to": ('    created = [s for s in created if s in ("86.86", "12.7")]\n'
+           '    return (created + transitioned) if count_created else transitioned'),
+    "probe": lambda f: _RUNTIME_ID not in f(AFTER_R, BEFORE_R, count_created=True),
+    "why": "an N-id whitelist defeats an N-id fixture; a runtime-derived id defeats the whitelist",
+})
+REPLAY_MUTANTS.append({
     # The cycle-2 Q/A's own mutant. With the single-id fixture it SURVIVED every
     # [5] assertion, including "the two arms genuinely DISAGREE". It is a cell now
     # so the two-id fixture's class-coverage is PROVEN rather than asserted.
@@ -460,9 +501,10 @@ for mut in REPLAY_MUTANTS:
         # Scored against the CORPUS SELECTION, not the predicate.
         try:
             mh = corpus_head(mutated_src)
-            outcome = "DETECTED" if (mh is None or mh != resolve(_pin)) else "SURVIVED"
         except Exception as exc:                               # noqa: BLE001
-            outcome = f"UNSCORABLE: mutant did not run ({exc})"
+            outcome = f"UNSCORABLE: the mutant did not build ({exc})"
+        else:
+            outcome = "DETECTED" if mh != resolve(_pin) else "SURVIVED"
     else:
         try:
             mpred = replay_predicate(mutated_src)
@@ -475,6 +517,60 @@ for mut in REPLAY_MUTANTS:
                 outcome = f"UNSCORABLE: probe raised ({exc})"
     check(f"[6] {mut['id']}: KILLED ({mut['why']})", outcome == "DETECTED",
           f"{outcome} -- a mutant that did not run has not been tested by anything")
+
+# ── [7] THE DECISION LOG IS DRIVEN, AND THE FILE IS READ BACK ──────────────
+# Criterion 4's mechanism is a FILE. Asserting the dict that feeds it is vacuity
+# shape #1: it cannot fail when the write is removed. This section points
+# repo_root at a temp tree, calls the SHIPPED _log_decision, and reads the line.
+print("\n[7] THE DECISION LOG -- the hook's own OUTPUT, read back from disk\n")
+
+
+def drive_log(ns_l, bump: str, decision: dict, root: Path) -> str | None:
+    ns_l["repo_root"] = root
+    ns_l["_FLIP_DECISION"].clear()
+    ns_l["_FLIP_DECISION"].update(decision)
+    ns_l["_log_decision"](bump)
+    f = root / "handoff" / "logs" / "changelog-decisions.log"
+    return f.read_text(encoding="utf-8").strip() if f.exists() else None
+
+
+with tempfile.TemporaryDirectory() as _td:
+    _root = Path(_td)
+    _line = drive_log(load_detector(SHIPPED), "patch",
+                      {"reason": "flip_created", "created_done": ["86.86"], "transitioned_done": []}, _root)
+    check("[7] a decision WRITES a line to changelog-decisions.log", bool(_line), f"got {_line!r}")
+    check("[7] the line carries the bump", bool(_line) and "bump=patch" in _line, f"got {_line!r}")
+    check("[7] the line carries the REASON, which is the whole point of criterion 4",
+          bool(_line) and "reason=flip_created" in _line, f"got {_line!r}")
+    check("[7] the line names the created step", bool(_line) and "created_done=86.86" in _line, f"got {_line!r}")
+
+with tempfile.TemporaryDirectory() as _td:
+    _line = drive_log(load_detector(SHIPPED), "none",
+                      {"reason": "no_flip", "created_done": [], "transitioned_done": []}, Path(_td))
+    check("[7] a 'none' decision is ALSO written -- an unexplained none is the defect",
+          bool(_line) and "bump=none" in _line and "reason=no_flip" in _line, f"got {_line!r}")
+
+# MUTATION: delete the write. This is the mutant that SURVIVED at 34/0 in cycle 3.
+# The anchor is the WRITE ITSELF, replaced by a no-op of the same indentation.
+# A first attempt prefixed `if False:` to the `with`, which left the `with` at the
+# original indent and produced an IndentationError -- the harness correctly scored
+# that UNSCORABLE rather than KILLED, which is the cycle-3 repair doing its job on
+# its own author.
+_MUT_WRITE = ('        with open(log_dir / "changelog-decisions.log", "a", encoding="utf-8") as _fh:\n'
+              '            _fh.write(f"{stamp} {sha} bump={bump} reason={reason} "\n'
+              '                      f"created_done={created} transitioned_done={transitioned}\\n")')
+if SHIPPED.count(_MUT_WRITE) != 1:
+    check("[7] mutate-delete-the-write: anchor is unique", False, f"found {SHIPPED.count(_MUT_WRITE)}")
+else:
+    _mut = SHIPPED.replace(_MUT_WRITE, '        pass  # the write is deleted')
+    try:
+        with tempfile.TemporaryDirectory() as _td:
+            _ml = drive_log(load_detector(_mut), "patch", {"reason": "flip_created"}, Path(_td))
+        _out = "DETECTED" if not _ml else "SURVIVED"
+    except Exception as _e:                                    # noqa: BLE001
+        _out = f"UNSCORABLE: the mutant did not build ({_e})"
+    check("[7] delete-the-decision-log-write: KILLED (this mutant SURVIVED all 34 assertions in cycle 3)",
+          _out == "DETECTED", _out)
 
 print()
 if FAILURES:

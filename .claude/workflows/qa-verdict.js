@@ -252,6 +252,26 @@ function renderArgField(name, value, fallback) {
   return '\n```json\n' + json + '\n```'
 }
 
+/** CONTAINER-shaped fields (a LIST of rubric items). phase-86.90 cycle 4.
+ *  `Array.isArray(x) ? x : []` sat UPSTREAM of this boundary, so a
+ *  present-but-wrong-shaped `criteria` was DISCARDED and the prompt substituted
+ *  "(none passed in args -- read them from .claude/masterplan.json ...)". No
+ *  throw, no log, and the agent spawned anyway -- a silent placeholder on the
+ *  field the evaluator grades against, which is precisely what criterion 5
+ *  forbids. Unlike the exotic render holes, this one is trivially JSON-reachable:
+ *  a caller passing a string or an object hits it directly.
+ *  ABSENT stays legal and still means "read them from the masterplan"; PRESENT
+ *  BUT WRONG-SHAPED now throws. */
+function requireArgArray(name, value) {
+  if (value === undefined || value === null) return []
+  if (Array.isArray(value)) return value
+  throw new Error(RENDER_SCRIPT + ': args.' + name + ' is PRESENT but is a '
+    + (typeof value) + ', not an array: ' + previewArgValue(value)
+    + '. Silently discarding it would substitute the "(none passed in args)" '
+    + 'placeholder on the field the evaluator grades against. Pass an array, or '
+    + 'omit the field entirely to have them read from .claude/masterplan.json.')
+}
+
 /** Identity/path/command-shaped fields: a structure here would reach a FILENAME
  *  or a command line, so it is refused outright rather than rendered. */
 function renderIdentityArg(name, value, fallback) {
@@ -275,7 +295,7 @@ const ARGS_BOUND = typeof args !== 'undefined'
 const inputHealth = classifyArgs(ARGS_BOUND, ARGS_BOUND ? args : null)
 const a = inputHealth.args
 const stepId = renderIdentityArg('step_id', a.step_id || a.stepId, 'UNSPECIFIED')
-const criteria = Array.isArray(a.criteria) ? a.criteria : []
+const criteria = requireArgArray('criteria', a.criteria)
 const verificationCommand = renderIdentityArg('verification_command',
   a.verification_command || a.verificationCommand,
   '(none provided -- read it from .claude/masterplan.json for this step)')

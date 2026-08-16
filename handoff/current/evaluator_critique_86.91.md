@@ -247,3 +247,124 @@ as kills; bound the "future 5th branch" claim to literal-constant returns.
   "verdict_unmodified": true
 }
 ```
+
+
+---
+
+# Cycle 3 verdict: CONDITIONAL  -- sequence now [C, C, C]
+
+Run `wf_0d88fe11-241` · 54 tool uses · 229,152 tokens · 847 s ·
+`verdict_sequence: ["CONDITIONAL","CONDITIONAL"]` as DATA, `attempt_number: 3`.
+
+All 8 criteria MET on the shipped product, and all three cycle-3 remediations
+verified: `corpus_head()` genuinely DRIVES the shipped selection and **fails
+closed under four refactor shapes the Q/A executed**; the QA-C2-1 cell is
+discriminating (control head `8dc70502` == pin vs mutant head `821f2569`); the
+one-id special-case mutant now KILLS. `707 / 251 / 9 / 11` reproduced exactly in
+its environment -- cycle 2's numbers did not.
+
+Capped because **three mutants it executed SURVIVED all 34 assertions**.
+
+| # | Finding | Why it lands |
+|---|---|---|
+| **Q1** | Deleting the ENTIRE decision-log write leaves the checker `ALL GREEN 34/0` | `NEEDED = ("_ABSENT", "_FLIP_DECISION", "_flip_magnitude")` never extracts `_log_decision`, so it is never exec'd and never driven. **Every `[2]` assertion reads the in-memory dict that FEEDS the file, never the file.** Criterion 4 names the hook's OWN OUTPUT as the mechanism, and that output is unguarded -- vacuity shape #1 |
+| **Q4 / Q2b** | A whitelist matching the fixture's ids survives on **both** the replay and the hook | An N-id fixture is defeated by an N-id whitelist, so adding exemplars can never win. The two-id fixture **MOVED** the QA-C2-6 bound rather than closing it -- and cycle 3's text says it *closes* it, **without stating the bound**. This step's own doctrine, written twice in its own artifacts, requires that bound to be written down |
+| NOTE | The QA-C2-1 cell scores a mutant that cannot BUILD as **DETECTED** | `corpus_head` swallows the failure and returns `None`; the scoring line reads `mh is None or mh != pin` -> DETECTED. **The DETECTED/SURVIVED/UNSCORABLE fix was applied to one `[6]` branch and not its sibling** -- the third instance of exactly the "I fixed it there and left it here" shape I was asked to hunt for |
+| NOTE | `experiment_results` section 1 says 31 assertions / 6 cells; measured at HEAD: **34 / 8** | The `34` was refreshed in place while the cell and assertion counts were not, and the two new cycle-3 cells are described in the Follow-up but never added to the matrix table -- in the cycle whose sibling finding was about stale figures |
+
+Mitigation the Q/A recorded itself, which is why Q1 is WARN and not BLOCK:
+`handoff/logs/changelog-decisions.log` holds four real production lines from this
+step's own four commits, so criterion 4 IS demonstrated end-to-end today; and
+criterion 6's mutation mandate is scoped to the None exclusion, which cell M1
+covers.
+
+It also discarded one of its own mutants as **mis-attributed** -- a first attempt
+injected the whitelist into the M1 anchor and was "killed" only by the
+anchor-uniqueness check -- and rebuilt it. That is the discipline it is holding me
+to, applied to itself.
+
+---
+
+## Verdict, VERBATIM
+
+```json
+{
+  "ok": false,
+  "verdict": "CONDITIONAL",
+  "reason": "All 8 immutable criteria are MET on the shipped product (immutable cmd exit 0; 707/251/9/11 reproduce exactly here; criterion 1 independently re-derived on e4f2e844 AND 8b520f6c; no step-id literal anywhere in the fix; ruff clean on the git-derived scope), and Main's three cycle-3 remediations verify: corpus_head() genuinely DRIVES the shipped selection and FAILS CLOSED under four refactor shapes I executed, the QA-C2-1 cell is discriminating (control head 8dc70502 == pin vs mutant head 821f2569), and the 1-id special-case mutant now KILLS -- but I executed three mutants that SURVIVED all 34 assertions, so the verdict is capped: deleting the entire decision-log write leaves the checker ALL GREEN (criterion 4's actual output mechanism is unguarded), and a predicate whitelisted to exactly the fixture's ids survives on BOTH the replay and the hook, so the two-id fixture MOVED the QA-C2-6 bound rather than closing it and the residual is undisclosed.",
+  "violated_criteria": [
+    "illusory-guard [WARN]: criterion-4 decision-log WRITE is unguarded -- deleting it leaves the checker ALL GREEN 34/0 (my cell Q1 SURVIVED)",
+    "illusory-guard [WARN]: QA-C2-6 moved not closed -- a whitelist matching the fixture ids survives on both the replay and the hook (my cells Q4/Q2b SURVIVED), and the residual is not disclosed",
+    "artifact-kill residual [NOTE]: the QA-C2-1 cell scores a mutant that cannot BUILD as DETECTED -- the DETECTED/SURVIVED/UNSCORABLE fix was applied to one [6] branch and not its sibling",
+    "stale-count [NOTE]: experiment_results section 1 says 31 assertions / 6 mutation cells and section 7's heading says 6 cells, against a measured 34 assertions / 8 cells at HEAD -- section 7's own quoted block says 34"
+  ],
+  "violation_details": [
+    {
+      "violation_type": "Circular_Reasoning",
+      "action": "Mutate .claude/hooks/post-commit-changelog.sh::_log_decision -- replace the whole `with open(log_dir / \"changelog-decisions.log\", \"a\") as _fh: _fh.write(...)` with `pass` -- then run scripts/qa/verify_changelog_flip_86_91.py via runpy with Path.read_text patched (no repo write).",
+      "state": "CONTROL first: ALL GREEN 34 passed, 0 failed, exit 0. MUTANT: ALL GREEN 34 passed, 0 failed, exit 0 -- SURVIVED. Cause: NEEDED = (\"_ABSENT\", \"_FLIP_DECISION\", \"_flip_magnitude\") at verify_changelog_flip_86_91.py:71, so _log_decision is never extracted, never exec'd, never driven; every [2] assertion reads the in-memory _FLIP_DECISION dict that FEEDS the file, never the file. MITIGATION that keeps this WARN and not BLOCK: handoff/logs/changelog-decisions.log holds 4 real production lines from this step's own 4 commits (8dc70502/952ed521/98c5b6ab/468c7908, all bump=none reason=no_flip), so criterion 4 is demonstrated end-to-end today, and criterion 6's mutation mandate is scoped to the None exclusion, which cell M1 covers.",
+      "constraint": "SEVERITY WARN. qa.md 4c vacuity shapes #1 (asserts an internal the output is derived from, never the output) and #3 (literal kept, behaviour stripped). Criterion 4 names the hook's OWN OUTPUT as the mechanism; contract P2 and experiment_results section 5 both make the FILE the mechanism. FIX: one cell driving _log_decision into a temp dir and reading the line back."
+    },
+    {
+      "violation_type": "Overgeneralization",
+      "action": "Two mutants, each constructed to leave every author anchor intact so the kill cannot be mis-attributed. (a) replay_changelog_rule_86_68.py: insert `created = [s for s in created if s in (\"86.86\",\"12.7\")]` before the `transitioned = [...]` line. (b) post-commit-changelog.sh: insert `created_done = [s for s in created_done if s in (\"86.86\",\"9.99\",\"12.7\",\"77.0\",\"78.1\")]` before `newly_done = created_done + transitioned_done`.",
+      "state": "(a) SURVIVED -- ALL GREEN 34 passed, 0 failed. (b) SURVIVED -- ALL GREEN 34 passed, 0 failed. Control direction confirmed: the 1-id form `created = [s for s in created if s == \"86.86\"]` is KILLED (1 red: '[5] count_created=True COUNTS created-and-closed steps in UNRELATED phases -- got [\"86.86\"]'), so the cycle-2 fix does work for its stated shape. My first attempt at (b) injected the whitelist INTO the M1 anchor and was 'killed' only by the anchor-uniqueness check -- a mis-attributed kill I discarded and rebuilt. NOTE the shipped FIX is clean: a grep for any `\"N.M\"` literal inside the detector body (lines 106-215) returns NONE, so criterion 2 itself is MET; this is a residual on the GUARD.",
+      "constraint": "SEVERITY WARN. Criterion 2 forbids a fix that special-cases 'rather than the CLASS'. An N-id fixture is defeated by an N-id whitelist, so adding exemplars cannot win; the closing fix is a RUNTIME-GENERATED id present in no source literal, or an explicit statement of the bound. This step's own doctrine, stated twice in its artifacts ('closed against the shapes I enumerated'; the bounded 5th-branch claim), requires that bound to be written down -- and cycle 3's text says the fixture change closes QA-C2-6 without it."
+    },
+    {
+      "violation_type": "Invalid_Precondition",
+      "action": "Drive verify_changelog_flip_86_91.py::corpus_head against a mutant of replay_changelog_rule_86_68.py that makes the sliced block raise (`_log_args = [\"git\",\"log\", _UNDEFINED_NAME_`) rather than unpin the corpus, and evaluate the cell's scoring expression at :463.",
+      "state": "corpus_head returns None (its own `except Exception: return None` at :382-383 swallows the failure), and :463 reads `outcome = \"DETECTED\" if (mh is None or mh != resolve(_pin)) else \"SURVIVED\"` -- so a mutant that cannot build is scored DETECTED, never UNSCORABLE. The `except -> UNSCORABLE` wrapper at :464-465 is unreachable for this path because corpus_head does not propagate. The `probe is not None` branch at :467-475 DOES score three outcomes correctly. NOT harmful today: I measured the real QA-C2-1 mutant to produce a genuine differing sha (control 8dc705022fe7a7a0ade7cc1303f57aa04b1f5e61 == resolve('8dc70502'); mutant 821f256902d6d3a52422d31a1577d14a1700ce33), so this cell's kill is real and correctly attributed.",
+      "constraint": "SEVERITY NOTE. This is the third instance of the pattern Main asked me to hunt: cycle 3 states 'a mutant that does not BUILD is UNSCORABLE, which FAILS the check rather than passing it', and applied it to one [6] branch while leaving the sibling branch scoring build-failures as kills -- the same 'I fixed it there and left it here' shape as QA-C2-1 itself."
+    },
+    {
+      "violation_type": "Contradiction",
+      "action": "Re-derive the checker's assertion and cell counts by execution (count ok/FAIL lines and ': KILLED' lines from a live run; count cell dicts statically) and compare against experiment_results_86.91.md.",
+      "state": "MEASURED at HEAD: 34 assertions, 8 mutation cells (4 in [4] + 4 in [6]), 8 static cell dicts. experiment_results_86.91.md:15 says 'NEW, **31** assertions ... **6** mutation cells'; :221 heading says 'Mutation matrix (6 cells, all KILLED...)' and its table lists only M1-M6; :310 says '(24 at cycle 1, 31 at cycle 2), 6 mutation cells'. Meanwhile :212 and :290 both quote 'ALL GREEN: 34 passed, 0 failed'. So section 1 and section 7 contradict each other inside one artifact: the 34 was refreshed in place while the cell count and assertion count were not, and the two new cycle-3 cells (QA-C2-1, QA-C2-6) are described in the Follow-up but never added to the matrix table.",
+      "constraint": "SEVERITY NOTE (under-claims rather than over-claims). Notable only because it lands in the same cycle whose sibling finding was 'stale figures inside verbatim blocks -- every capture is now REGENERATED from a live run by a script rather than hand-edited', and whose own QA-C2-5 fix regenerated live_check section 4 wholesale while leaving experiment_results sections 1 and 7 stale."
+    }
+  ],
+  "certified_fallback": false,
+  "checks_run": [
+    "harness_compliance_audit_5_item",
+    "immutable_verification_command",
+    "syntax_bash_n",
+    "python_lint_ruff_F821_F401_F811",
+    "scoped_regression_guard_verify_changelog_flip_86_91",
+    "replay_changelog_rule_86_68",
+    "independent_reproduction_criterion_1",
+    "independent_mutation_matrix_6_cells",
+    "guard_vacuity_check_4c",
+    "corpus_head_drive_vs_reimplementation_probe",
+    "refactor_fail_closed_probe",
+    "claim_auditing_numeric_reproduction",
+    "decision_log_census_measurement",
+    "git_scope_and_unintended_change_check",
+    "masterplan_state_check",
+    "changelog_hand_edit_check",
+    "prior_attempt_evidence_qa_wip",
+    "verdict_ledger_evidence_only",
+    "code_review_heuristics",
+    "evaluator_critique"
+  ],
+  "harness_compliance_ok": true,
+  "notes": "SEQUENCE / ATTEMPT EVIDENCE (reported, not aggregated). `python scripts/qa/qa_wip.py 86.91 --spawned-at 2026-08-16T09:16:37Z` -> source_present=true, attempt_number=3, attempt_number_status=\"ok\", attempt_number_is_lower_bound=true, prior_attempts=2, records_retained=3 (gauge, includes my own write-first record), identity_checked=true, prior_records = verdict_wip_86.91__20260816T085153Z.md and __20260816T082544Z.md. `python scripts/qa/verdict_history_86_21.py --step 86.91 --evidence-only` -> status=`no_rows_for_step`, verdicts=(none). CROSS-CHECK: attempt_number (3) > the ledger's verdict count (0), so THE LEDGER IS STALE and its sequence is unreliable for this step. Main's advisory [CONDITIONAL, CONDITIONAL] is consistent with attempt_number=3 but is advisory only; I did not word-scan prior_records bodies. `grep -cF \"phase=86.91\" handoff/harness_log.md` = 0, correct at EVALUATE time since LOG runs after.\n\nHARNESS COMPLIANCE, all 5 clean. (1) research_brief_86.91.md 21,062 B, brief_status COMPLETE, gate_passed true, external_sources_read_in_full=8 vs floor 5, urls_collected=28 vs floor 10, recency_scan_performed=true; contract section 1 cites run wf_6f758470-f84 and section 4 uses the findings. (2) mtime chain (LOCAL CEST): research 09:58:08 < contract 10:14:17 < hook 10:14:54 < checker 11:10:51, and criterion 1's reproduction is quoted IN the contract, i.e. before the hook edit. (3) experiment_results present with cycle-2 and cycle-3 Follow-ups. (4) log-last respected: no harness_log row, 86.90 and 86.91 both still status=pending. (5) not verdict-shopping: 468c7908 changed experiment_results (+57), live_check (+62), the checker (+134) -- the documented cycle-3 flow on CHANGED evidence.\n\nMAIN'S FOUR QUESTIONS, answered by execution. (A) corpus_head() genuinely DRIVES, and it FAILS CLOSED. I ran four refactor shapes -- helper hoisted above the start anchor, start anchor reworded `CORPUS_SINCE: str =`, end anchor reworded `sh(*list(_log_args))`, sliced block made to NameError -- and all four return head=None, which turns the CONTROL assertion \"[5] the corpus UPPER bound is pinned BEHAVIOURALLY\" RED. So a refactor moving the append outside the sliced range would NOT silently stop covering it. (B) The QA-C2-1 cell IS discriminating: control head 8dc705022fe7... == resolve(\"8dc70502\"), mutant head 821f256902d6... (current HEAD) -- a genuine behavioural differential, not an artifact kill. (C) Two ids MOVE QA-C2-6, they do not close it: `s in (\"86.86\",\"12.7\")` survives all 34 assertions on the replay and the 5-fixture-id whitelist survives on the hook, while the 1-id form is correctly KILLED. (D) 707 / 251 / 9 / 11 REPRODUCE exactly in my environment with the resolved endpoint printed; cycle 2's non-reproduction is fixed.\n\nWHAT I VERIFIED RATHER THAN ACCEPTED. Main's claim that the hook is unchanged since cycle 1 is TRUE: `.claude/hooks/post-commit-changelog.sh` appears in 8dc70502 only, 0 hits in 952ed521 / 98c5b6ab / 468c7908. Criterion 1 re-derived independently on BOTH gained commits: e4f2e844 gives `86.86 before: None -> after: done`, OLD [] / NEW ['86.86']; 8b520f6c gives the same shape for 86.81. Both steps are `done` today and both commits shipped real work (autonomous_loop.py + a 199-line test file; qa-verdict.js + research-gate.js), so criterion 3's +2 accounting holds member by member. Criterion 5: CHANGELOG.md is touched by NONE of the 4 step commits; the only CHANGELOG changes are the 4 hook-produced auto-changelog commits. live_check section 6's PENDING disclosure is precise and its prediction is CORRECT -- I confirmed the flip will read flip_transitioned, not flip_created, because 86.90 and 86.91 both exist at HEAD~1.\n\nA FIFTH FINDING, carried forward rather than newly charged. The bash early-exit paths remain silent and undisclosed (raised at cycle 1, un-remediated at cycles 2 and 3). MEASURED: 8 hook invocations since the fix commit against 4 decision-log lines; the 4 missing are the `chore: auto-changelog` commits hitting `exit 0` at :28 before the python heredoc. That skip is self-evidently benign, but :32-38 (CHANGELOG.md absent, or \"### Recent Activity\" renamed) is the silent-swallow class one layer up -- rename that heading and every commit stops bumping with zero output. Section 5's \"(bounded -- see below)\" points at the return-\"none\" scoping, which is thin but is a scoping, so I record this as NOTE rather than a criterion-4 miss.\n\nSCOPE. No unintended production change attributable to this step. The working tree carries UNCOMMITTED, UNRELATED edits (backend/api/sovereign_api.py + 5 frontend components) dated 2026-08-14 and present in none of the 4 step commits -- peer-session work. FLAG FOR MAIN, unchanged from cycle 2: `git add -A` in auto-commit-and-push.sh would sweep them into the flip commit under 86.91's subject. Criterion 8 holds: 86.90 and 86.91 are both still `pending` and no verdict was altered; masterplan.json WAS edited (86.92-86.95 filed as pending; 86.94's criterion 1 rewritten in 468c7908) but that is 86.90's scope, flips nothing and alters no verdict -- I flag the criterion rewrite for 86.90's evaluator, not this one. No UI claims, so gate 1c does not apply and no Playwright capture was taken; no backend/** or frontend/** in the step-derived diff, so 1b and 1d do not apply.\n\nMETHOD DISCLOSURE. Every mutation was run in memory via runpy with pathlib.Path.read_text patched, so no repo file was modified, nothing was written and nothing committed; the CONTROL was observed GREEN (34/0, exit 0) before any cell was scored. One mutant of mine was discarded as a MIS-ATTRIBUTED KILL: my first hook whitelist injected into the M1 anchor and was \"killed\" only by the anchor-uniqueness check, so I rebuilt it to leave every author anchor intact. My write-first record is at .claude/agent-memory/qa/verdicts/verdict_wip_86.91__20260816T091637Z.md, marked COMPLETE at 2026-08-16T09:28:34Z -- it is a crash-survival record and is NOT a verdict. No write was blocked.",
+  "escalation": {
+    "sequence_supplied": [
+      "CONDITIONAL",
+      "CONDITIONAL"
+    ],
+    "sequence_status": "ok",
+    "consecutive_conditionals": 2,
+    "would_auto_fail": true,
+    "attempt_number": 3,
+    "budget_exhausted": false,
+    "max_attempts": 5,
+    "burden_on": "the party departing from the computed escalation",
+    "override": null,
+    "override_reason": null,
+    "judge_was_told_consequence": false
+  },
+  "verdict_unmodified": true
+}
+```

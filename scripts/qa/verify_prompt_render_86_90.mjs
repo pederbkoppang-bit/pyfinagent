@@ -244,6 +244,46 @@ for (const name of Object.keys(SCRIPTS)) {
   }
 }
 
+// ── [3b] THE CONTAINER, not just the elements (cycle-4, Q/A finding W1) ────
+// `Array.isArray(a.criteria) ? a.criteria : []` sat UPSTREAM of the render
+// boundary, so a present-but-wrong-shaped `criteria` was DISCARDED and the
+// "(none passed in args)" placeholder substituted -- silently, with the agent
+// spawned anyway, on the field the evaluator grades against. Cycle 1 routed the
+// ELEMENTS and left the CONTAINER one line above untouched. This is the only
+// hole found in this step that is trivially JSON-reachable.
+console.log('\n[3b] THE CRITERIA CONTAINER -- a wrong SHAPE must not become "none passed"\n')
+{
+  const src = fs.readFileSync(SCRIPTS['qa-verdict.js'], 'utf8')
+  const PLACEHOLDER = '(none passed in args'
+
+  // CONTROL FIRST: an ARRAY still works, and ABSENT still yields the documented
+  // placeholder -- so the assertions below cannot pass by refusing everything.
+  const ok = await runDriver(src, { step_id: '86.90', criteria: ['c-one-ALPHA'] })
+  check('[3b] CONTROL: an ARRAY of criteria reaches the prompt',
+        !ok.threw && ok.spawns.length === 1 && String(ok.spawns[0].prompt).includes('c-one-ALPHA')
+        && !String(ok.spawns[0].prompt).includes(PLACEHOLDER),
+        ok.threw ? `threw: ${ok.threw}` : 'the criterion text did not arrive')
+  const absent = await runDriver(src, { step_id: '86.90' })
+  check('[3b] CONTROL: ABSENT criteria still yields the documented placeholder (this stays legal)',
+        !absent.threw && absent.spawns.length === 1
+        && String(absent.spawns[0].prompt).includes(PLACEHOLDER),
+        absent.threw ? `threw: ${absent.threw}` : 'the placeholder is gone -- absent must stay legal')
+
+  for (const c of [
+    { id: 'string', literal: '{ step_id: "86.90", criteria: "1. c-one-ALPHA" }' },
+    { id: 'object', literal: '{ step_id: "86.90", criteria: { a: "c-one-ALPHA" } }' },
+    { id: 'numeric-key object', literal: '{ step_id: "86.90", criteria: { 0: "c-one-ALPHA" } }' },
+    { id: 'number', literal: '{ step_id: "86.90", criteria: 7 }' },
+  ]) {
+    const r = await runDriverRaw(src, c.literal)
+    check(`[3b] PRESENT-but-${c.id} criteria THROWS and names the field`,
+          Boolean(r.threw) && /args\.criteria/.test(r.threw),
+          r.threw ? `threw without naming it: ${r.threw.slice(0, 110)}` : 'did NOT throw -- the placeholder was substituted silently')
+    check(`[3b] PRESENT-but-${c.id} criteria spawns NOTHING`, r.spawns.length === 0,
+          `spawned ${r.spawns.length} with a discarded rubric`)
+  }
+}
+
 // CONTROL for [3]: the widened walk must not have become a blanket refusal.
 for (const name of Object.keys(SCRIPTS)) {
   const src = fs.readFileSync(SCRIPTS[name], 'utf8')
@@ -313,6 +353,18 @@ const MUTANTS = [
       return !r.threw && String(r.spawns.length ? r.spawns[0].prompt : '').includes('REPLACED')
     },
     why: 'section [3] A2 must go RED when the walk stops seeing non-enumerable properties',
+  },
+  {
+    id: 'container-guard-reverted-to-silent-discard',
+    file: 'qa-verdict.js',
+    from: "const criteria = requireArgArray('criteria', a.criteria)",
+    to: "const criteria = Array.isArray(a.criteria) ? a.criteria : []",
+    expect: async (src) => {
+      const r = await runDriverRaw(src, '{ step_id: "86.90", criteria: "1. c-one-ALPHA" }')
+      return !r.threw && r.spawns.length === 1
+        && String(r.spawns[0].prompt).includes('(none passed in args')
+    },
+    why: 'section [3b] must go RED when a wrong-shaped rubric is silently discarded again',
   },
   {
     id: 'placeholder-instead-of-throw',

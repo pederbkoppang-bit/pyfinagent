@@ -139,18 +139,13 @@ A stderr-only fix would have been as invisible as the silence it replaced.
 
 ## 4. Criterion 6 + 7 -- the guard, and the never-raises proof
 
-*(REGENERATED in cycle 3. The cycle-2 edit updated section 2 of this file and
-left this block at its cycle-1 state -- it still quoted `ALL GREEN: 24 passed`,
-"74 lines extracted", three `[4]` cells and no `[6]` section, so a reader of the
-live_check alone would have concluded the W2 and W3 remediations were never
-applied. Found by the cycle-2 Q/A. The block below is the literal output of a
-fresh run, not an edit of the old one.)*
+*(REGENERATED from a fresh run each cycle. Never hand-edited.)*
 
 ```
 $ python scripts/qa/verify_changelog_flip_86_91.py
 phase-86.91 -- changelog flip detector, three-state membership test
 
-  (driving the SHIPPED detector, 109 lines extracted from post-commit-changelog.sh)
+  (driving the SHIPPED detector, 151 lines extracted from post-commit-changelog.sh)
 
 [0] CONTROL -- behaviour that was already correct must still hold
 
@@ -195,6 +190,7 @@ phase-86.91 -- changelog flip detector, three-state membership test
 
   ok   [5] the replay predicate is extractable and runnable
   ok   [5] count_created=True COUNTS created-and-closed steps in UNRELATED phases
+  ok   [5] and it counts a RUNTIME-DERIVED id (811.38) present in no source literal
   ok   [5] count_created=False reproduces the SHIPPED (defective) result
   ok   [5] the two arms genuinely DISAGREE (not two names for one number)
   ok   [5] the corpus UPPER bound is pinned BEHAVIOURALLY (newest selected commit == the pin)
@@ -204,19 +200,21 @@ phase-86.91 -- changelog flip detector, three-state membership test
 
   ok   [6] QA-11 ignore-count_created (literal kept, behaviour stripped): KILLED (a scan for the word 'count_created' cannot see this; the drive can)
   ok   [6] QA-12 reworded None exclusion: KILLED (the defect reworded is invisible to a literal scan)
+  ok   [6] Q4 whitelist matching the fixture's authored ids: KILLED (an N-id whitelist defeats an N-id fixture; a runtime-derived id defeats the whitelist)
   ok   [6] QA-C2-6 special-case a single step id (the shape criterion 2 forbids): KILLED (a single-id fixture cannot tell the CLASS from the instance)
   ok   [6] QA-C2-1 unpin the upper bound (literals all kept): KILLED (a substring scan cannot see this; the behavioural pin check can)
 
-ALL GREEN: 34 passed, 0 failed
-```
+[7] THE DECISION LOG -- the hook's own OUTPUT, read back from disk
 
-The checker EXTRACTS the shipped `_flip_magnitude` from the `.sh` heredoc via
-`ast` and drives it with `subprocess.run` stubbed, and it EXTRACTS and drives
-the shipped `newly_done_ids` from the replay. A re-implemented copy would have
-stayed green while production drifted -- which is exactly how
-`replay_changelog_rule_86_68.py:54` came to carry a byte-copy of the same
-defect, and exactly how this checker's own first corpus-pin probe failed to
-detect a mutation of the line it was guarding.
+  ok   [7] a decision WRITES a line to changelog-decisions.log
+  ok   [7] the line carries the bump
+  ok   [7] the line carries the REASON, which is the whole point of criterion 4
+  ok   [7] the line names the created step
+  ok   [7] a 'none' decision is ALSO written -- an unexplained none is the defect
+  ok   [7] delete-the-decision-log-write: KILLED (this mutant SURVIVED all 34 assertions in cycle 3)
+
+ALL GREEN: 42 passed, 0 failed
+```
 
 ## 5. Criterion 5 -- CHANGELOG.md not hand-edited
 
