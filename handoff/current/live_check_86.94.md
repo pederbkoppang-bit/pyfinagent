@@ -248,18 +248,31 @@ a recall test that can silently not run is not a recall test.
 [3b] CRITERION 4 -- do any quoted figures derive from a SLIDING member?
 
   ok   [3b] the quote corpus is non-empty (an empty grep proves nothing)
-       scheduler.py: mentioned outside this step's own artifacts in 37 file(s)
-  ok   [3b] scheduler.py: its allowlist entry states an explicit criterion-4 judgement about quoted figures
-       verify_decision_log_86_97.py: mentioned outside this step's own artifacts in 5 file(s)
-  ok   [3b] verify_decision_log_86_97.py: its allowlist entry states an explicit criterion-4 judgement about quoted figures
-       frontend_route_inventory.py: mentioned outside this step's own artifacts in 0 file(s)
-  ok   [3b] frontend_route_inventory.py: its allowlist entry states an explicit criterion-4 judgement about quoted figures
+       scheduler.py: mentioned outside this step's own artifacts in 282 file(s)
+  ok   [3b] scheduler.py: the criterion-4 judgement is a STRUCTURED claim, not a sentence (quoted_as_evidence is an explicit bool)
+  ok   [3b] scheduler.py: mentions_reviewed matches the measured count, so a drifting corpus RE-OPENS the judgement instead of ageing into a false statement
+  ok   [3b] scheduler.py: the entry carries a stated REASON
+       verify_decision_log_86_97.py: mentioned outside this step's own artifacts in 6 file(s)
+  ok   [3b] verify_decision_log_86_97.py: the criterion-4 judgement is a STRUCTURED claim, not a sentence (quoted_as_evidence is an explicit bool)
+  ok   [3b] verify_decision_log_86_97.py: mentions_reviewed matches the measured count, so a drifting corpus RE-OPENS the judgement instead of ageing into a false statement
+  ok   [3b] verify_decision_log_86_97.py: the entry carries a stated REASON
+       frontend_route_inventory.py: mentioned outside this step's own artifacts in 49 file(s)
+  ok   [3b] frontend_route_inventory.py: the criterion-4 judgement is a STRUCTURED claim, not a sentence (quoted_as_evidence is an explicit bool)
+  ok   [3b] frontend_route_inventory.py: mentions_reviewed matches the measured count, so a drifting corpus RE-OPENS the judgement instead of ageing into a false statement
+  ok   [3b] frontend_route_inventory.py: the entry carries a stated REASON
 ```
+
+*(Cycle-3: this block previously showed `37 / 5 / 0` mention counts — the cycle-1
+numbers, captured before `QUOTE_DIRS` was widened to the whole `handoff/` tree.
+It is regenerated here from the shipped run, which prints `282 / 6 / 49`. The
+cycle-2 commit claimed §C/§E/§G had all been regenerated; that was true for §C
+and §G and **false for §E**, which is the same accompany-not-replace defect one
+level up.)*
 
 | member | class | criterion-4 judgement (measured) |
 |---|---|---|
 | `backend/slack_bot/scheduler.py:503` `midnight` | **LEGITIMATELY RELATIVE** | A Slack "shipped today" digest must move with today. Name appears in 37 files, but every hit is descriptive (em-dash cleanup, an APScheduler job description, a different scheduler at `:761-795`); none quotes a count from this window. |
-| `frontend_route_inventory.py:73` `30.days` | **SLIDING, left** | A rolling 30 days is the intended semantics. Mentioned in **0** files outside this step's own artifacts, so no count from it is load-bearing. It *does* print per-route figures — they are simply never quoted as evidence. |
+| `frontend_route_inventory.py:73` `30.days` | **SLIDING, left** | A rolling 30 days is the intended semantics, so the window stays. **Its figures HAVE been quoted as evidence** — measured over the whole `handoff/` tree, **49** files mention it, and an archived `experiment_results.md` uses its counts as success criteria (`usage_source: git_activity_30d`, `every_route_has_usage_count \| PASS (12/12 integer opens_30d)`). Those figures are unreproducible (the window has slid months past them) and inert (closed step, nothing live depends on them). `quoted_as_evidence: True, mentions_reviewed: 49`. |
 | `verify_decision_log_86_97.py:360` `{first_stamp}` | **runtime-derived, allowed** | Figures **are** derived and **are** quoted — but each is quoted with the clock time it was taken at, and the checker asserts a *relationship*, never a pinned number. Upper bound floats with HEAD by design. |
 | `replay_changelog_rule_86_68.py:114` `{CORPUS_SINCE}` | **was SLIDING → FIXED** | The TZ-naive pin. Corrected to `...Z`; figures unchanged. |
 
@@ -301,7 +314,7 @@ off — which is also why the guard is an allowlist rather than a ban.
 ## G. NO REGRESSION (criterion 7)
 
 ```
-verify_no_sliding_windows_86_94.py   ALL GREEN: 37 passed, 0 failed
+verify_no_sliding_windows_86_94.py   ALL GREEN: 45 passed, 0 failed
 verify_changelog_flip_86_91.py       ALL GREEN: 42 passed, 0 failed
 verify_workflow_args_boundary.mjs    ALL GREEN: 96 passed, 0 failed
 immutable command                    green

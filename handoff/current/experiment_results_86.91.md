@@ -74,7 +74,7 @@ bump. The magnitude rules (major/minor/patch) are untouched.
 
 ```
 $ python scripts/qa/replay_changelog_rule_86_68.py
-corpus: 707 commits in [2026-08-11T00:00:00 .. 8dc70502 = 8dc70502]
+corpus: 707 commits in [2026-08-11T00:00:00Z .. 8dc70502 = 8dc70502]
         BOTH ENDS PINNED -- a bare --since date slides with the clock AND an
         unpinned upper bound slides with HEAD; every count below is quoted
         against the endpoint printed above.
@@ -138,12 +138,12 @@ exactly the four commits that landed in between. `CORPUS_UNTIL = None` pinned on
 the **lower** bound while the upper bound still floated with HEAD. In a step whose
 whole finding is *"that is a number about a clock"*, I fixed one end and claimed
 I had fixed both. The replay now pins **both** ends --
-`CORPUS_SINCE = "2026-08-11T00:00:00"`, `CORPUS_UNTIL = "8dc70502"` (overridable
+`CORPUS_SINCE = "2026-08-11T00:00:00Z"`, `CORPUS_UNTIL = "8dc70502"` (overridable
 via the environment) -- and prints the resolved endpoint, so no count is ever
 quoted without the window it was measured against.
 
 The reproducible figures are **707 / 251 / 9 / 11** over
-`[2026-08-11T00:00:00 .. 8dc70502]`, verified by running the script twice and
+`[2026-08-11T00:00:00Z .. 8dc70502]`, verified by running the script twice and
 diffing the output: identical. Reporting "348" would have been reporting a number
 I could not reproduce; reporting "706 ... next month" was reporting one I could
 not reproduce *either*, for a subtler reason. *(Corrected phase-86.94: that claim was TZ-DEPENDENT when written. `2026-08-11T00:00:00` is a TZ-LOCAL timestamp, so the same both-ends-pinned command measured 707 under Europe/Oslo, UTC and America/New_York but **787** under Asia/Seoul -- an 80-commit spread decided by `$TZ`. `CORPUS_SINCE` is now `2026-08-11T00:00:00Z`; the figures are UNCHANGED on this machine (707 / 251 / 9 / 11, exit gate green) and are now identical in every timezone. Pinning both ends was necessary and was not sufficient.)*

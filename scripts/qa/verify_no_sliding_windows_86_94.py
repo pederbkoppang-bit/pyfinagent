@@ -92,7 +92,13 @@ def check(name: str, cond: bool, detail: str = "") -> bool:
 # verbatim in this step's own audit_basis, which makes the omission a recall
 # failure rather than a scope choice.
 WINDOW_OPTS = r"--(?:since|until|after|before)(?:-as-filter)?"
-WINDOW_RE = re.compile(WINDOW_OPTS + r"[=\s]")
+# `[=\s]` alone misses the repo's DOMINANT idiom:
+#     subprocess.run(["git", "log", "--since", "2026-08-11"])
+# There the option is followed by a QUOTE, not `=` or whitespace, so the
+# line never matched at all -- the site was INVISIBLE, and the fail-closed
+# <unparsed> path never fired. The subject script builds its own args this
+# way (replay_changelog_rule_86_68.py:114) and so does this checker.
+WINDOW_RE = re.compile(WINDOW_OPTS + r"([=\s]|[\"']\s*,)")
 # Two spellings: `--since=VALUE` and `--since VALUE` (separate argv element or
 # separate token). Both are captured; anything the pattern cannot parse is
 # reported as UNPARSED and FAILS, never skipped -- see scan_text.
@@ -111,6 +117,8 @@ VALUE_EQ_RE = re.compile(WINDOW_OPTS + r"=(?P<v>[^\"'\s,)\]]+)")
 # `=` form -- the spelling every site in this repo actually uses -- remains
 # fail-closed on an unparsed value.
 VALUE_SP_RE = re.compile(WINDOW_OPTS + r"\s+[\"']?(?P<v>[^\"'\s,)\]]+)")
+# argv-list: "--since", "2026-08-11"  /  '--after' , '30.days'
+VALUE_ARGV_RE = re.compile(WINDOW_OPTS + r"[\"']\s*,\s*[\"'](?P<v>[^\"']+)[\"']")
 PLAUSIBLE_VALUE = re.compile(
     r"^(\d{4}-\d{2}-\d{2}([T ]\d{2}:\d{2}:\d{2}\S*)?|@\d+|today|midnight|yesterday|now"
     r"|\d+\.\w+|[{$]\{?[A-Za-z_][A-Za-z0-9_]*\}?)$")
@@ -119,6 +127,9 @@ PLAUSIBLE_VALUE = re.compile(
 def window_value(line: str):
     """(value, parsed_ok). `=` form is unconditional; space form is filtered."""
     m = VALUE_EQ_RE.search(line)
+    if m:
+        return m.group("v"), True
+    m = VALUE_ARGV_RE.search(line)
     if m:
         return m.group("v"), True
     m = VALUE_SP_RE.search(line)
@@ -154,13 +165,13 @@ SELF_REL = "scripts/qa/verify_no_sliding_windows_86_94.py"
 # Keyed on (path suffix, value). A relative window is permitted ONLY with a
 # reason, and the reason has to say why a REPRODUCIBLE form would be wrong --
 # not merely that the current form is convenient.
-ALLOWLIST = {
+ALLOWLIST_REASONS = {
     ("backend/slack_bot/scheduler.py", "midnight"): (
         "LEGITIMATELY RELATIVE. This builds the Slack 'shipped today' digest. A "
         "report about TODAY must move with today; pinning it would freeze the "
-        "digest to one date and is straightforwardly wrong. No figure derived "
-        "from it is quoted in any criterion, audit_basis, handoff artifact or "
-        "the CHANGELOG as EVIDENCE -- it is a chat message, regenerated every "
+        "digest to one date and is straightforwardly wrong. The NAME is quoted "
+        "widely, but no COUNT produced by this window is quoted as evidence "
+        "-- it is a chat message, regenerated every "
         "run. MEASURED: the name does appear in CHANGELOG.md and the "
         "masterplan, but every hit is descriptive (an em-dash cleanup, an "
         "APScheduler job description, a different scheduler at :761-795); "
@@ -195,6 +206,28 @@ ALLOWLIST = {
         "correct statement is 'quoted, unreproducible, and inert', not 'never "
         "quoted'."),
 }
+
+# THE JUDGEMENT IS A STRUCTURED COMMITMENT, NOT A SENTENCE.
+#
+# Cycle 2 checked criterion 4 by looking for the word "quoted" in the entry.
+# That predicate passed for the TRUE entry, for the FALSE entry it replaced, and
+# for the sentence "never quoted as evidence" -- it proved a sentence had been
+# written, never that it was true, which is how a falsified claim survived into
+# the live_check. Cycle 3's first replacement was worse: a deny-list of phrases
+# fired on the entry's own REJECTION of one ("...not 'never quoted'"), i.e. the
+# probe matched its own correction.
+#
+# So the claim is now DATA. `quoted_as_evidence` is an explicit bool, and
+# `mentions_reviewed` pins the mention count the author actually looked at. If
+# the corpus drifts, the count stops matching and the judgement RE-OPENS instead
+# of ageing silently into a false statement. A bool cannot be satisfied by
+# vocabulary.
+ALLOWLIST_CLAIMS = {
+    "backend/slack_bot/scheduler.py": {"quoted_as_evidence": False, "mentions_reviewed": 282},
+    "scripts/qa/verify_decision_log_86_97.py": {"quoted_as_evidence": True, "mentions_reviewed": 6},
+    "scripts/harness/frontend_route_inventory.py": {"quoted_as_evidence": True, "mentions_reviewed": 49},
+}
+ALLOWLIST = ALLOWLIST_REASONS
 
 # ── KNOWN MEMBER (criterion 3): a scan that cannot find this FAILS ───────────
 # The pre-86.91 form of the replay is recoverable from git and is the canonical
@@ -314,8 +347,21 @@ def scan_text(rel: str, text: str) -> list[tuple[str, int, str, str, str]]:
     through the SAME code path the shipped enumeration uses."""
     found = []
     if True:
-        for i, line in enumerate(strip_docstrings(text).splitlines(), 1):
+        _lines = strip_docstrings(text).splitlines()
+        for i, line in enumerate(_lines, 1):
             if is_prose(line) or not WINDOW_RE.search(line):
+                continue
+            # THE CLASS IS *GIT* REVISION-RANGE WINDOWS. Widening the option
+            # pattern to the argv-list form made it match `argparse`
+            # definitions too -- `ap.add_argument("--before", default=None)` is a
+            # CLI flag for a non-git tool, not a window. A window site must
+            # therefore have `git` in view: same line, or within the 3 lines
+            # above, which covers a multi-line argv list without swallowing an
+            # argparse block.
+            # RESIDUAL, STATED: a git argv list that spreads the word "git" more
+            # than 3 lines above its window option is not matched.
+            _ctx = "\n".join(_lines[max(0, i - 4):i])
+            if "git" not in _ctx:
                 continue
             raw, _parsed = window_value(line)
             if raw is None:
@@ -487,11 +533,23 @@ for (_path_suffix, _val), _entry in ALLOWLIST.items():
               if _name in text and SELF not in rel]
     print(f"       {_name}: mentioned outside this step's own artifacts in "
           f"{len(_sites)} file(s)" + (": " + ", ".join(_sites[:4]) if _sites else ""))
-    check(f"[3b] {_name}: its allowlist entry states an explicit criterion-4 "
-          "judgement about quoted figures",
-          ("Criterion 4" in _entry) or ("quoted" in _entry),
-          "the entry does not say whether any figure from this member was ever "
-          "quoted as evidence -- criterion 4 requires the judgement STATED, not silent")
+    _claim = ALLOWLIST_CLAIMS.get(_path_suffix)
+    check(f"[3b] {_name}: the criterion-4 judgement is a STRUCTURED claim, not a "
+          "sentence (quoted_as_evidence is an explicit bool)",
+          isinstance(_claim, dict) and isinstance(_claim.get("quoted_as_evidence"), bool),
+          "no machine-readable claim -- a prose predicate is satisfiable by vocabulary "
+          "and cannot be contradicted by the measurement")
+    if isinstance(_claim, dict):
+        check(f"[3b] {_name}: mentions_reviewed matches the measured count, so a "
+              "drifting corpus RE-OPENS the judgement instead of ageing into a "
+              "false statement",
+              _claim.get("mentions_reviewed") == len(_sites),
+              f"entry pins mentions_reviewed={_claim.get('mentions_reviewed')} but the "
+              f"scan measured {len(_sites)} -- re-review the sites and re-state the "
+              "judgement rather than bumping the number")
+    check(f"[3b] {_name}: the entry carries a stated REASON",
+          len(_entry) > 80,
+          "an allowlist entry without a stated reason is a silent exemption")
 
 # ── [4] MUTATION -- the guard must go RED on a NEW sliding window (criterion 6)
 #
@@ -513,6 +571,12 @@ INJECTIONS = [
     # (`--after`, `--before`, now-relative arithmetic) are named VERBATIM in this
     # step's own audit_basis -- so their absence was a recall failure against the
     # step's own filing, not a scope choice. They are cells now.
+    ("argv-list-form", 'subprocess.run(["git", "log", "--since", "2026-08-11"])',
+     ("the ARGV-LIST spelling -- the repo's dominant git idiom, which the "
+      "option regex missed entirely because a QUOTE follows the option name, "
+      "so the site was INVISIBLE and the fail-closed path never fired")),
+    ("argv-list-after", 'subprocess.run(["git", "log", "--after", "30.days"])',
+     "the argv-list spelling of the --after synonym"),
     ("after-synonym", 'sh("git", "log", "--after=2026-08-11")',
      "`--after`, an EXACT synonym of --since (measured: same --max-age)"),
     ("before-synonym", 'sh("git", "log", "--before=2026-08-11")',
@@ -569,7 +633,10 @@ check("[4] SHELL: a window in a `#` comment is not reported as a site",
 
 # The comment-stripper, in BOTH directions. Without this the scan could be
 # silently matching nothing, or silently matching prose.
-_prose = '# the defect was `--since=2026-08-11`, a bare date\n'
+# The fixture must mention `git`, because a window site now requires git in
+# view (see scan_text). A fixture that cannot satisfy the rule's own
+# precondition tests nothing -- caught when the proximity rule landed.
+_prose = '# the defect was `git log --since=2026-08-11`, a bare date\n'
 check("[4] STRIPPER: a window quoted in PROSE is not reported as a site",
       not scan_text("x.py", _prose),
       "the scanner matches its own documentation -- it will report defects that "

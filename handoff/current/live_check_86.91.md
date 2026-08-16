@@ -39,7 +39,7 @@ Rows through 2026-08-15; newest version header dated 2026-08-14.
 
 ```
 $ python scripts/qa/replay_changelog_rule_86_68.py
-corpus: 707 commits in [2026-08-11T00:00:00 .. 8dc70502 = 8dc70502]
+corpus: 707 commits in [2026-08-11T00:00:00Z .. 8dc70502 = 8dc70502]
         BOTH ENDS PINNED -- a bare --since date slides with the clock AND an
         unpinned upper bound slides with HEAD; every count below is quoted
         against the endpoint printed above.
@@ -76,7 +76,7 @@ $ git log --since=2026-08-11 --format=%H | wc -l            # 09:56
      621
 $ git log --since=2026-08-11 --format=%H | wc -l            # 10:17, same command
      592
-$ git log --since=2026-08-11T00:00:00 --format=%H | wc -l
+$ git log --since=2026-08-11T00:00:00Z --format=%H | wc -l
      706
 ```
 
@@ -87,7 +87,7 @@ sits near `2026-08-11 09:00Z` (343 commits measured there) -- consistent with a
 sliding window and with nothing else.
 
 The immutable criterion is not amended. It is answered on a corpus **pinned at
-BOTH ends** -- `CORPUS_SINCE = "2026-08-11T00:00:00"` and
+BOTH ends** -- `CORPUS_SINCE = "2026-08-11T00:00:00Z"` and
 `CORPUS_UNTIL = "8dc70502"` -- and the drift is reported rather than smoothed away.
 
 **Cycle-2 correction.** Pinning only `CORPUS_SINCE` fixed the lower bound while

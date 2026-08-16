@@ -49,7 +49,7 @@ sit relative to the sliding band.
 
 ## The guard
 
-`scripts/qa/verify_no_sliding_windows_86_94.py`, 37 assertions, exit 0.
+`scripts/qa/verify_no_sliding_windows_86_94.py`, 45 assertions, exit 0.
 
 - **Known-member recall is a hard gate.** The rule must find the pre-86.91 form
   of the replay, recovered from git at `06c3265f`, and classify it SLIDING. If
@@ -143,7 +143,7 @@ today and would have stayed green through every defect this step is about. It
 cannot fail on the class. The real evidence is in `live_check_86.94.md`.
 
 ```
-verify_no_sliding_windows_86_94.py   ALL GREEN: 37 passed, 0 failed   (exit 0)
+verify_no_sliding_windows_86_94.py   ALL GREEN: 45 passed, 0 failed   (exit 0)
 verify_changelog_flip_86_91.py       ALL GREEN: 42 passed, 0 failed
 verify_workflow_args_boundary.mjs    ALL GREEN: 96 passed, 0 failed
 ruff (default ruleset, new file)     All checks passed!
@@ -168,3 +168,57 @@ ruff (default ruleset, new file)     All checks passed!
   tell a quoted count from a descriptive mention; that is why it enforces a
   stated judgement instead of asserting absence, and why the mention sites are
   printed for an auditor rather than swallowed.
+
+---
+
+## Cycle-3 remediation (after a second FAIL)
+
+The cycle-2 Q/A returned FAIL again, and its central finding was that my
+**correction had accompanied rather than replaced** — the exact criterion I was
+enforcing, committed inside the step written to enforce it. Measured and
+confirmed by me before fixing:
+
+- `experiment_results_86.91.md:141` still asserted, in the present tense,
+  `CORPUS_SINCE = "2026-08-11T00:00:00"` while the shipped constant was
+  `...00Z`. My parenthetical sat below it; the false sentence remained.
+- `:146`, `live_check_86.91.md:90-91` and `harness_log.md:35558` carried the
+  naive window the same way.
+
+**All four are now REPLACED**, not annotated. The one verbatim capture among
+them (`experiment_results_86.91.md:77`) was **regenerated** rather than edited —
+the script now prints the `Z` form, so the capture is a fresh reading, not a
+retouched one.
+
+**Criterion 4 was inverted in the artifact that matters.** The corrected
+judgement landed in the source allowlist, while `live_check_86.94.md:262` — the
+file the masterplan's `live_check` field names — still carried the falsified
+"Mentioned in **0** files … never quoted as evidence". And §E's `[3b]` capture
+still showed the cycle-1 counts. My cycle-2 claim that "§C/§E/§G were
+regenerated" was true for two of three. Both are now replaced from the shipped
+run (`282 / 6 / 49`).
+
+**Criterion 6 — the argv-list form.** `subprocess.run(["git","log","--since","2026-08-11"])`
+is this repo's *dominant* git idiom, and the option pattern required `=` or
+whitespace immediately after the option name. With a quote there the line never
+matched at all, so the site was **invisible** and the fail-closed `<unparsed>`
+path never fired. Both argv spellings are cells now, and the widened rule
+immediately found a live site the old one missed.
+
+That widening had a consequence, disclosed rather than smoothed: it also matched
+`argparse` definitions (`ap.add_argument("--before", default=None)`), which are
+CLI flags for non-git tools. A window site now additionally requires `git` in
+view — same line or the three above, which covers a multi-line argv list without
+swallowing an argparse block. **Residual stated in source:** a git argv list that
+puts the word `git` more than three lines above its window option is not matched.
+
+**The criterion-4 predicate was token-satisfiable, and my first replacement was
+worse.** Checking for the word "quoted" passed for the true entry, the false one
+it replaced, *and* the sentence "never quoted as evidence". My first fix — a
+deny-list of phrases — then fired on the entry's own **rejection** of one of
+them ("…not 'never quoted'"), i.e. the probe matched its own correction. The
+judgement is now **data**: `quoted_as_evidence` is an explicit bool and
+`mentions_reviewed` pins the count actually reviewed, so a drifting corpus
+re-opens the judgement instead of ageing into a false statement. A bool cannot be
+satisfied by vocabulary.
+
+**37 → 45 assertions.**

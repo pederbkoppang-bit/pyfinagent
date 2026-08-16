@@ -67,8 +67,12 @@ midnight. That is a documentation-vs-behaviour gap, not a misreading.
 ### H2 — the phase-86.91 fix is INCOMPLETE, and this is design-deciding
 
 86.91 answered its criterion by pinning `CORPUS_SINCE = "2026-08-11T00:00:00"`.
-**A naive pinned timestamp is still TZ-local.** Measured on this repo, both ends
-pinned, varying only the machine timezone:
+**A naive pinned timestamp is still TZ-local.** Measured on this repo varying
+only the machine timezone. NOTE the two pairs measure different corpora and the
+label matters: the block below is the **open-ended** whole-history count (no
+upper bound), so it drifts with every new commit — measured 766/846 at the time
+of writing and 776/856 a few hours later. The **both-ends-pinned** pair, which is
+the one the replay actually uses, is a stable 707 (Oslo/UTC/NY) vs 787 (Seoul):
 
 ```
 Europe/Oslo        --since=2026-08-11T00:00:00 -> 766
