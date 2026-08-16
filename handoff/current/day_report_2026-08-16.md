@@ -1,6 +1,6 @@
 # Day report -- 2026-08-16 (autonomous session, alone until 18:00 Oslo)
 
-**28 commits, all pushed. Nothing flipped `done`. Two steps ESCALATED to you.**
+**33 commits, all pushed. Nothing flipped `done`. THREE steps ESCALATED to you.**
 
 ---
 
@@ -15,8 +15,8 @@ evaluators kept finding the next one a seam further in. Two steps hit the
 |---|---|---|---|
 | **86.90** `[object Object]` rail | 4 | `C,C,C,C` | **ESCALATED -- needs your call** |
 | **86.91** frozen CHANGELOG version | 4 | `C,C,C,C` | **ESCALATED -- needs your call** |
-| **86.88** lite seam routes | 4 | `C,C,C` + 1 in flight | in evaluation |
-| **86.89** coverage-gate blindness | 1 | in flight | in evaluation |
+| **86.88** lite seam routes | 4 | `C,C,C,C` | **ESCALATED -- joins the other two** |
+| **86.89** coverage-gate blindness | 2 | `C` + 1 in flight | in evaluation at session end |
 
 **`v6.93.222` is still the newest version header.** That is 86.91's defect,
 still visible, because the fix has not been allowed to close.
@@ -25,7 +25,8 @@ still visible, because the fix has not been allowed to close.
 
 ## 2. What needs your decision
 
-`handoff/current/escalation_86.90_86.91.md` is the written escalation. In short:
+`handoff/current/escalation_86.90_86.91.md` is the written escalation -- it now
+covers **86.90, 86.91 AND 86.88** (addendum). In short:
 
 **Both products are sound.** Every immutable criterion of both steps was graded
 MET by four independent evaluators, each re-deriving rather than reading. The
@@ -174,3 +175,53 @@ day report was not the place to estimate.)*
 
 The two escalated steps account for roughly half of that, which is itself an
 argument for the F1 rule I applied rather than a reason to regret it.
+
+---
+
+## 9. Late additions (after §1-8 were written)
+
+**86.88 ESCALATED.** Cycle 4 returned CONDITIONAL -> `[C,C,C,C]`, so F1 applied
+there too. It is materially different from the other two and the addendum says
+so: **its open finding 1 is a real gap at a production expression**, not
+guard-coverage. The class-wide exactness guard is bound to the helper rather than
+to the call site or its argument, so a judge emitting the default values plus its
+own reasoning would be persisted as "produced nothing". Bounded (other tests
+drive that expression at point inputs) but real. **And my own `known_weak_point 3`
+-- claiming the runtime guard covered the intermediate-alias case -- was measured
+FALSE.**
+
+The process finding I most want on the record: **in cycle 3 I built a
+regeneration script specifically to stop `live_check` going stale, then did not
+run it in cycle 4** -- the identical class cycle 3 was CONDITIONAL for. I
+regenerated it before escalating, and it now states plainly that its sections 4-5
+still quote the cycle-3 matrix rather than being tidied to look consistent.
+
+**86.89 reached cycle 2 with all six cycle-1 findings closed.** Two of them are
+worth carrying forward:
+
+- The **cardinality floor catches a DELETED assertion but never a NEUTERED one**
+  -- a condition replaced by `True` leaves the count at 8/8 and prints ALL GREEN
+  over a genuinely red state. Closed with a `--self-test` that drives the checker
+  against known-bad states; both of the Q/A's neutering mutants now kill there
+  while a normal run still shows green, which is exactly the gap.
+- The baseline was **id-keyed with nothing binding an id to its content**, so
+  repurposing `M6` -- the ordering cell, the defect that opened this series -- to
+  a benign no-op survived with byte-identical GREEN output. Now fingerprinted.
+
+Its cycle-2 verdict was still in flight at session end. **Read
+`handoff/current/evaluator_critique_86.89.md` before touching it.**
+
+**A ninth entry for §5**, from 86.89: my first fingerprint set was written from
+the step's prose and **four of five did not match the file**. Same
+assert-instead-of-measure habit, third instance in one day.
+
+## 10. Final counts, measured
+
+```
+commits this session          : 33
+masterplan steps filed        : 6   (86.92 - 86.97)
+masterplan steps flipped done : 0
+Q/A spawns                    : 16
+research gates                : 5   (all PASSED)
+probe runs                    : 1
+```
