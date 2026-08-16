@@ -35637,3 +35637,56 @@ Corrected the checker's false "read-only" docstring and the [6] over-claim.
 Ruled in the author's favour: criterion 5's named ast.Try shape IS caught by the
 shipped mechanism -- the Q/A built it and measured it; only the demonstration was
 missing.
+
+## Cycle 228 -- 2026-08-16 -- phase=86.92 result=PASS
+
+**A dead gate restored -- and the filed cause was wrong.**
+
+RESEARCH: gate PASSED (enforced, `wf_2ee79ffe-d4f`): 7 sources read in full, 22
+URLs, recency scan corroborated, 0 violations, self-report agreed. The researcher
+independently reached the same cause Main did, from a different starting point.
+
+THE FINDING. `verify_workflow_args_boundary.mjs` -- the ONLY checker driving the
+args boundary of BOTH Layer-3 scripts -- had been RED for **6d12h**. The
+masterplan, the step title and the night goal all attributed it to a stale
+on-disk brief (`research_brief_86.17.md`) and to phase-86.37. **Both false**,
+established by execution:
+
+- `enforceGate` is pure and never opens that brief; `brief_path` is an inert
+  string it interpolates into the message. Control: a NONEXISTENT path yields
+  byte-identical violations. One of the three failing cells used `brief_path:
+  'p'`, never a file at all.
+- The real stale fixture was the checker's OWN hand-written `verification`
+  literal (cloned twice), supplying 4 of the 9 fields the schema requires.
+- Bisected in real worktrees: GREEN at `089726f9` (08-10 08:27), RED at
+  `cad38647` (**phase-86.6**, 08:51). phase-86.37 joined an already-red gate.
+
+WHY IT MATTERED MORE THAN AN EXIT CODE. The rot had made mutation cell `[4]
+drop-blind-violation` **non-discriminating** -- false with the guard present AND
+absent. It had silently stopped being a mutation test.
+
+THE FIX. Fixture derived from `BRIEF_VERIFICATION_SCHEMA.required` (reached by
+appending an export to a stripped COPY -- `research-gate.js` untouched, rail R5),
+plus canary assertions so the next added field fails ONE named assertion in ONE
+place. `FAILED: 84 passed, 3 failed` -> `ALL GREEN: 96 passed, 0 failed`.
+Unblocks **86.23**, whose immutable command is this checker (exit 1 -> 0).
+
+CYCLE 1 = CONDITIONAL, and it was right: **my own positive control could not
+fail.** I injected the poison comment immediately BEFORE the slice START anchor,
+so it landed outside the scanned region -- while the comment above it asserted
+"A control that cannot fail is not a control". Fixed as a scan-vs-scan
+differential with the poison inside the region.
+
+CYCLE 2 = PASS, `violated_criteria: []`. The evaluator ran the differential that
+makes this a fix rather than a re-judgment: the SAME mutant SURVIVES against
+cycle-1 and KILLS against cycle-2. 13-cell independent mutation matrix, all kill.
+
+QUEUED, not fixed inline (tree frozen at EVALUATE): **86.101** (the `-1` sentinel
+is deliberate, but its rendering states a measurement of the brief that was never
+taken -- likely how this step was filed against the wrong artifact) and
+**86.102** (the control exercises only 1 of the stripper's 2 operations; the
+block-strip mutant survives -- equivalent today, reachable by one ordinary
+documentation edit).
+
+Attempts: 2 of the night's cap of 3. Tokens: 190,482 (research) + 224,595
+(cycle-1 Q/A) + 220,929 (cycle-2 Q/A).

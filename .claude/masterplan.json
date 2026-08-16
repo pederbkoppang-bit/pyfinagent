@@ -25812,7 +25812,7 @@
         {
           "id": "86.92",
           "priority": "P1",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "name": "the args-boundary checker has been RED since phase-86.37 for an unrelated reason -- verify_workflow_args_boundary.mjs asserts a 'healthy run' against a phase-86.17-era brief that predates the born-inert brief_status marker, so a gate covering BOTH Layer-3 scripts has been failing unnoticed",
           "audit_basis": "FOUND BY MAIN during phase-86.90 and PROVEN NOT to be caused by that change -- and the PROOF WAS CORRECTED 2026-08-16 before any work began on this step. The original justification was `git worktree add --detach <path> HEAD`, which does NOT establish it: HEAD already CONTAINS the 86.90 commit a21a5889, so a worktree at HEAD excludes only UNCOMMITTED edits. Caught by the phase-86.90 cycle-2 Q/A. The evidence that DOES establish it, re-measured: `git log -S'carries NO brief_status marker' -- .claude/workflows/research-gate.js` returns a single commit d3bb1dfb dated 2026-08-10 (phase-86.37); the fixture it is asserted against, handoff/current/research_brief_86.17.md, is dated 2026-08-09 and `grep -c brief_status` on it returns 0, so it predates the requirement by a day; and `git diff a21a5889 98c5b6ab -- .claude/workflows/research-gate.js | grep -c enforceGate` returns 0, with the single occurrence in the cycle-1 diff being a hunk HEADER (`@@ ... function enforceGate`), i.e. context rather than a change. The working tree reports `FAILED: 84 passed, 3 failed`, reproduced. The three failures are: `[3] a healthy run with a perfect envelope PASSES`, `[3] no regression: enforceGate without inputHealth behaves as before`, and `[4] drop-blind-violation: KILLED (a blind run would pass without it)`. CAUSE, from the failure text itself: section [3] builds a 'perfect envelope' pointing at `handoff/current/research_brief_86.17.md` and drives the REAL `enforceGate` against it. That brief is 48,230 bytes dated 2026-08-09 and predates phase-86.37 (2026-08-15), which made a born-inert `brief_status` marker MANDATORY and added a recency-section structural check and a distinct-URL corroboration. enforceGate now reports `carries NO brief_status marker`, `carries NO dedicated recency-scan section`, and `urls_collected=40 but only -1 distinct URLs appear in the brief` -- note the `-1`, which is itself suspicious and should be diagnosed rather than assumed cosmetic. WHY THIS MATTERS: this is the ONLY checker that drives the args boundary of BOTH Layer-3 workflow scripts, and its sections [1] REPRODUCE, [4] MUTATION and [5] FULL DRIVER are the mutation coverage for the phase-86.17 guards. A checker that exits 1 for an unrelated reason is indistinguishable from a checker that exits 1 because a guard broke -- so it can no longer signal, and 86.90 had to prove its own innocence with a worktree rather than by reading a green gate. A gate that is red for a reason nobody acts on is a DEAD gate, which is this series' recurring failure class.",
@@ -25829,7 +25829,8 @@
             "command": "bash -c 'node --check scripts/qa/verify_workflow_args_boundary.mjs && echo parses'",
             "live_check": "live_check_86.92.md carrying the pristine-HEAD worktree reproduction, the localised failing assertion, the -1 explanation, and the post-fix exit-0 plus surviving mutation cells"
           },
-          "notes": "Filed 2026-08-16 by Main during 86.90. Sibling of the 86.90/86.91 pair: all three are gates that stopped signalling without anyone noticing. Related memory: feedback_a_zero_assertion_guard_passes_vacuously, feedback_suspect_the_clean_check (this is its mirror -- a check red for the wrong reason)."
+          "notes": "Filed 2026-08-16 by Main during 86.90. Sibling of the 86.90/86.91 pair: all three are gates that stopped signalling without anyone noticing. Related memory: feedback_a_zero_assertion_guard_passes_vacuously, feedback_suspect_the_clean_check (this is its mirror -- a check red for the wrong reason).",
+          "retry_count": 2
         },
         {
           "id": "86.101",
@@ -25850,6 +25851,27 @@
             "live_check": "live_check_86.101.md showing, from a driven enforceGate, the before/after violation text for an ABSENT count AND for a genuinely-short brief, plus the sibling audit of every n() consumer"
           },
           "notes": "Filed 2026-08-16 by Main during phase-86.92, criterion 2 ('either the sentinel is deliberate and documented, or it is a second defect and is filed as such' -- the answer measured was BOTH: the sentinel is deliberate, its rendering is a defect). Do NOT start while a rail forbids editing research-gate.js. Related memory: feedback_a_provenance_fix_that_only_logs, feedback_recording_an_absence_as_a_value_can_invert_a_rule."
+        },
+        {
+          "id": "86.102",
+          "priority": "P3",
+          "status": "pending",
+          "harness_required": true,
+          "name": "the fixture-canary positive control exercises only ONE of the comment-stripper's two operations: neutering the block-comment strip alone leaves verify_workflow_args_boundary.mjs ALL GREEN",
+          "audit_basis": "FOUND AND MEASURED by the phase-86.92 cycle-2 Q/A (wf_84259174-9cd, NOTE-1) in a verdict that was otherwise a clean PASS, and filed rather than fixed inline because 86.92's tree was frozen at EVALUATE. THE DEFECT: verificationFieldsRead() strips comments with TWO operations -- a block strip (`/* */`) and a line strip (`//`) -- but the positive control added in 86.92 cycle 2 injects only a LINE comment. Neutering ONLY the block-strip therefore leaves the checker ALL GREEN; the control cannot see it. THE MUTANT IS EQUIVALENT TODAY, AND THAT WAS MEASURED RATHER THAN ASSUMED: all four scan variants (both strips / line-only / block-only / no strip) and even a whole-file scan return the identical 7-field set, because there are ZERO block comments inside the enforceGate region. REACHABILITY WAS ESTABLISHED BY A 2-FACTOR EXPERIMENT rather than argued: inject `/* doc: verification.__docOnlyField__ ... */` into enforceGate and the checker stays GREEN with the stripper intact, but goes RED with 2 cells naming __docOnlyField__ once the block-strip is neutered. So the block-strip becomes load-bearing the moment such a comment exists, and its failure mode is a FALSE RED -- the checker would demand a fixture field that enforceGate never reads, which is the exact class phase-86.92 exists to kill. Note research-gate.js is dense with block comments elsewhere; only the enforceGate region happens to be free of them today, so this is one ordinary documentation edit away from firing.",
+          "verification": {
+            "success_criteria": [
+              "the gap is REPRODUCED first: neuter ONLY the block-comment strip and show the checker still exits 0, with the control cells still green -- an assertion that the mutant survives, not a reading of the source",
+              "the equivalence is re-measured at execution time rather than carried over from the 86.92 verdict: show that the block-strip is inert on TODAY's enforceGate region (identical field sets across scan variants) and state that this is a property of the current source, not of the design",
+              "reachability is proven by the 2-factor experiment, not asserted: with a block comment naming a bogus field present, the checker must be GREEN with the stripper intact and RED with the block-strip neutered, and the RED must name the bogus field",
+              "each strip operation is controlled SEPARATELY after the fix -- a single control covering two operations cannot see a regression in one of them; mutating each operation individually must fail a distinct, NAMED assertion",
+              "the fix does not weaken the existing line-comment control: mutants M1/M3/M4 from the 86.92 cycle-2 matrix (poison at the slice START, both-strips inert, line-strip inert) must still KILL",
+              "verdict semantics and masterplan state are UNCHANGED: nothing here may flip a step or alter a verdict"
+            ],
+            "command": "bash -c 'node --check scripts/qa/verify_workflow_args_boundary.mjs && node scripts/qa/verify_workflow_args_boundary.mjs'",
+            "live_check": "live_check_86.102.md carrying the surviving block-strip-only mutant BEFORE the fix, the re-measured equivalence, the 2-factor reachability experiment, and the post-fix per-operation kills"
+          },
+          "notes": "Filed 2026-08-16 by Main immediately on receiving the 86.92 cycle-2 PASS. Sibling of 86.101 (also raised during 86.92). The Q/A's own suggested remedy: inject the poison as a block comment as well, or assert each strip operation separately. Related memory: feedback_mutate_each_duplicated_site_individually, feedback_guards_stop_one_seam_short, feedback_control_injected_outside_the_region_it_controls."
         },
         {
           "id": "86.93",
