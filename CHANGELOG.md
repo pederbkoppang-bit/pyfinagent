@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-17 | `964b0255` | phase-86.94: PARK at the cap -- R2 circuit breaker tripped, step work stops |
 | 2026-08-17 | `d6c732b7` | phase-86.94: cycle-3 -- my correction accompanied instead of replacing |
 | 2026-08-17 | `379be687` | phase-86.94: cycle-2 -- five mutants survived, three named in my own audit_basis |
 | 2026-08-16 | `b3df71f6` | phase-86.94: correct the stale assertion counts and record the three self-found defects |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-16 | `28ac5bd8` | chore(masterplan): file 86.98-86.100 -- harness-loop termination, from the 2026-08-16 measurement |
 | 2026-08-16 | `507974b3` | docs(session): correct a stale STATE line in the 08-17 goal |
 | 2026-08-16 | `20623492` | docs(session): record the 86.89 FAIL and the reverted repo-write hazard |
-| 2026-08-16 | `c2e7b264` | phase-86.89 cycle 2: FAIL -- revert a repo-write hazard I introduced, correct two false claims |
 
 ---
 
