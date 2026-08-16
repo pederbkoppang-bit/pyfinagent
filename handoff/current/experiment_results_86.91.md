@@ -152,7 +152,10 @@ not reproduce *either*, for a subtler reason. *(Corrected phase-86.94: that clai
 "592 / 196 / 5 / 7" (10:17), "706 / 250 / 9 / 11" (10:22, lower bound pinned only)
 and the Q/A's "710 / 252 / 9 / 11" (~12:30) were ALL products of a sliding window
 -- the first two at the lower end, the last two at the upper. **707 / 251 / 9 / 11
-over `[2026-08-11T00:00:00 .. 8dc70502]` supersedes every one of them.** The
+over `[2026-08-11T00:00:00Z .. 8dc70502]` supersedes every one of them.** *(The
+window carries a `Z` here because phase-86.94 found a THIRD end: the naive
+`2026-08-11T00:00:00` was TZ-LOCAL and measured 787 under Asia/Seoul against 707
+under Oslo/UTC/New York. Same figures, now timezone-invariant.)* The
 superseded figures are listed here only so the drift is visible; each is a
 measurement of a different corpus, not a disagreement about the same one.
 
@@ -316,7 +319,7 @@ and fixed; the evidence changed, so a FRESH Q/A is spawned.
 
 | # | Finding | What changed |
 |---|---|---|
-| **W1** | "Anyone re-running it gets 706 / 250 / 9 / 11, today and next month" did NOT reproduce -- the Q/A measured **710 / 252** two hours later, because `CORPUS_UNTIL = None` pinned only the LOWER bound | `CORPUS_UNTIL` is now pinned to `8dc70502` (env-overridable) and the resolved endpoint is PRINTED, so no count is quoted without its window. New figures **707 / 251 / 9 / 11**, verified by running the script twice and diffing: identical. Every superseded figure is listed and REPLACED in both artifacts |
+| **W1** | "Anyone re-running it gets 706 / 250 / 9 / 11, today and next month" did NOT reproduce (and phase-86.94 later found the *lower* bound was TZ-local too: 707 Oslo/UTC/NY vs 787 Seoul, now `Z`-qualified) -- the Q/A measured **710 / 252** two hours later, because `CORPUS_UNTIL = None` pinned only the LOWER bound | `CORPUS_UNTIL` is now pinned to `8dc70502` (env-overridable) and the resolved endpoint is PRINTED, so no count is quoted without its window. New figures **707 / 251 / 9 / 11**, verified by running the script twice and diffing: identical. Every superseded figure is listed and REPLACED in both artifacts |
 | **W2** | Section `[5]`'s replay guards were pure substring scans; **both** of the Q/A's replay mutants SURVIVED at 24/24 green | The replay predicate is now **DRIVEN**: `newly_done_ids` is extracted by `ast` from the shipped file and its two arms must genuinely DISAGREE (`['86.86']` vs `[]`). Both cycle-1 survivors are now mutation cells and both **KILL** -- QA-11 (behaviour stripped, literal kept) and QA-12 (the defect **reworded**, which no literal scan can see) |
 | **W3** | `QA-1` SURVIVED: deleting the `masterplan_unreadable_at_HEAD` reason left the guard green, while the assertion is *named* "EVERY branch sets a reason" | The 4th branch is now DRIVEN, and the **denominator is DERIVED FROM SOURCE** -- the checker counts `return "none"` sites inside the shipped `_flip_magnitude` by AST (**4**) and requires that many distinct reasons observed. A future 5th branch with a LITERAL `return "none"` fails the check instead of slipping past it -- see the bound recorded below, which the cycle-2 Q/A measured in both directions. New mutation cell **M4** deletes that reason and is KILLED |
 

@@ -35554,7 +35554,7 @@ independently re-derived by three evaluators.
 
 Two states became three (CREATED / TRANSITIONED / ALREADY-done) with a PEP-661
 identity sentinel; no step id appears in the fix. Replay pinned at BOTH ends
-after a cycle-2 finding that pinning one end still slid: 707 / 251 / 9 / 11 over
+after a cycle-2 finding that pinning one end still slid: 707 / 251 / 9 / 11 over (phase-86.94: and a cycle-3 finding that pinning BOTH ends still slid ACROSS TIMEZONES -- 707 Oslo/UTC/NY vs 787 Seoul; the bound is now UTC-qualified and the figures are unchanged)
 [2026-08-11T00:00:00 .. 8dc70502], the +2 accounted member by member. Criterion 4
 closed with a decision log rather than a stderr line -- the `flip-detect FAILED`
 marker has never once fired in 976,895 bytes, and this is not a git hook so

@@ -64,7 +64,7 @@ literal is a no-op; bare `JSON.stringify` trades one silent loss for five).
 
 **86.91 -- diagnosis confirmed exactly as you filed it.** `86.86 before=None ->
 after=done`, shipped rule returns `[]`. Three-state membership test with a PEP-661
-sentinel; no step id in the fix. Replay pinned at both ends: **707 / 251 / 9 / 11**,
+sentinel; no step id in the fix. Replay pinned at both ends **and now in UTC**: **707 / 251 / 9 / 11**, *(phase-86.94: that pin was TZ-LOCAL -- the same both-ends-pinned command measured 707 under Oslo/UTC/New York and 787 under Asia/Seoul. `CORPUS_SINCE` now ends in `Z`; the figures are unchanged and are now identical in every timezone.)*
 the +2 accounted for member by member.
 
 **86.88 -- the caller-side mutant reproduced and is now killed on both routes.**

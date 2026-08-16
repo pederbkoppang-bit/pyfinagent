@@ -49,7 +49,7 @@ sit relative to the sliding band.
 
 ## The guard
 
-`scripts/qa/verify_no_sliding_windows_86_94.py`, 30 assertions, exit 0.
+`scripts/qa/verify_no_sliding_windows_86_94.py`, 37 assertions, exit 0.
 
 - **Known-member recall is a hard gate.** The rule must find the pre-86.91 form
   of the replay, recovered from git at `06c3265f`, and classify it SLIDING. If
@@ -97,7 +97,7 @@ sit relative to the sliding band.
 | member | class | judgement (measured) |
 |---|---|---|
 | `scheduler.py:503` `midnight` | LEGITIMATELY RELATIVE | Name appears in 37 files; every hit descriptive (em-dash cleanup, an APScheduler job description, a different scheduler at `:761-795`). No count from this window is quoted. |
-| `frontend_route_inventory.py:70,73` `30.days` | SLIDING, left | Mentioned in **0** files outside this step's artifacts. It *does* print per-route figures; they are never quoted as evidence. |
+| `frontend_route_inventory.py:73` `30.days` | SLIDING, left | **Corrected cycle 2:** its figures HAVE been quoted as evidence — an archived `experiment_results.md` uses them as success criteria. Quoted, unreproducible, and inert (closed step, nothing live depends on them), so the window is left but the judgement is no longer "never quoted". |
 | `verify_decision_log_86_97.py:360` `{first_stamp}` | runtime-derived, allowed | Figures **are** quoted — always with the clock time they were taken at, and the checker asserts a *relationship*, not a number. |
 | `replay_changelog_rule_86_68.py:114` `{CORPUS_SINCE}` | was SLIDING → **FIXED** | The TZ-naive pin. |
 
@@ -143,7 +143,7 @@ today and would have stayed green through every defect this step is about. It
 cannot fail on the class. The real evidence is in `live_check_86.94.md`.
 
 ```
-verify_no_sliding_windows_86_94.py   ALL GREEN: 30 passed, 0 failed   (exit 0)
+verify_no_sliding_windows_86_94.py   ALL GREEN: 37 passed, 0 failed   (exit 0)
 verify_changelog_flip_86_91.py       ALL GREEN: 42 passed, 0 failed
 verify_workflow_args_boundary.mjs    ALL GREEN: 96 passed, 0 failed
 ruff (default ruleset, new file)     All checks passed!

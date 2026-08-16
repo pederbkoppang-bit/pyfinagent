@@ -85,8 +85,48 @@ def check(name: str, cond: bool, detail: str = "") -> bool:
 # The rule is deliberately WIDER than "bare date": phase-86.91 pinned a naive
 # timestamp and believed it had closed this, so a rule that only caught bare
 # dates would have called that fix clean.
-WINDOW_RE = re.compile(r"--(?:since|until)(?:-as-filter)?[=\s]")
-VALUE_RE = re.compile(r"--(?:since|until)(?:-as-filter)?=(?P<v>[^\"'\s,)\]]+)")
+# `--after` and `--before` are EXACT synonyms of `--since` / `--until`
+# (git-log(1)); measured: `git rev-parse --after=2026-08-13` returns the same
+# --max-age as `--since=2026-08-13`. The first version of this rule named only
+# since/until, so both synonyms walked straight past it -- and both are named
+# verbatim in this step's own audit_basis, which makes the omission a recall
+# failure rather than a scope choice.
+WINDOW_OPTS = r"--(?:since|until|after|before)(?:-as-filter)?"
+WINDOW_RE = re.compile(WINDOW_OPTS + r"[=\s]")
+# Two spellings: `--since=VALUE` and `--since VALUE` (separate argv element or
+# separate token). Both are captured; anything the pattern cannot parse is
+# reported as UNPARSED and FAILS, never skipped -- see scan_text.
+VALUE_EQ_RE = re.compile(WINDOW_OPTS + r"=(?P<v>[^\"'\s,)\]]+)")
+# THE SPACE FORM IS AMBIGUOUS WITH ENGLISH and that is not hypothetical:
+# `print("... a bare --since date slides with the clock ...")` is executable
+# code, not a comment, so comment-stripping cannot save it, and an
+# unconditional space pattern captured the word "date" as a window value in
+# TWO tracked files. The `=` form has no such ambiguity and stays
+# unconditional. The space form therefore additionally requires the value to
+# LOOK like a window value.
+#
+# RESIDUAL, STATED: a space-separated window whose value matches none of the
+# known shapes is NOT detected. That is a deliberate trade against flooding
+# the gate with English false positives, which would get it switched off. The
+# `=` form -- the spelling every site in this repo actually uses -- remains
+# fail-closed on an unparsed value.
+VALUE_SP_RE = re.compile(WINDOW_OPTS + r"\s+[\"']?(?P<v>[^\"'\s,)\]]+)")
+PLAUSIBLE_VALUE = re.compile(
+    r"^(\d{4}-\d{2}-\d{2}([T ]\d{2}:\d{2}:\d{2}\S*)?|@\d+|today|midnight|yesterday|now"
+    r"|\d+\.\w+|[{$]\{?[A-Za-z_][A-Za-z0-9_]*\}?)$")
+
+
+def window_value(line: str):
+    """(value, parsed_ok). `=` form is unconditional; space form is filtered."""
+    m = VALUE_EQ_RE.search(line)
+    if m:
+        return m.group("v"), True
+    m = VALUE_SP_RE.search(line)
+    if m and PLAUSIBLE_VALUE.match(m.group("v")):
+        return m.group("v"), True
+    if m:
+        return None, None          # space form, English-looking -> prose
+    return "", False               # option present, value unparseable -> FAIL CLOSED
 
 UTC_QUALIFIED = re.compile(r"(Z$|[+-]00:?00$|^@\d+$)")
 NAIVE_TS = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$")
@@ -139,15 +179,21 @@ ALLOWLIST = {
         "than any pinned number. The upper bound floats with HEAD by design: "
         "the point is that the relationship holds as the repo grows."),
     ("scripts/harness/frontend_route_inventory.py", "30.days"): (
-        "SLIDING, JUDGED ACCEPTABLE AND LEFT. It answers 'which routes changed "
-        "recently' for an inventory report; a rolling 30 days is the intended "
-        "semantics. Criterion 4's test is whether a figure derived from it was "
-        "ever QUOTED as evidence. MEASURED: outside this step's own artifacts the "
-        "name appears nowhere in the masterplan, CHANGELOG or handoff tree, so "
-        "no count from it is load-bearing anywhere. NOTE the script DOES report "
-        "per-route figures in its own stdout -- they are simply never quoted as "
-        "evidence. Recorded rather than silently tolerated: if a count from this "
-        "script is ever quoted, this entry must be revisited."),
+        "SLIDING, AND ITS FIGURES HAVE BEEN QUOTED AS EVIDENCE -- corrected in "
+        "phase-86.94 cycle 2. A rolling 30 days is the intended semantics for a "
+        "'which routes changed recently' inventory, so the WINDOW is left as it "
+        "is. But my cycle-1 judgement -- that no figure from it was ever quoted "
+        "-- was FALSE, and it was false because the scan covered handoff/current "
+        "only. Measured over the whole handoff tree: 55 files mention it, and "
+        "handoff/archive/_quarantine_2026-04-21/phase-3.7.5-v22/experiment_results.md "
+        "quotes figures derived from this exact window AS SUCCESS-CRITERIA "
+        "EVIDENCE ('usage_source: git_activity_30d', '/portfolio 2 /login 1', "
+        "'every_route_has_usage_count | PASS (12/12 integer opens_30d)'). Those "
+        "figures are NOT regenerable -- the window has slid months past them. "
+        "They are in an ARCHIVED, closed step and nothing live depends on them, "
+        "which is why the window is still left rather than pinned; but the "
+        "correct statement is 'quoted, unreproducible, and inert', not 'never "
+        "quoted'."),
 }
 
 # ── KNOWN MEMBER (criterion 3): a scan that cannot find this FAILS ───────────
@@ -225,6 +271,14 @@ def strip_docstrings(text: str) -> str:
     for line in text.splitlines():
         if not in_block:
             hit = next((d for d in DOC_DELIMS if d in line), None)
+            # An ASSIGNED triple-quoted string is DATA, not a docstring, and it
+            # can be handed straight to subprocess. Blanking it created a false
+            # NEGATIVE that the H2 docstring fix itself opened: `CMD = """git log
+            # --since=<bare date>"""` disappeared from the scan. A docstring is a
+            # bare expression statement, so a line with `=` before the delimiter
+            # is not one.
+            if hit is not None and '=' in line.split(hit)[0]:
+                hit = None
             if hit is not None:
                 if line.count(hit) < 2:
                     in_block, delim = True, hit
@@ -263,9 +317,18 @@ def scan_text(rel: str, text: str) -> list[tuple[str, int, str, str, str]]:
         for i, line in enumerate(strip_docstrings(text).splitlines(), 1):
             if is_prose(line) or not WINDOW_RE.search(line):
                 continue
-            m = VALUE_RE.search(line)
-            raw = m.group("v") if m else ""
+            raw, _parsed = window_value(line)
+            if raw is None:
+                continue      # space form with an English-looking value: prose
             if not raw:
+                # FAIL CLOSED. The first version `continue`d here, which meant a
+                # window whose value the pattern could not parse was SILENTLY
+                # SKIPPED -- a fail-OPEN inside the module whose central claim is
+                # that it fails closed. Measured: `--since 2026-08-11` (space
+                # form) matched WINDOW_RE but not VALUE_RE, so it vanished.
+                found.append((rel, i, "<unparsed>", "SLIDING",
+                              ("a window option was found but its value could not be "
+                               "parsed -- failing closed rather than skipping")))
                 continue
             value, via = resolve(raw, text)
             verdict, reason = classify(value)
@@ -298,9 +361,12 @@ check("[1] the pre-86.91 blob is recoverable from git", blob.returncode == 0,
 
 if blob.returncode == 0:
     hits = []
-    for i, line in enumerate(blob.stdout.splitlines(), 1):
-        if WINDOW_RE.search(line) and (m := VALUE_RE.search(line)):
-            hits.append((i, m.group("v"), *classify(m.group("v"))))
+    for i, line in enumerate(strip_docstrings(blob.stdout).splitlines(), 1):
+        if is_prose(line) or not WINDOW_RE.search(line):
+            continue
+        val, _parsed = window_value(line)
+        if val:
+            hits.append((i, val, *classify(val)))
     check("[1] the rule FINDS a window site in the pre-86.91 blob", bool(hits),
           "the scan is blind to the very defect this step exists to close")
     sliding = [h for h in hits if h[2] == "SLIDING"]
@@ -368,7 +434,12 @@ for k, why in ALLOWLIST.items():
 print("\n[3b] CRITERION 4 -- do any quoted figures derive from a SLIDING member?\n")
 
 QUOTE_SURFACES = [".claude/masterplan.json", "CHANGELOG.md"]
-QUOTE_DIRS = ["handoff/current"]
+# THE WHOLE handoff TREE, not just current/. The first version scanned
+# handoff/current only, and on that evidence I recorded a judgement that was
+# measurably FALSE: an ARCHIVED experiment_results quotes figures from the
+# 30-day window as success-criteria evidence. A criterion-4 judgement is only
+# as good as the corpus it was taken over.
+QUOTE_DIRS = ["handoff"]
 
 
 def quote_corpus() -> str:
@@ -389,7 +460,7 @@ for _rel in QUOTE_SURFACES:
     if _p.exists():
         MENTIONS[_rel] = _p.read_text(encoding="utf-8", errors="replace")
 for _d in QUOTE_DIRS:
-    for _p in sorted((REPO / _d).glob("*.md")):
+    for _p in sorted((REPO / _d).rglob("*.md")):
         MENTIONS[str(_p.relative_to(REPO))] = _p.read_text(encoding="utf-8", errors="replace")
 
 check("[3b] the quote corpus is non-empty (an empty grep proves nothing)",
@@ -438,6 +509,25 @@ check("[4] CONTROL: the tree's own replay has NO unlisted sliding window",
       f"control is already dirty: {_clean_sliding} -- no kill below can be believed")
 
 INJECTIONS = [
+    # THE FIRST FIVE WERE FOUND SURVIVING BY THE CYCLE-1 Q/A, and three of them
+    # (`--after`, `--before`, now-relative arithmetic) are named VERBATIM in this
+    # step's own audit_basis -- so their absence was a recall failure against the
+    # step's own filing, not a scope choice. They are cells now.
+    ("after-synonym", 'sh("git", "log", "--after=2026-08-11")',
+     "`--after`, an EXACT synonym of --since (measured: same --max-age)"),
+    ("before-synonym", 'sh("git", "log", "--before=2026-08-11")',
+     "`--before`, the synonym of --until"),
+    ("space-separated", 'sh("git", "log", "--since 2026-08-11")',
+     ("the SPACE form, which the first rule matched as a line but not as a value "
+      "and then silently skipped -- a fail-OPEN inside the fail-closed module")),
+    ("now-relative-feeding-git",
+     'w = (datetime.utcnow() - timedelta(days=30)).isoformat()\nsh("git", "log", f"--since={w}")',
+     "now-relative arithmetic reaching a git window through an f-string"),
+    ("bare-date-in-executed-string",
+     'CMD = """git log --since=2026-08-11"""\nsubprocess.run(CMD, shell=True)',
+     ("a window inside an ASSIGNED triple-quoted string -- data that gets executed, "
+      "a false negative the docstring fix itself opened")),
+
     ("bare-date", 'sh("git", "log", "--since=2026-08-11")',
      "a bare date -- the original defect"),
     ("relative-days", 'sh("git", "log", "--since=30.days")',
@@ -455,7 +545,7 @@ for mid, injected, why in INJECTIONS:
 
 # A REPRODUCIBLE form must NOT be flagged, or the guard is just noise and will
 # be switched off. A detector that flags everything discriminates nothing.
-_ok = [h for h in scan_text(CLEAN_REL, CLEAN_TEXT + '\nsh("git","log","--since=2026-08-11T00:00:00Z")\n')
+_ok = [h for h in scan_text(CLEAN_REL, CLEAN_TEXT + '\nsh("git","log","--after=2026-08-11T00:00:00Z")\n')
        if h[3] == "SLIDING"]
 check("[4] NEGATIVE CONTROL: a UTC-qualified window is NOT flagged", not _ok,
       f"flagged a reproducible form: {_ok} -- the rule cannot discriminate")
@@ -487,7 +577,10 @@ check("[4] STRIPPER: a window quoted in PROSE is not reported as a site",
 # The DOCSTRING stripper needs its own pair: `#` and triple-quoted blocks are
 # different code paths, and this file's own module docstring is what exposed
 # the gap -- it quotes a bare-date window while explaining the defect.
-_doc_prose = 'x = """\ndocs: git log --since=2026-08-11\n"""\n'
+_doc_prose = '"""\ndocs: git log --since=2026-08-11\n"""\n'
+# ... and the sibling case the cycle-1 Q/A found: an ASSIGNED triple-quoted
+# string is DATA that can be executed, so it must still be scanned.
+_doc_assigned = 'CMD = """git log --since=2026-08-11"""\n'
 _doc_code = 'sh("git","log","--since=2026-08-11")\n'
 check("[4] DOCSTRING STRIPPER: a window inside a triple-quoted block is not a site",
       not scan_text("x.py", _doc_prose),
@@ -495,6 +588,11 @@ check("[4] DOCSTRING STRIPPER: a window inside a triple-quoted block is not a si
 check("[4] DOCSTRING STRIPPER CONTROL: the same window as CODE *is* reported",
       bool(scan_text("x.py", _doc_code)),
       "the control never landed, so the docstring check above proves nothing")
+check("[4] EXECUTED triple-quoted string IS scanned (an assigned block is data, "
+      "not a docstring)",
+      any(h[3] == "SLIDING" for h in scan_text("x.py", _doc_assigned)),
+      "blanking assigned triple-quoted strings creates a false negative -- the "
+      "H2 docstring fix opened exactly this hole")
 
 check("[4] STRIPPER CONTROL: the same text as CODE *is* reported",
       bool(scan_text("x.py", _prose.lstrip("# "))),
@@ -512,6 +610,47 @@ check("[4] RESOLVER CONTROL: a UTC-qualified literal behind the same indirection
       "is NOT flagged",
       not any(h[3] == "SLIDING" for h in scan_text("x.py", _ind_ok)),
       "the resolver flags regardless of the value -- it is not reading the literal")
+
+# ── [5] SCOPE DISCLOSURE -- the class this gate does NOT cover ──────────────
+#
+# The rule's declared scope is GIT REVISION-RANGE windows, which is what this
+# step's title, audit_basis and every measured defect are about. A now-relative
+# expression that never reaches a git window -- a SQL `CURRENT_DATE()`, a pandas
+# date filter, a bare `datetime.now() - timedelta(...)` -- is OUT of that scope
+# and is NOT gated.
+#
+# That bound is REPORTED rather than left silent, because "the guard is green"
+# would otherwise be read as "the repo has no sliding measurement windows", and
+# the cycle-1 Q/A measured that it does. Report-only on purpose: gating this
+# surface would flood on legitimate uses (schedulers, digests, TTLs) and the gate
+# would be switched off, which is the same reasoning that made the git rule an
+# allowlist rather than a ban.
+print("\n[5] SCOPE DISCLOSURE -- now-relative windows OUTSIDE the git surface\n")
+
+NONGIT_RE = re.compile(
+    r"(datetime\.(now|utcnow)\(\)|date\.today\(\)|CURRENT_DATE\(\)|timedelta\s*\()")
+_nongit = []
+for _f in FILES:
+    try:
+        _t = strip_docstrings(_f.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError):
+        continue
+    for _i, _l in enumerate(_t.splitlines(), 1):
+        if is_prose(_l) or not NONGIT_RE.search(_l):
+            continue
+        _nongit.append((str(_f.relative_to(REPO)), _i))
+_files = sorted({r for r, _ in _nongit})
+print(f"       {len(_nongit)} now-relative expression(s) in {len(_files)} file(s), "
+      f"NOT gated -- outside the git revision-range scope")
+for _r in _files[:8]:
+    print(f"         {_r}")
+if len(_files) > 8:
+    print(f"         ... and {len(_files) - 8} more")
+check("[5] the scope bound is REPORTED, not silently omitted (the census ran and "
+      "found a non-empty surface, so 'guard green' cannot be read as 'no sliding "
+      "windows anywhere')", len(_nongit) > 0,
+      "the census found nothing, which would mean either the repo is clean or the "
+      "census is broken -- and those look identical, so it fails rather than passes")
 
 print()
 if _failures:

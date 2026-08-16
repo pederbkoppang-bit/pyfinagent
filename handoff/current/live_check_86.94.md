@@ -1,6 +1,6 @@
 # live_check — phase-86.94
 
-**STATUS: COMPLETE.** Both measurements taken, ≥1h apart, as criterion 1 requires.
+**STATUS: COMPLETE.** Both measurements taken, ≥1h apart, as criterion 1 requires. Cycle-2 remediation in §I.
 
 Every block is verbatim tool output from this session. **No count in this file
 is quoted without the clock time and HEAD it was taken at** — that is the whole
@@ -193,15 +193,22 @@ called that fix clean.
 ```
 [2] ENUMERATION of live window sites, by the written-down rule (criterion 2)
 
+  ok   [2] the self-exclusion covers exactly ONE file (this checker), so it cannot grow into a general escape hatch
   ok   [2] the file set is non-empty (a scan over nothing is not a clean bill of health)
   ok   [2] the rule finds at least one live window site
        backend/slack_bot/scheduler.py:503  'midnight'  -> ALLOWED
-       scripts/harness/frontend_route_inventory.py:70  '30.days'  -> ALLOWED
        scripts/harness/frontend_route_inventory.py:73  '30.days'  -> ALLOWED
-       scripts/qa/replay_changelog_rule_86_68.py:114  '{CORPUS_SINCE}'  -> ALLOWED
+       scripts/qa/replay_changelog_rule_86_68.py:114  '{CORPUS_SINCE}'  -> REPRODUCIBLE
        scripts/qa/verify_decision_log_86_97.py:360  '{first_stamp}'  -> ALLOWED
   ok   [2] every SLIDING site is either fixed or carries a RECORDED REASON in the allowlist
 ```
+
+*(Cycle-2 correction: an earlier revision of this block listed
+`frontend_route_inventory.py:70` as well as `:73`, and showed
+`replay_changelog_rule_86_68.py:114` as `ALLOWED`. Neither reproduces. Line 70 is
+a docstring and is correctly stripped, and `{CORPUS_SINCE}` resolves to
+**REPRODUCIBLE** now that the constant carries a `Z` — so it needs no allowlist
+entry at all. The block above is regenerated from a fresh run.)*
 
 ### Two defects the first version of my own rule had
 
@@ -252,7 +259,7 @@ a recall test that can silently not run is not a recall test.
 | member | class | criterion-4 judgement (measured) |
 |---|---|---|
 | `backend/slack_bot/scheduler.py:503` `midnight` | **LEGITIMATELY RELATIVE** | A Slack "shipped today" digest must move with today. Name appears in 37 files, but every hit is descriptive (em-dash cleanup, an APScheduler job description, a different scheduler at `:761-795`); none quotes a count from this window. |
-| `frontend_route_inventory.py:70,73` `30.days` | **SLIDING, left** | A rolling 30 days is the intended semantics. Mentioned in **0** files outside this step's own artifacts, so no count from it is load-bearing. It *does* print per-route figures — they are simply never quoted as evidence. |
+| `frontend_route_inventory.py:73` `30.days` | **SLIDING, left** | A rolling 30 days is the intended semantics. Mentioned in **0** files outside this step's own artifacts, so no count from it is load-bearing. It *does* print per-route figures — they are simply never quoted as evidence. |
 | `verify_decision_log_86_97.py:360` `{first_stamp}` | **runtime-derived, allowed** | Figures **are** derived and **are** quoted — but each is quoted with the clock time it was taken at, and the checker asserts a *relationship*, never a pinned number. Upper bound floats with HEAD by design. |
 | `replay_changelog_rule_86_68.py:114` `{CORPUS_SINCE}` | **was SLIDING → FIXED** | The TZ-naive pin. Corrected to `...Z`; figures unchanged. |
 
@@ -294,7 +301,7 @@ off — which is also why the guard is an allowlist rather than a ban.
 ## G. NO REGRESSION (criterion 7)
 
 ```
-verify_no_sliding_windows_86_94.py   ALL GREEN: 24 passed, 0 failed
+verify_no_sliding_windows_86_94.py   ALL GREEN: 37 passed, 0 failed
 verify_changelog_flip_86_91.py       ALL GREEN: 42 passed, 0 failed
 verify_workflow_args_boundary.mjs    ALL GREEN: 96 passed, 0 failed
 immutable command                    green
@@ -356,4 +363,115 @@ hooks are shell:
   ok   [4] SHELL: a window in a `#` comment is not reported as a site
 ```
 
-**24 → 30 assertions**, ruff clean, nothing weakened.
+**24 → 30 assertions** at that point (37 after cycle 2), ruff clean, nothing weakened.
+
+---
+
+## I. CYCLE-2 REMEDIATION — five mutants survived, and three were named in my own filing
+
+Cycle-1 verdict `wf_eb4c97d0-c34`: **FAIL**. Criteria 1, 2, 3 and 7 MET and the
+product correct; criteria 4, 5 and 6 missed, each with counter-evidence the
+evaluator **executed**. It also independently reproduced the TZ finding, the
+drift arithmetic and the A1b near-refutation control, and took a third
+measurement of its own (23:55:07, bare 362 / pinned 432) confirming the pattern
+under a different observer.
+
+### I1. Criterion 6 — five survivors (the cap)
+
+| survivor | why it escaped | now |
+|---|---|---|
+| `--after=<bare date>` | an **exact synonym** of `--since` (measured: identical `--max-age`) that my option list never named | KILLED |
+| `--before=<bare date>` | synonym of `--until` | KILLED |
+| `--since <bare date>` (space form) | `WINDOW_RE` matched the line, `VALUE_RE` required `=`, so `raw==""` and the loop **`continue`d** | KILLED |
+| now-relative arithmetic into git | `timedelta` reaching a window through an f-string | KILLED |
+| bare date in an executed `"""…"""` | blanked by the H2 docstring fix — a false negative that fix itself opened | KILLED |
+
+**Three of those shapes — `--after`, `--before`, now-relative arithmetic — are
+named verbatim in this step's own `audit_basis`.** Their absence was a recall
+failure against my own filing, not a scope decision, which is exactly what
+criterion 3 exists to catch one level down.
+
+**The space-form case is the sharpest.** A window option was *recognised* and
+then *silently skipped* — a fail-**open** inside the module whose central claim
+is that it fails closed. It now records `<unparsed>` and **fails**:
+
+```
+'sh("git","log","--since 2026-08-11")'
+   WINDOW_RE matches: True   VALUE_RE: (none -> raw="" -> continue)
+```
+
+Widening the pattern had a consequence worth recording rather than smoothing
+over: the space form is **ambiguous with English**, and
+`print("... a bare --since date slides with the clock ...")` is executable code,
+not a comment, so stripping cannot save it — the widened rule captured the word
+`date` as a window value in two tracked files. The `=` form has no such
+ambiguity, so it stays unconditional and fail-closed, while the space form
+additionally requires a plausible value shape. **Residual, stated:** a
+space-separated window with an exotic value is not detected.
+
+### I2. Criterion 4 — my stated judgement was measurably FALSE
+
+The allowlist said no figure from `frontend_route_inventory.py` had ever been
+quoted. The scan behind that claim covered `handoff/current` **only**. Over the
+whole tree the evaluator found 55 mentions and, decisively, an archived
+`experiment_results.md` that quotes figures from that exact `--since=30.days`
+window **as success-criteria evidence** (`usage_source: git_activity_30d`,
+`every_route_has_usage_count | PASS (12/12 integer opens_30d)`).
+
+`QUOTE_DIRS` now covers the whole `handoff/` tree (`rglob`), and the entry is
+rewritten to what is true: **quoted, unreproducible, and inert** — the figures
+are in a closed archived step and nothing live depends on them, which is why the
+window is still left rather than pinned. "Never quoted" was wrong.
+
+### I3. Criterion 5 — corrected in 2 of 7 carriers
+
+Swept from the claim rather than my own list, the figure lives in 7 files; cycle
+1 corrected 2. Now corrected **in place** in `day_report_2026-08-16.md`,
+`escalation_86.90_86.91.md`, `harness_log.md` and two further occurrences in
+`experiment_results_86.91.md`. Per-occurrence audit:
+
+```
+still unqualified: ['handoff/current/evaluator_critique_86.91.md:161', 'handoff/current/evaluator_critique_86.91.md:263']
+```
+
+**Those two are deliberately exempt, and here is the reason.** They are an
+evaluator's own verdict transcript — a record of what that evaluator measured at
+that time. Editing it would falsify the record rather than correct a claim, and
+the no-self-eval guarantee depends on verdicts being immutable once returned.
+The correct remedy for a superseded verdict is a later verdict, which is what
+this document is.
+
+### I4. Evidence integrity — my "verbatim" blocks did not reproduce
+
+§G said `24 passed` against a measured 30 while §H in the *same file* said
+`24 → 30`; §C listed `:70,73` where the run lists `:73`; §C showed
+`{CORPUS_SINCE}` as `ALLOWED` where it measures `REPRODUCIBLE`. The cycle-1
+commit that "corrected the stale assertion counts" touched
+`experiment_results_86.94.md` only and left the operator-facing gate artifact
+stale — the same defect the 86.91 cycle-2 Q/A raised, recurring inside the step
+about numbers that do not reproduce. All three blocks are **regenerated from a
+fresh run** above.
+
+### I5. Scope — disclosed rather than silently omitted
+
+Criterion 6 says "bare-date **or now-relative**". The rule's declared scope is
+git revision-range windows; a now-relative expression that never reaches a git
+window is out of it. Rather than leave that implicit, section `[5]` now runs a
+**report-only census** and prints the surface it does not gate:
+
+```
+[5] SCOPE DISCLOSURE -- now-relative windows OUTSIDE the git surface
+
+       245 now-relative expression(s) in 86 file(s), NOT gated -- outside the git revision-range scope
+  ok   [5] the scope bound is REPORTED, not silently omitted (the census ran and found a non-empty surface, so 'guard green' cannot be read as 'no sliding windows anywhere')
+```
+
+Report-only on purpose: gating 245 sites would flood on legitimate uses
+(schedulers, digests, TTLs) and the gate would be switched off — the same
+reasoning that made the git rule an allowlist rather than a ban. The check fails
+if the census finds *nothing*, since "clean repo" and "broken census" otherwise
+look identical.
+
+### Net
+
+**30 → 37 assertions.** Nothing weakened, no criterion reinterpreted.

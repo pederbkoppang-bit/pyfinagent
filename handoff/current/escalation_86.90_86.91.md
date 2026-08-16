@@ -43,7 +43,7 @@ for 86.91 put it plainly: all 8 criteria MET on the shipped product.
   Guard: **95 assertions, 6 mutation cells**, each control observed clean first.
 - **86.91** -- the changelog freeze is fixed. `86.86 before=None -> after=done`,
   shipped rule `[]`, fixed rule `['86.86']`, independently reproduced by three
-  evaluators. Replay pinned at both ends: **707 / 251 / 9 / 11**, the +2 accounted
+  evaluators. Replay pinned at both ends **and now in UTC**: **707 / 251 / 9 / 11**, *(phase-86.94: that pin was TZ-LOCAL -- the same both-ends-pinned command measured 707 under Oslo/UTC/New York and 787 under Asia/Seoul. `CORPUS_SINCE` now ends in `Z`; the figures are unchanged and are now identical in every timezone.)* the +2 accounted
   member by member. Guard: **42 assertions, 10 mutation cells**.
 - **86.86's PASS was re-graded on the fixed rail and CONFIRMED** (`wf_a09930e2-3d7`).
 
