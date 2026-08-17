@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-17 | `d081cd85` | chore: correct commit 471f6e26 -- its message was corrupted by shell backticks |
 | 2026-08-17 | `471f6e26` | phase-86.108: land criterion 1's census as a committed, mutation-tested tool |
 | 2026-08-17 | `9e4b7324` | phase-86.69: replace the superseded baseline claim, correct n=6 to 7, derive the NULL-consumer set |
 | 2026-08-17 | `6d5d6c31` | chore: correct the day report's frontend-pid claim and note the peer's 86.111 |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-17 | `26d840c9` | phase-86.37: cycle 6 -- the lost attribution fix landed with write-after-replace ordering |
 | 2026-08-17 | `651e1f78` | phase-86.78/86.37: cycle-5 -- the STEP-0 leak closed, comment trap killed, ASK #1 ratified |
 | 2026-08-17 | `936dc97e` | phase-86.37: cycle-4 verdict transcribed; false +3 attribution corrected by the evaluator's derivati |
-| 2026-08-17 | `660c2934` | phase-86.78: cycle-4 verdict recorded as mechanical FAIL; disjoint findings fixed |
 
 ---
 
