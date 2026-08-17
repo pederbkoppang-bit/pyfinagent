@@ -122,14 +122,20 @@ recorded in §8 as not done.
 
 ## 6. Criterion 5 -- fail direction, asserted AND tested
 
-Four distinct outcomes, because collapsing them is the defect:
+Five distinct outcomes, because collapsing them is the defect *(cycle-8
+REPLACEMENT of the cycle-2 table, which said "Four", omitted `ledger_empty`
+entirely, and recorded `ledger_missing` as "0 + a caution" -- a count the
+code refuses to print. The cycle-7 Q/A drove all five statuses through the
+real read_ledger()/_report() and found the CODE more fail-closed than this
+table asserted; the table now states what the code does)*:
 
 | status | meaning | count | direction |
 |---|---|---|---|
 | `ok` | verdicts found | real | — |
 | `no_rows_for_step` | ledger exists, step absent | 0 | fail-OPEN, and correct: it genuinely has no verdicts |
-| `ledger_missing` | no ledger at all | 0 + a caution, non-zero exit | bootstrap state, NOT evidence of no history |
-| `unparseable` | rows present, unreadable | **None** | fail-CLOSED: refuses to print a number, says treat the rule as ARMED |
+| `ledger_missing` | no ledger at all | **None**, exit 1 | fail-CLOSED: "NOT KNOWABLE (refusing to print 0)", auto-FAIL "UNKNOWN -- treat as ARMED" |
+| `ledger_empty` | zero-byte ledger | **None**, exit 1 | fail-CLOSED, same refusal (criterion 6 names "empty" by word; self-test case (iii-c)) |
+| `unparseable` | rows present, unreadable | **None**, exit 1 | fail-CLOSED: refuses to print a number, says treat the rule as ARMED |
 
 The reasoning, not just the choice: an absent row for a step that has never been
 graded is genuinely zero, so failing open there is correct. A corrupt ledger is
@@ -173,7 +179,7 @@ not a guard.
 ```
 phase-86.21 criterion 6 -- mutation matrix (in-memory; repo never written)
 target : verdict_history_86_21.py
-md5    : 142f6befbd7fc96689f568cb16b98820
+md5    : 142f6befbd7fc96689f568cb16b98820   <- cycle-8 note: the md5 of revision 5b7966e8 (capture time). A DIFFERENT step (86.78/86.79, commit 9b4d5281) later edited this product file to add --evidence-only; live md5 today is b8c0370a54e5fb817d4e19980dd257ed. The 16 cells reproduce at the current tree (cycle-7 Q/A re-ran them); only this identity line aged.
 
 [control] un-mutated self-test rc=0 (0 = PASSED)
   [broken-scoring self-check] uncompilable mutant -> 'broken' (correct)
@@ -230,7 +236,7 @@ the tail is [C, C], so one more CONDITIONAL is the 3rd and arms the rail.)*
 
 ```
 $ bash -c 'grep -c "^## Cycle" handoff/harness_log.md && ls handoff/current/evaluator_critique_*.md | head -3'
-1189
+1189  <- cycle-8 note: true at commits 7897cb8c..130a5e9b; the log grows every cycle (1264 at the cycle-8 edit; the command is the derivation, the number is a snapshot)
 handoff/current/evaluator_critique_36.12.md
 handoff/current/evaluator_critique_36.13.md
 handoff/current/evaluator_critique_36.17.md
@@ -250,8 +256,12 @@ passed** (it caught an unused `sys` import first, which is fixed).
   CLAUDE.md's predicate and SAYS so, but editing `qa.md` is a change to the Q/A's
   own instructions and I did not make it unilaterally at 02:00 with no operator
   awake. The counter reports the divergence rather than hiding it.
-- **No Q/A has been asked to USE the counter.** Nothing in `qa.md` points at it,
-  so today it informs a human reader, not the gate.
+- **The counter is USED by every Q/A now** *(cycle-8 REPLACEMENT of "No Q/A
+  has been asked to USE the counter. Nothing in qa.md points at it" -- true
+  when written, superseded by 86.75/86.78/86.79: qa.md:679 mandates
+  `verdict_history_86_21.py --evidence-only`, and 7 of 7 critiques in the
+  2026-08-17 drain quote its output; the 86.71 cycle-5 PASS cross-checked it
+  against qa_wip and the attempt gate as three agreeing counters)*.
 - **The ledger's history before tonight is absent.** Steps closed before
   2026-08-09 have no rows, so the counter reports `no_rows_for_step` for them --
   correctly, but that is not the same as knowing their real history.
@@ -469,7 +479,7 @@ also the independence weakness criterion 4 names.
   against the Q/A's own defect: the matrix returns rc=5, REFUSING TO SCORE.**
 - Three non-reproducing captures regenerated, including one that was a
   byte-identical duplicate of the wrong block; section 2 now carries the actual
-  git replay. Every pasted figure reproduces at this tree (20 cases, 16 cells).
+  git replay. Every pasted figure in the cycle-6 additions reproduces at this tree (20 cases, 16 cells). *(cycle-8 bound: two OLDER pasted identity figures -- the section-7 md5 line and section-8's log count -- aged under later commits and carry their own supersession notes; the universal wording previously here was falsified by exactly those two, both UNDER-claiming.)*
 
 **Known-open, disclosed rather than buried:** seven print-layer mutants from
 cycle 4 remain unguarded by deliberate scope call (the cycle-5 Q/A measured their
@@ -758,3 +768,29 @@ THE PRODUCT IS LIVE AND LOAD-BEARING TODAY: every evaluator spawned in the
 as "three counters agree"). Captured at write time: self-test 20 cases
 SELF-TEST PASSED exit 0; matrix ALL 16 MUTANTS KILLED exit 0, md5 unchanged;
 the three broken-scoring self-check cells print "correct".
+
+
+---
+
+## 14. Cycle 8 (2026-08-17): the cycle-7 verdict's five named fixes, all at the site
+
+1. **The BLOCKING table** (section 6): replaced whole -- FIVE rows, "Four"
+   -> "Five", `ledger_empty` present, `ledger_missing`/`ledger_empty` both
+   "None, exit 1, fail-CLOSED" exactly as the code behaves (the evaluator
+   drove all five statuses; the code was MORE fail-closed than the old
+   table asserted -- the cycle-2 table had outlived the cycle-3 change).
+2. **The stale md5 identity line** (section 7): annotated at the line --
+   capture-time revision 5b7966e8; a DIFFERENT step (86.78/86.79, commit
+   9b4d5281) later edited the product file; live md5 b8c0370a...; the 16
+   cells reproduce at the current tree per the cycle-7 Q/A's own re-run.
+3. **The 1189 figure** (section 8): annotated -- true at its commits, 1264
+   at this edit, the command is the derivation.
+4. **Section 11's universal claim**: bounded to the cycle-6 additions with
+   the two aged identity figures named.
+5. **The stale no-consumer text**: REPLACED in place at BOTH sites
+   (section 8 bullet + live_check §5) with the supersession note -- qa.md:679
+   mandates the counter and all seven of today's critiques quote it.
+
+No code changed this cycle. Captured at write time: matrix ALL 16 MUTANTS
+KILLED exit 0 (cycle-7 Q/A's independent re-run corroborates); self-test 20
+cases exit 0; the immutable command's grep is 1264 and moving.

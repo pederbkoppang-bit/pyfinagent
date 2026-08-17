@@ -117,5 +117,9 @@ The ledger was seeded BY HAND with tonight's 11 real verdicts (36.17 x6,
 86.20 x3, 86.17 x2), each carrying its real `run_id`. **No automatic writer
 exists yet**, so the ledger will stop tracking the moment a session forgets --
 recorded in `experiment_results_86.21.md` §8 as the most important follow-up
-rather than left implicit. No Q/A currently consults this counter; `qa.md` still
-prescribes the grep.
+rather than left implicit. **The counter IS consulted now** *(cycle-8
+REPLACEMENT of "No Q/A currently consults this counter; qa.md still
+prescribes the grep" -- true at capture, superseded by 86.75/86.78/86.79's
+qa.md work: qa.md:679 mandates `verdict_history_86_21.py --evidence-only`,
+and 7 of 7 critiques in the 2026-08-17 drain quote its output; the
+harness_log grep is retired as the counting source)*.
