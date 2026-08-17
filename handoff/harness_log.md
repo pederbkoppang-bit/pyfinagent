@@ -35982,3 +35982,17 @@ figure and ran its own 6-cell matrix. Residuals (R1 fixture reach, R2
 descriptive $-lines, R3-tail twin-comment) queued under the
 product-vs-evidence directive; R3 also flagged a false claim in Main's spawn
 prompt (artifacts clean -- graded on artifacts), fixed in the next edit pass.
+
+## Cycle 1237 -- 2026-08-17 -- phase=86.21 result=PASS
+
+**Step:** 86.21 -- the 3rd-CONDITIONAL counter that can SEE an in-flight step
+(qa_wip.py + verdict_history_86_21.py). **PASS on cycle 8** (rail-bound after
+[C,C,F,C,C,C]; all six criteria re-derived by execution). The counter is
+load-bearing across the whole drain: every 2026-08-17 evaluator ran both
+tools and quoted them; the escalation math the rail fired on twice today
+(86.85 c11 forced-FAIL, 86.71 c5 forced-PASS-or-FAIL) is fed by exactly this
+product. Arc: 8 cycles incl. a FAIL and a discovery that 86.75 had rebuilt
+the step from scratch mid-flight; closed with the five-status table matching
+the (more fail-closed) code cell-for-cell and the evaluator's own probes
+confirming fixture asymmetry and multiply-covered kills. Five
+evidence-quality residuals ride the transcribed verdict for the queue.
