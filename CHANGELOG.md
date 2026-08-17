@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-17 | `33c47416` | phase-86.69: GENERATE -- the 61.2 guard ARMED by operator token, restart verified, measurement stage |
 | 2026-08-17 | `0ad90da4` | docs(session): record two rail breaches; fill S5 named-fix column; note operator's product-vs-eviden |
 | 2026-08-17 | `77f15b4d` | phase-86.72/86.78: the re-research leg wired + the consequence recorder computed |
 | 2026-08-17 | `1d9a360e` | phase-86.96: string-args dispatch-kill class -- PASS on first evaluation |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-17 | `f3c89229` | phase-86.85: cycles 5-7 -- emit_sequence orders by EVENT date with the verdict excluded from the key |
 | 2026-08-17 | `d69da099` | phase-86.84: cycles 4-6 -- D1 verifier fix, re-measurement guarded by floors + independent cross-der |
 | 2026-08-17 | `1c80684a` | phase-86: file 86.105 (handoff layout invariant red) + 86.106 (instruction-surface consolidation) -- |
-| 2026-08-17 | `22cb3640` | docs(session): 2026-08-17 day report, diagnostics, regenerated goal_next; park 86.97 on the ceiling |
 
 ---
 
