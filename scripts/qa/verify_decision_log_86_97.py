@@ -254,10 +254,13 @@ CHANGELOG_SEED = (
 )
 
 
-def make_repo(tmp: Path) -> None:
+EMPTY_MP = '{"phases": []}'
+
+
+def make_repo(tmp: Path, masterplan: str = EMPTY_MP) -> None:
     (tmp / "CHANGELOG.md").write_text(CHANGELOG_SEED, encoding="utf-8")
     (tmp / ".claude").mkdir(exist_ok=True)
-    (tmp / ".claude" / "masterplan.json").write_text('{"phases": []}', encoding="utf-8")
+    (tmp / ".claude" / "masterplan.json").write_text(masterplan, encoding="utf-8")
     env = {**os.environ, "GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@t",
            "GIT_COMMITTER_NAME": "t", "GIT_COMMITTER_EMAIL": "t@t"}
     for args in (["init", "-q"], ["add", "-A"],
@@ -266,15 +269,24 @@ def make_repo(tmp: Path) -> None:
                        capture_output=True)
 
 
-def drive(hook_src: str, subject: str = "feat: a real change") -> tuple[int, str, str]:
-    """Run the hook end-to-end. Returns (rc, decision-log text, stderr)."""
+def drive(hook_src: str, subject: str = "feat: a real change",
+          before_mp: str = EMPTY_MP, after_mp: str | None = None) -> tuple[int, str, str]:
+    """Run the hook end-to-end. Returns (rc, decision-log text, stderr).
+
+    `before_mp` / `after_mp` are the masterplan at HEAD~1 and HEAD. The detector
+    diffs those two revisions, so a flip scenario is expressed by making them
+    differ. Cycle 3 hardcoded `{"phases": []}` for both, which is why the driver
+    could only ever produce ONE of the nine reason states.
+    """
     with tempfile.TemporaryDirectory() as td:
         tmp = Path(td)
-        make_repo(tmp)
+        make_repo(tmp, before_mp)
         env = {**os.environ, "CLAUDE_PROJECT_DIR": str(tmp),
                "GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@t",
                "GIT_COMMITTER_NAME": "t", "GIT_COMMITTER_EMAIL": "t@t"}
         (tmp / "f.txt").write_text(subject, encoding="utf-8")
+        if after_mp is not None:
+            (tmp / ".claude" / "masterplan.json").write_text(after_mp, encoding="utf-8")
         subprocess.run(["git", "add", "-A"], cwd=tmp, env=env, check=True,
                        capture_output=True)
         subprocess.run(["git", "commit", "-q", "-m", subject], cwd=tmp, env=env,
@@ -286,6 +298,27 @@ def drive(hook_src: str, subject: str = "feat: a real change") -> tuple[int, str
                            capture_output=True, text=True, timeout=120)
         log = tmp / "handoff" / "logs" / "changelog-decisions.log"
         return r.returncode, (log.read_text(encoding="utf-8") if log.exists() else ""), r.stderr
+
+
+DECISION_RE = re.compile(
+    r"bump=(?P<bump>\S+)\s+reason=(?P<reason>\S+)\s+"
+    r"created_done=(?P<created>\S+)\s+transitioned_done=(?P<transitioned>\S+)")
+
+
+def parse_decision(log_text: str) -> dict | None:
+    """The decision as DATA. Returns None when no line was written at all.
+
+    Cycle 3 asserted `"reason=" in log_text`. That token is emitted from a
+    LITERAL format string at post-commit-changelog.sh:271, so it is true for
+    every non-empty line the writer can produce -- strictly subsumed by the
+    "a line was written" check above, and unable to distinguish any decision
+    from any other. Parsing makes the decision assertable.
+    """
+    last = [ln for ln in log_text.strip().splitlines() if ln.strip()]
+    if not last:
+        return None
+    m = DECISION_RE.search(last[-1])
+    return dict(m.groupdict()) if m else {}
 
 
 # ISOLATION ASSERTION. The driver writes into a temp dir, but "it should be
@@ -302,8 +335,109 @@ check("[3] a decision line is WRITTEN TO THE FILE (the observable effect, not an
       "extracted namespace)", log_text.strip() != "",
       "no decision-log file was produced -- this is the assertion the 86.91 "
       "extraction structurally could not make")
-check("[3] the decision line carries a reason", "reason=" in log_text,
-      f"line: {log_text.strip()[:120]!r}")
+# ── [3a] THE DECISION ITSELF, PER SCENARIO (phase-86.97 cycle 4) ────────────
+#
+# WHAT THIS REPLACES, and why it was not merely weak but VACUOUS. The assertion
+# here was:
+#
+#     check("[3] the decision line carries a reason", "reason=" in log_text)
+#
+# `reason=` is a LITERAL in the writer's format string
+# (post-commit-changelog.sh:271), so it is present in EVERY non-empty line the
+# writer can emit. The check was therefore strictly subsumed by the
+# "a line was written" assertion immediately above it, and could not tell any
+# decision from any other. MEASURED: deleting `bump_type = _flip_magnitude()`
+# (hook :214) yields rc=0 and writes `bump=minor reason=unrecorded` instead of
+# `bump=none reason=no_flip` -- a SPURIOUS minor bump (the thing 86.68 exists to
+# prevent) carrying an unexplained reason (the thing 86.91 criterion 4 exists to
+# close) -- and every assertion in this file stayed green.
+#
+# THE EXPECTED TABLE IS DERIVED FROM BRANCH STRUCTURE, NOT FROM OBSERVED OUTPUT.
+# That ordering is the point: an oracle written after looking at a run drifts to
+# whatever the run produced (arXiv:2410.21136, arXiv:2402.11041 on oracle
+# improvement). The nine reason states and their sites, read out of the hook
+# before any scenario was driven:
+#
+#   :160 masterplan_unreadable_at_HEAD   :193 flip_created
+#   :163 first_commit                    :194 flip_transitioned
+#   :190 no_flip                         :195 flip_created_and_transitioned
+#   :207 detector_error:<Type>           :216 subject_forced_major  <- set OUTSIDE
+#   :267 unrecorded  <- the `.get` default: nobody sets it. It is the signature
+#                       of a detector that never ran, i.e. the :214 mutant.
+#
+# Cycle 3's driver seeded `{"phases": []}` for both revisions, so it exercised
+# exactly ONE of the nine (no_flip) and pinned ZERO values.
+print("\n[3a] THE DECISION'S CONTENT, per scenario (criterion 4)\n")
+
+_MP_PENDING = ('{"phases": [{"steps": ['
+               '{"id": "99.1", "status": "pending"}, '
+               '{"id": "99.2", "status": "pending"}]}]}')
+_MP_FLIPPED = ('{"phases": [{"steps": ['
+               '{"id": "99.1", "status": "done"}, '
+               '{"id": "99.2", "status": "pending"}]}]}')
+_MP_CREATED = ('{"phases": [{"steps": ['
+               '{"id": "99.1", "status": "pending"}, '
+               '{"id": "99.2", "status": "pending"}, '
+               '{"id": "98.0", "status": "done"}, '
+               '{"id": "98.1", "status": "pending"}]}]}')
+
+SCENARIOS = [
+    # (label, subject, before_mp, after_mp, expected reason, expected created,
+    #  expected transitioned)
+    ("no_flip -- masterplan unchanged",
+     "feat: a real change", _MP_PENDING, _MP_PENDING, "no_flip", "-", "-"),
+    ("flip_transitioned -- 99.1 pending -> done",
+     "phase-99.1: close it", _MP_PENDING, _MP_FLIPPED, "flip_transitioned", "-", "99.1"),
+    ("flip_created -- 98.0 appears already done",
+     "phase-98.0: file and close", _MP_PENDING, _MP_CREATED, "flip_created", "98.0", "-"),
+    # The ONLY reason set outside _flip_magnitude() (:216). It is the scenario
+    # the :214 mutant must NOT disturb, which is what makes the pair
+    # discriminating rather than a single tripwire.
+    ("subject_forced_major -- a `!` subject",
+     "feat!: breaking change", _MP_PENDING, _MP_PENDING, "subject_forced_major", "-", "-"),
+]
+
+_observed: dict[str, dict] = {}
+for _label, _subj, _bmp, _amp, _exp_reason, _exp_created, _exp_trans in SCENARIOS:
+    _rc, _log, _err = drive(HOOK_SRC, _subj, _bmp, _amp)
+    _d = parse_decision(_log)
+    _observed[_label] = {"rc": _rc, "decision": _d}
+    print(f"       {_label}\n         -> {_d}")
+    check(f"[3a] {_label}: a parseable decision line was written",
+          isinstance(_d, dict) and _d.get("reason") is not None,
+          f"rc={_rc} log={_log.strip()[:120]!r} stderr={_err[-160:]!r}")
+    if isinstance(_d, dict) and _d.get("reason") is not None:
+        check(f"[3a] {_label}: reason == {_exp_reason!r} (the DECISION, not the "
+              "presence of a line)",
+              _d.get("reason") == _exp_reason,
+              f"expected {_exp_reason!r}, got {_d.get('reason')!r} in {_d!r}")
+        check(f"[3a] {_label}: created_done == {_exp_created!r} and "
+              f"transitioned_done == {_exp_trans!r}",
+              _d.get("created") == _exp_created and _d.get("transitioned") == _exp_trans,
+              f"expected created={_exp_created!r} transitioned={_exp_trans!r}, got "
+              f"created={_d.get('created')!r} transitioned={_d.get('transitioned')!r}")
+
+# STANDING NEGATIVE CONTROL. `unrecorded` is the `.get` default at :267 and no
+# branch ever assigns it, so its appearance means the detector did not run. It
+# must never be observed in a healthy run of ANY scenario.
+_unrecorded = [lbl for lbl, o in _observed.items()
+               if isinstance(o["decision"], dict)
+               and o["decision"].get("reason") == "unrecorded"]
+check("[3a] NEGATIVE CONTROL: no scenario yields reason='unrecorded' (nobody "
+      "assigns it -- it is the signature of a detector that never ran)",
+      not _unrecorded,
+      f"scenarios reporting an unrecorded decision: {_unrecorded}")
+
+# DISCRIMINATION CONTROL. If every scenario produced the same reason, the four
+# assertions above would be one assertion repeated and the table would prove
+# nothing about the detector's branches.
+_reasons = {o["decision"].get("reason") for o in _observed.values()
+            if isinstance(o["decision"], dict)}
+check("[3a] the scenarios DISCRIMINATE -- they do not all produce one reason",
+      len(_reasons) >= 3,
+      f"only {len(_reasons)} distinct reason(s) observed across "
+      f"{len(SCENARIOS)} scenarios: {_reasons} -- the table cannot detect a "
+      "detector that collapsed to a single branch")
 
 def isolation_holds(snapshot: bytes) -> bool:
     """Pure predicate: is the real log still byte-identical to `snapshot`?

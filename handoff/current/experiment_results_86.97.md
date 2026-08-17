@@ -206,3 +206,123 @@ verify_changelog_flip_86_91.py     ALL GREEN: 42 passed, 0 failed
 verify_workflow_args_boundary.mjs  ALL GREEN: 96 passed, 0 failed
 verify_research_gate_workflow.mjs  ALL GREEN: 124 passed, 0 failed
 ```
+
+---
+
+## Cycle-4 remediation (after the overnight PARK at the 3-attempt cap)
+
+Both blockers named in the park note are closed. Every block below was
+regenerated from a live run in the same pass that wrote this file — three
+consecutive 86.94 cycles capped on hand-maintained numbers and I am not
+repeating that here.
+
+### Blocker A — the guard could not see WHAT the decision was
+
+The park note said the `:305` assertion was weak. **The research gate showed it
+was VACUOUS**: `reason=` is a literal in the writer's format string
+(`post-commit-changelog.sh:271`), so `"reason=" in log_text` is true for *every
+non-empty line the writer can emit* and is strictly subsumed by the
+"a line was written" check immediately above it.
+
+Reproduced before fixing, through section [3]'s own `drive()` helper (which takes
+the hook **source as a string**, so the production hook is never touched):
+
+```
+CONTROL   bump=none   reason=no_flip
+N-1       bump=minor  reason=unrecorded     <- delete `bump_type = _flip_magnitude()`
+DIFFERENT DECISION: True
+BOTH satisfy the shipped assertion "'reason=' in log_text": True
+```
+
+A **spurious `minor` bump** (what 86.68 exists to prevent) with an **unexplained
+reason** (what 86.91 criterion 4 exists to close), invisible to every assertion
+in the file.
+
+**The fix asserts the decision as DATA.** The line is parsed into
+`(bump, reason, created_done, transitioned_done)` and compared by **exact
+equality** against a table derived from the hook's **branch structure before any
+scenario was driven** — the ordering matters, because an oracle written after
+looking at a run drifts toward whatever that run produced (arXiv:2410.21136,
+arXiv:2402.11041). The nine reason states and their sites are listed in the
+source; state 9, `unrecorded`, is assigned by **no branch at all** — it is the
+`.get` default at `:267` and therefore the signature of a detector that never ran.
+
+Cycle 3's driver seeded `{"phases": []}` for both revisions, so it exercised
+**1 of those 9** states and pinned **0** values. It now drives four, spanning all
+four bump magnitudes:
+
+```
+       no_flip -- masterplan unchanged
+         -> {'bump': 'none', 'reason': 'no_flip', 'created': '-', 'transitioned': '-'}
+       flip_transitioned -- 99.1 pending -> done
+         -> {'bump': 'patch', 'reason': 'flip_transitioned', 'created': '-', 'transitioned': '99.1'}
+       flip_created -- 98.0 appears already done
+         -> {'bump': 'minor', 'reason': 'flip_created', 'created': '98.0', 'transitioned': '-'}
+       subject_forced_major -- a `!` subject
+         -> {'bump': 'major', 'reason': 'subject_forced_major', 'created': '-', 'transitioned': '-'}
+  ok   [3a] the scenarios DISCRIMINATE -- they do not all produce one reason
+       RE-DERIVED at execution time (window pinned to 2026-08-16T08:23:33Z):
+         commits=87  decision lines=44  gap=43
+         commits matching the recursion guard=44
+```
+
+### Blocker B — the last unbounded carrier of the criterion-4 claim
+
+Swept by claim class, seeded from an **independent** artifact
+(`night_diagnostics.md:51`, which names the survivor) rather than from my own
+phrasing. The cycle-3 sweep searched `"every invocation"` — my wording — while
+the survivor says `"every decision"`; the QGS literature names exactly that
+failure (seeding a search with the terms you search for makes recall ~100% and
+meaningless).
+
+Recall test: both members named in the masterplan note are found
+(`live_check_86.91.md:104`, and `experiment_results_86.91.md:444` — the note said
+`:441`, off by three).
+
+`handoff/current/live_check_86.91.md:104` was the only remaining **unbounded**
+carrier: a `grep -cE "reach(es|ed)? the detector|pre-detector|bash exit|recursion
+guard|86\.97"` over that file returned **0**. Its heading is now bounded **in
+place** — *"every decision THAT REACHES THE DETECTOR explains itself"* — with the
+reason stated, not appended. The same grep now returns **5**.
+
+### The commits-vs-lines gap, re-derived at execution time (criterion 1)
+
+```
+       RE-DERIVED at execution time (window pinned to 2026-08-16T08:23:33Z):
+         commits=87  decision lines=44  gap=43
+         commits matching the recursion guard=44
+```
+
+Not copied: the checker recomputes it per run against a pinned window, and asserts
+the **relationship** (gap tracks the recursion-guard count), never a pinned number.
+
+### Mutation matrix — control observed GREEN first
+
+```
+  rc=0   ALL GREEN: 48 passed, 0 failed
+  CONTROL GREEN.
+--- N-1 delete the _flip_magnitude() call (hook :214)
+    KILLED   rc=1  FAILED: 41 passed, 7 failed
+--- N-2 never record a reason (force the :267 .get default)
+    KILLED   rc=1  FAILED: 42 passed, 6 failed
+--- N-3 swap flip_created / flip_transitioned
+    KILLED   rc=1  FAILED: 46 passed, 2 failed
+--- N-4 subject-major branch stops recording its reason
+    KILLED   rc=1  FAILED: 46 passed, 2 failed
+  rc=0  ALL GREEN: 34 passed, 0 failed
+  SURVIVED, as required -- without [3a] the same mutant is invisible.
+  => the N-1 kill is attributable to the new decision-content assertions.
+killed=4  survived=0  unscorable=0  of 4
+N-5 attribution control: OK
+production hook byte-identical after the run: True
+PASS
+```
+
+**N-5 is the attribution control** the contract required: keep the N-1 mutant but
+delete the new `[3a]` section, and the guard goes green again at 34/0. So the kill
+is attributable to the new decision-content assertions rather than to some other
+assertion that happened to move. The production hook is verified byte-identical
+after every run.
+
+**Guard: 35 → 48 assertions.** No criterion reinterpreted; no verdict semantics
+touched; no masterplan step flipped.

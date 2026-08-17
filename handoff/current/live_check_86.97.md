@@ -445,3 +445,89 @@ introduced here, but my artifact claimed the correction was complete.
 Assertions **27 → 35**. Nothing weakened; no criterion reinterpreted. The
 refactor moved section-[1]/[2] logic into a shared function so it could be
 mutated, and every new cell kills.
+
+
+---
+
+## §J. CYCLE-4 — both parked blockers closed (2026-08-17)
+
+Regenerated from live runs in the same pass that wrote this section.
+
+### J1. Criterion 4 — the guard now asserts the DECISION, not the existence of a line
+
+The park note called the `:305` assertion weak. It was **vacuous**: `reason=` is a
+literal in the writer's format string (`post-commit-changelog.sh:271`), so
+`"reason=" in log_text` holds for every non-empty line the writer can emit and is
+strictly subsumed by the "a line was written" check above it.
+
+Four scenarios now drive four of the nine reason states, spanning all four bump
+magnitudes, each asserted by exact equality against a table derived from branch
+structure **before** anything was driven:
+
+```
+       no_flip -- masterplan unchanged
+         -> {'bump': 'none', 'reason': 'no_flip', 'created': '-', 'transitioned': '-'}
+       flip_transitioned -- 99.1 pending -> done
+         -> {'bump': 'patch', 'reason': 'flip_transitioned', 'created': '-', 'transitioned': '99.1'}
+       flip_created -- 98.0 appears already done
+         -> {'bump': 'minor', 'reason': 'flip_created', 'created': '98.0', 'transitioned': '-'}
+       subject_forced_major -- a `!` subject
+         -> {'bump': 'major', 'reason': 'subject_forced_major', 'created': '-', 'transitioned': '-'}
+  ok   [3a] the scenarios DISCRIMINATE -- they do not all produce one reason
+       RE-DERIVED at execution time (window pinned to 2026-08-16T08:23:33Z):
+         commits=87  decision lines=44  gap=43
+         commits matching the recursion guard=44
+```
+
+`unrecorded` is a standing negative control: no branch assigns it, so observing it
+means the detector never ran.
+
+### J2. Criterion 5 — the last unbounded carrier is bounded IN PLACE
+
+`live_check_86.91.md:104` read *"every decision now explains itself"*; that file
+contained **zero** bounding language (`grep -c` = 0). The heading now reads
+*"every decision THAT REACHES THE DETECTOR explains itself"* with the reason
+stated in place, not appended. The same grep now returns **5**.
+
+Swept by claim class, **seeded from `night_diagnostics.md:51`** — an artifact I
+did not write for this purpose — rather than from my own phrasing. Cycle 3
+searched `"every invocation"`, my wording, while the survivor said
+`"every decision"`. Recall test: both members named in the masterplan note are
+found (`live_check_86.91.md:104`; `experiment_results_86.91.md:444`, the note's
+`:441` being off by three).
+
+### J3. Mutation matrix — control GREEN first, hook never touched on disk
+
+```
+  rc=0   ALL GREEN: 48 passed, 0 failed
+  CONTROL GREEN.
+--- N-1 delete the _flip_magnitude() call (hook :214)
+    KILLED   rc=1  FAILED: 41 passed, 7 failed
+--- N-2 never record a reason (force the :267 .get default)
+    KILLED   rc=1  FAILED: 42 passed, 6 failed
+--- N-3 swap flip_created / flip_transitioned
+    KILLED   rc=1  FAILED: 46 passed, 2 failed
+--- N-4 subject-major branch stops recording its reason
+    KILLED   rc=1  FAILED: 46 passed, 2 failed
+  rc=0  ALL GREEN: 34 passed, 0 failed
+  SURVIVED, as required -- without [3a] the same mutant is invisible.
+  => the N-1 kill is attributable to the new decision-content assertions.
+killed=4  survived=0  unscorable=0  of 4
+N-5 attribution control: OK
+production hook byte-identical after the run: True
+PASS
+```
+
+**N-5 is the attribution control**: keep the N-1 mutant, delete the new `[3a]`
+section, and the guard returns to green at 34/0 — so the kill belongs to the new
+assertions and not to something else that moved. Every mutant is applied to the
+hook **source string** the checker writes into a throwaway temp repo; the
+production hook is verified byte-identical after each run.
+
+### J4. What is NOT claimed
+
+- The immutable command (`bash -n`) is a parse check and **cannot fail on this
+  class**; it proves only that the hook still parses.
+- Four of nine reason states are driven, not all nine. `masterplan_unreadable_at_HEAD`,
+  `first_commit`, `detector_error:<Type>` and `flip_created_and_transitioned`
+  remain undriven — stated as a bound rather than implied to be covered.

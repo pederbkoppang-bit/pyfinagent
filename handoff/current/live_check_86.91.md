@@ -101,7 +101,21 @@ different corpus rather than a disagreement about one. *(Corrected phase-86.94: 
 
 ---
 
-## 3. Criterion 4 -- every decision now explains itself
+## 3. Criterion 4 -- every decision THAT REACHES THE DETECTOR explains itself
+
+**BOUND ADDED phase-86.97 (2026-08-17), replacing the unbounded heading that
+stood here.** The heading read *"every decision now explains itself"*, and that
+is false as written: `post-commit-changelog.sh` has pre-detector paths that exit
+0 before `_flip_magnitude()` ever runs, and those invocations emit **no decision
+line at all**. The claim holds for invocations that reach the detector; the
+commits-vs-lines gap it produces is measured and explained in
+`live_check_86.97.md`, where the recursion guard is judged a legitimate
+silence rather than a defect.
+
+This was the last unbounded carrier of the claim. `experiment_results_86.91.md:444`
+and `post-commit-changelog.sh:227` were bounded in earlier cycles; a sweep seeded
+from my own phrasing (`"every invocation"`) missed this one because it says
+`"every decision"`.
 
 The hook, run by hand immediately after commit `8dc70502`:
 
