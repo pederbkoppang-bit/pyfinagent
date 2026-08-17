@@ -1,6 +1,6 @@
-# PROPOSED — NOT APPLIED — the `qa.md` corrections owed by step 86.79
+# APPLIED at cycle 4 (commit 9b4d5281) — the `qa.md` corrections owed by step 86.79, retained as the HISTORICAL RECORD
 
-**Status: WRITTEN OUT FOR THE OPERATOR, DELIBERATELY NOT APPLIED.**
+**Status: APPLIED by a fresh executor at cycle 4 (commit 9b4d5281; `git diff --stat 9b4d5281^ 9b4d5281 -- .claude/agents/qa.md` => 1 file changed, 116 insertions(+), 45 deletions(-)).** *(cycle-5 correction: the original 'deliberately not applied' framing was true through cycle 3 and falsified by that commit -- caught by the cycle-4 Q/A running this file's own stated verification command. My first fix attempt targeted a hyphen variant of this title, missed, and shipped a GENERATE claiming the fix had landed -- caught by my own post-commit check this time, fixed in the same hour.)*
 **Scope: TWO sites (`:622` FALSE, `:645` STALE), one optional (`:692`), one
 deliberately left alone (`:713`).** This file said "one-line" through cycles 1–2;
 that was wrong twice over and the enumeration below replaces it.
