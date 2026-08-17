@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-17 | `26d840c9` | phase-86.37: cycle 6 -- the lost attribution fix landed with write-after-replace ordering |
 | 2026-08-17 | `651e1f78` | phase-86.78/86.37: cycle-5 -- the STEP-0 leak closed, comment trap killed, ASK #1 ratified |
 | 2026-08-17 | `936dc97e` | phase-86.37: cycle-4 verdict transcribed; false +3 attribution corrected by the evaluator's derivati |
 | 2026-08-17 | `660c2934` | phase-86.78: cycle-4 verdict recorded as mechanical FAIL; disjoint findings fixed |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-17 | `7bbd6574` | phase-86.75: cycle 2 -- operator discharged C7 in session; enumeration re-shown at today's corpus |
 | 2026-08-17 | `33c47416` | phase-86.69: GENERATE -- the 61.2 guard ARMED by operator token, restart verified, measurement stage |
 | 2026-08-17 | `0ad90da4` | docs(session): record two rail breaches; fill S5 named-fix column; note operator's product-vs-eviden |
-| 2026-08-17 | `77f15b4d` | phase-86.72/86.78: the re-research leg wired + the consequence recorder computed |
 
 ---
 
