@@ -15,7 +15,16 @@ from __future__ import annotations
 
 import json
 import re
+import sys
 from pathlib import Path
+
+# phase-75.11.4: the step-id recogniser is now SHARED with
+# backfill_handoff_archive.py so the two readers cannot drift. Explicit
+# sys.path insert because this file is also loaded by absolute path via
+# importlib (backend/tests/test_phase_36_7_*.py::_load_script), where the
+# containing directory is NOT on sys.path.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from handoff_naming import is_archivable, resolve_step_id  # noqa: E402
 
 REPO = Path(__file__).resolve().parents[2]
 HANDOFF = REPO / "handoff"
@@ -48,6 +57,12 @@ def _is_rolling_keep(name: str) -> bool:
         return True
     return name.startswith(ROLLING_KEEP_PREFIXES) and name.endswith(".json")
 
+# phase-75.11.4: RETIRED IN PLACE. This PREFIX-only pattern matched 0 of the
+# 727 files in handoff/current/ on 2026-08-17, which made the done-step arm
+# below UNREACHABLE -- the invariant this script exists to assert could not
+# fire at all. Superseded by handoff_naming.resolve_step_id(), which accepts
+# this legacy form AND the `<base>_<sid>.md` form every writer actually uses.
+# Kept as a named constant so the drift is documented rather than deleted.
 STEP_ID_RE = re.compile(r"^(?:phase-)?([0-9]+(?:\.[0-9]+)*)[-.].*\.md$")
 
 # phase-36.7: LIVE PRODUCTION STATE FILES that merely LOOK like audit output.
@@ -99,6 +114,11 @@ def _statuses() -> dict[str, str]:
 
 def main() -> int:
     failures: list[str] = []
+    # phase-75.11.4: files that carry NO step id are reported but do NOT fail.
+    # See the `no_step_id` note below for why that is the documented invariant
+    # rather than a loosened one.
+    no_step_id: list[str] = []
+    unknown_step: list[str] = []
 
     if CURRENT.exists():
         statuses = _statuses()
@@ -107,20 +127,30 @@ def main() -> int:
                 continue
             if _is_rolling_keep(p.name) or p.name.startswith("."):
                 continue
-            m = STEP_ID_RE.match(p.name)
-            if not m:
-                failures.append(
-                    f"current/{p.name} has no step-id prefix; "
-                    "move to handoff/archive/misc/"
-                )
+            ref = resolve_step_id(p.name)
+            if ref is None:
+                # phase-75.11.4: this used to be a FAILURE ("has no step-id
+                # prefix; move to handoff/archive/misc/"). It was the single
+                # largest false class -- 664 of 667 findings on 2026-08-17 --
+                # and it is NOT the documented invariant. `.claude/rules/
+                # research-gate.md` states the rule as "handoff/current/
+                # contains NO files belonging to status=done steps"; a day
+                # report or an incident note belongs to no step, so it
+                # violates nothing. Reported for visibility, not counted.
+                no_step_id.append(p.name)
                 continue
-            sid = m.group(1)
+            sid = ref.sid
             # Masterplan step ids are inconsistent across buckets: some are
             # bare `4.14.1`, others `phase-6.1`. Try both forms.
             status = statuses.get(sid) or statuses.get(f"phase-{sid}")
-            if status == "done":
+            if status is None:
+                # An id no masterplan step claims (a PHASE id such as `78`, or
+                # a step since removed). Not a violation, and specifically NOT
+                # archivable -- the 2026-07-25 sweep moved exactly this class.
+                unknown_step.append(f"{p.name} (sid={sid}, no such step)")
+            elif is_archivable(status):
                 failures.append(
-                    f"current/{p.name} belongs to done step {sid}; "
+                    f"current/{p.name} belongs to {status} step {sid}; "
                     f"move to handoff/archive/phase-{sid}/"
                 )
 
@@ -139,6 +169,19 @@ def main() -> int:
                 failures.append(
                     f"handoff/{p.name} is audit output; move to handoff/audit/"
                 )
+
+    # phase-75.11.4: print the non-failing classes FIRST so they are never
+    # mistaken for a clean tree, and so a reader can see what the checker
+    # deliberately does not police.
+    if no_step_id:
+        print(f"[info] {len(no_step_id)} file(s) in current/ carry no step id "
+              "(rolling files, day reports, incident notes) -- not an invariant "
+              "violation; left in place")
+    if unknown_step:
+        print(f"[warn] {len(unknown_step)} file(s) name a step the masterplan "
+              "does not have -- NOT archivable, left in place:")
+        for u in unknown_step:
+            print(f"  - {u}")
 
     if failures:
         print(f"handoff layout FAIL -- {len(failures)} invariant violation(s):")

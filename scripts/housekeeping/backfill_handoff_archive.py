@@ -6,12 +6,22 @@ into `handoff/archive/phase-<sid>/`. Non-conforming files (no step-id
 prefix) go to `handoff/archive/misc/`. Root-level audit JSON + log
 files move to `handoff/audit/` + `handoff/logs/`.
 
-Idempotent: if target path exists, appends `-v2`, `-v3`, ... suffix
-so prior evidence is never clobbered (mirrors `archive-handoff.sh`).
+"Idempotent" here means NON-DESTRUCTIVE, not convergent: if the target
+path exists, `_safe_target` appends `-v2`, `-v3`, ... so prior evidence is
+never clobbered (mirrors `archive-handoff.sh`). Read that precisely -- a
+re-run does NOT converge to a fixed point by itself, and mistaking the two
+is how `kill_switch_audit.jsonl` reached `-v3` and `-v4`. Convergence comes
+from the status gate below: once a file is archived it is gone from
+`current/`, and what remains is either open, unknown, protected, or
+step-less, all of which are KEPT.
+
+phase-75.11.4 -- SAFE BY DEFAULT. A bare invocation is a DRY RUN. It used
+to execute, and it swept ~664 of 668 `.md` files including artifacts of
+steps that were still in flight.
 
 Usage:
-    python scripts/housekeeping/backfill_handoff_archive.py --dry-run
-    python scripts/housekeeping/backfill_handoff_archive.py
+    python scripts/housekeeping/backfill_handoff_archive.py            # plan only
+    python scripts/housekeeping/backfill_handoff_archive.py --execute  # apply
 """
 from __future__ import annotations
 
@@ -19,7 +29,17 @@ import argparse
 import json
 import re
 import shutil
+import subprocess
+import sys
 from pathlib import Path
+
+# phase-75.11.4: the step-id recogniser is now SHARED with
+# verify_handoff_layout.py so the two readers cannot drift. Explicit sys.path
+# insert because this file is also loaded by absolute path via importlib
+# (backend/tests/test_phase_36_7_*.py::_load_script), where the containing
+# directory is NOT on sys.path.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from handoff_naming import is_archivable, resolve_step_id  # noqa: E402
 
 REPO = Path(__file__).resolve().parents[2]
 HANDOFF = REPO / "handoff"
@@ -111,6 +131,82 @@ def _step_statuses() -> dict[str, str]:
     return out
 
 
+def _masterplan_referenced_names() -> set[str]:
+    """Basenames any masterplan step names in verification.command/live_check.
+
+    phase-75.11.4, criterion 5. Measured 2026-08-17 with THIS function's own
+    rule (the regex below, over every verification.command + live_check):
+    **577** handoff-path references across **386** distinct paths, **415** of
+    them into handoff/current/, **381** distinct basenames.
+
+    (An earlier revision of this docstring said 557/373/395. That triple was
+    carried over from the research brief and never re-derived here; it does not
+    reproduce under any operationalization tried, and the masterplan file was
+    untouched during the work. Corrected rather than annotated -- a number in a
+    docstring is read as measured.)
+    Every one is an IMMUTABLE criterion the project forbids editing, so
+    relocating the file silently breaks a step's reproducibility with nothing
+    to warn you. That has already happened: the 2026-07-25 sweep moved
+    `census_78.json`, which step 78.0's own verification command opens by
+    literal path, so re-running it would have raised FileNotFoundError.
+
+    Matched by BASENAME, not by full path, and that is deliberate: the file
+    is protected wherever the classifier would send it, and a reference
+    written with a different prefix (`./handoff/...`, `handoff/current/...`)
+    still protects the same artifact. The cost is over-protection, which is
+    the safe direction for a mover.
+    """
+    try:
+        with MASTERPLAN.open() as f:
+            mp = json.load(f)
+    except (OSError, ValueError):
+        # Fail SAFE, not open: if the masterplan cannot be read we cannot know
+        # what is referenced, so protect nothing-by-moving-nothing is wrong
+        # (it would block all work) -- instead the caller treats an empty set
+        # as "no protection available" and the status gate still applies.
+        return set()
+
+    names: set[str] = set()
+    pat = re.compile(r"handoff/[A-Za-z0-9_./*-]+")
+
+    def walk(node) -> None:
+        if isinstance(node, dict):
+            ver = node.get("verification")
+            if isinstance(ver, dict):
+                blob = " ".join(
+                    str(ver.get(k) or "") for k in ("command", "live_check")
+                )
+                for m in pat.finditer(blob):
+                    names.add(Path(m.group(0)).name)
+            for v in node.values():
+                walk(v)
+        elif isinstance(node, list):
+            for v in node:
+                walk(v)
+
+    walk(mp)
+    return names
+
+
+def _git_mv(src: Path, dest: Path) -> bool:
+    """Move with `git mv` so rename history survives; False if git declines.
+
+    Mirrors `.claude/hooks/archive-handoff.sh:279`, which already prefers
+    `git mv` and falls back to a plain move. This script used bare
+    `shutil.move` for every relocation, so every backfill lost rename
+    tracking for the files it touched.
+    """
+    try:
+        r = subprocess.run(
+            ["git", "-C", str(REPO), "mv", str(src), str(dest)],
+            capture_output=True,
+            timeout=30,
+        )
+        return r.returncode == 0
+    except (OSError, subprocess.SubprocessError):
+        return False
+
+
 def _safe_target(dest: Path) -> Path:
     if not dest.exists():
         return dest
@@ -123,11 +219,20 @@ def _safe_target(dest: Path) -> Path:
 
 
 def _move(src: Path, dest_dir: Path, dry_run: bool) -> tuple[str, Path]:
-    dest_dir.mkdir(parents=True, exist_ok=True)
+    # phase-75.11.4 cycle 5: the mkdir used to run BEFORE this check, so a
+    # "dry run" CREATED every destination directory it merely planned to use.
+    # Measured: a single dry run on the live tree minted three empty dirs
+    # (handoff/archive/phase-80.5, -81.1, -82.23), which then classified as
+    # `no_contract` and inflated the very census this step reports. A dry run
+    # that mutates the tree is not a dry run.
     dest = _safe_target(dest_dir / src.name)
     if dry_run:
         return ("would-move", dest)
-    shutil.move(str(src), str(dest))
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    # phase-75.11.4: prefer `git mv` so rename history survives; fall back to
+    # shutil.move for untracked files and non-repo (test) trees.
+    if not _git_mv(src, dest):
+        shutil.move(str(src), str(dest))
     return ("moved", dest)
 
 
@@ -142,8 +247,19 @@ def main(dry_run: bool) -> int:
     MISC.mkdir(exist_ok=True)
 
     done_moved = 0
+    # phase-75.11.4: STRUCTURALLY ZERO. The misc sweep branch is gone, so
+    # nothing increments this. It is kept only so the summary line still
+    # states the invariant explicitly ("we moved nothing to misc/"). Do NOT
+    # write a test that asserts `misc-moved=0` in the output -- that string is
+    # present under every mutant and is not coverage; assert that
+    # `handoff/archive/misc/` is empty instead.
     misc_moved = 0
     ambiguous: list[str] = []
+    protected_skipped = 0
+    open_step_kept = 0
+    no_sid_kept = 0
+
+    protected = _masterplan_referenced_names()
 
     for p in sorted(CURRENT.iterdir()):
         if p.is_dir():
@@ -151,29 +267,45 @@ def main(dry_run: bool) -> int:
         name = p.name
         if _is_rolling_keep(name) or name.startswith("."):
             continue
-        m = STEP_ID_RE.match(name)
-        sid = m.group(1) if m else None
-        if sid is None:
-            verb, dest = _move(p, MISC, dry_run)
-            print(f"[misc] {verb}: {name} -> {dest.relative_to(REPO)}")
-            misc_moved += 1
+
+        # phase-75.11.4 (criterion 5) -- checked BEFORE any classification, so
+        # no later branch can route a referenced artifact anywhere.
+        if name in protected:
+            print(f"[protected] KEEP: {name} -- named by a masterplan "
+                  "verification.command/live_check")
+            protected_skipped += 1
             continue
+
+        ref = resolve_step_id(name)
+        if ref is None:
+            # phase-75.11.4 -- THE SWEEP IS GONE. This branch used to
+            # `_move(p, MISC)` every unrecognised name, which is how a bare run
+            # relocated ~664 of 668 .md files including in-flight steps'
+            # artifacts. A file that names no step belongs to no step and is
+            # therefore not this script's to move: report and keep.
+            no_sid_kept += 1
+            continue
+
+        sid = ref.sid
         # Masterplan step ids are inconsistent: some buckets store the
         # bare `4.14.1`, others the prefixed `phase-6.1`. Try both.
         status = statuses.get(sid) or statuses.get(f"phase-{sid}")
-        if status == "done":
+        if is_archivable(status):
             dest_dir = ARCHIVE / f"phase-{sid}"
             verb, dest = _move(p, dest_dir, dry_run)
             print(f"[{sid}] {verb}: {name} -> {dest.relative_to(REPO)}")
             done_moved += 1
-        elif status in ("pending", "in-progress", "blocked"):
-            continue
+        elif status is None:
+            # phase-75.11.4 -- UNKNOWN id: keep, and say so. Previously this
+            # branch MOVED the file to misc/ while the summary line claimed it
+            # was "left in current/ for manual review" -- the report
+            # contradicted the action. Now the report is true.
+            ambiguous.append(f"{name} -- sid={sid} ({ref.convention}) status=unknown")
+            print(f"[warn] KEEP: {name} -- names step {sid}, which the "
+                  "masterplan does not have")
         else:
-            # Unknown / parent-phase id -- route to misc (flagged).
-            ambiguous.append(f"{name} -- sid={sid} status={status!r}")
-            verb, dest = _move(p, MISC, dry_run)
-            print(f"[misc:ambig] {verb}: {name} -> {dest.relative_to(REPO)}")
-            misc_moved += 1
+            # A known but OPEN status (pending / in-progress / blocked).
+            open_step_kept += 1
 
     audit_moved = 0
     log_moved = 0
@@ -207,15 +339,51 @@ def main(dry_run: bool) -> int:
         f"audit-moved={audit_moved} log-moved={log_moved} "
         f"root-kept={kept} ambiguous={len(ambiguous)}"
     )
+    # phase-75.11.4: report what was DELIBERATELY kept. A mover that prints
+    # only what it moved reads as "nothing else was here".
+    print(
+        f"Kept in current/: protected={protected_skipped} "
+        f"open-step={open_step_kept} no-step-id={no_sid_kept} "
+        f"unknown-step={len(ambiguous)}"
+    )
     if ambiguous:
-        print("Ambiguous (left in current/ for manual review):")
+        print("Unknown step id (left in current/ for manual review):")
         for a in ambiguous:
             print(f"  - {a}")
+    if dry_run:
+        print()
+        print("DRY RUN -- nothing was moved. Re-run with --execute to apply.")
     return 0
 
 
 if __name__ == "__main__":
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--dry-run", action="store_true")
+    # phase-75.11.4 (criterion 6) -- SAFE BY DEFAULT. `--dry-run` used to be
+    # OPT-IN, so a bare invocation executed shutil.move over every
+    # unrecognised file. That is not a hypothetical: commit fa9aaf8e swept 315
+    # files and left the verdict gate dark for 13 consecutive step closes, and
+    # the module docstring advertised the bare form as normal usage.
+    #
+    # THE INVERSION IS CONFINED TO ARGUMENT PARSING ON PURPOSE.
+    # `main(dry_run: bool)` keeps its exact signature and keeps reading the
+    # module-level path globals, because
+    # backend/tests/test_phase_36_7_kill_switch_rotation_rearm.py loads this
+    # file by importlib, monkeypatches REPO/HANDOFF/CURRENT/... and calls
+    # `mod.main(dry_run=False)`. Changing the function contract would break
+    # the regression test that protects the kill switch's state file.
+    ap = argparse.ArgumentParser(
+        description="Archive done-step handoff artifacts. Dry-run by default."
+    )
+    ap.add_argument(
+        "--execute",
+        action="store_true",
+        help="actually move files (default: print the plan and change nothing)",
+    )
+    ap.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="accepted for backward compatibility; dry-run is now the default",
+    )
     args = ap.parse_args()
-    raise SystemExit(main(dry_run=args.dry_run))
+    if args.dry_run and args.execute:
+        ap.error("--dry-run and --execute are contradictory")
+    raise SystemExit(main(dry_run=not args.execute))

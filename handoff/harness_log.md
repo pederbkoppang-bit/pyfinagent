@@ -36109,3 +36109,62 @@ router, byte-verbatim criteria transport, and the in-flight counter every
 evaluator quotes. Next per the operator's standing directive: switch Main
 to Opus and put the working harness on the money path (86.69 measurement
 tonight, 86.74's starved row, 75.11.4 -> 86.105, then the phase-86 tail).
+
+## Cycle 1244 -- 2026-08-17 -- phase=75.11.4 result=PARKED (budget exhausted)
+
+**Step:** 75.11.4 -- the handoff backfill archives by filename pattern, blind
+to step status. **Five attempts, terminal.** Ledger:
+`FAIL, FAIL, NO_VERDICT, CONDITIONAL` (the gate counts one further
+NO_VERDICT; the discrepancy is flagged in the escalation, not smoothed over).
+Attempt 5 was **DENIED by `attempt_gate.py` before any tokens were spent** --
+the cumulative bound working exactly as designed.
+
+Shipped: `handoff_naming.py` (ONE shared step-id resolver -- the old PREFIX-only
+regex matched **0** of 727 files while the live SUFFIX convention matches 579
+`.md`), a status gate, a referenced-path refusal (381 protected basenames),
+dry-run-by-default, `git mv` preference, `quarantine_misattributed_archives.py`
+(156 additive markers), and a 31-test suite with **13 mutation cells, all
+killed against green controls**. The sweep is gone: `misc-moved` 664 -> 0.
+
+The last completed evaluation states **all 13 immutable criteria are MET** and
+that the shipped product is correct; its findings were WARN-level and **all
+seven are now closed** -- including a real product defect it caught (a "dry
+run" that mkdir'd, which had inflated this step's own census denominator by
+three directories). Those fixes landed AFTER the budget was spent, so they are
+unevaluated. Parked with `escalation_attempt_budget_75.11.4.md`; Main did not
+flip the step, because auto-pass on exhaustion is forbidden and a denial is not
+a verdict.
+
+## Cycle 1245 -- 2026-08-17 -- phase=86.69 result=CONDITIONAL (parked, starved)
+
+**Step:** 86.69 -- 81% of analyses persisted as an empty 0.0/HOLD row. First
+evaluation, attempt 1 of 5. **C1/C2/C6/C8 MET** (the evaluator ran a wider
+8-cell mutation matrix than Main's and killed all of it, control green first).
+
+The first post-arm cycle ran (`cycle-1786989600`, 18:00:00Z, pid 41635 holding
+the armed flag): 6 analyses, zero-score **0/6** against an 81.2% POST baseline
+-- **and that number proves nothing**, which Main reported rather than claimed.
+The guard was never entered (zero parse failures; all rows `_path=full`), and
+2026-08-10 and 2026-08-14 were ALREADY 0/6 with the flag OFF.
+
+The evaluator additionally explained what Main had left "unexplained": the
+frozen baselines do reproduce -- under the audit-basis partition
+(`PRE<=06-12` gives exactly 251/95/37.8%). The published `PRE<=06-10` rule is a
+different partition, so the two were never comparable. C3 needs a derivation
+the evaluator has already written; C7 is a live tension about whether an
+operator-token action counts as promotion "by this step". Parked with
+`escalation_86.69_starved_measurement.md`.
+
+## Cycle 1246 -- 2026-08-17 -- phase=86.74 result=PARKED (starved criterion)
+
+**Step:** 86.74 -- the risk judge REJECTED at 0% and the book bought at 10%.
+9 of 10 criteria MET; **criterion 6 alone is open and its population is
+EMPTY**. Tonight's cycle: `Trade decisions: 0 sells, 0 buys`; the single
+`signals_log` row is the sentinel `ticker=$CYCLE /
+factors_json=["no_trade_orders"]`. Fourth consecutive session with no gated
+buy. Already 8 attempts against a 5-attempt budget.
+
+Two of its other criteria are visibly working on live data: all six rows carry
+a persisted risk verdict **including `0.0` for the three REJECTs** (baseline
+was 0 of 129), and the completion line now carries its ticker. Parked with
+`escalation_86.74_starved_criterion.md`.
