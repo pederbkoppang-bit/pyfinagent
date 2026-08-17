@@ -386,6 +386,31 @@ def _self_test() -> int:
                   and any(r.get("type") == "operator_extension"
                           and r.get("step_id") == "9.4"
                           for r in read_ledger(led)))
+            # cycle-5 (cycle-4 Q/A, V1/V2): the loud fail-closed swallow in
+            # verdict_outcomes was observable ONLY in a hand-run demo -- every
+            # automated drive pointed the verdict ledger at an ABSENT path,
+            # where emit_sequence returns [] WITHOUT raising, so the except
+            # branch was unreachable and both a silent revert (V1) and a
+            # fail-OPEN `return [Outcome.PASS]` (V2) survived every check.
+            # Drive the branch: a DIRECTORY raises IsADirectoryError (the
+            # section-10 demo fixture, now automated). Assert BOTH properties:
+            # the failure is loud, and it grants no PASS exception.
+            import contextlib  # noqa: PLC0415
+            import io  # noqa: PLC0415
+            vdir = Path(td) / "verdict_isadir"
+            vdir.mkdir()
+            led2 = Path(td) / "attempts2.jsonl"
+            LEDGER, VERDICT_LEDGER = led2, vdir
+            for _ in range(DEFAULT_MAX_ATTEMPTS):
+                append_row({"ts": _now(), "type": "attempt",
+                            "step_id": "9.5"}, led2)
+            buf = io.StringIO()
+            with contextlib.redirect_stderr(buf):
+                d, _ = decide("9.5", read_ledger(led2))
+            check("verdict-ledger read error is LOUD on stderr (V1)",
+                  "verdict-ledger read failed" in buf.getvalue())
+            check("read error grants NO PASS exception -- at ceiling stays deny (V2)",
+                  d == "deny")
         finally:
             LEDGER, VERDICT_LEDGER = old_l, old_v
     print("SELF-TEST", "PASSED" if ok else "FAILED")

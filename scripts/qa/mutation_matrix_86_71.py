@@ -37,7 +37,7 @@ def md5(p: Path) -> str:
 
 
 def drive(gate: Path, tmp: Path, seed_attempts: int,
-          seed_corrupt: int = 0) -> dict:
+          seed_corrupt: int = 0, verdict_ledger_isdir: bool = False) -> dict:
     """Run the gate as a SUBPROCESS with a temp ledger seeded to N attempts.
 
     phase-86.71 cycle-2 (Q/A finding, Circular_Reasoning): the first version
@@ -59,9 +59,18 @@ def drive(gate: Path, tmp: Path, seed_attempts: int,
         for _ in range(seed_attempts):
             fh.write(json.dumps({"ts": "2026-08-17T00:00:00Z", "type": "attempt",
                                  "step_id": "77.7"}) + "\n")
+    # cycle-5 (cycle-4 Q/A, V1/V2): the ABSENT path returns [] quietly and
+    # never reaches verdict_outcomes' except branch, which is why the loud-
+    # swallow fix had zero automated coverage. A DIRECTORY raises
+    # IsADirectoryError and reaches it.
+    if verdict_ledger_isdir:
+        vpath = tmp / "verdict_isadir"
+        vpath.mkdir(exist_ok=True)
+    else:
+        vpath = tmp / "absent_verdicts.jsonl"
     env = dict(os.environ,
                ATTEMPT_GATE_LEDGER=str(led),
-               ATTEMPT_GATE_VERDICT_LEDGER=str(tmp / "absent_verdicts.jsonl"),
+               ATTEMPT_GATE_VERDICT_LEDGER=str(vpath),
                ATTEMPT_GATE_ESCALATION_DIR=str(tmp),
                PYTHONPATH=os.pathsep.join([
                    str(REPO / "scripts" / "harness"),
@@ -114,9 +123,13 @@ def observations(gate: Path) -> dict:
         below = drive(gate, Path(td), seed_attempts=0)
     with tempfile.TemporaryDirectory() as td:
         at = drive(gate, Path(td), seed_attempts=5)
+    with tempfile.TemporaryDirectory() as td:
+        at_vlerr = drive(gate, Path(td), seed_attempts=5,
+                         verdict_ledger_isdir=True)
     probe = _corrupt_probe(gate)
     ext = _extend_probe(gate)
-    return {"below": below, "at": at, "corrupt": probe, "extend": ext}
+    return {"below": below, "at": at, "at_vlerr": at_vlerr,
+            "corrupt": probe, "extend": ext}
 
 
 CHECKS = [
@@ -140,6 +153,13 @@ CHECKS = [
     ("an operator extension WITH a reason appends its labelled row",
      lambda o: o["extend"]["accepted_rc"] == 0
      and o["extend"]["rows_after_accept"] == 1),
+    # cycle-5 (cycle-4 Q/A, V1/V2): both properties of the loud fail-closed
+    # swallow, driven through the branch a directory-ledger makes reachable.
+    ("a verdict-ledger read error is LOUD on stderr (the swallow is observable)",
+     lambda o: "verdict-ledger read failed" in o["at_vlerr"]["stderr"]),
+    ("a verdict-ledger read error grants NO PASS exception -- at ceiling stays "
+     "DENIED (fail-closed direction)",
+     lambda o: o["at_vlerr"]["rc"] == 2),
 ]
 
 #: (id, description, find, replace) -- find must appear exactly once.
@@ -168,6 +188,25 @@ CELLS = [
            "unexplained ceiling raise becomes possible",
      "    if not reason.strip():",
      "    if False:"),
+    # cycle-5 (cycle-4 Q/A): the evaluator's own two surviving mutants of the
+    # loud fail-closed swallow, kept permanent. Both anchor on the full
+    # print+return block of verdict_outcomes' except branch.
+    ("G8", "loud swallow reverted to SILENT (V1) -- the ledger-read failure "
+           "vanishes from stderr while the fail-closed direction is kept",
+     "        print(f\"[attempt-gate] verdict-ledger read failed for step {step_id}: \"\n"
+     "              f\"{type(exc).__name__}: {exc} -- proceeding WITHOUT the PASS \"\n"
+     "              \"exception (fail-closed: this can only deny more, never allow \"\n"
+     "              \"more)\", file=sys.stderr)\n"
+     "        return []",
+     "        return []"),
+    ("G9", "swallow made fail-OPEN (V2) -- a ledger read error grants the "
+           "permanent PASS exception and bypasses the budget entirely",
+     "        print(f\"[attempt-gate] verdict-ledger read failed for step {step_id}: \"\n"
+     "              f\"{type(exc).__name__}: {exc} -- proceeding WITHOUT the PASS \"\n"
+     "              \"exception (fail-closed: this can only deny more, never allow \"\n"
+     "              \"more)\", file=sys.stderr)\n"
+     "        return []",
+     "        return [Outcome.PASS]"),
 ]
 
 
@@ -268,12 +307,22 @@ def run_matrix(verify: bool) -> int:
                 # exit code outside the gate's two legitimate outcomes
                 # (0 allow / 2 deny) -- a crashed mutant has been tested by
                 # nothing, whatever the exception was called.
-                below_stderr = obs["below"].get("stderr", "")
-                broken = ("Traceback (most recent call last)" in below_stderr
-                          or obs["below"]["rc"] not in (0, 2))
+                # cycle-5 (cycle-4 Q/A named fix, stronger OR-branch taken):
+                # the crash test covers ALL THREE hook drives, not only
+                # "below" -- a mutant that crashes only at-ceiling or only
+                # under the isdir verdict-ledger must score ERROR, never a
+                # kill. NOTE at_vlerr's stderr legitimately carries the loud
+                # IsADirectoryError DISCLOSURE (no traceback); the marker is
+                # the traceback header, so the disclosure does not trip this.
+                # Auxiliary probes (_corrupt_probe/_extend_probe) stay outside
+                # this guard's scope, stated in the artifacts.
+                broken = any(
+                    "Traceback (most recent call last)" in o.get("stderr", "")
+                    or o.get("rc") not in (0, 2)
+                    for o in (obs["below"], obs["at"], obs["at_vlerr"]))
                 if broken:
-                    errors.append((cid, "mutant failed to import -- not tested"))
-                    print(f"  {cid}  ERROR      mutant failed to import -- {desc}")
+                    errors.append((cid, "mutant crashed in a hook drive -- not tested"))
+                    print(f"  {cid}  ERROR      mutant crashed in a hook drive -- {desc}")
                     continue
                 failed = [name for name, fn in CHECKS if not fn(obs)]
             except Exception as exc:  # noqa: BLE001

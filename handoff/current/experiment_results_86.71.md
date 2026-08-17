@@ -162,10 +162,53 @@ originates" claim overbroad. Each is closed at the site it lives:
    path appends but still returns 2) dies against it.
 2. The import-ERROR guard is widened from a three-name marker list to the
    CLASS: any Python traceback in the mutant's stderr, or an exit code outside
-   {0, 2}, scores ERROR -- a crashed mutant is never a kill whatever its
-   exception was called (closing probe Z3). The overbroad artifact sentence is
-   corrected in place above.
+   {0, 2}, scores ERROR (closing probe Z3). Scope (cycle-4 Q/A finding,
+   cycle-5 fix -- the named fix's STRONGER branch taken): the guard now
+   inspects ALL THREE hook drives (below / at-ceiling / isdir-verdict-ledger),
+   not only "below"; a crash raised solely inside an auxiliary probe
+   (cmd_extend via _extend_probe, the evaluator's Y4) remains outside its
+   label's scope and is said so rather than claimed covered. The overbroad
+   "whatever its exception was called" sentence is corrected in place above
+   and here.
 3. Cross-flagged from 86.85's cycle-10 verdict and adopted here where the code
    lives: `verdict_outcomes`' broad except no longer swallows silently -- the
    failure is printed loudly on stderr with its fail-closed direction stated
    (an empty list can only remove the PASS allowance, never grant one).
+
+
+---
+
+## Cycle 5 GENERATE (2026-08-17): criterion 8's last uncovered guard closed with the evaluator's own fixture
+
+The cycle-4 CONDITIONAL proved the loud-swallow fix itself had ZERO automated
+coverage -- V1 (silent revert) and V2 (`return [Outcome.PASS]`, a fail-OPEN
+budget bypass) both survived, because every automated drive pointed the
+verdict ledger at an ABSENT path where `emit_sequence` returns `[]` without
+raising, so the except branch was unreachable. Closed exactly as the verdict
+named, plus its stronger optional branch:
+
+1. **Self-test drives the branch**: the verdict ledger pointed at a
+   DIRECTORY (IsADirectoryError -- the section-10 demo fixture, automated),
+   with a step seeded AT ceiling; asserts BOTH properties -- the failure is
+   LOUD on stderr ("verdict-ledger read failed", kills V1) and it grants NO
+   PASS exception (decision stays deny, kills V2). 15 -> 17 ok-checks.
+2. **Matrix drives the branch as a subprocess**: `drive()` gained
+   `verdict_ledger_isdir`; a third observation (`at_vlerr`) and two new
+   behavioural checks; cells G8 (=V1) and G9 (=V2) added verbatim as
+   permanent cells. 7 -> 9 cells, 9/9 KILLED, control green first,
+   discrimination controls green, byte-identical restore (attempt_gate.py
+   md5 moved e284ecb7 -> cd2164da because cycle 5 added the self-test
+   block -- expected, disclosed).
+3. **Crash-guard scope: the named fix's STRONGER branch** -- the
+   traceback/rc-class ERROR test now sweeps ALL THREE hook drives
+   (below / at-ceiling / at_vlerr), not only "below"; auxiliary probes
+   (_extend_probe -- the evaluator's Y4) remain outside its label's scope
+   and the artifacts say so instead of claiming them covered.
+4. **The two capture defects fixed**: section-10's re-run block is
+   REGENERATED with exits taken UNPIPED (the old `| tail -N; echo EXIT=$?`
+   idiom captured tail's status -- the evaluator proved a rc=7 command
+   printed EXIT=0 under it); section-8's stale three-name marker-list
+   description is REPLACED with the class-test wording.
+
+Captured at write time: self-test 17 ok-checks exit 0; matrix 9/9 VERIFY
+PASS exit 0; ruff clean. The full honest-plumbing transcript is section 10.

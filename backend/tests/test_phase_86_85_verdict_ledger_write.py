@@ -162,13 +162,25 @@ def test_non_iso_date_refused_at_both_seams(ledger: Path):
     """QA-C6-1: '2026-8-10' sorts after every ISO August date; 11/52 real rows
     are range-shaped. Refused at write AND at read, never silently ordered."""
     import pytest as _pytest
-    with _pytest.raises(vlw.LedgerError, match="not ISO"):
+    with _pytest.raises(vlw.LedgerError, match="not a real ISO"):
         vlw.build_row("4.6", "PASS", run_id="wf_n", event_date="2026-8-10")
+    # cycle-9 (QA-C7-1): shape-valid but CALENDAR-invalid refused too
+    with _pytest.raises(vlw.LedgerError, match="not a real ISO"):
+        vlw.build_row("4.6", "PASS", run_id="wf_n3", event_date="2026-18-10")
+    # cycle-10 (QA-C9-1): calendar-valid but SHAPE-invalid refused too --
+    # fromisoformat alone accepts compact 20260810, which sorts LAST
+    with _pytest.raises(vlw.LedgerError, match="not a real ISO"):
+        vlw.build_row("4.6", "PASS", run_id="wf_n5", event_date="20260810")
     import json as _json
     ledger.write_text(_json.dumps(
         {"step_id": "4.6", "verdict": "PASS", "run_id": "wf_n2",
          "date": "2026-08-09/10"}) + "\n", encoding="utf-8")
-    with _pytest.raises(vlw.LedgerError, match="non-ISO event date"):
+    with _pytest.raises(vlw.LedgerError, match="non-ISO or calendar-invalid"):
+        vlw.emit_sequence("4.6", ledger)
+    ledger.write_text(_json.dumps(
+        {"step_id": "4.6", "verdict": "PASS", "run_id": "wf_n4",
+         "date": "2026-02-30"}) + "\n", encoding="utf-8")
+    with _pytest.raises(vlw.LedgerError, match="non-ISO or calendar-invalid"):
         vlw.emit_sequence("4.6", ledger)
 
 
@@ -188,9 +200,16 @@ def test_undated_row_is_loud_never_silently_ordered(ledger: Path):
 
 
 def test_sequence_filters_by_step(ledger: Path):
+    # cycle-12 (QA-C11-A): the foreign id must be PREFIX-RELATED to the query
+    # ("4.2" was not), else broadening exact-match to startswith/containment
+    # sweeps nothing here and the mutant survives with an escalation-clearing
+    # differential (86.90's PASS entering 86.9's sequence). Assert the
+    # relation (anti-vacuity for the filter axis), then both directions.
     vlw.append_row(vlw.build_row("4.1", "PASS", run_id="wf_1"), ledger)
-    vlw.append_row(vlw.build_row("4.2", "FAIL", run_id="wf_2"), ledger)
+    vlw.append_row(vlw.build_row("4.10", "FAIL", run_id="wf_2"), ledger)
+    assert "4.10".startswith("4.1") and "4.10" != "4.1", "fixture must be prefix-related"
     assert vlw.emit_sequence("4.1", ledger) == ["PASS"]
+    assert vlw.emit_sequence("4.10", ledger) == ["FAIL"]
 
 
 # --------------------------------------------------------------------------

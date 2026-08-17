@@ -98,7 +98,7 @@ import argparse
 import json
 import re
 import sys
-from datetime import datetime, timezone
+from datetime import date as _date, datetime, timezone
 from pathlib import Path
 
 #: phase-86.85 cycle 7 (QA-C6-1): the ordering contract rests on "ISO
@@ -112,6 +112,22 @@ from pathlib import Path
 #: and out-of-vocabulary refusals: a row that cannot be placed correctly must
 #: be loud, never silently mis-ordered).
 ISO_DATE_RE = re.compile(r"\A\d{4}-\d{2}-\d{2}\Z")
+
+
+def valid_event_date(s: str) -> bool:
+    """Shape AND calendar. phase-86.85 cycle 9 (QA-C7-1): the regex alone
+    accepts 2026-18-10 / 2026-02-30 / 9999-99-99, and a regex-valid
+    calendar-invalid date sorts lexicographically to the WRONG place --
+    '2026-18-10' lands after every real August date, which is the
+    escalation-clearing direction. So the shape check is ANDed with
+    datetime.date.fromisoformat, which refuses every such value."""
+    if not ISO_DATE_RE.match(s):
+        return False
+    try:
+        _date.fromisoformat(s)
+    except ValueError:
+        return False
+    return True
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 LEDGER = REPO_ROOT / "handoff" / "verdict_ledger.jsonl"
@@ -234,9 +250,9 @@ def build_row(
             EXIT_INVALID,
         )
 
-    if event_date is not None and not ISO_DATE_RE.match(str(event_date).strip()):
+    if event_date is not None and not valid_event_date(str(event_date).strip()):
         raise LedgerError(
-            f"--date {event_date!r} is not ISO YYYY-MM-DD. The sequence reader "
+            f"--date {event_date!r} is not a real ISO YYYY-MM-DD calendar date. The sequence reader "
             "orders rows lexicographically BY THIS FIELD, and a non-ISO date "
             "sorts wrongly -- a driven '2026-8-10' backfill landed AFTER every "
             "August ISO date and cleared an escalation. Refused rather than "
@@ -326,7 +342,7 @@ def emit_sequence(step_id: str, path: Path = LEDGER) -> list[str]:
                 EXIT_IO,
             )
         event_date = (row.get("date") or "").strip()
-        if event_date and not ISO_DATE_RE.match(event_date):
+        if event_date and not valid_event_date(event_date):
             # QA-C6-1: 11 of 52 real rows carry range-shaped dates like
             # '2026-08-09/10', and '2026-8-10' sorts AFTER every ISO August
             # date -- silently mis-ordering is exactly the escalation-clearing
@@ -334,7 +350,7 @@ def emit_sequence(step_id: str, path: Path = LEDGER) -> list[str]:
             # row cannot share the same run_id, so repairing a legacy row is
             # an operator act on the file, recorded in the step notes).
             raise LedgerError(
-                f"row for step {step_id!r} carries a non-ISO event date "
+                f"row for step {step_id!r} carries a non-ISO or calendar-invalid event date "
                 f"{event_date!r} (expected YYYY-MM-DD). Refusing to ORDER it -- "
                 "a lexicographic sort over a malformed date silently mis-places "
                 "the verdict, which can clear an escalation.",
@@ -433,8 +449,12 @@ def _self_test() -> int:
         # ordering check silently stops testing ordering. Assert it cannot be.
         check("order fixture is NOT palindromic (anti-vacuity)",
               ordered != list(reversed(ordered)))
+        # (cycle-9 fix of a tautology the cycle-8 Q/A caught: the previous
+        # form asserted the cardinality of a locally-built literal set and
+        # never read the fixture. Derive the dates from the ROWS ON DISK.)
         check("order fixture carries distinct event dates (anti-vacuity for the date axis)",
-              len({f"2026-08-1{i}" for i in range(3)}) == 3)
+              len({r["date"] for r in read_rows(p)
+                   if r.get("step_id") == "99.4"}) == 3)
         check("sequence is oldest->newest",
               ordered == ["PASS", "CONDITIONAL", "FAIL"])
 
@@ -468,7 +488,37 @@ def _self_test() -> int:
             check("non-ISO --date refused at build_row", False)
         except LedgerError as e:
             check("non-ISO --date refused at build_row",
-                  e.code == EXIT_INVALID and "not ISO" in str(e))
+                  e.code == EXIT_INVALID)
+        # QA-C7-1 (cycle 9): shape-valid but CALENDAR-invalid is refused too --
+        # 2026-18-10 passes the regex, sorts after every real August date, and
+        # cleared a driven escalation before this check existed.
+        try:
+            build_row("99.12", "PASS", run_id="wf_cal", event_date="2026-18-10")
+            check("calendar-invalid --date refused at build_row", False)
+        except LedgerError as e:
+            check("calendar-invalid --date refused at build_row",
+                  e.code == EXIT_INVALID)
+        # cycle-10 (QA-C9-1): a fixture ONLY THE REGEX refuses --
+        # date.fromisoformat ACCEPTS compact '20260810' (and week dates), and
+        # compact dates sort lexicographically AFTER every hyphenated date,
+        # which is the escalation-clearing direction. Both halves of the ANDed
+        # guard must be independently able to fail.
+        try:
+            build_row("99.14", "PASS", run_id="wf_compact", event_date="20260810")
+            check("compact ISO date (regex-only refusal) refused at build_row", False)
+        except LedgerError as e:
+            check("compact ISO date (regex-only refusal) refused at build_row",
+                  e.code == EXIT_INVALID)
+        cal = Path(td) / "cal.jsonl"
+        cal.write_text(
+            '{"step_id":"99.13","verdict":"PASS","run_id":"wf_c1","date":"2026-02-30"}\n',
+            encoding="utf-8")
+        try:
+            emit_sequence("99.13", cal)
+            check("calendar-invalid stored date is LOUD at emit", False)
+        except LedgerError as e:
+            check("calendar-invalid stored date is LOUD at emit",
+                  "calendar-invalid" in str(e) or "not a real" in str(e) or "non-ISO" in str(e))
         # ...and at the READ seam, for rows that reached the file some other way.
         niso = Path(td) / "niso.jsonl"
         niso.write_text(
@@ -479,7 +529,7 @@ def _self_test() -> int:
             check("non-ISO stored date is LOUD at emit, never silently ordered", False)
         except LedgerError as e:
             check("non-ISO stored date is LOUD at emit, never silently ordered",
-                  "non-ISO event date" in str(e))
+                  "non-ISO or calendar-invalid event date" in str(e))
 
         # An undated row cannot be ORDERED, so it must refuse loudly -- the
         # same doctrine as the out-of-vocabulary verdict above. Silently
@@ -495,10 +545,22 @@ def _self_test() -> int:
             check("undated row is LOUD, never silently ordered",
                   "no event date" in str(exc))
 
-        # other steps are not mixed in
-        append_row(build_row("99.2", "PASS", run_id="wf_eee", cycle="1"), p)
-        check("sequence filters by step",
+        # other steps are not mixed in. cycle-12 (QA-C11-A): the foreign id
+        # MUST be prefix-related to the query -- the old foreign id "99.2"
+        # shared no prefix relation with "99.4", so broadening the exact-match
+        # filter to startswith()/containment swept nothing in this fixture and
+        # two independently-constructed mutants survived every check while a
+        # foreign step's PASS cleared a real escalation (86.90 -> 86.9; 869
+        # strict-prefix pairs exist among the 1413 masterplan ids). Both
+        # directions are asserted: the query must not sweep its extension,
+        # and the extension-as-query must not sweep its prefix.
+        append_row(build_row("99.40", "PASS", run_id="wf_eee", cycle="1"), p)
+        check("filter fixture is prefix-related (anti-vacuity for the filter axis)",
+              "99.40".startswith("99.4") and "99.40" != "99.4")
+        check("sequence filters by EXACT step id -- extension not swept in",
               emit_sequence("99.4", p) == ["PASS", "CONDITIONAL", "FAIL"])
+        check("reverse direction: extension query does not sweep its prefix",
+              emit_sequence("99.40", p) == ["PASS"])
 
         # an out-of-vocabulary token must be LOUD, never silently filtered --
         # a filtered sequence is SHORTER than the truth and under-counts a run.

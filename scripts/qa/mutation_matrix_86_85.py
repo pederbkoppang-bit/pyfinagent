@@ -126,13 +126,31 @@ CELLS: list[tuple[str, str, str, str]] = [
         "M19",
         "emit-side non-ISO date refusal removed -- a malformed stored date is "
         "silently ordered again",
-        "        if event_date and not ISO_DATE_RE.match(event_date):",
+        "        if event_date and not valid_event_date(event_date):",
         "        if False:",
+    ),
+    (
+        "M21",
+        "calendar half of the date validation removed -- 2026-18-10 passes the "
+        "shape regex, sorts after every real August date, and clears an "
+        "escalation (cycle-8 QA-C7-1)",
+        "    try:\n        _date.fromisoformat(s)\n    except ValueError:\n        return False\n    return True",
+        "    return True",
+        # NOTE: replacement keeps valid_event_date returning True after the
+        # regex, i.e. shape-only validation -- exactly the cycle-7 state.
+    ),
+    (
+        "M22",
+        "shape half of the date validation removed -- fromisoformat alone "
+        "ACCEPTS compact 20260810, which sorts lexicographically LAST: the "
+        "escalation-clearing direction (cycle-9 QA-C9-1)",
+        "    if not ISO_DATE_RE.match(s):\n        return False",
+        "    if False:\n        return False",
     ),
     (
         "M20",
         "write-side non-ISO date refusal removed -- --date 2026-8-10 writes",
-        "    if event_date is not None and not ISO_DATE_RE.match(str(event_date).strip()):",
+        "    if event_date is not None and not valid_event_date(str(event_date).strip()):",
         "    if False:",
     ),
     (
@@ -209,6 +227,28 @@ CELLS: list[tuple[str, str, str, str]] = [
         "build_row, so the refusal is attributable to the caller's invocation",
         "        if not args.step or not args.verdict:",
         "        if False:",
+    ),
+    # ── cycle-12 (QA-C11-A). The per-step filter in emit_sequence was exact-
+    # match in SOURCE, but both fixture pairs ("99.4"/"99.2" in the self-test,
+    # "4.1"/"4.2" in pytest) were prefix-UNRELATED, so broadening the filter
+    # swept nothing in any fixture: two independently-constructed mutants
+    # survived the whole suite while emit_sequence("86.9") gained step 86.90's
+    # PASS -- the escalation-CLEARING direction (869 strict-prefix pairs among
+    # the 1413 masterplan ids). The fixtures are now prefix-related in both
+    # directions, and the evaluator's own two mutants are kept permanent here.
+    (
+        "M23",
+        "per-step filter broadened to startswith -- a foreign extension step's "
+        "PASS is swept into the query step's sequence (QA-C11-A MUT-A)",
+        "        if (row.get(\"step_id\") or \"\").strip() != step_id:",
+        "        if not (row.get(\"step_id\") or \"\").strip().startswith(step_id):",
+    ),
+    (
+        "M24",
+        "per-step filter broadened to containment -- same sweep, independent "
+        "construction (QA-C11-A MUT-B)",
+        "        if (row.get(\"step_id\") or \"\").strip() != step_id:",
+        "        if step_id not in (row.get(\"step_id\") or \"\").strip():",
     ),
 ]
 

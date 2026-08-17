@@ -793,3 +793,51 @@ write time: writer `--self-test` SELF-TEST PASSED exit 0 (32 ok-checks by
 the C8.6 grep rule); pytest `-k "86_85 or ledger or verdict_ledger"` -> 38
 passed; ruff F821/F401/F811 over the touched scripts -> "All checks
 passed!".
+
+
+---
+
+## Cycle 12 GENERATE (2026-08-17): the cycle-11 FAIL's two findings closed
+
+The cycle-11 FAIL (rail-bound cycle; the FAIL resets the consecutive-
+CONDITIONAL counter) found the per-step scoping guard VACUOUS and my rot
+sweep one artifact short. Both closed at the site:
+
+1. **QA-C11-A -- the filter's fixtures are now prefix-related, and the
+   evaluator's own mutants are permanent cells.** The shipped filter at
+   `verdict_ledger_write.py` emit_sequence was ALWAYS exact-match (the code
+   was correct); what could not fail were its guards: the self-test fixture
+   pair ("99.4"/"99.2") and the pytest pair ("4.1"/"4.2") were prefix-
+   UNRELATED, so broadening the filter swept nothing in any fixture while
+   emit_sequence("86.9") gained step 86.90's PASS -- the escalation-CLEARING
+   direction, reachable on 869 strict-prefix pairs among 1413 masterplan
+   ids. Fixes, mirroring the ORDER-axis and DATE-axis anti-vacuity pattern
+   this file already carries:
+   - self-test: foreign id "99.2" -> "99.40" (a strict extension of the
+     query), an explicit FILTER-axis anti-vacuity check asserting the prefix
+     relation, and BOTH directions asserted (the query must not sweep its
+     extension; the extension-as-query must not sweep its prefix). 32 -> 34
+     ok-checks.
+   - pytest: "4.2" -> "4.10", the relation asserted, both directions
+     asserted. Still 38 tests.
+   - matrix: cells M23 (startswith, = the evaluator's MUT-A) and M24
+     (containment, = MUT-B) added verbatim as permanent cells -- both
+     KILLED (rc=1) on the very checks that previously could not fail.
+     22 -> 24 cells, 24/24 killed, coverage checker still green
+     (guards 21 covered 21).
+2. **QA-C11-B -- the §9 rot instances REPLACED, and the class enumerated
+   beyond my own wordings.** live_check §9 items 3-4 ("Only one consumer is
+   proven ... still inert" / "No live spawn has yet consumed the ledger")
+   now carry the truth with supersession labels quoting the originals.
+   Class sweep across all six artifacts of 86.85+86.71: every remaining
+   match is a quotation INSIDE a correction block; §9 items 1-2 re-verified
+   still true as written (the writer is still not auto-invoked at the
+   verdict seam -- Main runs the CLI; the 86.74 rows remain a labelled
+   reconstruction).
+
+The writer's source CHANGED this cycle (the self-test fixture block):
+`shasum -a 256` moved 9ade917c... ->
+`0cc08f20b32e6229f2b21c23920566d215e1270db0d66b308eed9abe6b8c5bde`.
+Captured at write time: self-test 34 ok-checks exit 0; pytest 38 passed;
+matrix 24 cells / 24 killed / 0 survived / 0 unscorable, control green
+first, source UNCHANGED after; ruff clean.

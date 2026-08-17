@@ -258,9 +258,19 @@ because **14 historical rows predate the field**; every row this step writes has
 2. **The 8 backfilled 86.74 rows are a RECONSTRUCTION**, labelled as such in every
    `note`, with the source named. Two split one `harness_log` line reading "rail
    dropped x2" and carry no `run_id`, so they are keyed by cycle label.
-3. **Only one consumer is proven.** `attempt_budget.py` (86.71) is still inert.
-4. **No live spawn has yet consumed the ledger** for `args.verdict_sequence` -- the
-   mechanism is proven by driving the shipped function, not by riding a real launch.
+3. **Two consumers are live** *(cycle-12 REPLACEMENT of "Only one consumer is
+   proven. attempt_budget.py (86.71) is still inert." -- true when written,
+   outlived by the 86.71 wiring; QA-C11-B found this copy uncorrected after the
+   cycle-11 sweep fixed three siblings)*: `enforceEscalation` consumes
+   `args.verdict_sequence` on every Q/A spawn, and `attempt_gate.py`
+   (registered at `.claude/settings.json:39`) calls `emit_sequence()` on the
+   production ledger at every gated Workflow launch.
+4. **Live spawns consume the ledger** *(cycle-12 REPLACEMENT of "No live spawn
+   has yet consumed the ledger" -- same vintage, same fate)*: every
+   86.84/86.85/86.71 evaluation in the 2026-08-17 drain supplied
+   ledger-emitted sequences as top-level `args.verdict_sequence`, and the
+   cycle-10/11 escalation envelopes computed n=3/would_auto_fail from that
+   channel.
 
 ---
 
@@ -625,3 +635,36 @@ cycle 11 changed prose and a DIFFERENT step's code (86.71), not this
 step's source. The mutation matrix was therefore not re-run this cycle;
 the cycle-10 verdict's independently-executed run (22/22 KILLED, control
 green first, sha match before/after) remains the current-source evidence.
+
+
+---
+
+## C12. Cycle-12 captures (2026-08-17 -- exact transcript of the commands as run; exits taken unpiped)
+
+```
+$ shasum -a 256 scripts/qa/verdict_ledger_write.py
+0cc08f20b32e6229f2b21c23920566d215e1270db0d66b308eed9abe6b8c5bde  scripts/qa/verdict_ledger_write.py
+$ python3 scripts/qa/verdict_ledger_write.py --self-test > /tmp/l_st.txt 2>&1; echo ST_EXIT=$?
+ST_EXIT=0
+$ grep -c "^  ok " /tmp/l_st.txt
+34
+$ grep "filter\|reverse direction" /tmp/l_st.txt
+  ok    filter fixture is prefix-related (anti-vacuity for the filter axis)
+  ok    sequence filters by EXACT step id -- extension not swept in
+  ok    reverse direction: extension query does not sweep its prefix
+$ python -m pytest backend/tests -k "86_85 or ledger or verdict_ledger" -q --no-header > /tmp/c12_pytest.txt 2>&1; echo PT_EXIT=$?
+PT_EXIT=0
+$ tail -1 /tmp/c12_pytest.txt
+38 passed, 3514 deselected, 1 warning in 7.20s
+$ python3 scripts/qa/mutation_matrix_86_85.py > /tmp/m85.txt 2>&1; echo MX_EXIT=$?
+MX_EXIT=0
+$ grep -E "^M23|^M24|^24 cells|guards:" /tmp/m85.txt
+M23  KILLED (rc=1)       per-step filter broadened to startswith -- a foreign extension step's PASS is swept into the query step's sequence (QA-C11-A MUT-A)
+M24  KILLED (rc=1)       per-step filter broadened to containment -- same sweep, independent construction (QA-C11-A MUT-B)
+24 cells: 24 killed, 0 survived, 0 unscorable
+guards: 21   covered: 21   uncovered: 0   cell problems: 0
+```
+
+*(The matrix's own tail carries CONTROL green-first and the before/after
+source sha; regenerate with the commands -- this excerpt is not the
+cell-level audit.)*

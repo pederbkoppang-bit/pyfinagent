@@ -247,11 +247,17 @@ evidence set is disclosed in full.** New matrix cell G7 drives
 checks cover the same path in-process. The criterion-8 evidence is therefore
 the 7-cell matrix PLUS the self-test (which also carries the hostile-step-id,
 PASS-exception and extension-allowance kills the cycle-2 evaluator confirmed
--- previously real but undisclosed). Cell-level import breakage now scores
-ERROR, never a kill: a mutant whose subprocess stderr shows
-ModuleNotFoundError/ImportError/SyntaxError is recorded as not-run (the
-smaller form of the cycle-1 class, closed at the cell level; the two
-discrimination controls still guard the harness level).
+-- previously real but undisclosed). Cell-level CRASH now scores
+ERROR, never a kill *(cycle-5 REPLACEMENT: this passage described the
+superseded three-exception marker list after cycle 4 widened the guard --
+the exact staleness class this file keeps relearning)*: any Python traceback
+in the mutant's subprocess stderr, or an exit code outside the gate's two
+legitimate outcomes (0 allow / 2 deny), is recorded as not-run. Scope
+(cycle-5, the named fix's stronger OR-branch): the guard now inspects ALL
+THREE hook drives (below / at-ceiling / isdir-verdict-ledger); a crash raised
+only inside an auxiliary probe (cmd_extend via _extend_probe -- the
+evaluator's probe Y4) remains outside its label's scope, stated here; the two
+discrimination controls still guard the harness level.
 
 
 ---
@@ -321,20 +327,35 @@ The gate still ALLOWED (exit 0, below ceiling) and counted the attempt in
 the TEMP ledger -- the exception can only remove the PASS allowance, never
 grant one, and now it says so instead of vanishing.
 
-Re-run after the three cycle-4 edits (tautology fix, crash-class widening,
-loud swallow):
+Re-run block REGENERATED at cycle 5 *(the cycle-4 Q/A demonstrated that the
+previous block's `cmd | tail -N; echo EXIT=$?` idiom captures tail(1)'s exit
+status, not the command's -- all three values were genuinely 0, re-derived
+unpiped by the evaluator, but the capture form could not have shown a failure.
+Exit codes below are taken UNPIPED, before any tail; the block is the exact
+transcript of the commands as run)*. Post-cycle-5 state: self-test 17
+ok-checks incl. the two new V1/V2 checks; matrix 9 cells incl. G8/G9 (the
+evaluator's own surviving mutants, now permanent and KILLED); attempt_gate.py
+md5 moved e284ecb7 -> cd2164da because cycle 5 added the self-test block
+(expected, disclosed).
 
 ```
-$ python3 scripts/harness/attempt_gate.py --self-test | tail -2; echo EXIT=$?
-  ok    operator extension WITH a reason appends its labelled row
+$ T=$(mktemp -d)
+$ python3 scripts/harness/attempt_gate.py --self-test > "$T/st.txt" 2>&1; echo ST_EXIT=$?
+ST_EXIT=0
+$ tail -3 "$T/st.txt"
+  ok    verdict-ledger read error is LOUD on stderr (V1)
+  ok    read error grants NO PASS exception -- at ceiling stays deny (V2)
 SELF-TEST PASSED
-EXIT=0
-$ python3 scripts/qa/mutation_matrix_86_71.py --verify | tail -4; echo EXIT=$?
-BYTE-IDENTICAL RESTORE: ok (md5 e284ecb7f7663274d06f98b1a0d450f8; mutants ran from temp copies, the real tree was never written)
-cells=7  killed=7  real survivors=0  errors=0
+$ python3 scripts/qa/mutation_matrix_86_71.py --verify > "$T/mx.txt" 2>&1; echo MX_EXIT=$?
+MX_EXIT=0
+$ tail -5 "$T/mx.txt"
+
+BYTE-IDENTICAL RESTORE: ok (md5 cd2164daf74b0b2332bc5ccac6598808; mutants ran from temp copies, the real tree was never written)
+cells=9  killed=9  real survivors=0  errors=0
 
 VERIFY: PASS -- control green, 0 survivors, 0 errors, tree unchanged.
-EXIT=0
-$ uvx ruff check --select F821,F401,F811 scripts/harness/attempt_gate.py | tail -1
+$ uvx ruff check --select F821,F401,F811 scripts/harness/attempt_gate.py scripts/qa/mutation_matrix_86_71.py > "$T/rf.txt" 2>&1; echo RF_EXIT=$?
+RF_EXIT=0
+$ cat "$T/rf.txt"
 All checks passed!
 ```
