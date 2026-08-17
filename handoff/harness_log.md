@@ -35996,3 +35996,20 @@ the step from scratch mid-flight; closed with the five-status table matching
 the (more fail-closed) code cell-for-cell and the evaluator's own probes
 confirming fixture asymmetry and multiply-covered kills. Five
 evidence-quality residuals ride the transcribed verdict for the queue.
+
+## Cycle 1238 -- 2026-08-17 -- phase=86.72 result=PASS
+
+**Step:** 86.72 -- the re-research leg never fired on the live rail. **PASS on
+cycle 2** after a righteous cycle-1 FAIL (blind census classifier, no
+consumer, five surviving mutants). What shipped: optional
+research_needed/research_brief_spec in VERDICT_SCHEMA; enforceResearchRouting
+beside the verdict; scripts/harness/research_router.py -- the consumer that
+counts rounds from the attempt-gate stream and enforces Tmax=2 for real;
+docs at both protocol surfaces; census CORRECTED by the run-record method
+(twelve steps re-engaged research, all Main-initiated -- the rail signal
+never existed until now). Driven end to end BY BOTH PARTIES: Main's arm-B
+launch caused the real 86.105 researcher (wf_5eacb773-aa5, whose PASSED gate
+banked 86.105's contract); the evaluator then re-drove both arms itself,
+its production-ledger router run reading 'round 2 of 2'. Section [8]: five
+survivor cells + LG-1 whole-script leak-guard + the :638 scoring fix, family
+136/124/96. Five evidence residuals ride the transcribed verdict.
