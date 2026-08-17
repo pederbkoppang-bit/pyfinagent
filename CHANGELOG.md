@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-17 | `660c2934` | phase-86.78: cycle-4 verdict recorded as mechanical FAIL; disjoint findings fixed |
 | 2026-08-17 | `b6a3f8e9` | phase-86.75: harness best-practice audit -- CLOSED by operator at the structural-CONDITIONAL boundar |
 | 2026-08-17 | `56c2f540` | feat(sovereign): add 15-min intraday ("1d") window to Red Line Monitor |
 | 2026-08-17 | `13ef5bae` | chore: backfill 86.37/86.79 verdict-ledger rows (labelled reconstructions) |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-17 | `77f15b4d` | phase-86.72/86.78: the re-research leg wired + the consequence recorder computed |
 | 2026-08-17 | `1d9a360e` | phase-86.96: string-args dispatch-kill class -- PASS on first evaluation |
 | 2026-08-17 | `140f1ac3` | phase-86.37/86.78: cycle-4 re-capture + the consequence-exposure census staged |
-| 2026-08-17 | `d33aabe2` | phase-86.21: cycle 7 -- the last two artifact fixes at the named sites |
 
 ---
 
