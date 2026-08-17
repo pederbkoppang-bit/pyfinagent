@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-17 | `54c6ec51` | phase-86.78: family-count bound + the recorder's first live measurement noted |
 | 2026-08-17 | `1777cc8d` | phase-86.72: cycle 2 -- consumer, round counter, corrected census, end-to-end drive |
 | 2026-08-17 | `ba74813b` | phase-86.79/86.72: gate pins the APPLIED doc state; 86.72 cycle-1 FAIL transcribed |
 | 2026-08-17 | `bfdecb14` | phase-86.21: cycle 8 -- the five named fixes at their sites |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-17 | `c90910ef` | phase-86.84: cycle 11 GENERATE -- non-comment-line pin + rendered/cross-checked unclassified aggrega |
 | 2026-08-17 | `2a6cd4b6` | phase-86.85/86.71: cycle 12/5 GENERATE -- prefix-related filter fixtures + the except branch driven |
 | 2026-08-17 | `cbbd1566` | phase-86.84/86.85/86.71: cycle 10/11/4 GENERATE -- coupling pin + prose-rot replacements + loud fail |
-| 2026-08-17 | `65e38c3b` | phase-86.96 + 86.90 + 86.72: byte-verbatim round-trip guard (section 7, 113/113), 86.96 diagnosis ex |
 
 ---
 
