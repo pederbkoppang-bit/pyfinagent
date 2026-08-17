@@ -516,3 +516,170 @@ NON-BLOCKING NOTES: (1) live_check heading "## 6. MUTATION MATRIX -- 12/12 kille
 Deterministic tier, verbatim: immutable command -> "parses", exit 0. ruff --select F821,F401,F811 over a DERIVED non-empty 4-file scope (git diff --name-only HEAD '*.py' UNION git ls-files --others '*.py', passed via xargs) -> "All checks passed!", exit 0. pytest -k '86_85 or ledger or verdict_ledger' -> 34 passed, 3498 deselected. mutation_matrix_86_85.py -> exit 0. No UI claims in this step, so gate 1c does not apply; no backend/** change belongs to this step's diff, so gate 1d does not apply.
 
 Write-first record: /Users/ford/.openclaw/workspace/pyfinagent/.claude/agent-memory/qa/verdicts/verdict_wip_86.85__20260815T194248Z.md (STATUS: COMPLETE -- evidence for a next spawn, never a verdict).
+
+---
+
+# CYCLE 5 VERDICT -- TRANSCRIBED VERBATIM (2026-08-17, Workflow rail `wf_4d71b0c8-927`, 236,457 tokens, 67 tool uses, 834 s)
+
+**VERDICT: CONDITIONAL** (ok=false). All 8 criteria MET as literally written; capped by the emit_sequence ordering vacuity (QA-MUT-B), one overgeneralization in Main's cycle-5 item 4, and stale row counts.
+
+> Transcribed verbatim from the Q/A's structured return value. Main records the verdict; Main never authors it.
+
+```json
+{
+  "ok": false,
+  "verdict": "CONDITIONAL",
+  "reason": "All 8 immutable criteria are MET as literally written and every deterministic check reproduces independently, but one executed guard-vacuity finding and two claim-accuracy defects cap the verdict. REPRODUCED BY ME, NOT READ: immutable command exit=0 ('parses'); ruff F821,F401,F811 over the git-DERIVED scope (`git diff --name-only HEAD -- '*.py'`, non-empty asserted, 2 files, neither in 86.85 scope) 'All checks passed!' exit=0; pytest backend/tests -k '86_85 or ledger or verdict_ledger' 34 passed; mutation_matrix_86_85.py CONTROL GREEN first then 14 cells/14 KILLED/0 survived/0 unscorable with target sha256 3e607f1b02a6a4cb identical before AND after; verify_matrix_coverage_86_85.py self-control passes (plants a guard, requires itself to report it UNCOVERED) then guards 15/covered 15/uncovered 0; --self-test 23 checks exit 0 with the real ledger provably untouched (47 lines, md5 93873c46ed5381f920fbd6716d34b3ac, zero '99.6' rows after); verify_escalation_86_78.mjs 51 checks 0 failed. C1: I re-derived the pre-step blob at d1c4a79d~1 myself -- 35 rows / 86.74 rows 0 / 10 step_ids / {main:35} / max date 2026-08-11 -- and the positive control --step 86.21 still returns status=ok with 5 verdicts, so the zero is measured, not a broken reader. C3: I drove cross-process persistence myself across 5 separate python invocations. C4: I brace-extracted the REAL enforceEscalation (2225 bytes) from .claude/workflows/qa-verdict.js and executed those bytes -- 1 prior C + CONDITIONAL -> n=1 auto_fail=false (anti-vacuity control), 2 prior C + CONDITIONAL -> n=2 auto_fail=TRUE, 2 prior C + PASS/FAIL -> false. C6: [C,C,NO_VERDICT]+CONDITIONAL -> n=2 auto_fail=true, absent -> n=null status=not_supplied. C7: I swept 200 combinations (5 verdicts x 8 sequences x 5 opts) -- the input object is never mutated, the result carries NO 'verdict' key, and no path sets auto_fail on a non-CONDITIONAL. Harness compliance 5/5 clean (research brief COMPLETE/8 sources/23 URLs/recency scan/gate_passed true; brief created 2026-08-14 21:41 in 9034ddfb BEFORE the contract created 2026-08-15 15:44 in d1c4a79d -- note the mtimes invert because cycle-3 re-annotated the brief, so git creation order is the authority; step still pending; no cycle-5 harness_log row; evidence genuinely CHANGED across 3 files so this is the documented fresh-respawn, not verdict-shopping). No unintended production change: the 86.85 scope this cycle is one ledger data row plus two handoff artifacts, and zero .py in the 86.85 scope changed. THE THREE CAPPING FINDINGS: (1) the ordering guard cannot fail for a date-conditional reorder, and the writer's own backfill feature can therefore CLEAR an escalation -- proven by mutation QA-MUT-B (control observed GREEN first, repo sha256 byte-identical, zero writes), which sorts emit_sequence DESCENDING by event date and survives all 23 self-test checks including the one named 'sequence is oldest->newest'; (2) Cycle-5 GENERATE item 4 states 'Every --emit-sequence call in _self_test passes --ledger' when verdict_ledger_write.py:492 does not, and that line is printed by the author's own quoted grep; (3) the '[WORKING TREE]' ledger row counts say 45 in experiment_results and 46 in live_check against a measured 47. Fixes for all three are named and cheap.",
+  "violated_criteria": [
+    "illusory-guard (WARN): emit_sequence ordering guard is blind to date-conditional reordering, so a backfill can clear an escalation",
+    "Overgeneralization: 'Every --emit-sequence call in _self_test passes --ledger' is refuted by the author's own quoted grep output",
+    "Contradiction: '[WORKING TREE]' ledger row counts (45 in experiment_results, 46 in live_check) do not reproduce and disagree with each other; measured 47"
+  ],
+  "violation_details": [
+    {
+      "violation_type": "Missing_Assumption",
+      "action": "MUTATION QA-MUT-B, run in memory with CONTROL observed GREEN first and repo sha256 3e607f1b02a6a4cb verified byte-identical after: replace scripts/qa/verdict_ledger_write.py emit_sequence's tail so it returns [v for _, v in sorted(out, key=lambda t: t[0], reverse=True)] keyed on row['date'] -- i.e. sort the verdict sequence DESCENDING by event date, an unambiguously wrong ordering.",
+      "state": "SURVIVES. self_test_rc=0, 0 failing checks -- all 23 checks pass, including the one literally named 'sequence is oldest->newest' and its anti-palindrome guard-on-the-guard. ROOT CAUSE (vacuity shape #5, fixture cannot represent the failure): both ordering fixtures append with NO event_date so every row shares one date and a date-conditional reorder is unobservable -- scripts/qa/verdict_ledger_write.py:355-363 and backend/tests/test_phase_86_85_verdict_ledger_write.py:126-130. BEHAVIOURAL DIFFERENTIAL on reachable input, driven against the REAL 2225-byte enforceEscalation slice extracted from .claude/workflows/qa-verdict.js: append CONDITIONAL(2026-08-11), CONDITIONAL(2026-08-12), then backfill PASS(2026-08-10) -- emit_sequence returns [\"CONDITIONAL\",\"CONDITIONAL\",\"PASS\"] (file order) -> n=0 would_auto_fail=false, whereas true event order [\"PASS\",\"CONDITIONAL\",\"CONDITIONAL\"] -> n=2 would_auto_fail=TRUE. The backfill CLEARS a real escalation: fail-OPEN. MECHANISM: emit_sequence (verdict_ledger_write.py:263-296) never reads 'date' at all (grep of its span for 'date' returns 0 hits) while its own docstring asserts 'Oldest -> newest'; build_row:232 persists event time and the only reader discards it. REACHABILITY is not hypothetical -- '--date' is a shipped flag and THIS CYCLE's headline change is a backfill (recorded_by '...backfill at transcription seam'). NO PRESENT HARM: I verified both live backfill sets are in event order (86.74's 8 rows, dates == sorted(dates) -> True; 86.85's cycle-4 row is genuinely newest), so this is latent, not active. DISCLOSURE: zero -- grep -i 'append order|file order|event order|out-of-order|chronolog|sort' across experiment_results_86.85.md, live_check_86.85.md and contract_86.85.md returns no matches.",
+      "constraint": "qa.md section 4c -- a guard that cannot fail when its subject is broken does not count; and criterion 6's principle that a row must not be recorded in a way that CLEARS an escalation. SEVERITY WARN, not BLOCK: the ordering guard is NOT sole-coverage vacuous (it does kill the unconditional-reversal mutant M6, which I reproduced). NAMED FIX: stable-sort emit_sequence by 'date', and give both ordering fixtures at least two distinct event_dates so the guard becomes able to fail."
+    },
+    {
+      "violation_type": "Overgeneralization",
+      "action": "Re-derived the claim in handoff/current/experiment_results_86.85.md 'Cycle 5 GENERATE' item 4: 'Every --emit-sequence call in _self_test passes --ledger with a temp path (grep -n \"emit.sequence\" scripts/qa/verdict_ledger_write.py, see :443-444), so \"Touches no real file\" is true as written; no edit needed.' I ran that exact grep and then settled the underlying question by execution.",
+      "state": "COUNTER-EXAMPLE, printed by the author's own quoted command: scripts/qa/verdict_ledger_write.py:492 `rc_seq, err_seq = cli([\"--emit-sequence\"])` -- an --emit-sequence call inside _self_test that does NOT pass --ledger. The CONCLUSION is nevertheless TRUE, but by a mechanism Main never states: main() resolves `path = LEDGER` (the real ledger) at :540 and then raises LedgerError('--emit-sequence requires --step.') at :544-545 BEFORE emit_sequence(args.step, path) is reached at :546. SETTLED BY EXECUTION rather than by reading: I monkeypatched pathlib.Path.read_text to raise on any read of verdict_ledger.jsonl and called main(['--emit-sequence']) -- rc=3, stderr 'verdict_ledger_write: --emit-sequence requires --step.', ZERO reads observed. Consequence for the record: cycle-4's non-blocking note 2 ('it READS the real handoff/verdict_ledger.jsonl via the module default') was itself FACTUALLY WRONG, and Main's cycle-5 rebuttal is right in conclusion, wrong in evidence, and does not say the note was mistaken.",
+      "constraint": "qa.md section 4b -- a completeness claim must survive a known-member recall test, and a scan that cannot locate its own already-known members is a failed gate. This is the same class as the three prior FAILs on this step. FIX: replace item 4 with the actual mechanism (the arg guard at :544-545 short-circuits before any path read) and record that cycle-4's note was incorrect."
+    },
+    {
+      "violation_type": "Contradiction",
+      "action": "Re-derived every ledger row count in the two artifacts. Population rule used, as the artifacts state: every non-blank line of handoff/verdict_ledger.jsonl. Commands: `git show d1c4a79d~1:handoff/verdict_ledger.jsonl | grep -c .`, `git show d1c4a79d:... | grep -c .`, `git show HEAD:... | grep -c .`, `grep -c . handoff/verdict_ledger.jsonl`.",
+      "state": "The two ANCHORED figures reproduce EXACTLY -- d1c4a79d~1 -> 35, d1c4a79d -> 43 -- so the cycle-2/cycle-3 anchoring remediation held where it was applied. The third block does not: handoff/current/experiment_results_86.85.md:93 states '[WORKING TREE] total rows : 45' while handoff/current/live_check_86.85.md:233 states '[WORKING TREE] total 46', and the measured value is 47 (HEAD blob = 46). The two artifacts disagree with each other and both are stale. The cause is this cycle's own action: the cycle-4 backfill row appended here is the +1 that invalidated both figures, and neither was updated in the same edit that added it. This is the third recurrence of the self-referential-count class on this step (cycle 2 caught 44-vs-43; cycle 3 caught 45-vs-43), on a step whose entire subject is counting ledger rows.",
+      "constraint": "Criterion 2 -- the population rule is stated beside every count of ledger rows and the enumeration command is quoted (both hold, so the criterion is MET as written), read together with qa.md section 4b: a number in a handoff artifact must reproduce. FIX: either anchor the third block to a sha as the other two are, or delete it -- a '[WORKING TREE]' figure is unanchorable by construction and will go stale again on the next cycle."
+    }
+  ],
+  "certified_fallback": false,
+  "checks_run": [
+    "harness_compliance_audit_5_of_5",
+    "immutable_verification_command",
+    "syntax_ast_parse",
+    "python_lint_gate_ruff_F821_F401_F811_derived_scope",
+    "scoped_pytest_backend_tests",
+    "writer_self_test_23_checks",
+    "mutation_matrix_86_85_reproduction_14_of_14",
+    "verify_matrix_coverage_86_85_reproduction_15_of_15",
+    "verify_escalation_86_78_51_checks",
+    "independent_mutation_QA_MUT_B_ordering_by_event_date",
+    "independent_cross_process_write_readback_drive",
+    "independent_drive_of_real_enforceEscalation_bytes",
+    "criterion_7_200_flag_combination_sweep",
+    "backfill_ordering_behavioural_differential",
+    "path_read_text_interception_probe",
+    "ledger_integrity_md5_before_after",
+    "git_scope_derivation_and_head_recheck",
+    "verdict_ledger_and_qa_wip_cross_check",
+    "research_gate_envelope_check",
+    "claim_reproduction_audit",
+    "guard_vacuity_check_4c",
+    "code_review_heuristics",
+    "evaluator_critique"
+  ],
+  "harness_compliance_ok": true,
+  "notes": "SEQUENCE EVIDENCE (gathered, not applied). `python scripts/qa/verdict_history_86_21.py --step 86.85 --evidence-only` -> source handoff/verdict_ledger.jsonl, status \"ok\", detail \"4 verdict(s) from the ledger\", verdicts: FAIL -> FAIL -> FAIL -> CONDITIONAL. `python scripts/qa/qa_wip.py 86.85 --spawned-at 2026-08-17T09:34:00Z` -> source_present TRUE, attempt_number 5 (attempt_number_status \"ok\", attempt_number_is_lower_bound true), prior_attempts 4, records_pruned_known null, records_retained 5 (a GAUGE that includes my own write-first record; deliberately NOT used as a counter). CROSS-CHECK: prior_attempts (4) == the ledger's verdict count (4), so the ledger is NOT stale for this step. I checked source_present first, per phase-86.21. DISCREPANCY WORTH MAIN'S ATTENTION, recorded not acted on: .claude/masterplan.json step 86.85 `notes` says \"PARKED at [CONDITIONAL x4]\" while the ledger says [FAIL,FAIL,FAIL,CONDITIONAL]; qa.md makes the ledger govern, so the masterplan note is a secondary-source inaccuracy and I am read-only. Write-first record at /Users/ford/.openclaw/workspace/pyfinagent/.claude/agent-memory/qa/verdicts/verdict_wip_86.85__20260817T093400Z.md (COMPLETE -- evidence for the next spawn, never a verdict).\n\nWHAT IS GENUINELY STRONG AND SHOULD NOT BE REDONE. The localisation (C1) is rigorous and every number re-derived from git exactly: pre-step blob 35 rows / 86.74 rows 0 / 10 step_ids / {main:35} / max date 2026-08-11, with the --step 86.21 positive control still returning status=ok and 5 verdicts through the same reader and key, which is what licenses reading the zero as measured. The re-scope test was actually run and honestly answered. The mutation procedure remains among the best in this repo: CONTROL observed GREEN before any cell, temp-copy and in-memory mutants so no restore can be gotten wrong, sha256 printed and compared in-run, UNSCORABLE scoring so a broken mutant cannot score as a kill, and the coverage checker runs a SELF-CONTROL (plants a synthetic guard and requires itself to report it UNCOVERED) before publishing a clean bill. C8.5's self-refutation is exemplary and is the opposite of defensive: it withdraws \"completeness is now DERIVED\", states the known-member recall as 1 of 4 against a set the author did not choose, and names the residual as behavioural rather than guard-shaped. The C8.7 and section-9 honest-limits blocks are accurate, including the two that matter most -- the writer is NOT wired to the seam, and no live spawn has yet consumed the ledger for args.verdict_sequence. The cycle-5 relabel of \"(coverage-redundant)\" is legitimate and I verified its provenance claim reproduces: `grep -rn \"coverage-redundant\" scripts/qa/*.py` returns exactly one hit, a `#:` COMMENT at scripts/qa/verify_cell_vacuity_86_89.py:58, and a repo-wide `git grep -n -- '*.py'` returns the same single hit -- so no checker prints that phrase and relabelling it corrects editorial text rather than doctoring output.\n\nTWO NON-BLOCKING NOTES BEYOND THE THREE CAPPING FINDINGS. (a) STALE CITATION: experiment_results:123 and live_check:80-81 cite \"lines 319-370 of .claude/workflows/qa-verdict.js\" for enforceEscalation; it is at :535 now and :319-370 is PROMPT text. The citation was accurate when written on 2026-08-15 and the file was edited by phase-86.90 on 2026-08-16 -- cite by symbol, not line, as CLAUDE.md already warns. It did not mislead me: I located the function by grep and drove its real bytes. (b) CONSEQUENCE FRAMING IN THE JUDGE'S EVIDENCE: the \"Cycle 5 GENERATE / Context\" paragraph states \"the FAILs reset the CONDITIONAL counter, so no escalation rail constrains a cycle-5 verdict\". The claim is factually consistent with what I measured ([F,F,F,C] -> n=1), but phase-86.78 deliberately removes exactly this class of statement from the judge's inputs, and qa.md records that the effect is invisible in chain-of-thought so I could not detect it acting on me. The prompt-side channel is closed; the artifact-side one is not. Recorded as a process observation for Main, not as a criterion violation. (c) The C8.6 pytest block quotes the selector but omits the PATH scope; run bare from the repo root it INTERNALERRORs on scripts/go_live_drills/mcp_servers_test.py. Under `backend/tests/` the load-bearing \"34 passed\" reproduces exactly (deselected is 3514 now vs 3498 stated -- tree growth, benign). (d) Restating cycle-4's note 4 because it is still true: backend/api/sovereign_api.py plus 5 frontend/src components are modified and uncommitted, and auto-commit-and-push.sh does `git add -A` on the status flip, so they would ship under an 86.85 commit subject. Both .py lint clean.\n\nMETHOD DISCLOSURES. (i) No UI claims in this step and no frontend/** or backend/** file in the 86.85 scope, so qa.md sections 1b, 1c and 1d do not apply and no Playwright capture was taken. (ii) Lint scope was DERIVED, never typed: `git diff --name-only HEAD -- '*.py'` with the mandatory non-empty guard asserted before reading the exit code, and the files passed as explicit arguments rather than as an unquoted variable (zsh does not word-split, which has produced a false pass three times in this project). (iii) I drove the REAL enforceEscalation, never a retyped copy: the shipped file carries top-level `return` statements so it will not import as ESM; I brace-matched the 2225-byte function span out of .claude/workflows/qa-verdict.js at runtime and evaluated those exact bytes. (iv) ZERO repo writes by this evaluation -- every mutant ran in memory or against temp ledgers under the session scratchpad; handoff/verdict_ledger.jsonl md5 93873c46ed5381f920fbd6716d34b3ac and scripts/qa/verdict_ledger_write.py sha256 3e607f1b02a6a4cb are unchanged, verified after everything I ran. (v) ONE OF MY OWN PROBES FAILED AND I REFUSED TO READ ITS RESULTS: a pytest in-process module-swap harness intended to run the 27 collected tests against mutated writer source errored on its CONTROL (rc=2, my own missing `importlib.abc` import), so all three of its rows -- including the mutant rows -- were discarded rather than reported. A red check that indicts its own probe is exactly as misleading as a green one that cannot fail. The QA-MUT-B finding therefore rests on the module's own 23-check self-test, where the CONTROL was observed GREEN first, plus the separately-driven behavioural differential. (vi) I re-checked HEAD at the end: it moved from 20a970b7 to 8000de69 during the evaluation (commit 1c80684a filing new steps 86.105/86.106), touching only .claude/masterplan.json and CHANGELOG.md; I confirmed step 86.85's success_criteria are byte-identical across both refs (md5 3b2065eea6dfc4f79030b86a7005abaa at each), so the grade is scoped correctly.",
+  "escalation": {
+    "sequence_supplied": null,
+    "sequence_status": "not_supplied",
+    "consecutive_conditionals": null,
+    "would_auto_fail": null,
+    "attempt_number": null,
+    "budget_exhausted": null,
+    "max_attempts": 5,
+    "burden_on": "the party departing from the computed escalation",
+    "override": null,
+    "override_reason": null,
+    "judge_was_told_consequence": false
+  },
+  "verdict_unmodified": true
+}
+```
+
+---
+
+## Cycle 6 -- verdict TRANSCRIBED VERBATIM (2026-08-17, Workflow rail `wf_4dda5bd1-0dc`)
+
+**VERDICT: FAIL** (ok=false). Criteria 1-7 MET and independently re-derived; criterion 8 NOT MET with named, executed findings.
+
+> Transcribed verbatim from the Q/A's structured return value. Main records the verdict; Main never authors it.
+
+```json
+{
+  "ok": false,
+  "verdict": "FAIL",
+  "reason": "Criterion 8 (\"mutation-test EVERY new guard\") is NOT MET: the `pos` file-position tiebreak introduced by the cycle-6 fix is a NEW guard with no matrix cell and no fixture that can observe it. Executed with the control observed GREEN first and a byte-identical sha256 (dc70884c...) before/after: mutating `keyed.append((event_date, pos, verdict))` -> `keyed.append((event_date, 0, verdict))` in scripts/qa/verdict_ledger_write.py:317 SURVIVED both oracles (writer --self-test rc=0, all 26 checks green; the pytest file rc=0, 29 passed, control also 29). It is not equivalent: on the REAL ledger step 86.85 emits [\"FAIL\",\"FAIL\",\"FAIL\",\"CONDITIONAL\",\"CONDITIONAL\"] vs the mutant's [\"CONDITIONAL\",\"FAIL\",\"FAIL\",\"FAIL\",\"CONDITIONAL\"], and 86.74 likewise reorders. Fed to the shipped enforceEscalation (extracted by brace-matched anchor, 52 lines) that takes this step's own data from n=2/would_auto_fail=TRUE to n=1/would_auto_fail=FALSE -- fail-OPEN, the same consumer and the same direction as the cycle-5 QA-MUT-B finding. Root cause: within one event date the sort falls through to element 3 (the verdict STRING) and orders alphabetically; every ordering fixture uses DISTINCT dates, while same-date rows are the common case (86.85 cycles 1-4 all 2026-08-15; 86.74 cycles 1-6 all 2026-08-14). This is the identical class that produced this step's cycles 1, 2 and 3 FAILs -- a new guard shipped with no mutation cell. Two supporting findings: (QA-C6-1) the event-date sort asserts \"ISO YYYY-MM-DD, so lexicographic order IS chronological order\" but build_row validates nothing, and the escalation-clearing backfill remains reachable through the shipped --date flag -- driven: --date 2026-8-10 on an older PASS appended after two CONDITIONALs is accepted at exit 0 and emits [\"CONDITIONAL\",\"CONDITIONAL\",\"PASS\"] (n=0, disarmed) instead of the true [PASS,C,C] (n=2, armed); the real ledger already holds 11 of 52 non-ISO date values ('2026-08-09/10'), so non-ISO dates demonstrably do reach this file, and the self-test check name \"a backfill cannot clear an escalation\" overclaims. (QA-C6-3) live_check_86.85.md -- the artifact the masterplan live_check field names -- still reads \"14 cells / 14 KILLED\", \"guards: 15 covered: 15\", \"checks emitted: 23\" and \"34 passed\" against a measured 16/16, 17/17, 26 and 36; its only cycle-6 edit was the [WORKING TREE] 46->52 line, a third recurrence in this same file of the defect cycle 2 was FAILed for and cycle 3 caught. Criteria 1, 2, 3, 4, 5, 6 and 7 are MET and independently re-derived: immutable command \"parses\" EXIT=0; ruff F821/F401/F811 over the derived 6-file scope \"All checks passed!\" exit=0; matrix 16 cells/16 killed/0 survived exit 0 with CONTROL GREEN first; coverage 17/17/0 uncovered; pytest 36 passed/3514 deselected (36 dots, internally consistent); wc -l ledger = 52 with the C2 [WORKING TREE] block reproducing exactly (13 step_ids, {C 29, F 8, PASS 8, NV 7}, recorded_at 38/52, 47+4+1=52); the driven auto-FAIL reproduces (CONTROL n=1/false, DRIVEN n=2/true, PASS and FAIL both stay false, [C,C,NO_VERDICT] n=2/true, absent sequence n=null/status=not_supplied); and qa-verdict.js, verdict_history_86_21.py, qa.md and verify_matrix_coverage_86_85.py are all untouched, so \"no gate weakened, the consumer is untouched\" reproduces. Harness compliance is clean on all five items (brief gate_passed true / 8 read in full / 23 URLs / recency scan; brief ADDED 2026-08-14 21:41 before the contract ADDED 2026-08-15 15:44 -- the mtime inversion is later remediation annotation; experiment_results present; step still pending with no in-flight log row; evidence changed since cycle 5).",
+  "violated_criteria": [
+    "criterion_8_mutation_test_every_new_guard",
+    "illusory-guard",
+    "QA-C6-1_unvalidated_iso_date_precondition",
+    "QA-C6-3_stale_live_check_numbers"
+  ],
+  "violation_details": [
+    {
+      "violation_type": "Missing_Assumption",
+      "action": "QA-M-POS-const: in a temp copy of scripts/qa/verdict_ledger_write.py, replace `keyed.append((event_date, pos, verdict))` with `keyed.append((event_date, 0, verdict))`, then run the writer's --self-test and the step's pytest file against the mutant (control run first, sha256 printed before/after)",
+      "state": "CONTROL rc=0 GREEN; mutant --self-test rc=0 SURVIVED (26/26 checks green); mutant pytest rc=0 SURVIVED (29 passed, control 29 passed); sha256 dc70884ca21bf83fea77584727b7186df581d09beb55dd90dc94ca2419975ee2 before and after, UNCHANGED. Behavioural differential on the real handoff/verdict_ledger.jsonl -- 86.85 original [FAIL,FAIL,FAIL,CONDITIONAL,CONDITIONAL] vs mutant [CONDITIONAL,FAIL,FAIL,FAIL,CONDITIONAL]; 86.74 original [NO_VERDICT,NO_VERDICT,CONDITIONAL,CONDITIONAL,PASS,CONDITIONAL,CONDITIONAL,CONDITIONAL] vs mutant [CONDITIONAL,CONDITIONAL,CONDITIONAL,CONDITIONAL,NO_VERDICT,NO_VERDICT,PASS,CONDITIONAL]. Through the shipped enforceEscalation the 86.85 sequence goes n=2/would_auto_fail=true -> n=1/would_auto_fail=false.",
+      "constraint": "Immutable criterion 8: 'mutation-test every new guard with the control observed GREEN first and a byte-identical restore'. The cycle-6 docstring states the new contract as 'oldest -> newest by EVENT date ... stable by file position within a date'; the file-position half has zero coverage. qa.md 4c: 'a guard that cannot fail when its subject is broken does not count' -- sole-coverage vacuity on a behavioural criterion is BLOCKING."
+    },
+    {
+      "violation_type": "Invalid_Precondition",
+      "action": "Driven on a temp ledger: append CONDITIONAL --date 2026-08-11, append CONDITIONAL --date 2026-08-12, then backfill an older PASS with --date 2026-8-10 (non-zero-padded), then --emit-sequence",
+      "state": "append exit=0 with no warning; --emit-sequence returns [\"CONDITIONAL\",\"CONDITIONAL\",\"PASS\"] exit=0 although the PASS is the oldest event. Through the shipped enforceEscalation that reads n=0/would_auto_fail=false where the true event order [PASS,C,C] reads n=2/would_auto_fail=true. The real ledger already carries 11 of 52 non-ISO date values ('2026-08-09/10', on steps 36.17 x6, 86.20 x3, 86.17 x2), so non-ISO dates do reach this file in practice.",
+      "constraint": "emit_sequence's docstring asserts \"row['date'], ISO YYYY-MM-DD, so lexicographic order IS chronological order\" and build_row never validates the format; the self-test check is named 'backfilled older verdict lands in EVENT order (a backfill cannot clear an escalation)'. The cycle-5 QA-MUT-B finding this cycle answers is 'the shipped --date backfill can no longer clear an escalation' -- that claim does not hold for a non-ISO date."
+    },
+    {
+      "violation_type": "Contradiction",
+      "action": "Re-run every number quoted in handoff/current/live_check_86.85.md and diff the file against HEAD (git diff -- handoff/current/live_check_86.85.md)",
+      "state": "live_check section 6's cycle-5 annotation states the current superseding state as 'the matrix grew to 14 cells / 14 KILLED in cycle 4'; C8.6's 'verbatim output' block reads '14 cells: 14 killed', 'guards: 15 covered: 15', 'checks emitted: 23' and '34 passed'. Measured now: 16 cells / 16 killed (exit 0), guards 17 covered 17, 26 checks emitted, 36 passed / 3514 deselected. The only cycle-6 edit to live_check is the [WORKING TREE] 46 -> 52 line; experiment_results_86.85.md carries the correct figures.",
+      "constraint": "qa.md 4b: a quantified claim in a handoff artifact must reproduce. live_check_86.85.md is the artifact named by the masterplan's verification.live_check field and is the operator-auditable evidence. This is the third recurrence in this same file of the defect cycle 2 was FAILed for (updating experiment_results and not live_check) and cycle 3 caught (stale header)."
+    }
+  ],
+  "certified_fallback": false,
+  "checks_run": [
+    "harness_compliance_audit_5_items",
+    "immutable_verification_command",
+    "masterplan_criteria_read_verbatim",
+    "git_scope_derivation",
+    "python_lint_gate_ruff_F821_F401_F811",
+    "writer_self_test",
+    "mutation_matrix_86_85",
+    "verify_matrix_coverage_86_85",
+    "scoped_pytest",
+    "independent_mutation_testing",
+    "behavioural_differential_on_production_data",
+    "driven_enforceEscalation_extraction",
+    "claim_audit_numeric_reproduction",
+    "ledger_population_enumeration",
+    "prior_verdict_sequence_evidence",
+    "code_review_heuristics",
+    "evaluator_critique"
+  ],
+  "harness_compliance_ok": true,
+  "notes": "Prior-verdict EVIDENCE, gathered not applied. `python scripts/qa/verdict_history_86_21.py --step 86.85 --evidence-only` -> status: ok, detail: '5 verdict(s) from the ledger', verdicts: FAIL -> FAIL -> FAIL -> CONDITIONAL -> CONDITIONAL. `python scripts/qa/qa_wip.py 86.85 --spawned-at 2026-08-17T10:00:28Z` -> source_present: true, attempt_number: 6 (attempt_number_status 'ok', attempt_number_is_lower_bound true), prior_attempts: 5, records_retained: 6 (a GAUGE, not used as a counter), records_pruned_known: null. Cross-check: prior_attempts (5) equals the ledger's verdict count (5), which is the apples-to-apples comparison since attempt_number includes THIS spawn and this spawn has no verdict yet -- so the ledger is CURRENT for this step, not stale. No aggregate, comparison or threshold computed from that sequence; that is the caller's. Sequence carried through as-is including its statuses.\n\nDiscrepancy to record: .claude/masterplan.json step 86.85's `notes` field says 'PARKED at [CONDITIONAL x4]', which the ledger contradicts (F,F,F,C,C). Main disclosed this in the spawn prompt as editable metadata to be corrected at close; I did not treat it as criteria.\n\nWrite-first record: /Users/ford/.openclaw/workspace/pyfinagent/.claude/agent-memory/qa/verdicts/verdict_wip_86.85__20260817T100028Z.md (STATUS flipped to COMPLETE, COMPLETED 2026-08-17T10:12:41Z). No other file was written; no write was blocked.\n\nMethod notes. All mutation ran on temp copies under the OS tmpdir; the repo was never written and the writer's sha256 was printed before and after every cell (dc70884ca21bf83fea77584727b7186df581d09beb55dd90dc94ca2419975ee2, unchanged; md5 f2441e592f1939327573d3a7f6e20e99 unchanged). enforceEscalation is not exported from .claude/workflows/qa-verdict.js, so I extracted it by brace-matching from the `function enforceEscalation` anchor (52 lines, first line and `out.would_auto_fail =` assignment both asserted present) rather than by line number -- my first extraction attempt was wrong because the `opts = {}` default balanced the brace counter, and I record that rather than quietly re-running it. The lint scope was derived from `git diff --name-only HEAD -- '*.py'` with the empty-set guard asserted and passed via `xargs -0` (zsh does not word-split an unquoted variable, which has produced false greens on this project three times).\n\nTwo claims I checked and did NOT uphold as findings, recorded so they are not re-raised. (1) The '319-370' line citation for enforceEscalation in experiment_results C4 and live_check section 3 does not resolve today (the function is at 535), but it was accurate at d1c4a79d, 39999944 and 9a18150f and went stale through other steps' edits to qa-verdict.js; the quoted output still reproduces. NOTE only. (2) The mtime ordering research_brief (16:16) > contract (15:59) looks like a research-gate inversion but is not: `git log --diff-filter=A` shows the brief added 2026-08-14 21:41 and the contract 2026-08-15 15:44, and the brief's later mtime is remediation annotation.\n\nScope disclosure gap (NOTE, not blocking). The spawn's working_tree_note named only 'the six sovereign-UI files plus perf_results.tsv' as peer-session dirt, but `git status --short` also shows scripts/qa/rail_turn_cap.py, scripts/qa/mutate_rail_turn_cap.py, backend/api/sovereign_api.py and the 86.84/86.90/escalation handoff artifacts dirty. None of them touch 86.85's subject and 86.85's own diff is confined to verdict_ledger_write.py, mutation_matrix_86_85.py, the pytest file, the three artifacts and the ledger, so there is no unintended production change inside this step's scope.\n\nNo UI claims in this step, so the live-UI capture gate does not apply; no backend production module attributable to 86.85 changed, so the runtime smoke was discharged by the scoped pytest run which imports the writer.\n\nRemediation that would close this: add a matrix cell for the file-position tiebreak (mutate `pos` to a constant) plus a self-test/pytest fixture with two SAME-DATE rows carrying DIFFERENT verdicts in an order alphabetical sorting would change -- the current fixtures all use distinct dates and therefore cannot observe the defect; validate the `date` field against `^\\d{4}-\\d{2}-\\d{2}$` in build_row and refuse loudly, since the sort's correctness rests on that unenforced premise; and refresh live_check_86.85.md's section 6 annotation and C8.6 block to 16/16, 17/17, 26 checks and 36 passed, or mark them explicitly as frozen cycle-4 snapshots with a current-state line beside them.",
+  "escalation": {
+    "sequence_supplied": [
+      "FAIL",
+      "FAIL",
+      "FAIL",
+      "CONDITIONAL",
+      "CONDITIONAL"
+    ],
+    "sequence_status": "ok",
+    "consecutive_conditionals": 2,
+    "would_auto_fail": false,
+    "attempt_number": null,
+    "budget_exhausted": null,
+    "max_attempts": 5,
+    "burden_on": "the party departing from the computed escalation",
+    "override": null,
+    "override_reason": null,
+    "judge_was_told_consequence": false
+  },
+  "verdict_unmodified": true
+}
+```

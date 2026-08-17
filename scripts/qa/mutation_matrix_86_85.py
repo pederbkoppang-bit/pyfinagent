@@ -62,8 +62,13 @@ CELLS: list[tuple[str, str, str, str]] = [
     (
         "M5",
         "collapse event time into write time -- a backfill masquerades as history",
+        # (cycle-7 retarget: the old replacement wrote a full TIMESTAMP, which
+        # the new ISO-date guard now refuses loudly -- the mutant died at the
+        # WRONG guard and scored UNSCORABLE. This form keeps the value
+        # date-shaped so it reaches the ordering fixtures, which kill it:
+        # a backfilled row stamped with TODAY's date sorts last.)
         '        "date": event_date or stamp.date().isoformat(),',
-        '        "date": stamp.isoformat(),',
+        '        "date": stamp.date().isoformat(),',
     ),
     # ---- cells added after the cycle-1 Q/A found M1-M5 blind to ordering ----
     (
@@ -71,9 +76,64 @@ CELLS: list[tuple[str, str, str, str]] = [
         "REVERSE emit_sequence -- this is the cycle-1 Q/A's QA-M1, which SURVIVED "
         "against the old palindromic fixture. Reversing [PASS,C,C] to [C,C,PASS] "
         "takes enforceEscalation from n=2/auto_fail=true to n=0/auto_fail=false, "
-        "silently DISARMING the escalation",
-        "\n    return out\n",
-        "\n    return out[::-1]\n",
+        "silently DISARMING the escalation. (Anchor retargeted phase-86.85 "
+        "cycle 6: the tail is now the event-date sort.)",
+        "\n    return [v for _, _, v in sorted(keyed, key=lambda t: (t[0], t[1]))]",
+        "\n    return [v for _, _, v in sorted(keyed, key=lambda t: (t[0], t[1]), reverse=True)]",
+    ),
+    # ── cycle-6 cells: the QA-MUT-B class (cycle-5 Q/A). emit_sequence returned
+    # FILE order while claiming oldest->newest, and the shipped --date backfill
+    # made the divergence reachable: an older PASS appended after two
+    # CONDITIONALs cleared a live escalation. The fix sorts by EVENT date; these
+    # cells pin the fix and its new guard.
+    (
+        "M15",
+        "collapse EVENT order back to FILE order (the surviving QA-MUT-B mutant "
+        "itself, as a permanent cell) -- the backfill fixture must catch it",
+        "        keyed.append((event_date, pos, verdict))",
+        '        keyed.append(("", pos, verdict))',
+    ),
+    (
+        "M16",
+        "remove the undated-row loudness in emit_sequence -- a row that cannot "
+        "be ordered must refuse, not float to an arbitrary position",
+        "        if not event_date:",
+        "        if False:",
+    ),
+    # ── cycle-7 cells (QA-M-POS-const + QA-C6-1). The cycle-6 fix shipped a
+    # sort whose tuple fell through to the VERDICT STRING on same-date rows --
+    # the common case -- and an unvalidated ISO-date precondition with 11/52
+    # real rows already violating it. These pin both.
+    (
+        "M17",
+        "verdict string participates in same-date ordering -- the 99.9/4.7 "
+        "fixtures (file order C,P,F vs alphabetical C,F,P) must catch it. "
+        "(cycle-7 note: the originally-named mutant -- plain sorted(keyed) -- "
+        "became EQUIVALENT once the key excluded the verdict, because pos still "
+        "discriminates; likewise pos-to-constant alone degrades to stable file "
+        "order. The defect now needs the key itself to consult the verdict, "
+        "which is this cell.)",
+        "    return [v for _, _, v in sorted(keyed, key=lambda t: (t[0], t[1]))]",
+        "    return [v for _, _, v in sorted(keyed, key=lambda t: (t[0], t[2]))]",
+    ),
+    (
+        "M18",
+        "same-date position reversed -- file order flips within a date",
+        "    return [v for _, _, v in sorted(keyed, key=lambda t: (t[0], t[1]))]",
+        "    return [v for _, _, v in sorted(keyed, key=lambda t: (t[0], -t[1]))]",
+    ),
+    (
+        "M19",
+        "emit-side non-ISO date refusal removed -- a malformed stored date is "
+        "silently ordered again",
+        "        if event_date and not ISO_DATE_RE.match(event_date):",
+        "        if False:",
+    ),
+    (
+        "M20",
+        "write-side non-ISO date refusal removed -- --date 2026-8-10 writes",
+        "    if event_date is not None and not ISO_DATE_RE.match(str(event_date).strip()):",
+        "    if False:",
     ),
     (
         "M7",

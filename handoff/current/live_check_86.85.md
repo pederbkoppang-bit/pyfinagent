@@ -171,6 +171,20 @@ row -- out of scope for 86.85, recorded as a follow-up.
 
 ## 6. MUTATION MATRIX -- 12/12 killed, control GREEN first, zero repo writes
 
+*(cycle-5 annotation, 2026-08-17: this heading's 12/12 is the CYCLE-3 count and
+is superseded -- the matrix grew to 14 cells / 14 KILLED in cycle 4 (M13, M14
+added; see C8 below). The heading is kept because the section under it is the
+cycle-3 capture; the cycle-4 Q/A flagged the un-annotated heading as its
+non-blocking note 1, closed here.)*
+
+*(cycle-7 annotation, 2026-08-17: the matrix has since grown again -- 20 cells
+as of cycle 7 (event-order, same-date, and ISO-date-validation cells added in
+cycles 6-7). EVERY count in this file's sections 6 and C8 is a dated capture of
+its own cycle; the CURRENT figures are produced by running the commands, and
+the latest captured run is in section C8.8 below. The cycle-6 Q/A found this
+file stale a third time, so the rule is now stated where the numbers live:
+a matrix count quoted without its cycle label or command is wrong by default.)*
+
 > **THIS SECTION WAS STALE TWICE AND THE SECOND TIME IS THE WORSE ONE.** It shipped
 > as "5/5"; cycle 1 proved those 5 blind to ORDERING (+M6, M7). The cycle-2
 > remediation then named **both** `experiment_results` §2 **and** this file §8 --
@@ -224,7 +238,7 @@ Population = every non-blank line in `handoff/verdict_ledger.jsonl`.
 [PRE-STEP  d1c4a79d~1]  total 35 | step_ids 10 | 86.74 rows 0 | recorded_by {main:35}
 [AS SHIPPED d1c4a79d ]  total 43 | step_ids 11 | 86.74 rows 8 | recorded_at 29/43
                         verdict distribution {CONDITIONAL 23, FAIL 5, PASS 8, NO_VERDICT 7}
-[WORKING TREE        ]  total 46 | this step's own cycle-1/2/3 FAIL rows included
+[WORKING TREE        ]  total 52 as of 2026-08-17 after the cycle-5/6 writes | perishable BY DESIGN (the step records its own verdicts): quote it only with its date and the command `wc -l < handoff/verdict_ledger.jsonl` | the cycle-5 Q/A measured 47 when 45/46 stood here -- three artifacts disagreeing is what an unanchored moving number produces
 ```
 
 **ANCHORED, because this step's ledger MOVES WHILE THE STEP RUNS** -- 86.85 records
@@ -350,17 +364,27 @@ A gate that has never been observed failing is a zero-assertion guard. Each cell
 was removed in memory and the gate re-run:
 
 ```
-CONTROL (14 cells) -> exit 0
+CONTROL (14 cells) -> exit 0          [cycle-4 capture -- current: 20 cells / 17 guards, C8.8]
     guards: 15   covered: 15   uncovered: 0   cell problems: 0
 
   drop M1   -> exit 1 RED   gaps=2        drop M8   -> exit 1 RED   gaps=1
-  drop M2   -> exit 1 RED   gaps=2        drop M9   -> exit 0 GREEN (coverage-redundant)
+  drop M2   -> exit 1 RED   gaps=2        drop M9   -> exit 0 GREEN (0 enumerated-guard coverage)
   drop M3   -> exit 1 RED   gaps=1        drop M10  -> exit 1 RED   gaps=2
-  drop M4   -> exit 1 RED   gaps=1        drop M11  -> exit 0 GREEN (coverage-redundant)
-  drop M5   -> exit 0 GREEN (coverage-redundant)   drop M12  -> exit 0 GREEN (coverage-redundant)
-  drop M6   -> exit 0 GREEN (coverage-redundant)   drop M13  -> exit 1 RED   gaps=2
+  drop M4   -> exit 1 RED   gaps=1        drop M11  -> exit 0 GREEN (0 enumerated-guard coverage)
+  drop M5   -> exit 0 GREEN (0 enumerated-guard coverage)   drop M12  -> exit 0 GREEN (0 enumerated-guard coverage)
+  drop M6   -> exit 0 GREEN (0 enumerated-guard coverage)   drop M13  -> exit 1 RED   gaps=2
   drop M7   -> exit 1 RED   gaps=2        drop M14  -> exit 1 RED   gaps=2
 ```
+
+*(cycle-5 relabel, 2026-08-17: the five GREEN rows above previously carried the
+label "(coverage-redundant)". Those parenthetical labels were HAND-AUTHORED
+annotations, not checker output -- no script in the repo prints that phrase
+(`grep -rn "coverage-redundant" scripts/qa/*.py` matches only a comment in
+`verify_cell_vacuity_86_89.py` describing the error) -- so the exit codes are
+verbatim and the labels were editorial. They are relabelled to the measured
+fact the correction below establishes: those five cells cover ZERO enumerated
+guards. Leaving the refuted word inside the fence, above its own refutation,
+is the surviving-copy defect this project keeps re-finding.)*
 
 **CORRECTED BY THE CYCLE-4 Q/A, AND THE CORRECTION MATTERS MORE THAN THE
 ORIGINAL CLAIM.** The paragraph that stood here said the five GREEN rows were
@@ -430,7 +454,7 @@ synthetic guard into an in-memory copy and requires itself to report that guard
 as UNCOVERED. If it cannot detect a guard it planted itself it exits 2 with
 FAILED GATE rather than a clean bill.
 
-## C8.6 -- verbatim output
+## C8.6 -- verbatim output *(cycle-4 capture, 2026-08-15 -- superseded; current run in C8.8)*
 
 ### writer self-test
 ```
@@ -477,3 +501,44 @@ selects and is **not** comparable to a count taken under a different selector.
   auditable rather than implicit.
 - **Scope:** this cycle touched C8 only. C1-C7 are unchanged from cycle 3 and
   were not re-litigated.
+
+
+---
+
+## C8.8 -- CURRENT captured run (cycle 7, 2026-08-17)
+
+Every figure below is from a live run this session; re-derive with the command.
+
+```
+$ python3 scripts/qa/verdict_ledger_write.py --self-test
+SELF-TEST PASSED                                                    (exit 0; 30 checks
+                                incl. same-date file-order, backfill event-order,
+                                non-ISO refusal at BOTH seams, undated-row loudness)
+
+$ python -m pytest backend/tests -k '86_85 or ledger or verdict_ledger' -q
+38 passed, 3514 deselected                                          (exit 0)
+
+$ python3 scripts/qa/mutation_matrix_86_85.py
+20 cells: 20 KILLED, 0 survived, 0 unscorable                       (exit 0)
+  (M5 retargeted to stay date-shaped -- its old timestamp replacement died at
+   the NEW ISO guard, the wrong guard, and scored UNSCORABLE; M17 rewritten to
+   the verdict-participates key -- the originally-named plain-sorted mutant is
+   now EQUIVALENT because pos discriminates, and pos-to-constant alone degrades
+   to stable file order, both stated in the cell comments)
+
+$ python3 scripts/qa/verify_matrix_coverage_86_85.py
+guards: 17   covered: 17   uncovered: 0   cell problems: 0          (exit 0)
+
+$ python3 scripts/qa/verdict_ledger_write.py --emit-sequence --step 86.85
+["FAIL", "FAIL", "FAIL", "CONDITIONAL", "CONDITIONAL", "FAIL"]
+```
+
+**The cycle-6 FAIL's three findings, closed here:** the sort key now EXCLUDES
+the verdict (`key=lambda t: (t[0], t[1])`) with a same-date fixture whose file
+order (C, P, F) differs from alphabetical (C, F, P), so a verdict-fallthrough
+mutant dies (M17) and a within-date reversal dies (M18); non-ISO event dates
+are REFUSED at both seams (build_row and emit_sequence -- M19/M20; the 11
+legacy range-shaped rows on 36.17/86.20/86.17 now produce a LOUD error if those
+steps are ever emitted, recorded as a residual repair question rather than
+silently mis-ordered); and this file's stale counts are corrected by dated
+capture labels plus this current section.

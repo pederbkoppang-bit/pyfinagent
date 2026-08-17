@@ -90,10 +90,15 @@ $ git show d1c4a79d:handoff/verdict_ledger.jsonl | python3 -c "..."     [AS SHIP
 
 $ python3 -c "rows=[json.loads(l) for l in open('handoff/verdict_ledger.jsonl') if l.strip()]"
                                                                         [WORKING TREE]
-  total rows            : 45   (= 43 + this step's own cycle-1 and cycle-2 FAIL rows)
-  step_ids present      : 12
-  verdict distribution  : {CONDITIONAL 23, FAIL 7, PASS 8, NO_VERDICT 7}
-  rows with recorded_at : 31 / 45
+  measured 2026-08-17 after the cycle-5/6 writes (this figure MOVES while the
+  step runs -- the ledger records this step's own verdicts -- so it carries its
+  date and command, never a bare number; the cycle-5 Q/A caught 45-vs-46-vs-47
+  disagreeing across three artifacts):
+  total rows            : 52   (= 47 at the cycle-5 measurement + 4 backfilled
+                                86.84 rows + this step's cycle-5 row)
+  step_ids present      : 13
+  verdict distribution  : {CONDITIONAL 29, FAIL 8, PASS 8, NO_VERDICT 7}
+  rows with recorded_at : 38 / 52
 ```
 
 `rows with recorded_at` is short of the total because **14 historical rows predate
@@ -544,3 +549,156 @@ that part stands.
 - **ZERO repo writes** during mutation: every mutated source is a temp copy or
   an in-memory string, and the writer's sha256 is printed before and after by
   both scripts. There is no restore step to get wrong.
+
+---
+
+## Cycle 5 GENERATE (2026-08-17, operator-attended session)
+
+**Context.** The goal file parked 86.85 as "CONDITIONAL after 4 attempts; needs
+your call". The operator delegated that call to this session. The verdict
+sequence is FAIL, FAIL, FAIL, CONDITIONAL -- the FAILs reset the CONDITIONAL
+counter, so no escalation rail constrains a cycle-5 verdict; the ordinary
+changed-evidence respawn applies.
+
+**Cycle-4's named remedy was verified ALREADY APPLIED** (both artifacts have
+carried the corrections since 2026-08-15): the "coverage-redundant" claim is
+replaced with the measured zero-coverage fact in `experiment_results` "Proof the
+gate is load-bearing" and `live_check` C8.5; the 1-of-4 known-member recall is
+stated beside the sweep with "completeness is now DERIVED" withdrawn; the
+behaviour list is fixed (no "sequence filtering"; M5's event/write-time
+separation named).
+
+**Closed this cycle (the residue):**
+
+1. **The sweep fence still carried the refuted word.** The five GREEN rows in
+   live_check C8.5's drop-one table were labelled "(coverage-redundant)" INSIDE
+   the fenced block, above their own refutation. Established by
+   `grep -rn "coverage-redundant" scripts/qa/*.py` that no checker prints that
+   phrase -- the labels were hand-authored, so relabelling them is correcting
+   editorial text, not doctoring output. Relabelled to
+   "(0 enumerated-guard coverage)" with a provenance note outside the fence.
+2. **Stale heading annotated** ("12/12" is the cycle-3 count; matrix is 14/14
+   since cycle 4) -- cycle-4 non-blocking note 1.
+3. **Cycle-4's verdict is now IN the ledger.** The row was never written, so
+   `--emit-sequence` under-reported the step's own history. Backfilled at the
+   transcription seam with the true EVENT date (2026-08-15) and a write-time
+   stamp of today -- the event/write-time separation is the writer's own design
+   (M5's target). Verbatim:
+
+   ```
+   $ python3 scripts/qa/verdict_ledger_write.py --emit-sequence --step 86.85
+   ["FAIL", "FAIL", "FAIL", "CONDITIONAL"]
+   $ python3 scripts/qa/verdict_ledger_write.py --self-test
+   SELF-TEST PASSED   (exit 0)
+   ```
+4. **Cycle-4 non-blocking note 2: the CONCLUSION stands, and my cycle-5
+   evidence for it was wrong** *(corrected on the cycle-5 Q/A's finding, which
+   is transcribed in the critique)*. I wrote "Every `--emit-sequence` call in
+   `_self_test` passes `--ledger`" -- refuted by my own quoted grep: `:492`
+   `cli(["--emit-sequence"])` passes no `--ledger`. The real mechanism, settled
+   by the evaluator BY EXECUTION (a monkeypatched read-trap on the real ledger
+   observed ZERO reads): `main()` resolves the default path and then raises
+   `--emit-sequence requires --step` BEFORE any read is reached, so "Touches no
+   real file" holds. Cycle-4's note 2 ("it READS the real ledger via the module
+   default") was therefore also factually wrong in its mechanism, which my
+   cycle-5 text failed to say.
+
+**No production code changed this cycle.** Changes: one data row appended to
+`handoff/verdict_ledger.jsonl`, and the two handoff artifacts above.
+
+---
+
+## Cycle 6 GENERATE (2026-08-17): the QA-MUT-B class closed
+
+Cycle-5 verdict transcribed verbatim in the critique. Its three findings, each
+answered by the change it named:
+
+**1. emit_sequence now orders by EVENT date** (`row["date"]`, ISO, stable by
+file position within a date), so a backfilled older verdict lands where it
+happened -- the shipped `--date` flag can no longer clear an escalation. An
+undated row refuses LOUDLY (same doctrine as the out-of-vocabulary token: a row
+that cannot be ordered must not be silently placed).
+
+**2. Both ordering fixtures now carry DISTINCT event dates**, plus a dedicated
+backfill fixture asserting `[C(11), C(12), PASS(10) backfilled]` emits
+`[PASS, C, C]`, plus an undated-row loudness check in the self-test AND pytest.
+
+**3. The matrix grew the QA-MUT-B class as permanent cells**: M15 collapses
+event order back to file order (killed by the backfill fixture), M16 removes
+the undated-row guard (killed by the loudness check), M6's anchor retargeted to
+the new sort tail (reversal still killed). **A masked-fixture defect was found
+and fixed in the process**: the out-of-vocabulary fixture's hand-written rows
+carried no dates, so after the new guard landed, M7's mutant survived because a
+DIFFERENT guard's refusal satisfied a check that only read the exit code -- the
+rows now carry dates and the check pins the message text.
+
+**4. The two claim defects corrected by replacement**: item 4 above now states
+the true mechanism (and that cycle-4's note was wrong in mechanism too); the
+'[WORKING TREE]' counts in both artifacts now carry their date, command, and
+the reason the number moves.
+
+Verbatim, post-change:
+
+```
+$ python3 scripts/qa/verdict_ledger_write.py --self-test
+SELF-TEST PASSED                                                    (exit 0)
+$ python -m pytest backend/tests -k '86_85 or ledger or verdict_ledger' -q
+36 passed, 3514 deselected                                          (exit 0)
+$ python3 scripts/qa/mutation_matrix_86_85.py        # 16 cells
+16 x 'KILLED (rc=1)', 0 SURVIVED, 0 UNSCORABLE                      (exit 0)
+$ python3 scripts/qa/verify_matrix_coverage_86_85.py
+guards: 17   covered: 17   uncovered: 0   cell problems: 0          (exit 0)
+$ python3 scripts/qa/verdict_ledger_write.py --emit-sequence --step 86.85
+["FAIL", "FAIL", "FAIL", "CONDITIONAL", "CONDITIONAL"]
+```
+
+Files changed: `scripts/qa/verdict_ledger_write.py` (emit_sequence + self-test
+fixtures), `scripts/qa/mutation_matrix_86_85.py` (M6 anchor, M15, M16),
+`backend/tests/test_phase_86_85_verdict_ledger_write.py` (dated fixture + two
+new tests), the two artifacts, and this step's ledger rows. No gate weakened;
+the sequence consumer (`enforceEscalation`) is untouched.
+
+---
+
+## Cycle 7 GENERATE (2026-08-17): the cycle-6 FAIL's findings closed in code
+
+Cycle-6 verdict (FAIL) transcribed verbatim in the critique. Its three
+findings, each closed by the change it named:
+
+**1. QA-M-POS-const -- the same-date ordering hole.** The sort key now EXCLUDES
+the verdict: `sorted(keyed, key=lambda t: (t[0], t[1]))`. Same-date rows are
+the COMMON case (86.85's three FAILs share 2026-08-15), and the bare tuple sort
+fell through to the verdict STRING there. With the key pinned: a
+verdict-participates mutant (M17, `(t[0], t[2])`) and a within-date reversal
+(M18, `(t[0], -t[1])`) both die against the new same-date fixtures, whose file
+order (C, P, F) deliberately differs from alphabetical (C, F, P). Two mutants
+became PROVABLY EQUIVALENT under the fix and are documented in the cell
+comments rather than dropped: plain `sorted(keyed)` (pos still discriminates)
+and pos-to-constant (Python's guaranteed-stable sort degrades it to file order
+within a date -- the documented contract).
+
+**2. QA-C6-1 -- the unvalidated ISO precondition.** `ISO_DATE_RE` now guards
+BOTH seams: `build_row` refuses a non-ISO `--date` (`2026-8-10` -> LedgerError
+EXIT_INVALID) and `emit_sequence` refuses to ORDER a stored non-ISO date
+(range-shaped `2026-08-09/10` -> LedgerError, loud, never silently mis-placed).
+Cells M19/M20 kill the removal of either seam. **Residual, stated:** 11 legacy
+rows (36.17 x6, 86.20 x3, 86.17 x2) carry range-shaped dates; emitting THOSE
+steps now errors loudly with repair instructions instead of mis-ordering --
+the correction path for an append-only file (a new labelled row shares the
+dedup key) is a small open design question recorded in the critique follow-up,
+not silently decided here.
+
+**3. QA-C6-3 -- the stale live_check, third recurrence.** The rule is now
+written where the numbers live: every count in sections 6/C8 carries its
+capture cycle, C8.6 is retitled as the cycle-4 capture, and C8.8 is the dated
+CURRENT run. "A matrix count quoted without its cycle label or command is
+wrong by default."
+
+Verbatim, post-change: self-test PASSED (30 checks) · pytest 38 passed ·
+matrix 20/20 KILLED, 0 unscorable · coverage 17/17 · ruff clean ·
+emit-sequence [F, F, F, C, C, F].
+
+Files changed: `scripts/qa/verdict_ledger_write.py`,
+`scripts/qa/mutation_matrix_86_85.py`,
+`backend/tests/test_phase_86_85_verdict_ledger_write.py`, the two artifacts.
+The consumer (`enforceEscalation`) remains untouched.

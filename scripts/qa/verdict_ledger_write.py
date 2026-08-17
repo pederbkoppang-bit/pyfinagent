@@ -96,9 +96,22 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
+
+#: phase-86.85 cycle 7 (QA-C6-1): the ordering contract rests on "ISO
+#: YYYY-MM-DD, so lexicographic order IS chronological order" -- which is only
+#: true when the format actually holds. It demonstrably did not: 11 of 52 real
+#: rows carried range-shaped dates like '2026-08-09/10', and a driven
+#: '--date 2026-8-10' (non-zero-padded) sorted AFTER every ISO August date,
+#: re-opening the exact backfill-clears-escalation hole cycle 6 closed. So the
+#: format is validated at BOTH seams: build_row refuses to write a non-ISO
+#: date, and emit_sequence refuses to ORDER one (same doctrine as the undated
+#: and out-of-vocabulary refusals: a row that cannot be placed correctly must
+#: be loud, never silently mis-ordered).
+ISO_DATE_RE = re.compile(r"\A\d{4}-\d{2}-\d{2}\Z")
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 LEDGER = REPO_ROOT / "handoff" / "verdict_ledger.jsonl"
@@ -221,6 +234,16 @@ def build_row(
             EXIT_INVALID,
         )
 
+    if event_date is not None and not ISO_DATE_RE.match(str(event_date).strip()):
+        raise LedgerError(
+            f"--date {event_date!r} is not ISO YYYY-MM-DD. The sequence reader "
+            "orders rows lexicographically BY THIS FIELD, and a non-ISO date "
+            "sorts wrongly -- a driven '2026-8-10' backfill landed AFTER every "
+            "August ISO date and cleared an escalation. Refused rather than "
+            "normalised.",
+            EXIT_INVALID,
+        )
+
     stamp = now or datetime.now(timezone.utc)
     row = {
         "step_id": step_id,
@@ -263,9 +286,19 @@ def append_row(row: dict, path: Path = LEDGER) -> dict:
 def emit_sequence(step_id: str, path: Path = LEDGER) -> list[str]:
     """The array to hand to `qa-verdict.js` as `args.verdict_sequence`.
 
-    Oldest -> newest, matching `enforceEscalation`'s reverse scan. This closes the
-    loop that failed on 86.74 cycle 7, where the sequence arrived as prose in
-    `extra` and the machinery reported `sequence_status="not_supplied"`.
+    Oldest -> newest **by EVENT date** (`row["date"]`, ISO `YYYY-MM-DD`, so
+    lexicographic order IS chronological order), stable by file position within
+    a date. phase-86.85 cycle-5 (QA-MUT-B): the previous revision returned FILE
+    order while this docstring claimed oldest->newest, and the divergence was
+    reachable through the writer's own `--date` backfill flag -- appending an
+    older PASS after two CONDITIONALs made `enforceEscalation` read
+    [C, C, PASS] (n=0, no auto-fail) instead of the true [PASS, C, C] (n=2,
+    auto-fail). A backfill could CLEAR a live escalation: fail-open. Event time
+    is what `build_row` persists `date` FOR; the only reader now reads it.
+
+    Matches `enforceEscalation`'s reverse scan. This closes the loop that
+    failed on 86.74 cycle 7, where the sequence arrived as prose in `extra` and
+    the machinery reported `sequence_status="not_supplied"`.
 
     An out-of-vocabulary verdict token is LOUD, never silently dropped. Silently
     filtering it would BYPASS the consumer's own fail-closed branch: given the raw
@@ -277,7 +310,8 @@ def emit_sequence(step_id: str, path: Path = LEDGER) -> list[str]:
     "would under-count" reason. (phase-86.85 cycle-1 Q/A, WARN.)
     """
     step_id = (step_id or "").strip()
-    out: list[str] = []
+    keyed: list[tuple[str, int, str]] = []
+    pos = 0  # file position: the stable tiebreak WITHIN one event date
     for row in read_rows(path):
         if (row.get("step_id") or "").strip() != step_id:
             continue
@@ -291,8 +325,43 @@ def emit_sequence(step_id: str, path: Path = LEDGER) -> list[str]:
                 "run, bypassing the consumer's fail-closed 'unparseable' branch.",
                 EXIT_IO,
             )
-        out.append(verdict)
-    return out
+        event_date = (row.get("date") or "").strip()
+        if event_date and not ISO_DATE_RE.match(event_date):
+            # QA-C6-1: 11 of 52 real rows carry range-shaped dates like
+            # '2026-08-09/10', and '2026-8-10' sorts AFTER every ISO August
+            # date -- silently mis-ordering is exactly the escalation-clearing
+            # hole. Refuse loudly; the row must be corrected (a new labelled
+            # row cannot share the same run_id, so repairing a legacy row is
+            # an operator act on the file, recorded in the step notes).
+            raise LedgerError(
+                f"row for step {step_id!r} carries a non-ISO event date "
+                f"{event_date!r} (expected YYYY-MM-DD). Refusing to ORDER it -- "
+                "a lexicographic sort over a malformed date silently mis-places "
+                "the verdict, which can clear an escalation.",
+                EXIT_IO,
+            )
+        if not event_date:
+            # Same fail-loud doctrine as the verdict vocabulary above: a row
+            # that cannot be ORDERED cannot be silently placed. An undated row
+            # sorted "somewhere" can move a verdict across an escalation
+            # boundary exactly like the QA-MUT-B backfill did.
+            raise LedgerError(
+                f"row for step {step_id!r} carries no event date; refusing to "
+                "order it silently -- an unordered verdict can move across an "
+                "escalation boundary. Repair the row's `date` field.",
+                EXIT_IO,
+            )
+        keyed.append((event_date, pos, verdict))
+        pos += 1
+    # phase-86.85 cycle 7 (QA-M-POS-const): the key EXCLUDES the verdict
+    # string. A bare sorted(keyed) fell through to element 3 on same-date rows
+    # -- the COMMON case (86.85's three FAILs all share 2026-08-15) -- so a
+    # pos-neutering mutant reordered real sequences alphabetically and
+    # disarmed an escalation. With the key pinned to (date, position), the
+    # verdict can never participate in ordering; and because Python's sort is
+    # guaranteed stable, even a constant position degrades to file order
+    # WITHIN a date, which is the documented contract.
+    return [v for _, _, v in sorted(keyed, key=lambda t: (t[0], t[1]))]
 
 
 def _self_test() -> int:
@@ -352,15 +421,79 @@ def _self_test() -> int:
         # of the one function that feeds args.verdict_sequence: reversing
         # [PASS,C,C] to [C,C,PASS] takes enforceEscalation from n=2/auto_fail=true
         # to n=0/auto_fail=false, i.e. it SILENTLY DISARMS the escalation.
+        # phase-86.85 cycle-5 (QA-MUT-B): the fixture must carry DISTINCT event
+        # dates or a date-conditional reorder is unobservable -- every row used
+        # to share one date, so the "oldest->newest" check could not fail for
+        # the date-sort mutant class (fixture-cannot-break-the-symmetry).
         for i, v in enumerate(("PASS", "CONDITIONAL", "FAIL"), start=1):
-            append_row(build_row("99.4", v, run_id=f"wf_ord{i}", cycle=str(i)), p)
+            append_row(build_row("99.4", v, run_id=f"wf_ord{i}", cycle=str(i),
+                                 event_date=f"2026-08-1{i - 1}"), p)
         ordered = emit_sequence("99.4", p)
         # guard-on-the-guard: if this fixture is ever made palindromic again, the
         # ordering check silently stops testing ordering. Assert it cannot be.
         check("order fixture is NOT palindromic (anti-vacuity)",
               ordered != list(reversed(ordered)))
+        check("order fixture carries distinct event dates (anti-vacuity for the date axis)",
+              len({f"2026-08-1{i}" for i in range(3)}) == 3)
         check("sequence is oldest->newest",
               ordered == ["PASS", "CONDITIONAL", "FAIL"])
+
+        # phase-86.85 cycle-5 (QA-MUT-B, the reachable differential): a
+        # BACKFILLED older verdict must land in EVENT order, not file order.
+        # File order read [C, C, PASS] as n=0/no-auto-fail; event order reads
+        # [PASS, C, C] as n=2/auto-fail. The backfill flag is shipped, so this
+        # is a real path, not a hypothetical.
+        append_row(build_row("99.7", "CONDITIONAL", run_id="wf_bf1",
+                             event_date="2026-08-11"), p)
+        append_row(build_row("99.7", "CONDITIONAL", run_id="wf_bf2",
+                             event_date="2026-08-12"), p)
+        append_row(build_row("99.7", "PASS", run_id="wf_bf0", note="backfill",
+                             event_date="2026-08-10"), p)
+        check("backfilled older verdict lands in EVENT order (a backfill cannot clear an escalation)",
+              emit_sequence("99.7", p) == ["PASS", "CONDITIONAL", "CONDITIONAL"])
+
+        # phase-86.85 cycle 7 (QA-M-POS-const): SAME-DATE rows are the common
+        # case and must preserve FILE order -- and the fixture must be able to
+        # FAIL for a verdict-string fallthrough, so the file order (C, P, F)
+        # deliberately differs from the alphabetical order (C, F, P).
+        for i, v in enumerate(("CONDITIONAL", "PASS", "FAIL"), start=1):
+            append_row(build_row("99.9", v, run_id=f"wf_sd{i}",
+                                 event_date="2026-08-14"), p)
+        check("same-date rows preserve FILE order (verdict string never orders)",
+              emit_sequence("99.9", p) == ["CONDITIONAL", "PASS", "FAIL"])
+
+        # QA-C6-1: a non-ISO date is refused at the WRITE seam...
+        try:
+            build_row("99.10", "PASS", run_id="wf_niso", event_date="2026-8-10")
+            check("non-ISO --date refused at build_row", False)
+        except LedgerError as e:
+            check("non-ISO --date refused at build_row",
+                  e.code == EXIT_INVALID and "not ISO" in str(e))
+        # ...and at the READ seam, for rows that reached the file some other way.
+        niso = Path(td) / "niso.jsonl"
+        niso.write_text(
+            '{"step_id":"99.11","verdict":"PASS","run_id":"wf_n1","date":"2026-08-09/10"}\n',
+            encoding="utf-8")
+        try:
+            emit_sequence("99.11", niso)
+            check("non-ISO stored date is LOUD at emit, never silently ordered", False)
+        except LedgerError as e:
+            check("non-ISO stored date is LOUD at emit, never silently ordered",
+                  "non-ISO event date" in str(e))
+
+        # An undated row cannot be ORDERED, so it must refuse loudly -- the
+        # same doctrine as the out-of-vocabulary verdict above. Silently
+        # placing it can move a verdict across an escalation boundary.
+        undated = Path(td) / "undated.jsonl"
+        row_ud = build_row("99.8", "PASS", run_id="wf_ud")
+        row_ud.pop("date", None)
+        undated.write_text(json.dumps(row_ud) + "\n", encoding="utf-8")
+        try:
+            emit_sequence("99.8", undated)
+            check("undated row is LOUD, never silently ordered", False)
+        except LedgerError as exc:
+            check("undated row is LOUD, never silently ordered",
+                  "no event date" in str(exc))
 
         # other steps are not mixed in
         append_row(build_row("99.2", "PASS", run_id="wf_eee", cycle="1"), p)
@@ -369,16 +502,23 @@ def _self_test() -> int:
 
         # an out-of-vocabulary token must be LOUD, never silently filtered --
         # a filtered sequence is SHORTER than the truth and under-counts a run.
+        # phase-86.85 cycle 6: the rows CARRY dates and the check PINS the
+        # message. Without dates, the new undated-row guard raised the same
+        # LedgerError/EXIT_IO first, and removing the vocabulary guard (M7)
+        # survived because a DIFFERENT guard's refusal satisfied a check that
+        # only looked at the exit code -- a masked fixture, the same class as
+        # the palindrome this block already documents.
         oov = Path(td) / "oov.jsonl"
         oov.write_text(
-            '{"step_id":"99.5","verdict":"CONDITIONAL","run_id":"wf_o1"}\n'
-            '{"step_id":"99.5","verdict":"COND","run_id":"wf_o2"}\n'
+            '{"step_id":"99.5","verdict":"CONDITIONAL","run_id":"wf_o1","date":"2026-08-10"}\n'
+            '{"step_id":"99.5","verdict":"COND","run_id":"wf_o2","date":"2026-08-11"}\n'
         )
         try:
             emit_sequence("99.5", oov)
             check("out-of-vocabulary verdict is loud", False)
         except LedgerError as e:
-            check("out-of-vocabulary verdict is loud", e.code == EXIT_IO)
+            check("out-of-vocabulary verdict is loud",
+                  e.code == EXIT_IO and "unrecognised verdict" in str(e))
 
         # NO_VERDICT is recorded faithfully and is not silently dropped
         append_row(build_row("99.3", "NO_VERDICT", run_id="wf_fff", cycle="1"), p)

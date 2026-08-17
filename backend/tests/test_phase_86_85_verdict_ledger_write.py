@@ -123,11 +123,68 @@ def test_sequence_is_oldest_to_newest_with_an_order_sensitive_fixture(ledger: Pa
     it. Reversing [PASS,C,C] to [C,C,PASS] takes enforceEscalation from
     n=2/auto_fail=true to n=0/auto_fail=false, silently disarming the escalation.
     """
+    # phase-86.85 cycle-5 (QA-MUT-B): distinct event dates, or a
+    # date-conditional reorder is unobservable (all rows used to share one
+    # date, so the assertion below could not fail for that mutant class).
     for i, v in enumerate(("PASS", "CONDITIONAL", "FAIL"), start=1):
-        vlw.append_row(vlw.build_row("4.1", v, run_id=f"wf_{i}"), ledger)
+        vlw.append_row(
+            vlw.build_row("4.1", v, run_id=f"wf_{i}", event_date=f"2026-08-1{i - 1}"),
+            ledger)
     seq = vlw.emit_sequence("4.1", ledger)
     assert seq != list(reversed(seq)), "fixture must not be palindromic (anti-vacuity)"
     assert seq == ["PASS", "CONDITIONAL", "FAIL"]
+
+
+def test_backfilled_older_verdict_lands_in_event_order(ledger: Path):
+    """phase-86.85 cycle-5 (QA-MUT-B): file order let a backfill CLEAR an
+    escalation -- [C, C, PASS-backfill] read n=0 where the true event order
+    [PASS, C, C] reads n=2/auto-fail. The --date backfill flag is shipped."""
+    vlw.append_row(vlw.build_row("4.9", "CONDITIONAL", run_id="wf_a",
+                                 event_date="2026-08-11"), ledger)
+    vlw.append_row(vlw.build_row("4.9", "CONDITIONAL", run_id="wf_b",
+                                 event_date="2026-08-12"), ledger)
+    vlw.append_row(vlw.build_row("4.9", "PASS", run_id="wf_c",
+                                 event_date="2026-08-10"), ledger)
+    assert vlw.emit_sequence("4.9", ledger) == ["PASS", "CONDITIONAL", "CONDITIONAL"]
+
+
+def test_same_date_rows_preserve_file_order(ledger: Path):
+    """phase-86.85 cycle-7 (QA-M-POS-const): same-date rows are the COMMON case
+    (86.85's three FAILs all share one event date). File order (C, P, F) is
+    deliberately non-alphabetical so a verdict-string fallthrough fails here."""
+    for i, v in enumerate(("CONDITIONAL", "PASS", "FAIL"), start=1):
+        vlw.append_row(vlw.build_row("4.7", v, run_id=f"wf_sd{i}",
+                                     event_date="2026-08-14"), ledger)
+    assert vlw.emit_sequence("4.7", ledger) == ["CONDITIONAL", "PASS", "FAIL"]
+
+
+def test_non_iso_date_refused_at_both_seams(ledger: Path):
+    """QA-C6-1: '2026-8-10' sorts after every ISO August date; 11/52 real rows
+    are range-shaped. Refused at write AND at read, never silently ordered."""
+    import pytest as _pytest
+    with _pytest.raises(vlw.LedgerError, match="not ISO"):
+        vlw.build_row("4.6", "PASS", run_id="wf_n", event_date="2026-8-10")
+    import json as _json
+    ledger.write_text(_json.dumps(
+        {"step_id": "4.6", "verdict": "PASS", "run_id": "wf_n2",
+         "date": "2026-08-09/10"}) + "\n", encoding="utf-8")
+    with _pytest.raises(vlw.LedgerError, match="non-ISO event date"):
+        vlw.emit_sequence("4.6", ledger)
+
+
+def test_undated_row_is_loud_never_silently_ordered(ledger: Path):
+    """A row that cannot be ordered must refuse, not float to an arbitrary
+    position -- same doctrine as the out-of-vocabulary verdict."""
+    vlw.append_row(vlw.build_row("4.8", "PASS", run_id="wf_d"), ledger)
+    rows = ledger.read_text(encoding="utf-8").strip().splitlines()
+    import json as _json
+    bad = _json.loads(rows[-1])
+    bad.pop("date", None)
+    ledger.write_text("\n".join(rows[:-1] + [_json.dumps(bad)]) + "\n",
+                      encoding="utf-8")
+    import pytest as _pytest
+    with _pytest.raises(vlw.LedgerError, match="no event date"):
+        vlw.emit_sequence("4.8", ledger)
 
 
 def test_sequence_filters_by_step(ledger: Path):
