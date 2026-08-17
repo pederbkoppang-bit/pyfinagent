@@ -35775,3 +35775,54 @@ criterion was MET and returned CONDITIONAL anyway. The recurring shape is one
 class: **a guard that has the very defect it was built to catch.**
 
 Tokens: 227,210 (research) + 218,196 + 225,041 + 243,670 (three Q/A cycles).
+
+## Cycle 214 -- 2026-08-17 -- phase=86.94 result=FAIL
+
+**PARKED at the operator's 3-attempts-per-day rail (R1).** Three Q/A cycles today
+(4, 5, 6); verdicts across the whole step: FAIL, FAIL, CONDITIONAL, CONDITIONAL,
+FAIL, FAIL.
+
+**Research**: gate PASSED on the enforced rail (`wf_c533d502-21e`) -- 7 sources
+read in full, 23 URLs, brief cross-checked on disk. It changed the design: it
+measured that the criterion-4 corpus walked the WORKING TREE, of which **89.5%
+(43,927 of 49,094 handoff `.md`) is gitignored**, so the pin was a number about a
+machine in the exact class this step exists to close -- and the allowlist's own
+smoking-gun citation was itself gitignored.
+
+**Generate**: `mentions_reviewed` (a count of files containing a member's
+FILENAME) replaced by `figure_probes` bound to the figure each window actually
+emits, over the git-tracked corpus, asserting `quoted_as_evidence == bool(hits)`.
+Four fail-closed `<unparsed>` cells added; every cell now asserts its mechanism;
+fixtures gained `{text, source}` provenance. Guard **45 -> 77 assertions**.
+`scheduler.py`'s criterion-4 judgement was found FALSE against a tracked
+counterexample and corrected to `True` (quoted, unreproducible, inert).
+
+**Evaluate**: criteria 1, 2, 3, 4, 6, 7 recorded **MET and independently
+re-derived** -- the evaluator replayed criterion 1's arithmetic at both pinned
+instants, reproduced the criterion-2 enumeration with a **symmetric difference of
+zero** against its own scan of all 852 tracked `.py`/`.sh`, and re-ran all ten
+mutation cells cell-for-cell **and number-for-number** (killed=10, survived=0,
+unscorable=0; control GREEN at 77/0 first). **Criterion 5 NOT MET.**
+
+**The diagnosis in one sentence: the product is right and the evidence prose
+keeps drifting from it.** Three consecutive cycles capped on figures in my own
+artifacts, never on the guard. Cycle 4: a probe built from the call site and not
+the renderer. Cycle 5: a correction that rewrote the wrong block, plus a regex
+truncation printed inside quote marks. Cycle 6: a stale assertion count sitting
+between two lines that reproduced, and a census invalidated by this cycle's own
+commit.
+
+**Named for the next cycle** (a/b/c corrected POST-VERDICT and UNGRADED, disclosed
+in `live_check_86.94.md` §J9): (a) §G's `45 passed` -> 77; (b) §H1's census
+851 -> 852; (c) J5 Class B's disposition, false for its own carrier. **(d) NOT
+fixed:** the evaluator's K1/K2 cells survive by provenancing a fixture to a file
+the author controls, so "a control cannot be invented" was an overclaim and is
+withdrawn in both the guard source and §J8.
+
+**The fix that would end this loop**: regenerate every quoted block in
+`live_check_86.94.md` from ONE live run instead of maintaining figures by hand.
+
+Artifacts: `contract_86.94.md`, `research_brief_86.94_cycle4.md`,
+`experiment_results_86.94.md`, `evaluator_critique_86.94.md`,
+`live_check_86.94.md`. Filed: **86.104** (section-[1] known-member gate does not
+discriminate). Status stays `pending` -- no step was flipped without a PASS.

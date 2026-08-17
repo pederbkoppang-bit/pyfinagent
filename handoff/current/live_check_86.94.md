@@ -351,7 +351,7 @@ off — which is also why the guard is an allowlist rather than a ban.
 ## G. NO REGRESSION (criterion 7)
 
 ```
-verify_no_sliding_windows_86_94.py   ALL GREEN: 45 passed, 0 failed
+verify_no_sliding_windows_86_94.py   ALL GREEN: 77 passed, 0 failed
 verify_changelog_flip_86_91.py       ALL GREEN: 42 passed, 0 failed
 verify_workflow_args_boundary.mjs    ALL GREEN: 96 passed, 0 failed
 immutable command                    green
@@ -381,7 +381,7 @@ the exclusion is bounded by an assertion rather than trusted:
 ```
 
 ```
-tracked py/sh: 851   scanned: 850   excluded: 1
+tracked py/sh: 852   scanned: 851   excluded: 1
 ```
 
 **Residual, stated rather than hidden:** a real sliding window introduced into
@@ -760,7 +760,8 @@ carrier at `:25938`.) **Not 9, as cycle 4 claimed.**
 |---|---|
 | `.claude/masterplan.json:25938` | **corrected** — the note now says the "ALL GREEN 45/0" claim was already false when written. |
 | `handoff/current/day_report_2026-08-17.md:49` | **CORRECTED IN PLACE (cycle 5).** It read "Guard ships green at 45/0" — a statement `day_halt.md:82` itself identifies as false, and cycle 4 left it undispositioned. Now struck through with the measured values (44/1 at the park commit, 42/3 next morning). `:60` ("NEW, 45 assertions") was true when written and is a record of that cycle. |
-| `handoff/current/live_check_86.94.md`, `experiment_results_86.94.md`, `contract_86.94.md` | current-cycle artifacts; each quotes the stale figure only to identify it. |
+| `handoff/current/live_check_86.94.md` | **DISPOSITION CORRECTED (cycle 6 verdict).** Nine of its ten hits are descriptions of the stale figure, but `:354` was an **affirmative result claim** inside a block labelled verbatim — so "quotes it only to identify it" was false for this very file. Corrected in place; see §J9. |
+| `handoff/current/experiment_results_86.94.md`, `contract_86.94.md` | current-cycle artifacts; each quotes the stale figure only to identify it. |
 | `handoff/current/day_halt.md`, `overnight_halt.md`, `research_brief_86.94_cycle4.md` | **RECORDS** — each figure was true at the moment it was captured. |
 | `handoff/harness_log.md:35751` | **append-only cycle log.** Gets a new entry; history is not rewritten. |
 
@@ -892,6 +893,61 @@ corrected in place. Every class now quotes its enumeration command.
 **Answered in my favour by the cycle-4 Q/A:** leaving `day_halt.md` verbatim is
 correct, not accompaniment — a block labelled verbatim must be regenerated, never
 edited, and it is explicitly dispositioned with a stated reason.
+
+### J9. POST-VERDICT, UNGRADED — the two stale figures the cycle-6 FAIL named
+
+**These corrections were made AFTER the cycle-6 verdict and NO Q/A has graded
+them.** They are recorded here rather than folded in silently, the same way
+W1/W2/W3 were in §J7.
+
+The cycle-6 evaluator FAILED this step on criterion 5, and both findings
+reproduce exactly as stated:
+
+**Finding 1 — §G carried a stale assertion count.** The block under
+"## G. NO REGRESSION" read `verify_no_sliding_windows_86_94.py   ALL GREEN: 45
+passed, 0 failed`; the measured value is **77**. The other two lines in that same
+fenced block reproduce exactly (`verify_changelog_flip_86_91.py` 42/0,
+`verify_workflow_args_boundary.mjs` 96/0), so it was never a coherent dated
+snapshot — it was two live lines and one stale one, inside a file whose own header
+promises "Every block is verbatim tool output from this session".
+`git log -S "ALL GREEN: 45 passed, 0 failed"` returns exactly one commit,
+`d6c732b7` (cycle 3), and the line was never revised while the count went
+45 → 68 → 74 → 77.
+
+**Finding 2 — §H1's census was invalidated by this cycle's own commit.** It read
+`tracked py/sh: 851   scanned: 850   excluded: 1`; measured now **852 / 851 / 1**.
+The `+1` is `scripts/qa/gen_shipped_today_fixture_86_94.py`, added by `dc8d64d9`
+— **the cycle-6 commit itself**. A step whose subject is figures that cannot be
+regenerated shipped a figure invalidated by its own commit, inside a block
+presented as verbatim output.
+
+Both are corrected in place above.
+
+**J5 Class B's disposition row was also wrong.** It said `live_check_86.94.md`
+"quotes the stale figure only to identify it". The evaluator enumerated all ten
+`45/0 | 45 assertions | 45 passed` occurrences in this file: nine are
+descriptions, but `:354` was an **affirmative result claim**. So the disposition
+did not reproduce for its own carrier — a sweep asserting a completeness it did
+not have, which is the third time in this step that a completeness claim of mine
+has been built on a derivation I did not show. The row is corrected below.
+
+**A third finding is NOT fixed, and it is a real residual rather than an
+oversight.** The evaluator's cells K1 and K2 **SURVIVED at a clean 77/0**: a
+fixture can be provenanced to a file the **author controls** — the guard itself
+(K1, token `UTC_QUALIFIED`) or the generator script added in the same commit (K2,
+token `REFUSING TO WRITE`) — using text already on disk, so no new evidence has to
+be manufactured anywhere. The check asserts only that the source is tracked and
+contains the text; it cannot tell an independent artifact from one the author
+wrote in the same breath.
+
+Therefore §J8's "A control can no longer be invented" and the guard's own
+comment "a control cannot be invented" are **OVERCLAIMS, falsified by
+execution**, and they are withdrawn here rather than defended. What the
+provenance check actually buys is narrower and worth stating exactly: *a fixture
+must correspond to text that exists somewhere in the tracked tree*, which kills
+the invented-token mutant (M-J) but not a circular one. Closing that gap needs
+the fixture's source to be independent of the commit under review — queued, not
+claimed.
 
 ### Net
 

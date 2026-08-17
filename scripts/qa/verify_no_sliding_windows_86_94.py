@@ -777,7 +777,23 @@ for (_path_suffix, _val), _entry in ALLOWLIST.items():
         # shape as the defect it was added to catch.
         #
         # Each fixture now names a TRACKED FILE and the text must actually be in
-        # it, so a control cannot be invented. Fixture sources are deliberately
+        # it.
+        #
+        # WHAT THIS BUYS, STATED EXACTLY -- an earlier version of this comment
+        # said "so a control cannot be invented", and the cycle-6 Q/A falsified
+        # that by execution. Its cells K1/K2 both SURVIVED at a clean 77/0 by
+        # provenancing a fixture to a file the AUTHOR CONTROLS -- this guard
+        # itself, and the generator script added in the same commit -- using
+        # tokens already on disk. The check asserts only that the source is
+        # tracked and contains the text; it cannot tell an independent artifact
+        # from one written in the same breath. So the accurate claim is the
+        # narrower one: A FIXTURE MUST CORRESPOND TO TEXT THAT REALLY EXISTS
+        # SOMEWHERE IN THE TRACKED TREE. That kills the invented-token mutant
+        # (M-J) and raises the cost of a fake control; it does not eliminate a
+        # circular one. Closing that needs the source to be independent of the
+        # commit under review, and is queued rather than claimed here.
+        #
+        # Fixture sources are deliberately
         # allowed to sit OUTSIDE the [3b] quote corpus (e.g. a generated render
         # under scripts/qa/fixtures/): the fixture proves the probe recognises
         # the figure SHAPE, while the corpus search answers the different
