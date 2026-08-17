@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-17 | `65e38c3b` | phase-86.96 + 86.90 + 86.72: byte-verbatim round-trip guard (section 7, 113/113), 86.96 diagnosis ex |
 | 2026-08-17 | `192ef652` | phase-86.71: the cumulative attempt budget is WIRED AND LIVE -- attempt_gate.py registered as a PreT |
 | 2026-08-17 | `f3c89229` | phase-86.85: cycles 5-7 -- emit_sequence orders by EVENT date with the verdict excluded from the key |
 | 2026-08-17 | `d69da099` | phase-86.84: cycles 4-6 -- D1 verifier fix, re-measurement guarded by floors + independent cross-der |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-17 | `d6c732b7` | phase-86.94: cycle-3 -- my correction accompanied instead of replacing |
 | 2026-08-17 | `379be687` | phase-86.94: cycle-2 -- five mutants survived, three named in my own audit_basis |
 | 2026-08-16 | `b3df71f6` | phase-86.94: correct the stale assertion counts and record the three self-found defects |
-| 2026-08-16 | `4f2bba7f` | phase-86.94: measurement 2 -- the bare-date count went DOWN while the repo GREW |
 
 ---
 
