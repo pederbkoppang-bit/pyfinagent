@@ -97,3 +97,75 @@ recomputed; 9 sources in full, 30 URLs). Verbatim command evidence in
 - Token-ceiling enforcement uses the module's `max_tokens` only via recorded
   outcomes; per-launch token attribution at the PreToolUse seam is not possible
   (tokens are unknown at launch). The attempt ceiling is the primary bound.
+
+
+---
+
+## Cycle 2 GENERATE (2026-08-17): the cycle-1 FAIL's findings closed
+
+The cycle-1 verdict (FAIL -- transcribed verbatim in
+`evaluator_critique_86.71.md`) proved my mutation matrix non-discriminating
+(every mutant died of ModuleNotFoundError at the temp path; a null mutant
+scored KILLED), found G4 a real survivor under a repaired harness, showed my
+pasted capture had been edited (the omitted `by:` lines were exactly the tell),
+measured my growth explanation false, and called the "every Layer-3 run
+originates" claim overbroad. Each is closed at the site it lives:
+
+1. **Matrix repaired and made self-checking**: PYTHONPATH for relocated
+   mutants; permanent discrimination controls (relocated-unmutated must
+   behave; null mutant must survive; abort on either); a corrupt-tagging
+   probe so G4's kill belongs to the matrix's own checks. 6/6 KILLED for the
+   RIGHT reasons, each `by:` line shown, full stdout regenerated unedited in
+   `live_check_86.71.md` section 7.
+2. **The capture discipline**: the section-7 block is complete stdout,
+   nothing omitted -- the previous abridgement hid the very lines that showed
+   the harness was broken, which is why "a verbatim capture must be
+   regenerated, never edited" exists.
+3. **Criterion-1**: command + classifier rule now quoted; the false growth
+   explanation REPLACED with the evaluator's measured decomposition (growth
+   ~1.7 points; population-rule difference ~6.4 points).
+4. **Scope honesty**: the ungated Agent-tool fallback path is stated in the
+   gate's own docstring and here -- a residual decision, not a silent hole.
+
+
+---
+
+## Cycle 3 GENERATE (2026-08-17): the two cycle-2 gaps closed
+
+1. **Criterion 1's command is now REAL and runnable from the artifact**: the
+   placeholder block ("...") that failed the clause two cycles running is
+   replaced in live_check section 7 by the full derivation script -- executed
+   straight out of the artifact at write time it prints 66.5% / qa 77.6% /
+   researcher 19.4% / max 9 on 36.8.
+2. **cmd_extend's --reason guard has coverage and the criterion-8 evidence set
+   is disclosed in full**: matrix cell G7 drives --operator-extend as a
+   subprocess (refused without --reason at rc=2 with no row; accepted with);
+   three new self-test checks cover the same path in-process; the criterion-8
+   evidence is stated as the 7-cell matrix PLUS the self-test (whose
+   hostile-step-id / PASS-exception / extension-allowance kills the cycle-2
+   evaluator confirmed). Cell-level CRASH scores ERROR, never a
+   kill -- widened at cycle 4 from a three-exception marker list (a NameError slipped it, cycle-3 Q/A probe Z3) to the CLASS test: any Python traceback in the mutant's stderr, or an exit code outside the gate's two legitimate outcomes (0 allow / 2 deny).
+3. **A real latent bug found by the new checks, fixed and disclosed**:
+   def-time ledger-path defaults let the self-test write one synthetic row
+   into the production audit stream; call-time resolution fixes it, the
+   pollution row is disclosed in live_check section 9, and the append-only
+   discipline is preserved (no rewrite).
+
+
+---
+
+## Cycle 4 GENERATE (2026-08-17): the two cycle-3 one-liners, plus the swallow made loud
+
+1. The tautological self-test check is fixed at the named site: `before_rows`
+   is captured BEFORE the refused cmd_extend call, so "refused extension
+   appends NO row" can now fail -- the evaluator's M-A mutant (blank-reason
+   path appends but still returns 2) dies against it.
+2. The import-ERROR guard is widened from a three-name marker list to the
+   CLASS: any Python traceback in the mutant's stderr, or an exit code outside
+   {0, 2}, scores ERROR -- a crashed mutant is never a kill whatever its
+   exception was called (closing probe Z3). The overbroad artifact sentence is
+   corrected in place above.
+3. Cross-flagged from 86.85's cycle-10 verdict and adopted here where the code
+   lives: `verdict_outcomes`' broad except no longer swallows silently -- the
+   failure is printed loudly on stderr with its fail-closed direction stated
+   (an empty list can only remove the PASS allowance, never grant one).

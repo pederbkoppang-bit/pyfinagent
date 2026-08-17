@@ -36,17 +36,38 @@ def md5(p: Path) -> str:
     return hashlib.md5(p.read_bytes()).hexdigest()
 
 
-def drive(gate: Path, tmp: Path, seed_attempts: int) -> dict:
-    """Run the gate as a SUBPROCESS with a temp ledger seeded to N attempts."""
+def drive(gate: Path, tmp: Path, seed_attempts: int,
+          seed_corrupt: int = 0) -> dict:
+    """Run the gate as a SUBPROCESS with a temp ledger seeded to N attempts.
+
+    phase-86.71 cycle-2 (Q/A finding, Circular_Reasoning): the first version
+    set no PYTHONPATH, so a mutant relocated to the temp dir raised
+    ModuleNotFoundError on `from attempt_budget import ...` (attempt_gate
+    computes REPO from ITS OWN __file__) and died before any gate logic --
+    every check failed, every cell scored KILLED, including a null mutant.
+    The env now carries the import path, and the discrimination controls
+    below make that class of harness breakage loud forever.
+
+    `seed_corrupt` prepends N non-JSON lines: a corrupt row must COUNT as an
+    attempt (over-count escalates early, the safe direction), which is the
+    behaviour cell G4 mutates -- previously unexercised by these checks.
+    """
     led = tmp / "attempts.jsonl"
     with led.open("w", encoding="utf-8") as fh:
+        for _ in range(seed_corrupt):
+            fh.write("not json -- corrupt attempt row\n")
         for _ in range(seed_attempts):
             fh.write(json.dumps({"ts": "2026-08-17T00:00:00Z", "type": "attempt",
                                  "step_id": "77.7"}) + "\n")
     env = dict(os.environ,
                ATTEMPT_GATE_LEDGER=str(led),
                ATTEMPT_GATE_VERDICT_LEDGER=str(tmp / "absent_verdicts.jsonl"),
-               ATTEMPT_GATE_ESCALATION_DIR=str(tmp))
+               ATTEMPT_GATE_ESCALATION_DIR=str(tmp),
+               PYTHONPATH=os.pathsep.join([
+                   str(REPO / "scripts" / "harness"),
+                   str(REPO / "scripts" / "qa"),
+                   os.environ.get("PYTHONPATH", ""),
+               ]))
     r = subprocess.run([sys.executable, str(gate)], input=HOOK_STDIN,
                        capture_output=True, text=True, env=env, timeout=60)
     rows_after = (led.read_text(encoding="utf-8").count("\n")
@@ -56,13 +77,46 @@ def drive(gate: Path, tmp: Path, seed_attempts: int) -> dict:
                                       for p in tmp.iterdir())}
 
 
+def _corrupt_probe(gate: Path) -> dict:
+    """Does the gate's reader TAG a corrupt row as an attempt?
+
+    cycle-2: G4's subject is read_ledger's corrupt-row handling; the hook
+    drives never exercised it (well-formed seeds only), so its filed kill was
+    actually made by --self-test -- a different artifact. This probe runs the
+    MUTANT's own read_ledger in a subprocess, so the matrix's checks own the
+    kill.
+    """
+    with tempfile.TemporaryDirectory() as td:
+        led = Path(td) / "l.jsonl"
+        led.write_text("not json\n", encoding="utf-8")
+        code = (
+            "import importlib.util, json, sys\n"
+            f"spec = importlib.util.spec_from_file_location('g', {str(gate)!r})\n"
+            "m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)\n"
+            f"rows = m.read_ledger(m.Path({str(led)!r}))\n"
+            "print(json.dumps([r.get('step_id') for r in rows]))\n"
+        )
+        env = dict(os.environ, PYTHONPATH=os.pathsep.join([
+            str(REPO / "scripts" / "harness"), str(REPO / "scripts" / "qa"),
+            os.environ.get("PYTHONPATH", "")]))
+        r = subprocess.run([sys.executable, "-c", code], capture_output=True,
+                           text=True, env=env, timeout=60)
+        try:
+            tags = json.loads(r.stdout.strip() or "[]")
+        except json.JSONDecodeError:
+            tags = []
+        return {"corrupt_tagged": tags == ["__corrupt__"], "rc": r.returncode}
+
+
 def observations(gate: Path) -> dict:
     """The behavioural fingerprint every cell is scored against."""
     with tempfile.TemporaryDirectory() as td:
         below = drive(gate, Path(td), seed_attempts=0)
     with tempfile.TemporaryDirectory() as td:
         at = drive(gate, Path(td), seed_attempts=5)
-    return {"below": below, "at": at}
+    probe = _corrupt_probe(gate)
+    ext = _extend_probe(gate)
+    return {"below": below, "at": at, "corrupt": probe, "extend": ext}
 
 
 CHECKS = [
@@ -77,6 +131,15 @@ CHECKS = [
      lambda o: o["at"]["escalation_written"]),
     ("a denied launch is NOT counted as an attempt",
      lambda o: o["at"]["rows_after"] == 5),
+    ("a corrupt ledger row is TAGGED as an attempt by the reader (over-count "
+     "escalates early -- the safe direction)",
+     lambda o: o["corrupt"]["corrupt_tagged"] and o["corrupt"]["rc"] == 0),
+    ("an operator extension WITHOUT --reason is REFUSED and appends no row",
+     lambda o: o["extend"]["refused_rc"] == 2
+     and o["extend"]["rows_after_refusal"] == 0),
+    ("an operator extension WITH a reason appends its labelled row",
+     lambda o: o["extend"]["accepted_rc"] == 0
+     and o["extend"]["rows_after_accept"] == 1),
 ]
 
 #: (id, description, find, replace) -- find must appear exactly once.
@@ -99,7 +162,37 @@ CELLS = [
     ("G6", "ceiling comparison bypassed -- disposition read but ignored",
      "    if d is Disposition.ESCALATE:\n        return \"deny\", state",
      "    if d is Disposition.ESCALATE:\n        return \"allow\", state"),
+    # cycle-3 (cycle-2 Q/A, H4): the accountability guard on the ONLY path
+    # that raises the ceiling.
+    ("G7", "--reason requirement removed from operator-extend -- a silent, "
+           "unexplained ceiling raise becomes possible",
+     "    if not reason.strip():",
+     "    if False:"),
 ]
+
+
+def _extend_probe(gate: Path) -> dict:
+    """Drive cmd_extend as a SUBPROCESS: refused without --reason, row with."""
+    with tempfile.TemporaryDirectory() as td:
+        led = Path(td) / "l.jsonl"
+        env = dict(os.environ,
+                   ATTEMPT_GATE_LEDGER=str(led),
+                   ATTEMPT_GATE_VERDICT_LEDGER=str(Path(td) / "v.jsonl"),
+                   ATTEMPT_GATE_ESCALATION_DIR=str(td),
+                   PYTHONPATH=os.pathsep.join([
+                       str(REPO / "scripts" / "harness"),
+                       str(REPO / "scripts" / "qa"),
+                       os.environ.get("PYTHONPATH", "")]))
+        r_no = subprocess.run([sys.executable, str(gate), "--operator-extend",
+                               "77.8", "--by", "1"],
+                              capture_output=True, text=True, env=env, timeout=60)
+        rows_no = led.read_text(encoding="utf-8").count("\n") if led.is_file() else 0
+        r_yes = subprocess.run([sys.executable, str(gate), "--operator-extend",
+                                "77.8", "--by", "1", "--reason", "matrix drive"],
+                               capture_output=True, text=True, env=env, timeout=60)
+        rows_yes = led.read_text(encoding="utf-8").count("\n") if led.is_file() else 0
+        return {"refused_rc": r_no.returncode, "rows_after_refusal": rows_no,
+                "accepted_rc": r_yes.returncode, "rows_after_accept": rows_yes}
 
 
 def run_matrix(verify: bool) -> int:
@@ -117,7 +210,40 @@ def run_matrix(verify: bool) -> int:
         return 1
     print(f"CONTROL green: all {len(CHECKS)} behavioural checks hold "
           f"(below rc={ctrl['below']['rc']} rows={ctrl['below']['rows_after']}; "
-          f"at-ceiling rc={ctrl['at']['rc']})\n")
+          f"at-ceiling rc={ctrl['at']['rc']})")
+
+    # phase-86.71 cycle-2 DISCRIMINATION CONTROLS -- permanent, abort on
+    # failure. The Q/A proved the first harness scored an UNMUTATED copy and
+    # a NULL MUTANT as KILLED (ModuleNotFoundError at the temp path), i.e.
+    # the matrix could not tell a mutant from the subject. These two controls
+    # make that breakage loud forever.
+    with tempfile.TemporaryDirectory() as td:
+        clean = Path(td) / "attempt_gate_clean.py"
+        clean.write_text(src, encoding="utf-8")
+        relocated = observations(clean)
+        rel_fail = [name for name, fn in CHECKS if not fn(relocated)]
+    if rel_fail:
+        print("DISCRIMINATION CONTROL RED: an UNMUTATED copy at the temp path "
+              "fails checks -- the harness cannot run relocated code and every "
+              "kill below would be a mirage. Failing:")
+        for n in rel_fail:
+            print(f"  - {n}")
+        return 1
+    print("relocated-unmutated control: SURVIVES (all checks hold)")
+    with tempfile.TemporaryDirectory() as td:
+        nullm = Path(td) / "attempt_gate_null.py"
+        nullm.write_text(src.replace("def _now() -> str:",
+                                     "def _now() -> str:  # null-mutant marker",
+                                     1), encoding="utf-8")
+        nullobs = observations(nullm)
+        null_fail = [name for name, fn in CHECKS if not fn(nullobs)]
+    if null_fail:
+        print("NULL-MUTANT CONTROL RED: a comment-only change fails checks -- "
+              "the harness kills everything and discriminates nothing. Failing:")
+        for n in null_fail:
+            print(f"  - {n}")
+        return 1
+    print("null-mutant control: SURVIVES (a comment-only change kills nothing)\n")
 
     survivors, errors = [], []
     for cid, desc, find, repl in CELLS:
@@ -132,6 +258,23 @@ def run_matrix(verify: bool) -> int:
             mgate.write_text(mutated, encoding="utf-8")
             try:
                 obs = observations(mgate)
+                # cycle-3 (cycle-2 Q/A, latent finding): a mutant that cannot
+                # even IMPORT has been tested by nothing -- score it ERROR,
+                # never let its universal check-failure read as a kill. The
+                # smaller form of the cycle-1 class, closed at the cell level.
+                # cycle-4 (cycle-3 Q/A, probe Z3): the marker list was
+                # three names wide and a NameError-at-import mutant scored
+                # KILLED. The class test is now ANY Python traceback OR an
+                # exit code outside the gate's two legitimate outcomes
+                # (0 allow / 2 deny) -- a crashed mutant has been tested by
+                # nothing, whatever the exception was called.
+                below_stderr = obs["below"].get("stderr", "")
+                broken = ("Traceback (most recent call last)" in below_stderr
+                          or obs["below"]["rc"] not in (0, 2))
+                if broken:
+                    errors.append((cid, "mutant failed to import -- not tested"))
+                    print(f"  {cid}  ERROR      mutant failed to import -- {desc}")
+                    continue
                 failed = [name for name, fn in CHECKS if not fn(obs)]
             except Exception as exc:  # noqa: BLE001
                 errors.append((cid, f"{type(exc).__name__}: {exc}"))

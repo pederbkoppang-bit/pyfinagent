@@ -181,7 +181,7 @@ non-blocking note 1, closed here.)*
 as of cycle 7 (event-order, same-date, and ISO-date-validation cells added in
 cycles 6-7). EVERY count in this file's sections 6 and C8 is a dated capture of
 its own cycle; the CURRENT figures are produced by running the commands, and
-the latest captured run is in section C8.8 below. The cycle-6 Q/A found this
+the latest captured run is the LAST C8.x section below (earlier C8.x sections are dated captures, superseded by construction). The cycle-6 Q/A found this
 file stale a third time, so the rule is now stated where the numbers live:
 a matrix count quoted without its cycle label or command is wrong by default.)*
 
@@ -364,7 +364,7 @@ A gate that has never been observed failing is a zero-assertion guard. Each cell
 was removed in memory and the gate re-run:
 
 ```
-CONTROL (14 cells) -> exit 0          [cycle-4 capture -- current: 20 cells / 17 guards, C8.8]
+CONTROL (14 cells) -> exit 0          [cycle-4 capture -- current counts move with the suite; see the LAST C8.x section]
     guards: 15   covered: 15   uncovered: 0   cell problems: 0
 
   drop M1   -> exit 1 RED   gaps=2        drop M8   -> exit 1 RED   gaps=1
@@ -454,7 +454,7 @@ synthetic guard into an in-memory copy and requires itself to report that guard
 as UNCOVERED. If it cannot detect a guard it planted itself it exits 2 with
 FAILED GATE rather than a clean bill.
 
-## C8.6 -- verbatim output *(cycle-4 capture, 2026-08-15 -- superseded; current run in C8.8)*
+## C8.6 -- verbatim output *(cycle-4 capture, 2026-08-15 -- superseded; current run in the LAST C8.x section)*
 
 ### writer self-test
 ```
@@ -505,13 +505,13 @@ selects and is **not** comparable to a count taken under a different selector.
 
 ---
 
-## C8.8 -- CURRENT captured run (cycle 7, 2026-08-17)
+## C8.8 -- cycle-7/8 capture, 2026-08-17 -- SUPERSEDED (current: the LAST C8.x section below)
 
-Every figure below is from a live run this session; re-derive with the command.
+Every figure below was from a live run AT ITS CAPTURE; the cycle-8 Q/A measured several stale on arrival and the cycle-9 Q/A found this heading still claiming currency -- figures here are HISTORY; the current run is the LAST C8.x section.
 
 ```
 $ python3 scripts/qa/verdict_ledger_write.py --self-test
-SELF-TEST PASSED                                                    (exit 0; 30 checks
+SELF-TEST PASSED                                                    (exit 0; [cycle-11 correction: this figure said 30 -- the cycle-10 Q/A measured the cycle-7 tree at 29 by this artifact's own grep rule, so it was never true; current counts live in the LAST C8.x section] checks
                                 incl. same-date file-order, backfill event-order,
                                 non-ISO refusal at BOTH seams, undated-row loudness)
 
@@ -519,7 +519,7 @@ $ python -m pytest backend/tests -k '86_85 or ledger or verdict_ledger' -q
 38 passed, 3514 deselected                                          (exit 0)
 
 $ python3 scripts/qa/mutation_matrix_86_85.py
-20 cells: 20 KILLED, 0 survived, 0 unscorable                       (exit 0)
+20 cells: 20 KILLED, 0 survived, 0 unscorable   [cycle-11 note: accurate for the cycle-7 tree; current count in the LAST C8.x section]                       (exit 0)
   (M5 retargeted to stay date-shaped -- its old timestamp replacement died at
    the NEW ISO guard, the wrong guard, and scored UNSCORABLE; M17 rewritten to
    the verdict-participates key -- the originally-named plain-sorted mutant is
@@ -527,7 +527,7 @@ $ python3 scripts/qa/mutation_matrix_86_85.py
    to stable file order, both stated in the cell comments)
 
 $ python3 scripts/qa/verify_matrix_coverage_86_85.py
-guards: 17   covered: 17   uncovered: 0   cell problems: 0          (exit 0)
+guards: 17   covered: 17   uncovered: 0   cell problems: 0          (exit 0)   [cycle-11 correction: the cycle-10 Q/A measured the cycle-7 tree at guards 21/21 -- this line was never true at any tree; current in the LAST C8.x section]
 
 $ python3 scripts/qa/verdict_ledger_write.py --emit-sequence --step 86.85
 ["FAIL", "FAIL", "FAIL", "CONDITIONAL", "CONDITIONAL", "FAIL"]
@@ -542,3 +542,86 @@ legacy range-shaped rows on 36.17/86.20/86.17 now produce a LOUD error if those
 steps are ever emitted, recorded as a residual repair question rather than
 silently mis-ordered); and this file's stale counts are corrected by dated
 capture labels plus this current section.
+
+
+---
+
+## C8.9 -- cycle-9 captured run (2026-08-17, regenerated in full at write time)
+
+The cycle-8 Q/A found C8.8's figures stale ON ARRIVAL (the fourth recurrence of
+this file's own disease) and one anti-vacuity check tautological. The counts
+below were captured by running the commands IMMEDIATELY before writing this
+section, and each carries its population rule inline:
+
+```
+$ python3 scripts/qa/verdict_ledger_write.py --self-test 2>&1 | grep -cE '^  (ok  |FAIL)'
+31                                             (all 'ok', exit 0; the count MOVES with the suite)
+
+$ python3 scripts/qa/mutation_matrix_86_85.py 2>/dev/null | grep -cE 'KILLED \(rc'
+21                                             (21 cells incl. M21 calendar-half; 0 SURVIVED, 0 UNSCORABLE; exit 0)
+
+$ python3 scripts/qa/verify_matrix_coverage_86_85.py | grep '^guards:'
+guards: 21   covered: 21   uncovered: 0   cell problems: 0
+
+$ python3 scripts/qa/verdict_ledger_write.py --emit-sequence --step 86.85
+["FAIL", "FAIL", "FAIL", "CONDITIONAL", "CONDITIONAL", "FAIL", "NO_VERDICT", "CONDITIONAL"]
+   (corpus-relative: this array grows as the loop runs; quote it only with its date)
+```
+
+**Cycle-8 findings closed:** (QA-C7-1) `valid_event_date` now ANDs the shape
+regex with `datetime.date.fromisoformat` at BOTH seams -- 2026-18-10,
+2026-02-30 and 9999-99-99 are all refused (fixtures in the self-test and
+pytest; matrix cell M21 kills the calendar half's removal). (QA-C7-3) the
+anti-vacuity check now derives the date set FROM THE ROWS ON DISK instead of a
+locally-built literal. (QA-C7-2) this section replaces C8.8's role as current;
+every figure above was regenerated at write time and states that it moves.
+
+
+---
+
+## C8.10 -- cycle-10 captured run (2026-08-17, regenerated at write time)
+
+```
+$ python3 scripts/qa/verdict_ledger_write.py --self-test 2>&1 | grep -cE '^  (ok  |FAIL)'
+32                                            (all 'ok', exit 0; +1: the compact-date
+                                               shape-only refusal fixture)
+$ python3 scripts/qa/mutation_matrix_86_85.py 2>/dev/null | grep -cE 'KILLED \(rc'
+22                                            (22 cells incl. M22 shape-half; 0 SURVIVED,
+                                               0 UNSCORABLE; exit 0)
+$ python -m pytest backend/tests -k '86_85 or ledger or verdict_ledger' -q | tail -1
+38 passed, 3514 deselected                    (exit 0)
+```
+
+**Cycle-9 WARNs closed:** (QA-C9-1) BOTH halves of `valid_event_date` are now
+independently killable -- the new fixture `20260810` (compact ISO) is refused
+ONLY by the regex half (`date.fromisoformat` accepts it, and it sorts
+lexicographically LAST -- the escalation-clearing direction the evaluator
+drove), and cell M22 removes the shape half and dies against that fixture,
+exactly as M21 removes the calendar half and dies against `2026-18-10`.
+(QA-C9-2) C8.8 is corrected AT THE SITE this time: retitled SUPERSEDED, its
+currency sentence REPLACED, and every forward pointer renamed to the LAST
+C8.x section -- after the cycle-9 evaluator measured my previous
+"corrected at the site" claim as purely additive.
+
+
+---
+
+## C11. Cycle-11 captures (2026-08-17)
+
+```
+$ shasum -a 256 scripts/qa/verdict_ledger_write.py
+9ade917c6dd07c6e485902d42c14ba229316606deb1b893fc3a84f3ace853dc8  scripts/qa/verdict_ledger_write.py
+$ python3 scripts/qa/verdict_ledger_write.py --self-test | tail -1; echo EXIT=$?
+SELF-TEST PASSED
+EXIT=0
+$ python -m pytest backend/tests -k "86_85 or ledger or verdict_ledger" -q --no-header | tail -1
+38 passed, 3514 deselected, 1 warning in 7.62s
+$ uvx ruff check --select F821,F401,F811 scripts/harness/attempt_gate.py scripts/qa/verdict_ledger_write.py scripts/qa/rail_turn_cap.py scripts/qa/mutation_matrix_86_71.py scripts/qa/mutate_rail_turn_cap.py | tail -1
+All checks passed!
+```
+
+The sha is byte-identical to the cycle-10 evaluator's own measurement --
+cycle 11 changed prose and a DIFFERENT step's code (86.71), not this
+step's source. The mutation matrix was therefore not re-run this cycle;
+the cycle-10 verdict's independently-executed run (22/22 KILLED, control
+green first, sha match before/after) remains the current-source evidence.

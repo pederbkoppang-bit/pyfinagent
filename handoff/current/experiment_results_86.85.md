@@ -155,7 +155,7 @@ consecutive_conditionals = 2   would_auto_fail = true
 - **86.79** owns the `records_retained` off-by-one in the **parallel** `qa_wip.py`
   trail. This step writes a **different file** and never reads `records_retained`.
   No overlap, so no blocker.
-- **86.71** (cumulative budget) would be the ledger's second consumer; out of scope.
+- **86.71** (cumulative budget) IS the ledger's second consumer as of 2026-08-17 -- attempt_gate.py, a LIVE PreToolUse hook since commit 192ef652, reads emit_sequence for its PASS exception. *(cycle-11 correction: this line said 'would be ... out of scope' and outlived its truth mid-drain.)* Its broad-except-to-[] read is measured fail-CLOSED and is 86.71's residual, outside this step's scope.
 - **86.21** owns the counter's in-flight blindness; out of scope.
 
 ### C6 -- a drop must not CLEAR an escalation; a missing row must not read as zero ✅
@@ -264,11 +264,23 @@ and is recorded as a follow-up.
 3. **`recorded_at` is absent on 14 of 43 rows** because they predate the field.
    Those rows cannot distinguish event time from write time retrospectively.
 4. **Only one consumer is proven.** `enforceEscalation` is driven end-to-end;
-   `attempt_budget.py` (86.71) is still inert and unwired, so the ledger's second
-   intended consumer remains hypothetical.
-5. **No end-to-end run has yet used the ledger to supply `args.verdict_sequence`
-   on a live spawn.** The mechanism is proven by driving the shipped function with
-   ledger-sourced data; it has not yet ridden a real Q/A launch.
+   `attempt_budget.py` (86.71) went LIVE mid-drain (2026-08-17, commit
+   192ef652: attempt_gate.py registered as a PreToolUse hook, reading this
+   ledger's emit_sequence for its PASS exception). *(cycle-11 correction: this
+   sentence said "still inert and unwired ... hypothetical" -- true when first
+   written, FALSE by the time the cycle-10 artifacts were stamped; corrected
+   on the cycle-10 Q/A's measurement. The consumer's broad-except-to-[] read
+   is measured fail-CLOSED -- an empty list can only REMOVE an allowance --
+   and its loud-refusal swallow is routed to 86.71's residuals.)*
+5. **The ledger now SUPPLIES `args.verdict_sequence` on live spawns** --
+   every 86.84/86.85/86.71 evaluation launched in the 2026-08-17 drain passed
+   `--emit-sequence` output as top-level args, and the evaluators'
+   `enforceEscalation` consumed it (the cycle-10 verdict's own escalation
+   envelope computed n=3/would_auto_fail from exactly this channel).
+   *(cycle-11 correction: this item previously read "No end-to-end run has
+   yet used the ledger to supply `args.verdict_sequence` on a live spawn ...
+   it has not yet ridden a real Q/A launch" -- true when written at cycle 4,
+   outlived by the drain, REPLACED here.)*
 
 ---
 
@@ -694,11 +706,90 @@ capture cycle, C8.6 is retitled as the cycle-4 capture, and C8.8 is the dated
 CURRENT run. "A matrix count quoted without its cycle label or command is
 wrong by default."
 
-Verbatim, post-change: self-test PASSED (30 checks) · pytest 38 passed ·
-matrix 20/20 KILLED, 0 unscorable · coverage 17/17 · ruff clean ·
-emit-sequence [F, F, F, C, C, F].
+Verbatim, post-change *(cycle-9 correction: the figures below were stale on
+arrival at cycle 8 -- '30 checks' measured 29 and '17/17' measured 21/21 under
+the artifacts' own rules; regenerated at cycle 9 and stated as MOVING counts)*:
+self-test PASSED (31 checks by the C8.6 grep rule) · pytest 38 passed ·
+matrix 21 cells KILLED, 0 unscorable · coverage guards: 21   covered: 21   uncovered: 0   cell problems: 0 · ruff clean ·
+emit-sequence ["FAIL", "FAIL", "FAIL", "CONDITIONAL", "CONDITIONAL", "FAIL", "NO_VERDICT", "CONDITIONAL"] (corpus-relative, dated 2026-08-17).
 
 Files changed: `scripts/qa/verdict_ledger_write.py`,
 `scripts/qa/mutation_matrix_86_85.py`,
 `backend/tests/test_phase_86_85_verdict_ledger_write.py`, the two artifacts.
 The consumer (`enforceEscalation`) remains untouched.
+
+
+---
+
+## Cycle 9 GENERATE (2026-08-17): the cycle-8 WARNs closed
+
+All three cycle-8 findings answered by the change each named (verdict
+transcribed verbatim in the critique): (1) `valid_event_date` ANDs shape with
+`datetime.date.fromisoformat` at both seams; driven accept-set members
+2026-18-10 / 2026-02-30 refused by fixtures at write AND read; matrix cell M21
+kills the calendar half's removal. (2) The C8.8 figures are corrected at the
+site and C8.9 is the regenerated capture, with every count stating that it
+moves. (3) The tautological anti-vacuity check now reads the fixture's rows
+from disk. Post-change: self-test 31 checks green, pytest 38, matrix 21
+cells 0 survivors, coverage guards: 21   covered: 21   uncovered: 0   cell problems: 0, ruff clean.
+
+
+---
+
+## Cycle 10 GENERATE (2026-08-17): the cycle-9 WARNs closed
+
+(QA-C9-1) The shape half of the ANDed date guard is now independently
+killable: fixture `20260810` -- accepted by `date.fromisoformat`, refused only
+by the regex, sorting lexicographically LAST (the escalation-clearing
+direction the evaluator drove) -- added to the self-test AND pytest; matrix
+cell M22 removes the shape half and dies against it. (QA-C9-2) live_check
+C8.8 is corrected AT THE SITE this time -- retitled SUPERSEDED, its currency
+sentence replaced, every forward pointer renamed to the LAST C8.x section --
+after the cycle-9 evaluator measured my previous "corrected at the site"
+claim as purely additive. Post-change (captured at write time; counts move):
+self-test 32 checks, matrix 22 cells 0 survivors, pytest 38, ruff clean.
+
+
+---
+
+## Cycle 11 GENERATE (2026-08-17): both cycle-10 WARNs closed; code untouched, prose repaired
+
+The cycle-10 CONDITIONAL found no code defect -- all 8 criteria MET for the
+third consecutive graded cycle -- and flagged two WARN-severity prose rots.
+Both are closed by REPLACEMENT at the site (a correction must replace,
+never accompany):
+
+1. **QA-C10-1 (the ledger's second consumer went LIVE and my artifacts kept
+   calling it hypothetical)**: section 4 item 4 and C5's "would be the
+   ledger's second consumer; out of scope" are REPLACED with the truth --
+   `scripts/harness/attempt_gate.py` (86.71) is registered at
+   `.claude/settings.json:39`, its `verdict_outcomes()` calls
+   `emit_sequence()` on the production ledger at every gated launch, and
+   the PASS exception is live. While repairing those two sentences I found
+   and replaced a THIRD instance of the same rot (item 5's "No end-to-end
+   run has yet used the ledger to supply `args.verdict_sequence` on a live
+   spawn" -- every 86.84/86.85/86.71 evaluation launched in the 2026-08-17
+   drain supplied ledger-emitted sequences as top-level args, and the
+   cycle-10 verdict's own escalation envelope computed n=3/would_auto_fail
+   from that channel).
+2. **QA-C10-2 (C8.8's three figures survived the framing replacement)**:
+   all three are now annotated AT THE LINE -- "30 checks" and "20 cells"
+   carry their cycle-11 corrections to 32/22, and the fenced
+   `guards: 17   covered: 17` line carries the evaluator's own measurement
+   (the cycle-10 Q/A measured 21/21 on the cycle-7 tree -- that line was
+   never true at any tree).
+3. **Adopted where the code lives**: the cycle-10 verdict's improvement
+   note on `attempt_gate.verdict_outcomes`' silent broad-except is applied
+   in 86.71 (whose file it is): the failure now prints loudly on stderr
+   with the fail-closed direction stated. Demonstrated live in
+   `live_check_86.71.md` (IsADirectoryError surfaced; empty list returned;
+   gate still allowed -- the exception can only REMOVE the PASS allowance).
+
+**No 86.85 code changed this cycle.** Proof by the evaluator's own
+instrument: `shasum -a 256 scripts/qa/verdict_ledger_write.py` ->
+`9ade917c6dd07c6e485902d42c14ba229316606deb1b893fc3a84f3ace853dc8` --
+byte-identical to the sha the cycle-10 Q/A measured itself. Re-captured at
+write time: writer `--self-test` SELF-TEST PASSED exit 0 (32 ok-checks by
+the C8.6 grep rule); pytest `-k "86_85 or ledger or verdict_ledger"` -> 38
+passed; ruff F821/F401/F811 over the touched scripts -> "All checks
+passed!".

@@ -65,11 +65,21 @@ def fresh_module():
 
 
 def mirror_agents() -> Path:
-    """A throwaway copy of .claude/agents that a cell may freely mutate."""
+    """A throwaway copy of .claude/agents (and, since cycle 10, the workflow
+    scripts) that a cell may freely mutate.
+
+    The workflow files joined the mirror when verify() gained the
+    orphan-classifier coupling pin, which reads them through mod.REPO -- a
+    mirror without them made the CONTROL itself red (harness environment, not
+    subject). The mirror is a faithful mini-.claude for everything the
+    subject reads via REPO."""
     tmp = Path(tempfile.mkdtemp(prefix="rtc_mut_"))
     (tmp / ".claude" / "agents").mkdir(parents=True)
     for md in AGENTS.glob("*.md"):
         shutil.copy(md, tmp / ".claude" / "agents" / md.name)
+    (tmp / ".claude" / "workflows").mkdir(parents=True)
+    for js in (REPO / ".claude" / "workflows").glob("*.js"):
+        shutil.copy(js, tmp / ".claude" / "workflows" / js.name)
     return tmp
 
 
@@ -101,6 +111,10 @@ def _inject_synthetic(mod, kind: str) -> None:
     reporter that hardcodes zero is EQUIVALENT ON THE CORPUS and only an
     injected known truth can distinguish it (fixture-must-break-the-symmetry).
 
+    kind='errored': a completed-status spawn whose agent entry carries a
+    server-side error (the 529 shape that turned this step's own immutable
+    command red at cycle 7). The floor must stay GREEN on it -- cell S12.
+
     kind='killed': a spawn from a KILLED run -- an operator abort at 12 turns,
     nowhere near any cap. phase-86.84 cycle-5 proved the first non-emitter
     floor conflated this with a genuine loss (the F4 class, recommitted); the
@@ -108,12 +122,14 @@ def _inject_synthetic(mod, kind: str) -> None:
     """
     orig = mod.collect
     killed = kind == "killed"
+    errored = kind == "errored"
 
     def wrapped():
         data = orig()
         data["spawns"].append({
             "run_id": "wf_synthetic-cell",
             "status": "killed" if killed else "completed",
+            "errored": errored,
             "dropped": False, "completed": not killed, "killed": killed,
             "agent_type": "qa", "cap": None, "post_removal": True,
             "session_started_at": "2026-08-17T00:00:00Z", "model": "synthetic",
@@ -175,11 +191,7 @@ SOURCE_CELLS = [
      "caps_present[0]\n                    if len(caps_present) == 1\n                    else (caps_present or None)",
      'group[0]["cap"]', False, "VERIFY", "KILL"),
     ("S2", "non-emitter counter floods (counts every post-removal spawn)",
-     '''"non_emitters": sum(
-                    1 for s in g
-                    if not s["structured_output"]
-                    and not s["killed"] and not s["dropped"]
-                ),''',
+     '"non_emitters": sum(\n                    1 for s in g\n                    if not s["structured_output"]\n                    and not s["killed"] and not s["dropped"]\n                    and not s.get("errored")\n                ),',
      '"non_emitters": len(g),', None, "VERIFY", "KILL"),
     ("S3", "_q zeroed -- percentiles all report 0",
      "return sorted_vals[int(frac * (len(sorted_vals) - 1))]",
@@ -195,11 +207,7 @@ SOURCE_CELLS = [
     ("S6", "INJECTION CONTROL: one synthetic post-removal non-emitter, source unmutated -- the new floor must fire",
      None, None, "non_emitter", "VERIFY", "KILL"),
     ("S7", "injection + non_emitters hardcoded to 0 -- the report hides a planted signal",
-     '''"non_emitters": sum(
-                    1 for s in g
-                    if not s["structured_output"]
-                    and not s["killed"] and not s["dropped"]
-                ),''',
+     '"non_emitters": sum(\n                    1 for s in g\n                    if not s["structured_output"]\n                    and not s["killed"] and not s["dropped"]\n                    and not s.get("errored")\n                ),',
      '"non_emitters": 0,', "non_emitter", "INJECTED_TRUTH", "KILL"),
     # ── cycle-6 cells (the cycle-5 FAIL's named gaps) ───────────────────────
     ("S8", "percentile reversed (frac -> 1-frac) -- p90 becomes p10",
@@ -224,6 +232,35 @@ SOURCE_CELLS = [
     ("S11", "KILLED-RUN INJECTION CONTROL: source unmutated, verify must STAY "
             "green -- an operator abort is not a new loss mechanism",
      None, None, "killed", "MUST_STAY_GREEN", "KILL"),
+    # ── cycle-8 cells (the cycle-7 FAIL: 529-errored spawns counted as
+    # non-emitters; the exclusion list must cover the CLASS) ────────────────
+    ("S12", "ERRORED-SPAWN INJECTION CONTROL: source unmutated, verify must "
+            "STAY green -- a server-side API error is not a new loss mechanism",
+     None, None, "errored", "MUST_STAY_GREEN", "KILL"),
+    ("S15", "role-marker constant drifted -- the classifier and its pin move "
+            "together (single-sourced), so verify must redden against the "
+            "workflow files that still emit the undrifted literal",
+     '"qa": ("IMMUTABLE SUCCESS CRITERIA", ".claude/workflows/qa-verdict.js")',
+     '"qa": ("IMMUTABLE SUCCESS CRITERIA DRIFTED", ".claude/workflows/qa-verdict.js")',
+     None, "VERIFY", "KILL"),
+    ("S14", "erased-transcript accounting neutered -- the orphan glob stops "
+            "seeing re-dispatch-erased attempts. ORACLE kill against a REAL "
+            "present signal: the live corpus carries the two 529-killed "
+            "evaluator attempts of this very step (qa erased_n=2), so the "
+            "mutant's remediation visibly loses them. NOTE this cell's "
+            "discriminating signal lives in the rotating corpus; when those "
+            "transcripts age out (~30d) the cell degrades to equivalent and "
+            "must be re-pointed or retired -- stated here so the label cannot "
+            "silently outlive the run (the M14 lesson).",
+     "        for tr in tdir.glob(\"agent-*.jsonl\"):",
+     "        for tr in []:",
+     None, "ORACLE", "KILL"),
+    ("S13", "errored exclusion removed + errored spawn planted -- the cycle-7 "
+            "defect reproduced as a permanent cell; verify must go RED under "
+            "the mutant (the false positive is the visible malfunction)",
+     '                    if not s["structured_output"]\n                    and not s["killed"] and not s["dropped"]\n                    and not s.get("errored")',
+     '                    if not s["structured_output"]\n                    and not s["killed"] and not s["dropped"]',
+     "errored", "VERIFY", "KILL"),
 ]
 
 

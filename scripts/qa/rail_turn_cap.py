@@ -180,6 +180,16 @@ def projects_root() -> Path:
 CAP_EDIT_AT = "2026-08-14T17:37:50Z"  # commit 85127353; `git log -1 --format=%cI`
 HISTORICAL_CAPS = {"qa": 30, "researcher": 40}  # set by phase-59.1
 
+# phase-86.84 cycle-10: the ONE constant both the erased-attempt role
+# classifier (collect) and its coupling pin (verify) read. A drift here moves
+# both together, so the pin goes red against the workflow files; a drift in
+# the workflow files reddens the pin directly. Single-sourced precisely so the
+# cycle-9 silent-zero (classifier drifted, pin none the wiser) cannot recur.
+ROLE_MARKERS = {
+    "qa": ("IMMUTABLE SUCCESS CRITERIA", ".claude/workflows/qa-verdict.js"),
+    "researcher": ("OBJECTIVE:", ".claude/workflows/research-gate.js"),
+}
+
 # A frontmatter cap that parses to something non-integral is neither "absent"
 # nor a usable number. Treat it as a pin so the guard reddens rather than
 # silently reporting the role uncapped.
@@ -392,10 +402,24 @@ def collect() -> dict:
                 missing_transcripts += 1
                 continue
             turns, assistant_lines = count_turns(transcript)
+            # phase-86.84 cycle-9 REPLACEMENT of a cycle-8 comment whose
+            # premise measured FALSE. The old text said the 529 entries made
+            # the command "permanently red (the corpus is append-only)". The
+            # cycle-8 Q/A proved otherwise, and Main re-derived it: a
+            # same-runId RE-DISPATCH REWRITES the run record (birth != mtime,
+            # entries replaced), unlike the 86.81 in-script retry which
+            # APPENDS (birth == mtime, both entries visible). So error-bearing
+            # entries can VANISH from workflowProgress while their transcripts
+            # remain on disk as orphans -- see the erased-transcript
+            # accounting in collect()'s tail. The `errored` field still
+            # matters for entries that DO carry an error (7 historical ones
+            # exist), and the never-had-a-chance-to-emit exclusion below is
+            # correct for them; it simply was not what cleared cycle 7's red.
             spawns.append(
                 {
                     "run_id": run_id,
                     "status": status,
+                    "errored": bool(entry.get("error")),
                     "dropped": status == FAILED_STATUS,
                     # phase-86.84 cycle-1 Q/A, finding F4: there is a THIRD run
                     # status (`killed`, "Workflow aborted"). `not dropped` is
@@ -419,10 +443,68 @@ def collect() -> dict:
                 }
             )
 
+    # phase-86.84 cycle-9: ERASED-ENTRY transcripts. A same-runId
+    # re-dispatch REPLACES workflowProgress, so a prior attempt's transcript
+    # can sit on disk with NO entry pointing at it -- invisible to every
+    # entry-keyed population above (measured: the two 529-killed evaluator
+    # attempts of this step, 38 and 10 turns, neither emitting
+    # StructuredOutput). They are collected SEPARATELY: their role is
+    # classified from the transcript's own first user message, their turns
+    # counted the same way, and they are NEVER merged into the realised turn
+    # distribution -- an attempt truncated by a server error or superseded by
+    # a re-dispatch is right-censored by its death, and folding it in would
+    # bias the uncensored sample the re-measurement exists to publish.
+    erased: list[dict] = []
+    for record_path in sorted(root.glob(RECORDS_GLOB)):
+        try:
+            rec = json.loads(record_path.read_text(encoding="utf-8", errors="replace"))
+        except (json.JSONDecodeError, OSError):
+            continue
+        run_id = rec.get("runId")
+        session_dir = record_path.parent.parent
+        tdir = session_dir / "subagents" / "workflows" / str(run_id)
+        if not tdir.is_dir():
+            continue
+        consumed = {f"agent-{e.get('agentId')}.jsonl"
+                    for e in (rec.get("workflowProgress") or [])
+                    if e.get("type") == "workflow_agent"}
+        for tr in tdir.glob("agent-*.jsonl"):
+            if tr.name in consumed:
+                continue
+            turns, _lines = count_turns(tr)
+            role = None
+            try:
+                with tr.open(encoding="utf-8", errors="replace") as fh:
+                    for raw in fh:
+                        try:
+                            obj = json.loads(raw)
+                        except json.JSONDecodeError:
+                            continue
+                        if obj.get("type") != "user":
+                            continue
+                        c = (obj.get("message") or {}).get("content")
+                        text = c if isinstance(c, str) else " ".join(
+                            b.get("text", "") for b in (c or [])
+                            if isinstance(b, dict))
+                        for r_name, (marker, _src) in ROLE_MARKERS.items():
+                            if marker in text:
+                                role = r_name
+                                break
+                        break
+            except OSError:
+                pass
+            erased.append({
+                "run_id": run_id, "transcript": tr.name, "role": role,
+                "turns": turns,
+                "structured_output": called_structured_output(tr),
+                "post_removal": session_is_post_removal(session_dir),
+            })
+
     return {
         "records": records,
         "spawns": spawns,
         "missing_transcripts": missing_transcripts,
+        "erased_transcripts": erased,
     }
 
 
@@ -615,9 +697,23 @@ def analyse(data: dict) -> dict:
     for role, old_cap in sorted(HISTORICAL_CAPS.items()):
         g = [s for s in post_removal_spawns if s["agent_type"] == role]
         turns = sorted(s["turns"] for s in g)
+        erased_for_role = [e for e in data.get("erased_transcripts", [])
+                           if e.get("role") == role and e.get("post_removal")]
         post_removal_turns.append(
             {
                 "agent_type": role,
+                # cycle-9: attempts whose entries a re-dispatch ERASED. On
+                # disk, real, and invisible to every entry-keyed count --
+                # REPORTED here so the trigger cannot lie by omission, and
+                # deliberately NOT folded into the turn distribution (each is
+                # right-censored by the death that orphaned it). No hard
+                # floor: a re-dispatch is the caller's documented recovery
+                # act and its loss is already recorded in the verdict ledger
+                # as NO_VERDICT; a red here would fire on every legitimate
+                # recovery. Advisory visibility, never silence.
+                "erased_n": len(erased_for_role),
+                "erased_non_emitters": sum(
+                    1 for e in erased_for_role if not e["structured_output"]),
                 "historical_cap": old_cap,
                 "n": len(g),
                 "dropped": sum(1 for s in g if s["dropped"]),
@@ -630,10 +726,20 @@ def analyse(data: dict) -> dict:
                 # only spawns that ran to completion WITHOUT emitting -- the
                 # one shape that genuinely signals a new loss mechanism.
                 "killed_n": sum(1 for s in g if s["killed"]),
+                "errored_n": sum(1 for s in g if s.get("errored")),
+                # The exclusion list now enumerates the WHOLE
+                # never-had-a-chance-to-emit family -- dropped (run failed),
+                # killed (operator abort), errored (server-side API error on
+                # the agent entry itself) -- so a counted non-emitter means
+                # exactly one thing: the agent ran to a natural completion and
+                # still never emitted StructuredOutput. Closed by
+                # construction, not by member (cycle-7 Q/A: the killed fix was
+                # instance-not-class).
                 "non_emitters": sum(
                     1 for s in g
                     if not s["structured_output"]
                     and not s["killed"] and not s["dropped"]
+                    and not s.get("errored")
                 ),
                 "median_turns": _q(turns, 0.5),
                 "p90_turns": _q(turns, 0.9),
@@ -643,6 +749,18 @@ def analyse(data: dict) -> dict:
         )
 
     remediation = {
+        "erased_transcripts": data.get("erased_transcripts", []),
+        # cycle-10 (cycle-9 Q/A): orphans whose role could not be classified
+        # were silently dropped from every per-role row. They are aggregated
+        # here so the channel is never invisible -- 41 of 44 current orphans
+        # are pre-removal role=None bulk from two old runs, and that number is
+        # a fact about the corpus, not about the formerly-capped roles.
+        "erased_unclassified": sum(
+            1 for e in data.get("erased_transcripts", [])
+            if e.get("role") is None),
+        "erased_unclassified_post_removal": sum(
+            1 for e in data.get("erased_transcripts", [])
+            if e.get("role") is None and e.get("post_removal")),
         "cap_edit_at": CAP_EDIT_AT,
         "first_post_removal_run": min(post_removal_ts) if post_removal_ts else None,
         "post_removal_spawns": len(post_removal_spawns),
@@ -783,8 +901,12 @@ def render(a: dict) -> str:
         for pr in r.get("post_removal_turns", []):
             w(
                 f"    {pr['agent_type']:<12} n={pr['n']:>3}  dropped={pr['dropped']}  "
-                f"non-emitters={pr['non_emitters']}  p50={pr['median_turns']}  "
-                f"p90={pr['p90_turns']}  max={pr['max_turns']}  "
+                f"non-emitters={pr['non_emitters']}  killed={pr.get('killed_n', 0)}  "
+                f"errored={pr.get('errored_n', 0)}  "
+                f"erased={pr.get('erased_n', 0)}"
+                f"(non-emit {pr.get('erased_non_emitters', 0)})  "
+                f"p50={pr['median_turns']}  p90={pr['p90_turns']}  "
+                f"max={pr['max_turns']}  "
                 f">old-cap({pr['historical_cap']})={pr['past_old_cap']}"
             )
     w("     ^ DERIVED FROM DISK, per run, from the birth time of the session")
@@ -887,6 +1009,28 @@ def verify(a: dict) -> tuple[bool, list[str]]:
             f"CLAIM BROKEN: {cl['drops_on_uncapped_types']} uncapped spawns dropped -- "
             "the cap cannot be the only mechanism"
         )
+
+    # ── The orphan classifier's coupling is PINNED (phase-86.84 cycle-10) ──
+    # The erased-attempt role classifier matches two prompt literals emitted
+    # by the workflow launch scripts. Nothing pinned that coupling, so a
+    # renamed prompt header would silently zero the erased counter (cycle-9
+    # Q/A, executed: marker drifted one word -> erased qa=(0,0), still green).
+    # verify() now asserts the literals still appear in the files that emit
+    # them; a red here means the classifier must be retargeted, not that the
+    # rail regressed.
+    for _role, (marker, wf_file) in ROLE_MARKERS.items():
+        wf_path = REPO / wf_file
+        try:
+            wf_src = wf_path.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            wf_src = ""
+        if marker not in wf_src:
+            problems.append(
+                f"ORPHAN-CLASSIFIER COUPLING BROKEN: {wf_file} no longer "
+                f"contains the prompt literal {marker!r} that the erased-"
+                "attempt role classifier matches -- retarget the classifier "
+                "in collect() or the erased counter will silently read zero"
+            )
 
     # ── The re-measurement itself is guarded (phase-86.84 cycle-5) ──────────
     # The cycle-4 Q/A proved by mutation that verify() asserted NOTHING over

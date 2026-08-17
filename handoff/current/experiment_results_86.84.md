@@ -143,10 +143,16 @@ the uncensored sample; percentile rule: sorted[int(frac*(n-1))]):
 ```
 
 Read that qa row twice: **32 of 36 post-removal qa evaluations exceeded the old
-cap of 30**, and the uncensored p50 is 40 versus the censored p50 of ~20. Under
-the old cap, ~89% of the current qa workload would have died at the rail. Zero
-drops, zero non-emitters since removal. The right-censoring argument (criterion
-3) is no longer an inference; it is lived data.
+cap of 30** *(a 2026-08-17T10:21Z capture -- the corpus GROWS DAILY and these
+figures move; the current row comes from running the command)*, and the
+uncensored p50 is 40 versus the censored p50 of ~20. Under the old cap, ~89%
+of the qa workload at capture would have died at the rail. Drops and
+completed-without-emitting non-emitters were both zero at capture *(the
+cycle-7 Q/A caught this sentence outliving its truth when two 529-errored
+evaluator spawns entered the corpus; the floor now excludes the whole
+never-had-a-chance-to-emit family, and any figure here is a dated capture)*.
+The right-censoring argument (criterion 3) is no longer an inference; it is
+lived data.
 
 **2. NEW DEFECT FOUND AND FIXED (external-audit finding D1): the step's own
 verification command had gone red for a spurious reason.** Before this cycle:
@@ -307,3 +313,119 @@ answered by the change it named; full evidence in `live_check_86.84.md` §11.
 Post-change, verbatim: `--verify` exit 0 both interpreters · matrix
 `cells=33 real survivors=0 known BY OUTCOME=2 errors=0`, kills by mode
 `{VERIFY 27, ORACLE 1, INJECTED_TRUTH 2, MUST_STAY_GREEN 1}` · ruff clean.
+
+
+---
+
+## Cycle 8 GENERATE (2026-08-17): the cycle-7 FAIL closed -- the class, not another member
+
+The cycle-7 verdict (FAIL, critique section 11) found the immutable command RED
+at HEAD with the 529 spawns counted as non-emitters. *(Cycle-9 REPLACEMENT of
+this paragraph's causal frame, which cycle 8 adopted unverified and the
+cycle-8 Q/A measured false: the corpus is NOT append-only -- a same-runId
+re-dispatch REWRITES the run record, my respawns erased the 529 entries, and
+the red had cleared for that reason before the errored-exclusion ever ran.
+The exclusion below remains correct for entries that DO carry errors; the
+erased-transcript sweep of cycle 9 is what makes the erased attempts visible.)*
+The killed-exclusion of cycle 6 had fixed one member of the
+never-had-a-chance-to-emit family. Closed across cycles 8-9 BY CONSTRUCTION:
+
+1. **collect() carries `errored`** (`bool(entry.get("error"))`), and the
+   non-emitter predicate enumerates the WHOLE family: a counted non-emitter is
+   a spawn that is not dropped, not killed, not errored -- i.e. it ran to a
+   natural completion and still never emitted. `errored_n` is NAMED in every
+   post-removal row, like `killed_n`.
+2. **Cells S12 + S13**: S12 injects a synthetic errored post-removal spawn
+   with the source UNMUTATED -- verify must STAY GREEN (a server-side 529 is
+   not a new loss mechanism); S13 removes the errored exclusion with the same
+   injection -- verify goes RED under the mutant (the false positive is the
+   visible malfunction). Matrix now **35 cells, 0 real survivors, 0 errors**,
+   kills by mode `{VERIFY 28, ORACLE 1, INJECTED_TRUTH 2, MUST_STAY_GREEN 2}`.
+   (S2/S7/S13 anchors are REBUILT FROM THE SOURCE BYTES programmatically, so
+   an expression edit breaks them loudly instead of silently.)
+3. **The two time-unbounded sentences the evaluator named now carry their
+   capture rule** (above, and the both-interpreters line in live_check).
+4. **Ledger residual noted**: a resumed run shares its run_id with its dead
+   predecessor, so the cycle-7 row keys by cycle -- recorded for the ledger's
+   key doctrine.
+5. **Freeze-the-tree acknowledgment**: my checkpoint commits landed during the
+   cycle-7 evaluation (evidence md5-identical; disclosed by the evaluator).
+   Closure commits now wait for verdicts.
+
+Verbatim, post-change (captured at write time; every figure moves with the
+corpus): `--verify` exit 0 on `.venv` AND `/usr/bin/python3`; matrix exit 0.
+
+
+---
+
+## Cycle 9 GENERATE (2026-08-17): the cycle-8 FAIL's mechanism re-derived and the corpus truth restored
+
+1. **Criterion 1 discharged the hard way**: the re-dispatch mechanism was
+   RE-DERIVED by Main with its own commands (live_check section 13): replace
+   vs append proven by birth/mtime, entry counts and orphan transcripts on
+   the two respawned runs against the 86.81-retry control run. The false
+   "permanently red / append-only" premise is REPLACED at every site that
+   carried it: the production comment in collect(), this file's cycle-8
+   paragraph, and live_check section 12's three sentences.
+2. **The false-negative channel is closed by visibility** (criterion 6):
+   collect() now sweeps ORPHAN TRANSCRIPTS (attempts whose entries a
+   re-dispatch erased), classifies their role from the transcript's own first
+   message, and reports them per row as `erased=N(non-emit M)` -- the two
+   529-killed attempts of this step appear as qa `erased=2(non-emit 2)`.
+   They are deliberately NOT folded into the realised distribution (each is
+   right-censored by the death that orphaned it) and carry NO hard floor (a
+   re-dispatch is the caller's documented recovery; its loss is already a
+   NO_VERDICT row in the verdict ledger) -- reported always, alarmed never,
+   with the reasoning in the code beside the counter.
+3. **The render now prints what the artifact claims**: killed / errored /
+   erased(non-emit) beside non-emitters in every post-removal row.
+4. **Cell S14** kills the orphan-sweep's neutering via ORACLE against the
+   real present signal, with its corpus-rotation fragility stated in the
+   cell text so the label cannot outlive the run.
+
+Post-change, captured at write time (counts move with the corpus):
+`--verify` exit 0 both interpreters · matrix `cells=36 real survivors=0
+errors=0`, kills by mode `{VERIFY 28, ORACLE 2, INJECTED_TRUTH 2,
+MUST_STAY_GREEN 2}` · ruff clean.
+
+
+---
+
+## Cycle 10 GENERATE (2026-08-17): the cycle-9 finding closed at the coupling, not the symptom
+
+The cycle-9 CONDITIONAL's single finding: the orphan sweep classifies an
+erased attempt's role from prompt literals ("IMMUTABLE SUCCESS CRITERIA" ->
+qa, "OBJECTIVE:" -> researcher) emitted by qa-verdict.js and
+research-gate.js, and NOTHING pinned that coupling -- the evaluator's
+executed mutation (marker drifted one word) collapsed qa's erased count from
+(2,2) to (0,0) with verify still green and problems=[]. And role=None
+orphans were collected then dropped by the per-role filter, appearing in no
+row. Both closed:
+
+1. **`ROLE_MARKERS` single-sourced** (`rail_turn_cap.py:188`): one constant
+   maps each role to (marker literal, the workflow file that emits it). The
+   classifier at `:489` iterates THIS constant -- there is no second copy to
+   drift independently.
+2. **verify() coupling pin** (`:1021`): for every entry, the marker literal
+   must appear in the named workflow file's bytes, else verify REDDENS with
+   a named problem. The exact mutation the cycle-9 evaluator ran (drift the
+   marker one word) now fails loud instead of silently zeroing the channel:
+   the drifted literal no longer matches what qa-verdict.js actually emits,
+   and the pin says so.
+3. **role=None orphans are never invisible** (`:758-761`): aggregated as
+   `erased_unclassified` (and `_post_removal`), with the corpus fact in the
+   code comment beside the counter -- 41 of 44 current orphans are
+   pre-removal role=None bulk from two old runs, a fact about the corpus,
+   not about the formerly-capped roles; post-removal unclassified is 0.
+4. **Cell S15** (matrix now 37 cells): drifts the qa entry of ROLE_MARKERS
+   in a temp copy; the mirror copies `.claude/workflows/*.js` alongside the
+   agents so the pin runs against the REAL emitting files; KILLED[VERIFY].
+
+Post-change, captured at write time (counts move with the corpus):
+`--verify` exit 0; matrix `cells=37 real survivors=0 known/equivalent
+survivors (BY OUTCOME)=2 errors=0`, kills by mode `{VERIFY 29, ORACLE 2,
+INJECTED_TRUTH 2, MUST_STAY_GREEN 2}`, byte-identical restore md5
+`b2601f669dc5f1f04bed117563c21c21` (rail_turn_cap.py -- CHANGED from
+cycle-9's `8a01f10a...` because cycle 10 edited the source; qa.md
+`4c9faa6d...` and researcher.md `a9592ee0...` unchanged); report rows now
+read `qa n=49 ... erased=2(non-emit 2)` (corpus grew 46->49 since cycle 9).

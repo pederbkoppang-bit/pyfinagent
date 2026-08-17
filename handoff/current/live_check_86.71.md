@@ -122,3 +122,219 @@ $ python3 scripts/qa/mutation_matrix_86_32.py    # exit 0
 $ bash -c 'source .venv/bin/activate && python -c "import ast; ast.parse(open(\"scripts/harness/attempt_budget.py\").read()); print(\"parses\")"'
 parses                                                               (immutable command, exit 0)
 ```
+
+
+---
+
+## 7. Cycle-2 corrections (2026-08-17) -- each cycle-1 finding closed at the site
+
+**(1) The matrix was NON-DISCRIMINATING and its capture was edited -- both
+fixed.** The harness now sets PYTHONPATH so relocated mutants import; two
+PERMANENT discrimination controls run before any cell (an UNMUTATED copy at
+the temp path must behave, and a comment-only NULL MUTANT must SURVIVE --
+either failing aborts the run); G4's subject (the corrupt-row branch) is now
+exercised by the matrix's own corrupt-tagging probe, so its kill belongs to
+these checks rather than to --self-test. The block below is the COMPLETE
+stdout of the run, regenerated at write time, nothing omitted:
+
+```
+MUTATION MATRIX -- scripts/harness/attempt_gate.py (phase-86.71)
+==============================================================================
+CONTROL green: all 7 behavioural checks hold (below rc=0 rows=1; at-ceiling rc=2)
+relocated-unmutated control: SURVIVES (all checks hold)
+null-mutant control: SURVIVES (a comment-only change kills nothing)
+
+  G1  KILLED     deny branch removed -- exhaustion silently allows
+            by: at-ceiling launch is DENIED with exit 2
+  G2  KILLED     attempt row write dropped at the CALL SITE -- launches stop being counted
+            by: below-ceiling launch is COUNTED (row appended at the call site)
+  G3  KILLED     step-id extraction neutered -- every launch reads as unattributable
+            by: below-ceiling launch is COUNTED (row appended at the call site)
+  G4  KILLED     corrupt ledger row silently skipped -- the count can only shrink
+            by: a corrupt ledger row is TAGGED as an attempt by the reader (over-count escalates early -- the safe direction)
+  G5  KILLED     deny demoted to allow -- exit 2 becomes exit 0 with the message kept
+            by: at-ceiling launch is DENIED with exit 2
+  G6  KILLED     ceiling comparison bypassed -- disposition read but ignored
+            by: at-ceiling launch is DENIED with exit 2
+
+BYTE-IDENTICAL RESTORE: ok (md5 ceac76e744614cefb749fe3782d5c53b; mutants ran from temp copies, the real tree was never written)
+cells=6  killed=6  real survivors=0  errors=0
+
+VERIFY: PASS -- control green, 0 survivors, 0 errors, tree unchanged.
+```
+
+**(2) Criterion-1's command and classifier rule, previously missing here, and
+the corrected disagreement decomposition.** Command (the population rule is in
+its comments):
+
+```
+$ python3 - <<'PY'
+import json, pathlib, os, collections
+ROOT = pathlib.Path(os.path.expanduser(
+    "~/.claude/projects/-Users-ford--openclaw-workspace-pyfinagent"))
+# POPULATION RULE: every parseable */workflows/wf_*.json run record; step_id
+# recovered from args (dict), or json.loads(args) when args is a string, or a
+# regex salvage of the head; records with no recoverable step_id counted
+# separately, never silently dropped. ROLE CLASSIFIER: workflowName containing
+# 'qa' -> qa; containing 'research' -> researcher; else the name itself.
+# REPEAT: an earlier-timestamped record carries the same step_id.
+runs, no_sid = [], 0
+for rp in ROOT.glob("*/workflows/wf_*.json"):
+    try: rec = json.loads(rp.read_text())
+    except Exception: continue
+    a = rec.get("args"); sid = None
+    if isinstance(a, dict): sid = a.get("step_id")
+    elif isinstance(a, str):
+        try: sid = json.loads(a).get("step_id")
+        except Exception:
+            import re; m = re.search(r'"step_id"\s*:\s*"([^"]+)"', a[:600])
+            sid = m.group(1) if m else None
+    if not sid: no_sid += 1; continue
+    runs.append({"ts": rec.get("timestamp") or "", "sid": str(sid),
+                 "name": rec.get("workflowName") or "?"})
+runs.sort(key=lambda r: r["ts"])
+seen, repeats = set(), 0
+role_tot, role_rep = collections.Counter(), collections.Counter()
+per_step = collections.defaultdict(collections.Counter)
+for r in runs:
+    role = ("qa" if "qa" in r["name"]
+            else "researcher" if "research" in r["name"] else r["name"])
+    role_tot[role] += 1; per_step[r["sid"]][role] += 1
+    if r["sid"] in seen: repeats += 1; role_rep[role] += 1
+    seen.add(r["sid"])
+print(f"runs with step_id: {len(runs)} (no step_id: {no_sid})")
+print(f"repeats: {repeats} = {100*repeats/len(runs):.1f}%")
+for role in ("qa", "researcher"):
+    print(f"  {role}: {role_rep[role]}/{role_tot[role]}"
+          f" = {100*role_rep[role]/max(role_tot[role],1):.1f}%")
+mx = max(per_step.items(), key=lambda kv: kv[1].get("qa", 0))
+print(f"max qa runs on one step: {mx[0]} -> {mx[1].get('qa')}")
+PY
+
+```
+
+**The cycle-1 evaluator measured my growth explanation FALSE and its
+decomposition is adopted by REPLACEMENT**: applying my own rule to the oldest
+513 records gives 64.7% -- so corpus growth explains only ~1.7 points of the
+~8.1-point gap to the filed 58.4%, and ~6.4 points come from the
+POPULATION-RULE difference (the audit_basis counted journal.jsonl dirs plus a
+'masterplan step <id>' transcript regex, 459/527; my rule counts wf_*.json
+records with recoverable args.step_id, 481/580+). Two rules, two numbers, one
+conclusion either way: the majority of runs repeat an already-attempted step.
+
+**(3) Scope honesty, adopted at the source**: the gate's own docstring now
+states the bound -- the Agent-tool fallback path (42 qa + 44 researcher
+historical spawns; audit histogram Agent 1,226 vs Workflow 663) is NOT gated,
+and it is the documented next move after exactly the drops this budget bounds.
+Gating it requires step-id attribution from free-text prompts and is its own
+decision, recorded as a residual rather than bolted on.
+
+
+---
+
+## 8. Cycle-3 additions (2026-08-17): the two cycle-2 gaps closed
+
+**(1) The criterion-1 command above is now the REAL, runnable script** -- the
+previous revision presented a capture-shaped block whose body was comments plus
+a literal `...` placeholder (the second consecutive cycle failing the same
+clause). The block above executes as written from any checkout with the
+transcript corpus present, and reproduces 66.4-66.5% as the corpus grows.
+
+**(2) cmd_extend's `--reason` guard now has coverage, and the criterion-8
+evidence set is disclosed in full.** New matrix cell G7 drives
+`--operator-extend` as a subprocess: without `--reason` it must be REFUSED
+(rc=2, no row); with a reason the extension row must append. New self-test
+checks cover the same path in-process. The criterion-8 evidence is therefore
+the 7-cell matrix PLUS the self-test (which also carries the hostile-step-id,
+PASS-exception and extension-allowance kills the cycle-2 evaluator confirmed
+-- previously real but undisclosed). Cell-level import breakage now scores
+ERROR, never a kill: a mutant whose subprocess stderr shows
+ModuleNotFoundError/ImportError/SyntaxError is recorded as not-run (the
+smaller form of the cycle-1 class, closed at the cell level; the two
+discrimination controls still guard the harness level).
+
+
+---
+
+## 9. Cycle-3 captured run (2026-08-17, regenerated in full at write time)
+
+```
+MUTATION MATRIX -- scripts/harness/attempt_gate.py (phase-86.71)
+==============================================================================
+CONTROL green: all 9 behavioural checks hold (below rc=0 rows=1; at-ceiling rc=2)
+relocated-unmutated control: SURVIVES (all checks hold)
+null-mutant control: SURVIVES (a comment-only change kills nothing)
+
+  G1  KILLED     deny branch removed -- exhaustion silently allows
+            by: at-ceiling launch is DENIED with exit 2
+  G2  KILLED     attempt row write dropped at the CALL SITE -- launches stop being counted
+            by: below-ceiling launch is COUNTED (row appended at the call site)
+  G3  KILLED     step-id extraction neutered -- every launch reads as unattributable
+            by: below-ceiling launch is COUNTED (row appended at the call site)
+  G4  KILLED     corrupt ledger row silently skipped -- the count can only shrink
+            by: a corrupt ledger row is TAGGED as an attempt by the reader (over-count escalates early -- the safe direction)
+  G5  KILLED     deny demoted to allow -- exit 2 becomes exit 0 with the message kept
+            by: at-ceiling launch is DENIED with exit 2
+  G6  KILLED     ceiling comparison bypassed -- disposition read but ignored
+            by: at-ceiling launch is DENIED with exit 2
+  G7  KILLED     --reason requirement removed from operator-extend -- a silent, unexplained ceiling raise becomes possible
+            by: an operator extension WITHOUT --reason is REFUSED and appends no row
+
+BYTE-IDENTICAL RESTORE: ok (md5 36758fd2c4779ae667d00abf228aaed7; mutants ran from temp copies, the real tree was never written)
+cells=7  killed=7  real survivors=0  errors=0
+
+VERIFY: PASS -- control green, 0 survivors, 0 errors, tree unchanged.
+```
+
+**The self-test found a REAL latent bug while gaining its new checks, disclosed
+in full:** `cmd_extend` (and `read_ledger`/`append_row`) bound the ledger path
+as a DEF-TIME default, so the self-test's global rebinding silently wrote its
+synthetic extension row for step 9.4 into the PRODUCTION audit ledger on its
+first run. Fixed by call-time resolution (`path = LEDGER if path is None`),
+with the mechanism recorded in the code comment. The one pollution row remains
+in the append-only stream (step 9.4, reason "self-test reason",
+2026-08-17T11:07:44Z) -- identifiable, synthetic, and disclosed here rather
+than rewritten away. Self-test now 15 checks green including the three new
+cmd_extend checks; matrix 7 cells (G7 drives --operator-extend as a
+subprocess: refused without --reason, row appended with) all KILLED with the
+two discrimination controls green first; cell-level import breakage now scores
+ERROR, never a kill.
+
+
+---
+
+## 10. Cycle-4 captures (2026-08-17): loud swallow demonstrated, all checks re-run
+
+The verdict-ledger read failure is now LOUD. Demonstration -- the testing
+override points the VERDICT ledger at a DIRECTORY (IsADirectoryError) while
+the attempt ledger goes to a temp file so no production row is synthetic:
+
+```
+$ echo '{"tool_name":"Workflow","tool_input":{"scriptPath":".claude/workflows/qa-verdict.js","args":{"step_id":"999.7","criteria":["x"],"verdict_sequence":[]}}}' | ATTEMPT_GATE_VERDICT_LEDGER="$TMPD/isadir" ATTEMPT_GATE_LEDGER="$TMPD/attempts.jsonl" ATTEMPT_GATE_ESCALATION_DIR="$TMPD" python3 scripts/harness/attempt_gate.py
+loud-demo EXIT=0
+--- stderr ---
+[attempt-gate] verdict-ledger read failed for step 999.7: IsADirectoryError: [Errno 21] Is a directory: '/var/folders/n4/9khkbgzj593cmjc28m9chntm0000gn/T/tmp.P03LLNNSEB/isadir' -- proceeding WITHOUT the PASS exception (fail-closed: this can only deny more, never allow more)
+--- temp attempt rows:        1 ---
+```
+
+The gate still ALLOWED (exit 0, below ceiling) and counted the attempt in
+the TEMP ledger -- the exception can only remove the PASS allowance, never
+grant one, and now it says so instead of vanishing.
+
+Re-run after the three cycle-4 edits (tautology fix, crash-class widening,
+loud swallow):
+
+```
+$ python3 scripts/harness/attempt_gate.py --self-test | tail -2; echo EXIT=$?
+  ok    operator extension WITH a reason appends its labelled row
+SELF-TEST PASSED
+EXIT=0
+$ python3 scripts/qa/mutation_matrix_86_71.py --verify | tail -4; echo EXIT=$?
+BYTE-IDENTICAL RESTORE: ok (md5 e284ecb7f7663274d06f98b1a0d450f8; mutants ran from temp copies, the real tree was never written)
+cells=7  killed=7  real survivors=0  errors=0
+
+VERIFY: PASS -- control green, 0 survivors, 0 errors, tree unchanged.
+EXIT=0
+$ uvx ruff check --select F821,F401,F811 scripts/harness/attempt_gate.py | tail -1
+All checks passed!
+```

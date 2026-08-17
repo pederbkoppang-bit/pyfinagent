@@ -584,3 +584,118 @@ VERIFY: PASS -- control green, 0 real survivors, outcomes match annotations, tre
 6. **This file's stale matrix claims are corrected at the site** (the
    "report survivors" clause): the 22-cell/M14-equivalent statements above now
    carry their capture cycle and the adjudicated correction.
+
+
+---
+
+## 12. Cycle-8 live evidence (2026-08-17, captured at write time)
+
+```
+$ python3 scripts/qa/rail_turn_cap.py --verify
+VERIFY: PASS -- controls green, turn-exhaustion claim holds.        (exit 0)
+$ /usr/bin/python3 scripts/qa/rail_turn_cap.py --verify
+VERIFY: PASS                                                        (exit 0)
+$ python3 scripts/qa/mutate_rail_turn_cap.py --verify
+kills by mode (never pooled): {'VERIFY': 28, 'ORACLE': 1, 'INJECTED_TRUTH': 2, 'MUST_STAY_GREEN': 2}
+cells=35  real survivors=0  known/equivalent survivors (BY OUTCOME)=2  errors=0
+VERIFY: PASS -- control green, 0 real survivors, outcomes match annotations, tree unchanged.  (exit 0)
+```
+
+*(cycle-9 REPLACEMENT of three sentences that stood here and measured FALSE.
+The old text claimed the 529 entries were "counted under errored_n" -- they
+were not (errored_n=0; the entries had been ERASED from the records by the
+same-runId re-dispatches, a mechanism the cycle-8 Q/A discovered and Main
+re-derived independently in section 13) -- and claimed killed_n/errored_n were
+"reported beside non_emitters" while the RENDER printed neither. Both are true
+NOW: the render prints killed/errored/erased per row, and the two 529-killed
+attempts appear as `erased=2(non-emit 2)` -- visible, named, excluded from the
+distribution they would right-censor, and carrying no hard floor because a
+re-dispatch is the caller's documented recovery whose loss the verdict ledger
+already records as NO_VERDICT.)* Every number in this file is a dated capture;
+the current values come from running the commands.
+
+
+---
+
+## 13. Cycle-9 live evidence (2026-08-17): the re-dispatch mechanism, re-derived by Main
+
+```
+$ python3 - <<'PY'
+import json, pathlib, os, datetime
+ROOT = pathlib.Path(os.path.expanduser(
+    "~/.claude/projects/-Users-ford--openclaw-workspace-pyfinagent"))
+for rid in ("wf_2fafe515-6a2", "wf_80376bff-7ae", "wf_078f4125-57a"):
+    for rp in ROOT.glob(f"*/workflows/{rid}.json"):
+        st = rp.stat()
+        b = datetime.datetime.fromtimestamp(st.st_birthtime, datetime.timezone.utc).strftime("%H:%M:%SZ")
+        m = datetime.datetime.fromtimestamp(st.st_mtime, datetime.timezone.utc).strftime("%H:%M:%SZ")
+        rec = json.loads(rp.read_text())
+        es = [e for e in rec.get("workflowProgress") or [] if e.get("type") == "workflow_agent"]
+        td = rp.parent.parent / "subagents" / "workflows" / rid
+        tr = list(td.glob("agent-*.jsonl"))
+        orphans = [x.name for x in tr
+                   if x.name not in {f"agent-{e.get('agentId')}.jsonl" for e in es}]
+        print(rid, "birth", b, "mtime", m, "entries", len(es),
+              "transcripts", len(tr), "orphans", orphans)
+PY
+wf_2fafe515-6a2 birth 10:29:57Z mtime 10:48:05Z entries 1 transcripts 2 orphans ['agent-a8a91688009ccc502.jsonl']
+wf_80376bff-7ae birth 10:29:44Z mtime 10:44:12Z entries 1 transcripts 2 orphans ['agent-a5fb7a57499f4fb8a.jsonl']
+wf_078f4125-57a birth 11:34:45Z mtime 11:34:45Z entries 2 transcripts 2 orphans []
+```
+
+**RE-DISPATCH REPLACES; RETRY APPENDS.** The two respawned runs: birth differs
+from mtime, ONE entry, TWO transcripts, exactly one orphan each. The 86.81
+in-script retry run: birth equals mtime, TWO entries, no orphans. So the
+corpus is NOT append-only at the record level, the cycle-8 premise was false,
+and collect() now performs the orphan-transcript sweep whose output is the
+`erased=` column in the re-measurement rows:
+
+```
+$ python3 scripts/qa/rail_turn_cap.py            # remediation block, captured at write time
+  qa           n= 46  dropped=0  non-emitters=0  killed=0  errored=0  erased=2(non-emit 2)  p50=41  p90=55  max=62  >old-cap(30)=42
+  researcher   n= 14  dropped=0  non-emitters=0  killed=0  errored=0  erased=0(non-emit 0)  p50=19  p90=35  max=38  >old-cap(40)=0
+$ python3 scripts/qa/rail_turn_cap.py --verify
+VERIFY: PASS                                                        (exit 0, both interpreters)
+$ python3 scripts/qa/mutate_rail_turn_cap.py --verify
+kills by mode (never pooled): {'VERIFY': 28, 'ORACLE': 2, 'INJECTED_TRUTH': 2, 'MUST_STAY_GREEN': 2}
+cells=36  real survivors=0  known/equivalent survivors (BY OUTCOME)=2  errors=0   (exit 0)
+```
+
+Cell S14 kills the orphan-sweep's neutering against the REAL present signal
+(qa erased_n=2), with its corpus-rotation fragility stated in the cell text.
+The no-hard-floor decision for erased attempts is written beside the counter:
+their loss is already recorded in the verdict ledger as NO_VERDICT, so the
+corpus trigger reports them and never lies by omission, but does not re-alarm
+on every legitimate recovery.
+
+
+---
+
+## 14. Cycle-10 captures (2026-08-17, regenerated whole, never edited)
+
+`python3 scripts/qa/rail_turn_cap.py --verify` tail:
+
+```
+VERIFY: PASS -- controls green, turn-exhaustion claim holds.
+EXIT=0
+```
+
+`python3 scripts/qa/mutate_rail_turn_cap.py` tail (S15 cell + totals):
+
+```
+  S15   role-marker constant drifted -- the classifier and its pin move together (single-sourced), so verify must redden against the workflow files that still emit the undrifted literal  KILLED[VERIFY]
+BYTE-IDENTICAL RESTORE (md5 before == after, real tree never written):
+  ok scripts/qa/rail_turn_cap.py  b2601f669dc5f1f04bed117563c21c21
+  ok .claude/agents/qa.md  4c9faa6d7eb14aba70eea2fc7f804727
+  ok .claude/agents/researcher.md  a9592ee0950e55d24fc3e1bb65d5c26f
+
+kills by mode (never pooled): {'VERIFY': 29, 'ORACLE': 2, 'INJECTED_TRUTH': 2, 'MUST_STAY_GREEN': 2}
+cells=37  real survivors=0  known/equivalent survivors (BY OUTCOME)=2  errors=0
+MATRIX_EXIT=0
+```
+
+*(The S15 line above is the cell's summary line; the full run prints every
+cell with its `by:` evidence -- regenerate with the command, do not trust
+this excerpt for cell-level audit. The report's per-role rows now carry
+`erased=N(non-emit M)` and the qa row reads `n= 49 ... erased=2(non-emit
+2)` on today's corpus.)*

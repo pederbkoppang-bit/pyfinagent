@@ -4,9 +4,16 @@
 WHERE THIS SITS
 ---------------
 Registered in `.claude/settings.json` as a PreToolUse hook on the `Workflow`
-tool -- the seam where every Layer-3 run actually originates (measured: 655
-PreToolUse rows for Workflow in `handoff/audit/pre_tool_use_audit.jsonl`,
-2026-05-28..2026-08-17). It reads the hook's stdin JSON, attributes the launch
+tool -- the FIRST-CLASS seam where Layer-3 runs originate (655+ PreToolUse
+Workflow rows in `handoff/audit/pre_tool_use_audit.jsonl`,
+2026-05-28..2026-08-17). SCOPE BOUND, stated rather than implied (phase-86.71
+cycle-1 Q/A): the Agent-tool fallback path -- `Agent(subagent_type:'qa')` /
+`'researcher'`, CLAUDE.md's documented next move after a rail drop, 42+44
+historical spawns -- is NOT gated by this hook. A budget that matters most
+right after drops has a hole exactly there; gating the Agent tool needs
+step-id attribution from free-text prompts (no structured args field) and is
+deliberately left as its own decision rather than bolted on loosely here.
+It reads the hook's stdin JSON, attributes the launch
 to a masterplan step via `tool_input.args.step_id` (object OR JSON-string args
 -- 80.6% of production launches are strings), and:
 
@@ -121,7 +128,13 @@ def workflow_label(tool_input: dict) -> str:
     return str(tool_input.get("name") or "unnamed")
 
 
-def read_ledger(path: Path = LEDGER) -> list[dict]:
+def read_ledger(path: Path | None = None) -> list[dict]:
+    # Resolved at CALL time: a def-time default binds the import-time LEDGER,
+    # and the self-test's global rebinding then silently reads/writes the
+    # PRODUCTION ledger -- measured: the first run of the cycle-3 self-test
+    # appended its synthetic 9.4 extension row to the real audit stream
+    # through exactly this. (That row remains, disclosed, append-only.)
+    path = LEDGER if path is None else path
     if not path.is_file():
         return []
     rows = []
@@ -139,7 +152,8 @@ def read_ledger(path: Path = LEDGER) -> list[dict]:
     return rows
 
 
-def append_row(row: dict, path: Path = LEDGER) -> None:
+def append_row(row: dict, path: Path | None = None) -> None:
+    path = LEDGER if path is None else path  # call-time resolution, see read_ledger
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("a", encoding="utf-8") as fh:
         fh.write(json.dumps(row, ensure_ascii=False) + "\n")
@@ -151,8 +165,17 @@ def verdict_outcomes(step_id: str) -> list[Outcome]:
         from verdict_ledger_write import emit_sequence  # noqa: PLC0415
         seq = emit_sequence(step_id, VERDICT_LEDGER)
         return [Outcome(v) for v in seq if v in Outcome.__members__]
-    except Exception:
-        return []  # no ledger, unreadable, or malformed -> no PASS exception
+    except Exception as exc:  # noqa: BLE001
+        # Fail-CLOSED by direction (an empty list can only REMOVE the PASS
+        # allowance) -- but never silently: the writer's refusals are LOUD by
+        # design, and swallowing them here un-louds them (cycle-10 Q/A of
+        # 86.85 flagged exactly this). Say what was swallowed and why the
+        # direction is safe.
+        print(f"[attempt-gate] verdict-ledger read failed for step {step_id}: "
+              f"{type(exc).__name__}: {exc} -- proceeding WITHOUT the PASS "
+              "exception (fail-closed: this can only deny more, never allow "
+              "more)", file=sys.stderr)
+        return []
 
 
 def build_state(step_id: str, rows: list[dict]) -> BudgetState:
@@ -347,6 +370,22 @@ def _self_test() -> int:
                   extract_step_id({"args": '{"step_id":"9.3","broken":['}) == "9.3")
             check("hostile step id refused",
                   extract_step_id({"args": {"step_id": "../evil"}}) is None)
+            # cycle-3 (86.71 cycle-2 Q/A, H4): the --reason requirement on the
+            # ONLY ceiling-raising path had zero coverage anywhere.
+            # cycle-4 fix of a TAUTOLOGY the cycle-3 Q/A mutation-proved:
+            # before_rows was captured AFTER the cmd_extend call (which ran
+            # inside the preceding check's argument), so the no-row check
+            # compared the ledger length to itself. Capture BEFORE the action.
+            before_rows = len(read_ledger(led))
+            check("operator extension WITHOUT --reason is refused",
+                  cmd_extend("9.4", 1, "   ") == 2)
+            check("refused extension appends NO row",
+                  len(read_ledger(led)) == before_rows)
+            check("operator extension WITH a reason appends its labelled row",
+                  cmd_extend("9.4", 1, "self-test reason") == 0
+                  and any(r.get("type") == "operator_extension"
+                          and r.get("step_id") == "9.4"
+                          for r in read_ledger(led)))
         finally:
             LEDGER, VERDICT_LEDGER = old_l, old_v
     print("SELF-TEST", "PASSED" if ok else "FAILED")
