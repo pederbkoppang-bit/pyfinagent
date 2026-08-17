@@ -208,6 +208,37 @@ check('escalation is NESTED in the return, not spread into it',
 check('...and the comment-stripper is not vacuous (the raw statement was non-empty)',
   mergeStmt.length > 20 && mergeStripped.includes('escalation'),
   'the merge statement was found and carries the executable token')
+
+// cycle-7 (cycle-6 Q/A QM3, the CLASS-closing fix both prior evaluators
+// pointed at): assert the PROPERTY on a DRIVEN return, not on source text.
+// A whole-script drive with a stubbed judge: whatever lexical decoys exist,
+// the returned object either carries `escalation` as a nested key or it
+// does not -- semantics, immune to comment/string/relocation games. The
+// lexical checks above stay as fast first-line tripwires; THIS is the
+// ground truth. (Driver pattern per verify_prompt_render's runDriver.)
+{
+  const body = SRC.replace(/^export const meta =/m, 'const meta = ')
+  const prelude = "const __spawns = [];\n"
+    + "const agent = async (p, o) => ({ ok: false, verdict: 'CONDITIONAL', reason: 'stub', violated_criteria: [], violation_details: [], certified_fallback: false, checks_run: [], harness_compliance_ok: true, notes: 'stub' });\n"
+    + "const phase = () => {};\nconst log = () => {};\n"
+    + "const args = { step_id: '9.9', criteria: ['c'], verification_command: 'true', evidence: 'e', verdict_sequence: [] };\n"
+    + "export default async function __run() {\n"
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'drv78_'))
+  const tmp = path.join(tmpDir, 'drv.mjs')
+  fs.writeFileSync(tmp, prelude + body + '\n}\n')
+  const mod = await import(pathToFileURL(tmp).href)
+  let driven = null, threw = null
+  try { driven = await mod.default() } catch (e) { threw = String((e && e.message) || e) }
+  check('DRIVEN: the whole-script return carries escalation as a NESTED key',
+    !threw && driven && typeof driven === 'object'
+    && Object.prototype.hasOwnProperty.call(driven, 'escalation')
+    && driven.escalation && typeof driven.escalation === 'object'
+    && !Object.prototype.hasOwnProperty.call(driven, 'would_auto_fail'),
+    threw ? ('drive threw: ' + threw.slice(0, 90)) : ('keys: ' + (driven ? Object.keys(driven).join(',') : 'null')))
+  check('DRIVEN: research_routing rides beside the verdict the same way',
+    !threw && driven && Object.prototype.hasOwnProperty.call(driven, 'research_routing'),
+    'the 86.72 sibling key must also be nested-present')
+}
 check('...and the shipped code ALSO throws at runtime (defence in depth)',
   SRC.includes('const leaked = Object.keys(escalation).filter')
   && /if \(leaked\.length > 0\) \{\s*\n\s*throw new Error/.test(SRC))

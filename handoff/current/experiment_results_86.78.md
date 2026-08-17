@@ -455,3 +455,31 @@ wording change altered no check counts).
 Captured at write time, exits unpiped: verify_escalation ALL CHECKS PASS
 exit 0 (55 checks after the MB pin); matrix 13/13 ALL CELLS KILLED exit 0;
 MN/MB/QX1/QX2 all KILLED in the pre-ship drive.
+
+
+---
+
+## Cycle 7 GENERATE (2026-08-17): the locator class CLOSED at the semantics, not the lexing
+
+The cycle-6 Q/A found QM3 -- a STRING-LITERAL decoy, the third lexical form
+of the first-match-locator class after the // and /* */ forms that cycles
+5 and 6 each plugged one of -- and named the class-closing fix both its
+predecessors had pointed at. Taken:
+
+1. **The DRIVEN Object.keys assertion**: verify_escalation now drives the
+   WHOLE script with a stubbed judge (the runDriver pattern) and asserts
+   the actual returned object carries `escalation` as a nested key (and
+   `research_routing` beside it, and no leaked `would_auto_fail` sibling).
+   Semantics, immune to comment/string/relocation games -- whatever decoy
+   text exists, the return either carries the key or it does not. Driven
+   kills: QM3 string-literal decoy, QM2 block-comment decoy (recheck), QX1
+   flatten (recheck) -- ALL exit non-zero; matrix 13/13 unchanged.
+2. **The lexical checks stay as first-line tripwires with their bound now
+   STATED** (the cycle-6 item-1 gap the evaluator called out): no
+   source-scan enumerates all decoy forms -- the span-strip and
+   executable-line filter kill the measured // and /* */ families, and the
+   DRIVEN check above is the ground truth for everything else.
+
+Captured at write time, exits unpiped: verify_escalation ALL CHECKS PASS
+exit 0 (57 checks incl. the two DRIVEN additions); mutation matrix 13/13
+ALL CELLS KILLED exit 0; the three-mutant drive all KILLED.
