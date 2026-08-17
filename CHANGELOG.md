@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-17 | `c90910ef` | phase-86.84: cycle 11 GENERATE -- non-comment-line pin + rendered/cross-checked unclassified aggrega |
 | 2026-08-17 | `2a6cd4b6` | phase-86.85/86.71: cycle 12/5 GENERATE -- prefix-related filter fixtures + the except branch driven |
 | 2026-08-17 | `cbbd1566` | phase-86.84/86.85/86.71: cycle 10/11/4 GENERATE -- coupling pin + prose-rot replacements + loud fail |
 | 2026-08-17 | `65e38c3b` | phase-86.96 + 86.90 + 86.72: byte-verbatim round-trip guard (section 7, 113/113), 86.96 diagnosis ex |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-17 | `c4b84e4e` | docs(session): overnight day report + regenerated goal_next |
 | 2026-08-17 | `11de67e1` | docs(86.98-input): verdict population measured across 44 sessions -- 377 verdicts |
 | 2026-08-17 | `964b0255` | phase-86.94: PARK at the cap -- R2 circuit breaker tripped, step work stops |
-| 2026-08-17 | `d6c732b7` | phase-86.94: cycle-3 -- my correction accompanied instead of replacing |
 
 ---
 
