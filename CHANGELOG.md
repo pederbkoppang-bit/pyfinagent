@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-17 | `fca21bc6` | phase-86.94: correct a FALSE criterion-4 judgement and make a dead probe detectable |
 | 2026-08-17 | `88d7d84c` | phase-86.94: bind the criterion-4 claim to a measurement, cover the fail-closed branch |
 | 2026-08-17 | `30b64a89` | docs(preflight): record 2026-08-17 preflight deviation -- 86.94 guard 44/1, self-referential drift |
 | 2026-08-17 | `c4b84e4e` | docs(session): overnight day report + regenerated goal_next |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-16 | `45b74291` | phase-86.92: cycle-2 -- my own positive control could not fail |
 | 2026-08-16 | `b46f0e17` | phase-86.92: restore the dead args-boundary gate by fixing the CHECKER's fixture |
 | 2026-08-16 | `687109bb` | phase-86.92: reproduce the dead args-boundary gate and falsify its filed cause |
-| 2026-08-16 | `35062eb5` | docs(session): overnight drain goal with a preflight abort and a circuit breaker |
 
 ---
 
