@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-17 | `b6a3f8e9` | phase-86.75: harness best-practice audit -- CLOSED by operator at the structural-CONDITIONAL boundar |
 | 2026-08-17 | `56c2f540` | feat(sovereign): add 15-min intraday ("1d") window to Red Line Monitor |
 | 2026-08-17 | `13ef5bae` | chore: backfill 86.37/86.79 verdict-ledger rows (labelled reconstructions) |
 | 2026-08-17 | `86f7dbbd` | phase-86.75: cycle-2 verdict transcribed -- 8/8 criteria MET, caps unrepairable-history + prose; pro |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-17 | `1d9a360e` | phase-86.96: string-args dispatch-kill class -- PASS on first evaluation |
 | 2026-08-17 | `140f1ac3` | phase-86.37/86.78: cycle-4 re-capture + the consequence-exposure census staged |
 | 2026-08-17 | `d33aabe2` | phase-86.21: cycle 7 -- the last two artifact fixes at the named sites |
-| 2026-08-17 | `6345166d` | phase-86.90: [object Object] render boundary -- CLOSED per operator resolution; sparse-array bound c |
 
 ---
 
+### v6.93.231 — phase-86.75: harness best-practice audit -- CLOSED by operator at the... (2026-08-17)
+
+- **phase-86.75: harness best-practice audit -- CLOSED by operator at the structural-CONDITIONAL boundar**
 ### v6.93.230 — phase-86.72: the re-research leg -- PASS on cycle 2 (2026-08-17)
 
 - **phase-86.72: the re-research leg -- PASS on cycle 2**
