@@ -323,3 +323,17 @@ a rail-dead mutant that the evaluator showed also survives on the **pre-step**
 pair (a pre-existing blind spot: `driveRecording`'s stub returns null in both
 checkers, so no driver-level happy path has ever existed), and deletion of STEP
 0b from the stage-1 prompt.
+
+
+---
+
+## Cycle 4 GENERATE (2026-08-17): the capture refreshed; residuals queued, not iterated
+
+The cycle-2 CONDITIONAL's whole remedy ("regenerate live_check_86.37.md")
+was landed by cycle 3 -- all five spec items present, the two cycle-1
+survivors and the cycle-2 selective-catch evasion all KILLED with counts
+corrected. Cycle 4 adds only the dated re-capture at today's tree
+(121 -> 124, the +3 attributed to phase-86.28's additions by name) and
+formally queues the three non-blocking hardening items under the operator's
+product-vs-evidence directive. No code changed this cycle; the immutable
+command output is in live_check section 6.

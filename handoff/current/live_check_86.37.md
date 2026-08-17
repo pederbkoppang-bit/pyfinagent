@@ -95,3 +95,33 @@ SELECTIVE-2 (inverted shape) KILLED  119 passed, 2 failed
 
 # hermetic: every cell runs in a mkdtemp mini-repo; the tracked tree is never written.
 ```
+
+
+---
+
+## 6. Cycle-4 re-capture (2026-08-17): the same command at today's tree
+
+Items 4-5 above are the CYCLE-3 tree's captures (121 checks) and are kept as
+history. The checker has since grown to 124 -- the +3 are phase-86.28's
+cycle-5 additions to the same file (its own artifact derives 73->78 on its
+different baseline; both derivations are per-tree and reproduce). Today,
+exits taken unpiped:
+
+```
+$ bash -c "node --check .claude/workflows/research-gate.js && node scripts/qa/verify_research_gate_workflow.mjs" > /tmp/rg37.txt 2>&1; echo EXIT=$?
+EXIT=0
+$ tail -1 /tmp/rg37.txt
+ALL GREEN: 124 passed, 0 failed
+$ grep -cE '^  (ok|FAIL) ' /tmp/rg37.txt
+124
+```
+
+The three cycle-2 hardening items -- (a) parametrised drop-test over error
+shapes, (b) a driver-level happy-path assertion, (c) asserting the stage-1
+prompt/researcher.md still TEACH the born-inert marker -- remain queued as
+non-blocking residuals exactly as the cycle-2 Q/A graded them ("all
+fail-closed and none of them a criterion miss"); under the operator's
+product-vs-evidence directive (2026-08-17) they ride the residual queue
+rather than buying cycles. Note (a)'s substance is partly landed already:
+the SELECTIVE-CATCH / SELECTIVE-2 cells in item 5 kill the two measured
+evasion spellings.

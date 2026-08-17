@@ -442,3 +442,60 @@ file is right, the probe agrees, and the judge is still being told the consequen
 which `scripts/qa/verify_qa_roster_live.sh` (which exists for exactly this, and quotes
 Anthropic's *"Subagents are loaded at session start… restart your session to load it"*)
 should be run before the next Q/A is trusted on this step.
+
+
+---
+
+## 10. Cycle-3 census (2026-08-17): the exposure re-derived at execution time, two-level
+
+**Level 1 -- the standing RULE text (not the exposure).** Scanning every
+Workflow agent transcript's FIRST user message across all session dirs of this
+project (enumeration command in the fenced block below): 413 of 413 qa-verdict
+spawn prompts contain "3rd-CONDITIONAL"/"auto-FAIL" -- because the prompt
+embeds qa.md itself. A judge KNOWING the rule is the design; this is not the
+bias channel and the first census version that counted it (413/413) is
+disclosed as the overcount it was.
+
+**Level 2 -- caller-supplied POSITIONAL claims (the exposure).** Slicing each
+prompt to its caller-controlled regions (EVIDENCE / ADDITIONAL CONTEXT) and
+matching positional language (attempt N of M, FIFTH counted, "rail binds
+this", "next launch will be denied", ...):
+
+```
+qa-verdict spawn prompts: 413
+prompts whose CALLER-controlled sections carry POSITIONAL consequence claims: 8
+  2026-08-11  wf_1a848968-750  ['Attempt 3 of 5']
+  2026-08-11  wf_20a27baa-df8  ['ATTEMPT 5 OF 5']
+  2026-08-11  wf_cd7339e2-5d9  ['Attempt 3 of 5']
+  2026-08-11  wf_db40da8a-9db  ['Attempt 2 of 5']
+  2026-08-17  wf_4e01adc8-9d8  ['FIFTH counted', 'if this cycle does not close', 'next launch will be denied']
+  2026-08-17  wf_6821f477-9d7  ['FIFTH counted', "This launch is the step's", 'if this cycle does not close']
+  2026-08-17  wf_86449fa1-bad  ['attempt 1 of 3']
+  2026-08-17  wf_c5326358-53c  ['Attempt 2 of 3']
+```
+
+Population rule: every `agent-*.jsonl` under
+`~/.claude/projects/-Users-ford--openclaw-workspace-pyfinagent/*/subagents/workflows/wf_*/`;
+a prompt is a qa-verdict spawn iff its first user message contains
+"IMMUTABLE SUCCESS CRITERIA". The census script is reproduced in
+`scratchpad/census_8678_v2.txt`'s generator (12-line Python; SLICE regex
+`EVIDENCE.*?(?=IMMUTABLE|$)|ADDITIONAL CONTEXT.*`, POS regex as listed).
+
+**The uncomfortable rows are MINE and are the point:** wf_4e01adc8 (86.71
+cycle 5, returned PASS) and wf_6821f477 (86.85 cycle 12, returned
+CONDITIONAL) are Main's own 2026-08-17 spawns -- the caller that relocated
+the counter still leaked position in its extra.note. Verdicts of all 8:
+2 PASS (wf_20a27baa 2026-08-11; wf_4e01adc8 = the 86.71 close), 1 FAIL,
+4 CONDITIONAL, 1 no-result. Criterion-2 consequence: both PASSes are queued
+for a re-grade DECISION in step 86.93 (the reconstructed-evidence re-grade
+queue) rather than quietly kept; the 86.71 PASS's mitigation is that its
+substance was independently EXECUTED by the evaluator (12-process drive,
+4,368-cell sweep, its own mutants), so the framing disclosed stakes it did
+not need to borrow.
+
+**The recorder gap this measured:** `qa-verdict.js:580` hardcodes
+`judge_was_told_consequence: false` with a comment delegating to caller
+self-declaration -- and no caller has ever declared it (all 8 leaky spawns
+recorded nothing). The cycle-3 fix computes it AT RENDER TIME from the same
+caller-controlled strings this census sliced, converting self-declaration
+into measurement at the seam.
