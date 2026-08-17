@@ -244,6 +244,15 @@ a recall test that can silently not run is not a recall test.
 
 ## E. CLASSIFICATION AND THE CRITERION-4 JUDGEMENT
 
+**ONE BLOCK, REGENERATED FROM THE CURRENT RUN.** Cycles 4 and 5 kept the
+superseded output beside the current one, and cycle 5's edit then rewrote the
+*wrong* block — leaving the stale cycle-4 output (showing `QUOTED in 0` and
+`quoted_as_evidence=False`, the exact FALSE judgement this step corrected) sitting
+under the label "The current run prints:", while the real output was labelled
+"superseded". Caught by the cycle-5 Q/A, and it is precisely the failure criterion
+5 names: a correction that **accompanies** instead of replacing. The stale block is
+deleted rather than relabelled, so there is nothing left to mislabel.
+
 ```
 [3b] CRITERION 4 -- do any quoted figures derive from a SLIDING member?
   ok   [3b] the quote corpus is the TRACKED set (a working-tree walk is a number about a machine, the same defect class this step closes)
@@ -251,15 +260,16 @@ a recall test that can silently not run is not a recall test.
   ok   [3b] scheduler.py: the criterion-4 judgement is a STRUCTURED claim, not a sentence (quoted_as_evidence is an explicit bool)
   ok   [3b] scheduler.py: the claim carries FIGURE PROBES, so it can be contradicted by a measurement
   ok   [3b] scheduler.py: the probe set carries POSITIVE CONTROLS
+  ok   [3b] scheduler.py: every positive control is PROVENANCED -- its text is actually present in the tracked file it names
   ok   [3b] scheduler.py: every figure probe matches at least one control, so none of them is silently dead
        scheduler.py: NAMED in 281 tracked file(s); a FIGURE it produced is QUOTED in 1: handoff/archive/misc/live_check_62.8.md
            handoff/archive/misc/live_check_62.8.md  ~\d+\s+real commit lines  -> '12 real commit lines'
-           handoff/archive/misc/live_check_62.8.md  ~Steps closed:\s*\S  -> 'Steps closed: 6'
   ok   [3b] scheduler.py: quoted_as_evidence=True matches the measured figure evidence
   ok   [3b] scheduler.py: the entry carries a stated REASON
   ok   [3b] verify_decision_log_86_97.py: the criterion-4 judgement is a STRUCTURED claim, not a sentence (quoted_as_evidence is an explicit bool)
   ok   [3b] verify_decision_log_86_97.py: the claim carries FIGURE PROBES, so it can be contradicted by a measurement
   ok   [3b] verify_decision_log_86_97.py: the probe set carries POSITIVE CONTROLS
+  ok   [3b] verify_decision_log_86_97.py: every positive control is PROVENANCED -- its text is actually present in the tracked file it names
   ok   [3b] verify_decision_log_86_97.py: every figure probe matches at least one control, so none of them is silently dead
        verify_decision_log_86_97.py: NAMED in 9 tracked file(s); a FIGURE it produced is QUOTED in 2: handoff/current/experiment_results_86.97.md, handoff/current/live_check_86.97.md
            handoff/current/experiment_results_86.97.md  ~commits=\d+\s+decision lines=\d+\s+gap=\d+  -> 'commits=47  decision lines=24  gap=23'
@@ -270,6 +280,7 @@ a recall test that can silently not run is not a recall test.
   ok   [3b] frontend_route_inventory.py: the criterion-4 judgement is a STRUCTURED claim, not a sentence (quoted_as_evidence is an explicit bool)
   ok   [3b] frontend_route_inventory.py: the claim carries FIGURE PROBES, so it can be contradicted by a measurement
   ok   [3b] frontend_route_inventory.py: the probe set carries POSITIVE CONTROLS
+  ok   [3b] frontend_route_inventory.py: every positive control is PROVENANCED -- its text is actually present in the tracked file it names
   ok   [3b] frontend_route_inventory.py: every figure probe matches at least one control, so none of them is silently dead
        frontend_route_inventory.py: NAMED in 5 tracked file(s); a FIGURE it produced is QUOTED in 3: handoff/archive/phase-4.7.0/experiment_results.md, handoff/archive/phase-4.7.0/phase-4.7.0-contract.md, handoff/archive/phase-4.7.1/phase-4.7.1-contract.md
            handoff/archive/phase-4.7.0/experiment_results.md  ~"usage_source":\s*"git_activity_30d"  -> '"usage_source": "git_activity_30d"'
@@ -279,51 +290,21 @@ a recall test that can silently not run is not a recall test.
   ok   [3b] frontend_route_inventory.py: the entry carries a stated REASON
 ```
 
-**THE BLOCK ABOVE IS THE CYCLE-3 STATE AND IS SUPERSEDED. The design it shows —
-`mentions_reviewed`, a pinned count of files whose text contains the member's
-FILENAME — was removed in cycle 4 and is not merely annotated.** It was wrong in
-two measured ways: it answered a different question from the one criterion 4
-asks, so the bool it guarded stayed green when falsified; and it counted over the
-working tree, 89.5% of which is gitignored, so it was a number about a machine.
-Full account in §J. The current run prints:
-
-```
-[3b] CRITERION 4 -- do any quoted figures derive from a SLIDING member?
-
-  ok   [3b] the quote corpus is the TRACKED set (a working-tree walk is a number about a machine, the same defect class this step closes)
-  ok   [3b] the quote corpus is non-empty (an empty grep proves nothing)
-  ok   [3b] scheduler.py: the criterion-4 judgement is a STRUCTURED claim, not a sentence (quoted_as_evidence is an explicit bool)
-  ok   [3b] scheduler.py: the claim carries FIGURE PROBES, so it can be contradicted by a measurement
-       scheduler.py: NAMED in 281 tracked file(s); a FIGURE it produced is QUOTED in 0
-  ok   [3b] scheduler.py: quoted_as_evidence=False matches the measured figure evidence
-  ok   [3b] scheduler.py: the entry carries a stated REASON
-  ok   [3b] verify_decision_log_86_97.py: the criterion-4 judgement is a STRUCTURED claim, not a sentence (quoted_as_evidence is an explicit bool)
-  ok   [3b] verify_decision_log_86_97.py: the claim carries FIGURE PROBES, so it can be contradicted by a measurement
-       verify_decision_log_86_97.py: NAMED in 9 tracked file(s); a FIGURE it produced is QUOTED in 2: handoff/current/experiment_results_86.97.md, handoff/current/live_check_86.97.md
-           handoff/current/experiment_results_86.97.md  ~commits=\d+\s+decision lines=\d+\s+gap=\d+  -> 'commits=47  decision lines=24  gap=23'
-           handoff/current/live_check_86.97.md  ~commits=\d+\s+decision lines=\d+\s+gap=\d+  -> 'commits=51  decision lines=26  gap=25'
-           handoff/current/live_check_86.97.md  ~commits matching the recursion guard=\d+  -> 'commits matching the recursion guard=26'
-  ok   [3b] verify_decision_log_86_97.py: quoted_as_evidence=True matches the measured figure evidence
-  ok   [3b] verify_decision_log_86_97.py: the entry carries a stated REASON
-  ok   [3b] frontend_route_inventory.py: the criterion-4 judgement is a STRUCTURED claim, not a sentence (quoted_as_evidence is an explicit bool)
-  ok   [3b] frontend_route_inventory.py: the claim carries FIGURE PROBES, so it can be contradicted by a measurement
-       frontend_route_inventory.py: NAMED in 5 tracked file(s); a FIGURE it produced is QUOTED in 3: handoff/archive/phase-4.7.0/experiment_results.md, handoff/archive/phase-4.7.0/phase-4.7.0-contract.md, handoff/archive/phase-4.7.1/phase-4.7.1-contract.md
-           handoff/archive/phase-4.7.0/experiment_results.md  ~"usage_source":\s*"git_activity_30d"  -> '"usage_source": "git_activity_30d"'
-           handoff/archive/phase-4.7.0/experiment_results.md  ~\d+/\d+ integer opens_30d  -> '12/12 integer opens_30d'
-           handoff/archive/phase-4.7.0/experiment_results.md  ~opens_30d=\d+  -> 'opens_30d=0'
-  ok   [3b] frontend_route_inventory.py: quoted_as_evidence=True matches the measured figure evidence
-  ok   [3b] frontend_route_inventory.py: the entry carries a stated REASON
-```
 
 The single most useful line is `scheduler.py: NAMED in 281 tracked file(s); a
 FIGURE it produced is QUOTED in 1`. Those are the two predicates side by side:
 the old tripwire tracked 281 and moved whenever anyone wrote a sentence; the
-judgement actually at stake is 1 — and finding that **1** is what cycle 5 did.
-Cycle 4 reported it as 0 with a probe that could not see it (§J8).
+judgement actually at stake is **1**. Cycle 4 reported it as 0 with a probe that
+could not see it; cycle 5 found it; cycle 6 removed a second "hit" that was not
+one (§J8). *(This step's own masterplan note briefly appeared as a second hit,
+because it reproduced the quoted figure verbatim while describing the correction.
+The note now describes the figure instead of reproducing it — the same reasoning
+that excludes 86.94's own artifacts from the corpus by path, applied to the one
+carrier that cannot be excluded by path.)*
 
 | member | class | criterion-4 judgement (measured, cycle 4) |
 |---|---|---|
-| `backend/slack_bot/scheduler.py:503` `midnight` | **LEGITIMATELY RELATIVE, but its figures HAVE been quoted** | A Slack "shipped today" digest must move with today, so the WINDOW stays. **The judgement attached to it was FALSE through cycle 4 and is corrected here:** `handoff/archive/misc/live_check_62.8.md:31` — tracked, inside the corpus `[3b]` scans — quotes `"*Shipped today*" with 12 real commit lines` and `Steps closed: 6` as read-back verification evidence. Quoted, unreproducible (the window slid months past that digest), inert (closed step). `quoted_as_evidence: True`. See §J8. |
+| `backend/slack_bot/scheduler.py:503` `midnight` | **LEGITIMATELY RELATIVE, but its figures HAVE been quoted** | A Slack "shipped today" digest must move with today, so the WINDOW stays. **The judgement attached to it was FALSE through cycle 4 and is corrected here:** `handoff/archive/misc/live_check_62.8.md:31` — tracked, inside the corpus `[3b]` scans — quotes `"*Shipped today*" with 12 real commit lines` as read-back verification evidence. Quoted, unreproducible (the window slid months past that digest), inert (closed step). `quoted_as_evidence: True`. **Cycle 6 removed a second figure I had cited here (`Steps closed: …`): it was not a quotation but my own regex truncation, and it is not this window's output anyway** — see §J8. See also §J8 for the provenance rule now enforced on positive controls. |
 | `frontend_route_inventory.py:73` `30.days` | **SLIDING, left** | A rolling 30 days is the intended semantics, so the window stays. **Its figures HAVE been quoted as evidence** — 3 tracked files, 5 hits: `handoff/archive/phase-4.7.0/experiment_results.md` carries `"usage_source": "git_activity_30d"`, `12/12 integer opens_30d` and `opens_30d=0`. Unreproducible (the window has slid months past them) and inert (closed step). `quoted_as_evidence: True`. |
 | `verify_decision_log_86_97.py:360` `{first_stamp}` | **runtime-derived, allowed** | Figures **are** derived and **are** quoted — `commits=51  decision lines=26  gap=25` and `commits matching the recursion guard=26` — but each is quoted with the clock time it was taken at, and the checker asserts a *relationship*, never a pinned number. `quoted_as_evidence: True`. |
 | `replay_changelog_rule_86_68.py:114` `{CORPUS_SINCE}` | **was SLIDING → FIXED** | The TZ-naive pin. Corrected to `...Z`; figures unchanged. |
@@ -651,27 +632,29 @@ anchor does not apply is scored UNSCORABLE and counts as a failure, never a kill
 
 ```
 CONTROL -- the shipped tree, observed BEFORE any mutation is scored
-  rc=0   ALL GREEN: 74 passed, 0 failed
+  rc=0   ALL GREEN: 77 passed, 0 failed
   CONTROL GREEN. Kills below are differential against it.
 --- M-A: restore the fail-OPEN `continue` in place of the <unparsed> append
-    KILLED   rc=1  FAILED: 66 passed, 8 failed
+    KILLED   rc=1  FAILED: 69 passed, 8 failed
 --- M-B: neutralise VALUE_ARGV_RE (argv VALUE-PARSE leg)
-    KILLED   rc=1  FAILED: 72 passed, 2 failed
+    KILLED   rc=1  FAILED: 75 passed, 2 failed
 --- M-C: neutralise WINDOW_RE's argv alternative (argv VISIBILITY leg)
-    KILLED   rc=1  FAILED: 64 passed, 10 failed
+    KILLED   rc=1  FAILED: 67 passed, 10 failed
 --- M-D: frontend_route_inventory quoted_as_evidence True -> FALSE (wrong bool)
-    KILLED   rc=1  FAILED: 73 passed, 1 failed
+    KILLED   rc=1  FAILED: 76 passed, 1 failed
 --- M-E: scheduler quoted_as_evidence True -> FALSE (wrong bool, other direction)
-    KILLED   rc=1  FAILED: 73 passed, 1 failed
+    KILLED   rc=1  FAILED: 76 passed, 1 failed
 --- M-H: scheduler figure_probes -> a never-matching literal (the Q/A's QA-9 blind-probe mutant)
-    KILLED   rc=1  FAILED: 72 passed, 2 failed
+    KILLED   rc=1  FAILED: 75 passed, 2 failed
 --- M-I: delete the scheduler probe_fixtures (its positive controls)
-    KILLED   rc=1  FAILED: 72 passed, 2 failed
+    KILLED   rc=1  FAILED: 75 passed, 2 failed
+--- M-J: the cycle-5 Q/A's own mutant: probe AND fixture CO-WRITTEN from one misreading, claim set False (this SURVIVED cycle 5 at 74/0)
+    KILLED   rc=1  FAILED: 76 passed, 1 failed
 --- M-F: widen the corpus back to the WORKING TREE (untracked files included)
-    KILLED   rc=1  FAILED: 73 passed, 1 failed
+    KILLED   rc=1  FAILED: 76 passed, 1 failed
 --- M-G: the quoted figures VANISH from the corpus (probes match nothing)
-    KILLED   rc=1  FAILED: 72 passed, 2 failed
-killed=9  survived=0  unscorable=0  of 9
+    KILLED   rc=1  FAILED: 75 passed, 2 failed
+killed=10  survived=0  unscorable=0  of 10
 PASS
 ```
 
@@ -682,13 +665,22 @@ specific check that drift detection was **preserved** — if the quoted figures
 vanish, the judgement still re-opens. What no longer re-opens it is someone
 writing a sentence.
 
-**M-H and M-I are cycle-5 additions and they close the hole that let a false
-judgement survive four cycles** (§J8). M-H is the cycle-4 Q/A's own mutant:
-replace a member's probes with a never-matching literal. Against cycle 4 it
-**SURVIVED** at 68/0 — for a `False` claim, `quoted_as_evidence == bool(hits)` is
-satisfied *precisely when the probes match nothing*, so a dead probe set was
-byte-indistinguishable from a correct measurement. It now dies on the
-positive-control check. M-I deletes those controls and dies too.
+**M-H, M-I and M-J close the hole that let a false judgement survive four
+cycles** (§J8). Each was an evaluator's mutant before it was a cell:
+
+- **M-H** (cycle-4 Q/A): replace a member's probes with a never-matching literal.
+  **SURVIVED** cycle 4 at 68/0 — for a `False` claim,
+  `quoted_as_evidence == bool(hits)` is satisfied *precisely when the probes match
+  nothing*, so a dead probe set was byte-indistinguishable from a correct
+  measurement. Dies now on the positive-control check.
+- **M-I** deletes those controls; dies too.
+- **M-J** (cycle-5 Q/A): probe **and** fixture co-written from one misreading, with
+  the claim set `False`. **SURVIVED cycle 5 at a clean 74/0**, because fixture
+  provenance was a source comment and nothing enforced it. Dies now on the
+  provenance check — the fixture text is not in the tracked file it names.
+
+M-J is the one that matters: it is the difference between a control that is
+*asserted* to come from somewhere real and one that is *checked* to.
 
 ### J5. Criterion 5 — the correction sweep, by claim class with a recall test
 
@@ -795,16 +787,35 @@ version of this step's own recurring defect.
 Cycles 2-4 asserted "no COUNT produced by this window is quoted as evidence".
 `handoff/archive/misc/live_check_62.8.md:31` is **tracked, and sits inside the very
 corpus `[3b]` scans**. It records a Slack read-back as verification evidence and
-quotes:
+quotes, at `:31`:
 
 ```
 "*Shipped today*" with 12 real commit lines
-...
-Steps closed: 6
 ```
 
-`12` and `6` are counts of exactly what `_git_today()` emitted through the
+`12` is a count of exactly what `_git_today()` emitted through the
 `--since-as-filter=midnight` window. The judgement was false.
+
+**CYCLE-6 CORRECTION, replacing what stood here.** Cycle 5 printed a second line
+in that block, `Steps closed: 6`, and said "`12` and `6` are counts of exactly
+what `_git_today()` emitted". **Both halves were wrong**, and the cycle-5 Q/A
+caught both:
+
+- **It is not a quotation.** That file's only `Steps closed` text is at **`:36`**
+  and reads `"Steps closed: 61.1, 62.0, 17.4, 62.3"` — a list of step ids. My
+  probe `Steps closed:\s*\S` matched and stopped at the `6` of `61.1`, and I
+  printed the fragment inside quote marks as if it were the file's words. That is
+  the *paraphrase-inside-quote-marks* defect this very document corrects for
+  `frontend_route_inventory` three sections above, committed while correcting it.
+- **It is not this window's figure either.** `d["steps_flipped_today"]` comes from
+  `_steps_closed_from_log()` reading `handoff/harness_log.md`
+  (`scheduler.py:511-513`), not from the midnight window at `:501-507`. The Q/A
+  showed the consequence by execution: keeping only that probe left the scheduler
+  bool `True` at 74/0 — the judgement was sustainable **entirely on evidence the
+  allowlisted window never produced**.
+
+The probe and the citation are both **removed**. The judgement now rests on the
+commit-line evidence alone, which is genuinely this window's output.
 
 **Why it survived four cycles: my probe was built from half the code.** The
 cycle-4 probe `Shipped today\s*\n(?:\s*[-*]\s+[0-9a-f]{7,}\s)` is documented as
@@ -826,26 +837,48 @@ OLD  Shipped today\s*\n(?:\s*[-*]\s+[0-9a-f]{7,}\s)     False      False
 --------------------------------------------------------------------------
 NEW  \d+\s+real commit lines                            False       True
 NEW  \*Shipped today\*[^\n]*\n\s*[-*]\s+[0-9a-f]{7,}     True      False
-NEW  Steps closed:\s*\S                                  True      False
 ```
 
 All three old probes are blind to **both** corpora. `scheduler.py` is now
 `quoted_as_evidence: True` with the same disposition `frontend_route_inventory`
-already carries: **quoted, unreproducible, inert.**
+already carries: **quoted, unreproducible, inert.** *(A third candidate,
+`Steps closed:\s*\S`, was scored here in cycle 5 and is now removed for the two
+reasons given above — it is not this window's figure and its "artifact" match was
+a truncation. Its row is deleted rather than annotated.)*
 
 **Deliberately NOT used as a probe:** a bare `\*Shipped today\*`. It matches the
 same single file, so it would not change the bool — but a section *header* is not
 a figure, and admitting it would slide the check back toward the name-mention
 proxy cycle 4 removed.
 
-**The structural fix, not just the instance.** The Q/A's deeper point was that for
-a `False` claim, `quoted_as_evidence == bool(hits)` passes *exactly when the probes
-match nothing* — so a silently dead probe set is indistinguishable from a correct
-measurement. Its mutant (replace the scheduler probes with `zzzz_never_zzzz`) left
-cycle 4 at a clean 68/0. Every probe now carries **positive controls**
-(`probe_fixtures`) taken from the real emitted text, and a probe matching none of
-its own fixtures FAILS regardless of the bool or the corpus. That is M-H and M-I,
-and it protects any future member claimed `False`, not just this one.
+**The structural fix, and an overclaim I have to withdraw.** The cycle-4 Q/A's
+deeper point was that for a `False` claim, `quoted_as_evidence == bool(hits)`
+passes *exactly when the probes match nothing* — so a silently dead probe set is
+indistinguishable from a correct measurement. Its mutant (replace the scheduler
+probes with `zzzz_never_zzzz`) left cycle 4 at a clean 68/0.
+
+Cycle 5 added `probe_fixtures` and claimed the check "protects any future member
+claimed `False`". **The cycle-5 Q/A falsified that by execution**, and it was
+right: a probe and a fixture **co-written from the same misreading**
+(`QQ_SELF_WRITTEN_TOKEN_\d+`, matched only by an invented fixture
+`QQ_SELF_WRITTEN_TOKEN_7`) passed at a clean 74/0. Fixture provenance was stated
+in a source comment and **enforced by nothing** — so the control could be
+manufactured to fit the probe, which is the same shape as the defect it was added
+to catch.
+
+**Cycle 6 enforces it.** A fixture is now a `{text, source}` pair; the guard
+asserts the source is a **tracked** file and that the text is **really present in
+it**. A control can no longer be invented. The scheduler's render control is
+`scripts/qa/fixtures/shipped_today_render_86_94.txt`, generated by *executing*
+`format_away_digest_sections` (regenerate with
+`scripts/qa/gen_shipped_today_fixture_86_94.py`).
+
+Fixture sources are deliberately allowed to sit **outside** the `[3b]` quote
+corpus: a fixture proves the probe recognises the figure **shape**, while the
+corpus search answers the different question of whether that figure was quoted
+**as evidence**. Requiring fixtures to live inside the corpus would force every
+claim to `True` by construction. Cells M-H, M-I and the new M-J (the Q/A's own
+co-written mutant) all go RED.
 
 **Finding 2 — my correction sweep did not reproduce.** §J5 is rewritten. The
 failure was the same shape as the one this step exists to close: I quoted one
@@ -862,9 +895,21 @@ edited, and it is explicitly dispositioned with a stated reason.
 
 ### Net
 
-**45 → 74 assertions.** No criterion reinterpreted; no allowlist member added or
+**45 → 77 assertions.** No criterion reinterpreted; no allowlist member added or
 removed; no window rule relaxed. One allowlist member's criterion-4 JUDGEMENT was
-corrected (`scheduler.py`, False → True) on a tracked counterexample.
+corrected (`scheduler.py`, False → True) on a tracked counterexample, and one of
+the two figures I cited for it was withdrawn as a misquote (§J8).
+
+**STATED RESIDUAL, queued rather than fixed here (masterplan 86.104).** The
+cycle-5 Q/A showed that section `[1]` re-implements the scan inline instead of
+calling `scan_text`, so `[1]` and `[2]` can disagree about the same line of the
+same file, and the known-member gate cannot distinguish the *defective*
+pre-86.91 blob from the *corrected* one — pointing `KNOWN_MEMBER_REF` at HEAD
+still reports SLIDING. Criterion 3 is literally satisfied (the known member is
+found and classified SLIDING with the correct reason) and the gate retains force
+(a path with no window does kill it), but it does not gate everything it appears
+to. Filing it rather than fixing it inside a step already at its attempt budget is
+deliberate; the finding is the evaluator's, not mine.
 
 ### J7. Three corrections made AFTER the cycle-3 verdict — never graded by any Q/A
 

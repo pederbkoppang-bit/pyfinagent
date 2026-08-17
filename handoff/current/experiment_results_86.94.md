@@ -49,7 +49,7 @@ sit relative to the sliding band.
 
 ## The guard
 
-`scripts/qa/verify_no_sliding_windows_86_94.py`, 74 assertions, exit 0.
+`scripts/qa/verify_no_sliding_windows_86_94.py`, 77 assertions, exit 0.
 
 - **Known-member recall is a hard gate.** The rule must find the pre-86.91 form
   of the replay, recovered from git at `06c3265f`, and classify it SLIDING. If
@@ -98,7 +98,7 @@ sit relative to the sliding band.
 
 | member | class | judgement (measured, cycle 4) |
 |---|---|---|
-| `scheduler.py:503` `midnight` | LEGITIMATELY RELATIVE, figures QUOTED | The window stays (a report about today must move with today), but the judgement was **FALSE through cycle 4 and is corrected**: `handoff/archive/misc/live_check_62.8.md:31` (tracked) quotes `"*Shipped today*" with 12 real commit lines` and `Steps closed: 6` as read-back evidence. Quoted, unreproducible, inert. `quoted_as_evidence: True`. |
+| `scheduler.py:503` `midnight` | LEGITIMATELY RELATIVE, figures QUOTED | The window stays (a report about today must move with today), but the judgement was **FALSE through cycle 4 and is corrected**: `handoff/archive/misc/live_check_62.8.md:31` (tracked) quotes `"*Shipped today*" with 12 real commit lines` as read-back evidence. Quoted, unreproducible, inert. `quoted_as_evidence: True`. *(Cycle 5 also cited `Steps closed: …` here; cycle 6 withdrew it — not a quotation, and not this window's figure. See `live_check_86.94.md` §J8.)* |
 | `frontend_route_inventory.py:73` `30.days` | SLIDING, left | Its figures HAVE been quoted as evidence — 3 tracked files, 5 hits (`"usage_source": "git_activity_30d"`, `12/12 integer opens_30d`, `opens_30d=0` in `handoff/archive/phase-4.7.0/`). Quoted, unreproducible, inert. `quoted_as_evidence: True`. |
 | `verify_decision_log_86_97.py:360` `{first_stamp}` | runtime-derived, allowed | Figures **are** quoted (`commits=51  decision lines=26  gap=25`) — always with the clock time they were taken at, and the checker asserts a *relationship*, not a number. `quoted_as_evidence: True`. |
 | `replay_changelog_rule_86_68.py:114` `{CORPUS_SINCE}` | was SLIDING → **FIXED** | The TZ-naive pin. |
@@ -154,7 +154,7 @@ today and would have stayed green through every defect this step is about. It
 cannot fail on the class. The real evidence is in `live_check_86.94.md`.
 
 ```
-verify_no_sliding_windows_86_94.py   ALL GREEN: 74 passed, 0 failed   (exit 0)
+verify_no_sliding_windows_86_94.py   ALL GREEN: 77 passed, 0 failed   (exit 0)
 verify_changelog_flip_86_91.py       ALL GREEN: 42 passed, 0 failed
 verify_workflow_args_boundary.mjs    ALL GREEN: 96 passed, 0 failed
 ruff (default ruleset, new file)     All checks passed!
@@ -234,7 +234,7 @@ names the file is inert. (Cycle 3 bound it to `mentions_reviewed`, a filename
 count over the working tree; that binding is removed, not annotated — see
 `live_check_86.94.md` §J.) A bool cannot be satisfied by vocabulary.
 
-**37 → 45 → 68 → 74 assertions.**
+**37 → 45 → 68 → 74 → 77 assertions.**
 
 ---
 
@@ -284,7 +284,7 @@ $ bash -c 'source .venv/bin/activate && python scripts/qa/verify_changelog_flip_
 green
 
 $ python scripts/qa/verify_no_sliding_windows_86_94.py
-ALL GREEN: 74 passed, 0 failed
+ALL GREEN: 77 passed, 0 failed
 ```
 
 **Still disclosed, unchanged:** the immutable command runs the *86.91* checker and
@@ -300,8 +300,12 @@ own recurring class landing on me one more time.
 
 **1. The `scheduler.py` criterion-4 judgement was FALSE, and my probe was blind to
 the counterexample.** `handoff/archive/misc/live_check_62.8.md:31` is tracked and
-quotes `"*Shipped today*" with 12 real commit lines` plus `Steps closed: 6` — counts
-of exactly what the midnight window emitted, quoted as verification evidence. My
+quotes `"*Shipped today*" with 12 real commit lines` — a count of exactly what the
+midnight window emitted, quoted as verification evidence. *(This paragraph
+originally cited a second figure, `Steps closed: …`, and called both "counts of
+exactly what the midnight window emitted". Cycle 6 withdrew it on both grounds —
+it was not a quotation but my own regex truncation, and it is not this window's
+output. See the cycle-6 section below.)* My
 cycle-4 probe was documented as derived from `formatters.py:102-109` but could not
 match that code's output, because rendering goes through `add()` at
 `formatters.py:71-76` which emits `*{title}*\n{body}` — an asterisk between "today"
@@ -325,3 +329,54 @@ enumeration command, and `day_report_2026-08-17.md:49` ("Guard ships green at
 
 **Matrix: killed=9 survived=0 unscorable=0, control GREEN at 74/0 first.** Guard
 68 → 74 assertions.
+
+---
+
+## Cycle-6 remediation (after a FAIL on criterion 5 + evidence integrity)
+
+The cycle-5 Q/A returned **FAIL**. Four findings, all mine, all reproduced by me
+before accepting.
+
+**1. The correction accompanied instead of replacing — inside the step whose
+criterion 5 is that rule.** §E of `live_check_86.94.md` carried two output blocks.
+My cycle-5 edit rewrote the *wrong* one, leaving the stale cycle-4 output — showing
+`QUOTED in 0` and `quoted_as_evidence=False`, the exact FALSE judgement this step
+had just corrected — sitting under the label **"The current run prints:"**, while
+the real output was labelled *superseded*. **Both stale blocks are deleted**;
+§E now carries one regenerated block, so there is nothing left to mislabel.
+
+**2. A misquote presented as a quotation.** I cited `Steps closed: 6` as text from
+`live_check_62.8.md:31`. That file's only `Steps closed` line is `:36`, reading
+`"Steps closed: 61.1, 62.0, 17.4, 62.3"`. My probe `Steps closed:\s*\S` matched
+and stopped at the `6` of `61.1`, and I printed the fragment in quote marks — the
+*paraphrase-inside-quote-marks* defect this document corrects for another member
+three sections earlier. Removed from all five carriers.
+
+**3. False provenance.** That same probe was bound to `d["steps_flipped_today"]`,
+which `_steps_closed_from_log()` reads from `handoff/harness_log.md`
+(`scheduler.py:511-513`) — **not** the midnight window. The Q/A showed the
+consequence: keeping only that probe left the bool `True` at 74/0, so the
+judgement was sustainable on evidence the allowlisted window never emitted. Probe
+removed; the judgement now rests on the genuine commit-line evidence alone.
+
+**4. An overclaim, withdrawn, and then actually fixed.** Cycle 5 said the
+positive-control check "protects any future member claimed `False`". The Q/A
+falsified it by execution: a probe and fixture **co-written from one misreading**
+passed at a clean 74/0, because provenance was a source comment and nothing
+enforced it. Fixtures are now `{text, source}` pairs and the guard asserts the
+text is really present in the **tracked** file named. The scheduler control is
+`scripts/qa/fixtures/shipped_today_render_86_94.txt`, generated by *executing* the
+formatter (`scripts/qa/gen_shipped_today_fixture_86_94.py`; re-running it
+reproduces the committed file byte-for-byte). **That mutant is now cell M-J and it
+is KILLED.**
+
+**Matrix: killed=10 survived=0 unscorable=0, control GREEN at 77/0 first.** When
+an anchor failed to apply, the cell scored **UNSCORABLE** and the run reported
+`MATRIX NOT CLEAN` rather than counting it — twice, and both times I fixed the
+anchor rather than the score.
+
+**Filed, not fixed here: masterplan `86.104`** — section `[1]` re-implements the
+scan inline rather than calling `scan_text`, so `[1]` and `[2]` can disagree about
+the same line and the known-member gate cannot tell the defective pre-86.91 blob
+from the corrected one. A WARN-level finding from the same evaluator; criterion 3
+is literally satisfied, so this is a separate defect rather than a reopening.

@@ -176,8 +176,20 @@ ALLOWLIST_REASONS = {
         "evidence'. MEASURED, and the counterexample is a TRACKED file inside "
         "the very corpus [3b] scans: handoff/archive/misc/live_check_62.8.md:31 "
         "records a Slack read-back as verification evidence and quotes "
-        "'\"*Shipped today*\" with 12 real commit lines' plus 'Steps closed: 6' "
-        "-- counts of exactly what _git_today() emitted through this window. "
+        "'\"*Shipped today*\" with 12 real commit lines' -- a count of exactly "
+        "what _git_today() emitted through this window. "
+        "CYCLE-6 CORRECTION: cycle 5 also cited 'Steps closed: 6' from that file "
+        "as a second quoted figure. BOTH halves of that were wrong and both are "
+        "removed rather than annotated. (i) It is not a quotation: the file's "
+        "only 'Steps closed' text is at :36 and reads 'Steps closed: 61.1, 62.0, "
+        "17.4, 62.3'; 'Steps closed: 6' was the regex `Steps closed:\\\\s*\\\\S` "
+        "truncating at the first character of a step id, which I then printed "
+        "inside quote marks -- the same paraphrase-as-quote defect corrected for "
+        "frontend_route_inventory below. (ii) It is not this window's figure "
+        "anyway: d['steps_flipped_today'] comes from _steps_closed_from_log() "
+        "reading handoff/harness_log.md (scheduler.py:511-513), not from the "
+        "--since-as-filter=midnight window at :501-507. The judgement stands on "
+        "the '12 real commit lines' evidence alone. "
         "So the correct statement is the same one frontend_route_inventory "
         "carries: QUOTED, UNREPRODUCIBLE (the window has slid months past that "
         "digest and it can never be regenerated), and INERT (a closed step's "
@@ -293,21 +305,32 @@ ALLOWLIST_CLAIMS = {
     # proxy cycle 4 removed.
     "backend/slack_bot/scheduler.py": {
         "quoted_as_evidence": True,
+        # TWO PROBES WERE REMOVED IN CYCLE 6, both for the same reason: they were
+        # not bound to a figure THIS WINDOW produces.
+        #   `Steps closed:\s*\S` matched d["steps_flipped_today"], which comes
+        #   from _steps_closed_from_log() reading handoff/harness_log.md
+        #   (scheduler.py:511-513) -- NOT from the --since-as-filter=midnight
+        #   window at :501-507. Keeping it meant the criterion-4 judgement for
+        #   this member was sustainable on evidence the allowlisted window never
+        #   emitted. Worse, the text I quoted for it, "Steps closed: 6", was the
+        #   regex truncating "Steps closed: 61.1, 62.0, 17.4, 62.3" at the first
+        #   character of a step id, and I printed that fragment inside quote
+        #   marks as if it were a quotation -- the exact "paraphrase inside quote
+        #   marks is not a quote" defect this file corrects elsewhere.
+        #   `commits_today[...]` matched nothing in the render or the corpus.
         "figure_probes": [
             r'\d+\s+real commit lines',
-            r'Steps closed:\s*\S',
             r'\*Shipped today\*[^\n]*\n\s*[-*]\s+[0-9a-f]{7,}',
-            r'commits_today["\']?\s*[:=]\s*[\[\d]',
         ],
         # Controls. The first two are VERBATIM output of a real
         # format_away_digest_sections() call; the third is the sentence in
         # handoff/archive/misc/live_check_62.8.md:31 that quotes this window's
         # counts as verification evidence.
         "probe_fixtures": [
-            "*Shipped today*\n- 8853e74c chore: auto-changelog hook entry for c4b84e4e",
-            "Steps closed: 86.92, 86.94",
-            '"*Shipped today*" with 12 real commit lines',
-            '"commits_today": [',
+            {"text": '"*Shipped today*" with 12 real commit lines',
+             "source": "handoff/archive/misc/live_check_62.8.md"},
+            {"text": "*Shipped today*\n- 8853e74c chore: auto-changelog hook entry",
+             "source": "scripts/qa/fixtures/shipped_today_render_86_94.txt"},
         ],
     },
     # scripts/qa/verify_decision_log_86_97.py -- window `--since={first_stamp}`.
@@ -321,8 +344,10 @@ ALLOWLIST_CLAIMS = {
         ],
         # Controls: verbatim lines this checker prints (live_check_86.97.md:71).
         "probe_fixtures": [
-            "commits=51  decision lines=26  gap=25",
-            "commits matching the recursion guard=26",
+            {"text": "commits=51  decision lines=26  gap=25",
+             "source": "handoff/current/live_check_86.97.md"},
+            {"text": "commits matching the recursion guard=26",
+             "source": "handoff/current/live_check_86.97.md"},
         ],
     },
     # scripts/harness/frontend_route_inventory.py -- window `--since=30.days`.
@@ -337,9 +362,12 @@ ALLOWLIST_CLAIMS = {
         ],
         # Controls: verbatim strings from handoff/archive/phase-4.7.0/.
         "probe_fixtures": [
-            '"usage_source": "git_activity_30d"',
-            "every_route_has_usage_count | PASS (12/12 integer opens_30d)",
-            "No route has opens_30d=0 in this window",
+            {"text": '"usage_source": "git_activity_30d"',
+             "source": "handoff/archive/phase-4.7.0/experiment_results.md"},
+            {"text": "every_route_has_usage_count | PASS (12/12 integer opens_30d)",
+             "source": "handoff/archive/phase-4.7.0/experiment_results.md"},
+            {"text": "No route has opens_30d=0 in this window",
+             "source": "handoff/archive/phase-4.7.0/experiment_results.md"},
         ],
     },
 }
@@ -736,8 +764,46 @@ for (_path_suffix, _val), _entry in ALLOWLIST.items():
               bool(_fixtures),
               "without fixtures a dead probe set is indistinguishable from a "
               "measured absence")
+
+        # THE CONTROL MUST BE PROVENANCED, NOT AUTHORED -- cycle 6.
+        #
+        # Cycle 5 shipped fixtures as bare strings and claimed the check
+        # "protects any future member claimed False". The cycle-5 Q/A falsified
+        # that by execution: a probe and a fixture CO-WRITTEN from the same
+        # misreading (`QQ_SELF_WRITTEN_TOKEN_\d+` matched only by the invented
+        # fixture `QQ_SELF_WRITTEN_TOKEN_7`) left the guard at a clean 74/0. The
+        # provenance was stated in a source comment and enforced by NOTHING, so
+        # the control could be manufactured to fit the probe -- which is the same
+        # shape as the defect it was added to catch.
+        #
+        # Each fixture now names a TRACKED FILE and the text must actually be in
+        # it, so a control cannot be invented. Fixture sources are deliberately
+        # allowed to sit OUTSIDE the [3b] quote corpus (e.g. a generated render
+        # under scripts/qa/fixtures/): the fixture proves the probe recognises
+        # the figure SHAPE, while the corpus search answers the different
+        # question of whether that figure was quoted AS EVIDENCE. Conflating the
+        # two would force every claim to True by construction.
+        _badsrc = []
+        for _f in _fixtures:
+            if not isinstance(_f, dict) or not _f.get("source") or not _f.get("text"):
+                _badsrc.append(f"{_f!r}: not a {{text, source}} pair")
+                continue
+            _sp = _f["source"]
+            if _sp not in _TRACKED:
+                _badsrc.append(f"{_sp}: NOT TRACKED")
+            elif _f["text"] not in (REPO / _sp).read_text(encoding="utf-8", errors="replace"):
+                _badsrc.append(f"{_sp}: does not contain the fixture text")
+        check(f"[3b] {_name}: every positive control is PROVENANCED -- its text is "
+              "actually present in the tracked file it names",
+              not _badsrc,
+              f"unprovenanced control(s): {_badsrc} -- a fixture that cannot be "
+              "traced to real text can be manufactured to fit the probe, which is "
+              "the defect this control exists to prevent")
+
+        _ftexts = [_f["text"] for _f in _fixtures
+                   if isinstance(_f, dict) and _f.get("text")]
         _dead = [p for p in _claim.get("figure_probes", [])
-                 if not any(re.search(p, f) for f in _fixtures)]
+                 if not any(re.search(p, f) for f in _ftexts)]
         check(f"[3b] {_name}: every figure probe matches at least one control, so "
               "none of them is silently dead",
               not _dead,
