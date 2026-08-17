@@ -370,3 +370,23 @@ No product code changed this cycle. The cycle-4 evaluator's independent
 verification stands: all six criteria MET by its own execution (its own
 driver harness for before/after; its own 7-cell hermetic matrix killing
 every code-path mutant, including a construction absent from mine).
+
+
+---
+
+## Cycle 6 GENERATE (2026-08-17): the one sentence, landed and verified this time
+
+The cycle-5 Q/A found that cycle-5's claim #3 did not reproduce: the
+attribution correction had been composed but LOST -- the heredoc carrying
+two replacements died at its SECOND assert after the first replace but
+before the single write at the end, so the commit shipped only the sibling
+paragraph. (The write-after-assert ordering is the same
+operations-that-cannot-fail-loudly trap this project keeps refiling; the
+fix pass now writes IMMEDIATELY after each single replace.) The sentence at
+live_check section 6 now carries the corrected attribution WITH the story
+of the loss (86.81's retry assertions, commits 6b4df8f9/8b520f6c, per both
+evaluators' symmetric-difference derivation), verified by grep before
+commit; the section heading no longer claims cycle-4-only. Queue-class
+items from the cycle-5 verdict ride the transcribed critique: the stage-1
+retry-scope negative half (86.81's code, fails safe), the M9/M10 teaching
+halves (= residual (c)), all recorded there.

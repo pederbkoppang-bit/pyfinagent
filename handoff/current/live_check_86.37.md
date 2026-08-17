@@ -99,13 +99,20 @@ SELECTIVE-2 (inverted shape) KILLED  119 passed, 2 failed
 
 ---
 
-## 6. Cycle-4 re-capture (2026-08-17): the same command at today's tree
+## 6. Cycle-4/5/6 re-captures (2026-08-17): the same command at today's tree
 
 Items 4-5 above are the CYCLE-3 tree's captures (121 checks) and are kept as
-history. The checker has since grown to 124 -- the +3 are phase-86.28's
-cycle-5 additions to the same file (its own artifact derives 73->78 on its
-different baseline; both derivations are per-tree and reproduce). Today,
-exits taken unpiped:
+history. The checker has since grown to 124. *(cycle-6 CORRECTION -- and the
+story of how the first correction was LOST: the cycle-4 Q/A falsified the
+sentence that stood here ('the +3 are phase-86.28's cycle-5 additions'),
+Main composed the replacement, and the heredoc carrying it died at a LATER
+assert after the replace but before the write -- so commit 936dc97e shipped
+only the sibling paragraph and the false sentence survived to be caught
+AGAIN by the cycle-5 Q/A. The corrected fact, per both evaluators'
+symmetric-difference derivation: the +3 are the stage-1 RETRY assertions
+added 2026-08-14 by phase-86.81's work, commits 6b4df8f9/8b520f6c; 86.28's
+checker commits predate the cycle-3 baseline and were already inside the
+121.)* Today, exits taken unpiped:
 
 ```
 $ bash -c "node --check .claude/workflows/research-gate.js && node scripts/qa/verify_research_gate_workflow.mjs" > /tmp/rg37.txt 2>&1; echo EXIT=$?
