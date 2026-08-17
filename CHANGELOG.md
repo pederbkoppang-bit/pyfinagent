@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-17 | `56c2f540` | feat(sovereign): add 15-min intraday ("1d") window to Red Line Monitor |
 | 2026-08-17 | `13ef5bae` | chore: backfill 86.37/86.79 verdict-ledger rows (labelled reconstructions) |
 | 2026-08-17 | `86f7dbbd` | phase-86.75: cycle-2 verdict transcribed -- 8/8 criteria MET, caps unrepairable-history + prose; pro |
 | 2026-08-17 | `54eace07` | phase-86.78: cycle 4 -- the blocker repaired at the named line, ledger backfilled, falsified claim r |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-17 | `140f1ac3` | phase-86.37/86.78: cycle-4 re-capture + the consequence-exposure census staged |
 | 2026-08-17 | `d33aabe2` | phase-86.21: cycle 7 -- the last two artifact fixes at the named sites |
 | 2026-08-17 | `6345166d` | phase-86.90: [object Object] render boundary -- CLOSED per operator resolution; sparse-array bound c |
-| 2026-08-17 | `31f80cdf` | phase-86.84: turn-cap removal + uncensored re-measurement -- PASS on cycle 11 |
 
 ---
 
