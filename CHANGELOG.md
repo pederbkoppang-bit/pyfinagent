@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-17 | `a2a3cee0` | phase-86.105: contract banked on a PASSED gate -- audit basis corrected (667 not 6), GENERATE deferr |
 | 2026-08-17 | `8ed8ba54` | phase-86.79: cycle 4 artifacts -- the dropped cycle-3's findings closed at their sites |
 | 2026-08-17 | `250c9741` | phase-86.21: the in-flight 3rd-CONDITIONAL counter -- PASS on cycle 8 |
 | 2026-08-17 | `54c6ec51` | phase-86.78: family-count bound + the recorder's first live measurement noted |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-17 | `8ccfc287` | phase-86.85: verdict ledger + 3rd-CONDITIONAL rail -- CLOSED by operator authorization at the attemp |
 | 2026-08-17 | `afea9e27` | phase-86.85: PARK at the attempt ceiling -- criteria 1-7 MET, c8 WARN-level meta-predicate vacuity q |
 | 2026-08-17 | `214673b1` | phase-86.71: wire the cumulative attempt budget at the Workflow origin -- PASS on cycle 5/5 |
-| 2026-08-17 | `c90910ef` | phase-86.84: cycle 11 GENERATE -- non-comment-line pin + rendered/cross-checked unclassified aggrega |
 
 ---
 
