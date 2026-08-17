@@ -38,7 +38,9 @@ async def get_observability_freshness() -> dict[str, Any]:
     settings = _get_settings()
     bq = _BQ(settings)
     cycle_interval_sec = float(getattr(settings, "paper_cycle_interval_sec", 24 * 3600.0))
-    return await _asyncio.to_thread(_cf, bq, cycle_interval_sec)
+    # phase-86.109: emit_alarm=False -- see paper_trading.py::get_freshness.
+    # A read path must not page; freshness_cron.py is the sole notifier.
+    return await _asyncio.to_thread(_cf, bq, cycle_interval_sec, emit_alarm=False)
 
 
 @router.get("/data-freshness")
@@ -57,7 +59,9 @@ async def get_observability_data_freshness() -> dict[str, Any]:
     settings = _get_settings()
     bq = _BQ(settings)
     cycle_interval_sec = float(getattr(settings, "paper_cycle_interval_sec", 24 * 3600.0))
-    return await _asyncio.to_thread(_cf, bq, cycle_interval_sec)
+    # phase-86.109: emit_alarm=False -- see paper_trading.py::get_freshness.
+    # A read path must not page; freshness_cron.py is the sole notifier.
+    return await _asyncio.to_thread(_cf, bq, cycle_interval_sec, emit_alarm=False)
 
 
 @router.get("/latency")

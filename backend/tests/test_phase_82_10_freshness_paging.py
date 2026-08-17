@@ -469,13 +469,44 @@ def test_compute_freshness_emit_alarm_defaults_true_and_is_keyword_only():
     assert param.kind is inspect.Parameter.KEYWORD_ONLY
 
 
-def test_http_call_sites_were_not_edited_to_pass_emit_alarm():
-    """Scope honesty: this step must not change dashboard behaviour."""
+def test_http_call_sites_now_suppress_the_alarm_phase_86_109():
+    """SUPERSEDED SCOPE GUARD, deliberately inverted -- read this before
+    "fixing" it back.
+
+    This assertion used to read `assert "emit_alarm" not in src`, with the
+    docstring *"Scope honesty: this step must not change dashboard behaviour."*
+    That was phase-82.10's guard on ITSELF: 82.10 added the cron and pinned the
+    fact that it had not touched the dashboard paths. It was never a standing
+    policy that a dashboard GET should page.
+
+    Phase-86.109 changed that deliberately, and its criterion 4 authorises
+    exactly these call sites. Measured basis: 1,149 `Data freshness critical`
+    log lines, ~17.5 pages/day, with 38.4% landing on Monday; `CycleHealthStrip`
+    polls the route every 30s, and 82.10's own module docstring already records
+    a phase-66 storm of "~120 pages/hour the moment a dashboard tab was open
+    against a red table". RFC 9110 s9.2.1 and Azure's health-endpoint guidance
+    both say a read path must not be the trigger.
+
+    Kept here rather than deleted so the supersession is visible at the site of
+    the original claim. **This is a source scan and is not the real guard** --
+    that is `backend/tests/test_phase_86_109_freshness_calendar.py`, which
+    DRIVES the three handlers and asserts the forwarded `emit_alarm`.
+    """
     root = Path(__file__).resolve().parents[1]
     for rel in ("api/paper_trading.py", "api/observability_api.py"):
         src = (root / rel).read_text(encoding="utf-8")
-        assert "emit_alarm" not in src, (
-            f"{rel} passes emit_alarm; the HTTP paths must stay unchanged"
+        # COMMENT-STRIPPED. A bare `"emit_alarm=False" in src` is satisfied by
+        # the explanatory comment the SAME diff introduced -- a Q/A mutated
+        # every real call site to emit_alarm=True and this assertion still
+        # passed for both files. The literal must appear on a line that is not
+        # a comment.
+        code_lines = [
+            ln for ln in src.splitlines() if not ln.lstrip().startswith("#")
+        ]
+        assert any("emit_alarm=False" in ln for ln in code_lines), (
+            f"{rel} no longer suppresses the alarm on the HTTP read path "
+            "in CODE (a comment does not count); phase-86.109 requires a "
+            "dashboard GET not to page"
         )
 
 

@@ -211,3 +211,33 @@ def is_trading_day(date, market: str = DEFAULT_MARKET) -> bool:
     except Exception as e:
         logger.warning("Calendar check failed for %s/%s: %s; assuming trading day", market, date, e)
         return True
+
+
+def is_us_trading_day_now(market: str = DEFAULT_MARKET) -> bool:
+    """phase-86.109: True iff TODAY, in the exchange's own timezone, is a
+    trading session.
+
+    **This is the ONE definition.** It was extracted from
+    `backend/slack_bot/scheduler.py::_is_us_trading_day_now` (phase-51.3, which
+    gates the morning/evening digests) so that a second consumer -- the
+    data-freshness notifier -- could reuse it rather than grow a parallel copy.
+    Step 86.109's criterion 2 names that risk explicitly, and it is not
+    hypothetical: `backend/services/cycle_health.py` already carries three
+    separate calendar notions, one of which (`is_weekday_et`) is holiday-BLIND,
+    so a fourth would have drifted from the day it was written.
+
+    Timezone: America/New_York, because the sessions being gated are US
+    exchange sessions and the digest cron already runs on ET. A UTC "today"
+    would be the wrong day for five hours of every evening.
+
+    **Fail-open, deliberately.** `is_trading_day` returns True when
+    `exchange_calendars` is unavailable, so a calendar-library failure can
+    never SUPPRESS a page or a digest. For a notification gate the safe
+    direction is to notify: a spurious page is noise, a suppressed one is a
+    silent failure.
+    """
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+
+    et_today = datetime.now(ZoneInfo("America/New_York")).date()
+    return is_trading_day(et_today, market)

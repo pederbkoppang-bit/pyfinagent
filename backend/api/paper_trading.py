@@ -495,7 +495,19 @@ async def get_freshness():
     # paper_trading_hour, so the "normal" interval is 24h. Configurable via
     # settings.paper_cycle_interval_sec if future phases add one.
     cycle_interval_sec = float(getattr(settings, "paper_cycle_interval_sec", 24 * 3600.0))
-    return await asyncio.to_thread(compute_freshness, bq, cycle_interval_sec)
+    # phase-86.109: emit_alarm=False -- a dashboard GET must not page.
+    # CycleHealthStrip polls this every 30s, so an open tab was the page
+    # trigger; the phase-66 hotfix note in observability/alerting.py records
+    # "~120 pages/hour the moment a dashboard tab was open against a red
+    # table". RFC 9110 s9.2.1 (safe methods are "essentially read-only") and
+    # Azure's health-endpoint guidance ("you don't want every request to the
+    # dashboard to trigger a health check") both name this. Detection is
+    # UNCHANGED -- the payload and its bands are byte-identical; only the
+    # side effect is removed. freshness_cron.py remains the sole notifier and
+    # owns the state-transition gate.
+    return await asyncio.to_thread(
+        compute_freshness, bq, cycle_interval_sec, emit_alarm=False
+    )
 
 
 @router.get("/kill-switch")

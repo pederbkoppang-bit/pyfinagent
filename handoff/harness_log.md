@@ -36205,3 +36205,49 @@ had not written.
 F401), 86.114 (the fabricated `APPROVE_REDUCED at 3% NAV`). **Not in force:**
 both new routes 404 on pid 41635 (positive control: `/latency` 200); restart
 batched to session end. No flag promoted, no `.env` written.
+
+## Cycle 1248 -- 2026-08-18 -- phase=86.109 result=PASS
+
+**Step:** 86.109 -- the data-freshness alarm had no trading-day awareness and
+paged from a dashboard poll. **PASS on cycle 2** (`wf_8783a774-3b5`): all six
+criteria MET on independently re-derived evidence, **zero product defects**,
+both declared deviations judged SOUND. The evaluator ran 10 mutants of its own
+beside the author's 11, including a null control that correctly SURVIVED --
+so the harness was shown to discriminate rather than merely to go red.
+
+**Shipped.** Three ungated HTTP read paths stopped paging: a dashboard GET is
+no longer the trigger for a P1 Slack page (RFC 9110 §9.2.1; Azure's
+health-endpoint guidance). The notifier is gated on the trading day, with the
+calendar on the NOTIFICATION leg and **never** on detection -- Grafana,
+PagerDuty and Alertmanager all put it there, and a calendar-aware `_band` would
+make a Friday-dead writer indistinguishable from an idle weekend. The ET
+trading-day definition was extracted to `markets.is_us_trading_day_now` and the
+phase-51.3 digest wrapper now delegates to it: one definition, two consumers.
+
+**Measured, with its limit stated.** 1,149 `Data freshness critical` lines;
+**≥867 (75.5%) necessarily came from the read path** because they predate the
+cron's existence. The remaining 282 cannot be attributed -- `alerting.py` logs
+`source=` and `title=` but not `details`, so `detected_by` never reaches a log
+line. A first probe (`grep detected_by` -> 0 of 1,149) was a probe that could
+not have failed, and is disclosed as such rather than quoted as a result.
+
+**Two things this step got wrong and caught.** (1) The first draft committed the
+red-source baseline BEFORE the calendar gate, which absorbs a weekend red into
+"already known" so it would never page at all -- a weekend mute that silently
+becomes permanent, while the comment claimed the opposite. Fixed by deferring;
+cell N3 restores it. (2) A prior step's test forbade the criterion-4 change and
+went red on it. Its docstring showed it was phase-82.10 pinning its OWN scope,
+not a standing policy, so it was inverted IN PLACE with the supersession written
+at the site of the original claim -- not deleted.
+
+**Cycle 1 was CONDITIONAL on three guards I had called strong and the evaluator
+falsified by execution**: a tautological `_band` check (two identical calls in
+one instant) that a calendar-aware mutant survived; an "anti-vacuity control"
+that never called `compute_freshness`; and an inverted byte-pin satisfied by the
+comment my own diff added. Cells N9-N11 reproduce all three. Matrix **11/11**.
+
+**Filed:** 86.115 (three EVIDENCE-class residuals the PASS recorded as
+non-capping: a token-list guard a `time.localtime()` calendar evades, an
+unguarded deferral hold-back, and an unguarded ET-vs-UTC claim). **Not in
+force:** pid 41635 predates these edits, so the read paths still page on the
+live process until the session-end restart. No flag promoted, no `.env` written.

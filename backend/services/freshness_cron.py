@@ -148,11 +148,68 @@ def run_freshness_check(
         red_now = _red_sources(payload)
         baseline = _last_red_sources
         newly_red = red_now if baseline is None else (red_now - baseline)
-        _last_red_sources = red_now
+        # NOTE the baseline is NOT committed here. On a non-trading day the
+        # withheld sources must stay OUT of it, or they are absorbed and never
+        # page at all -- see the assignment after the gate below.
+
+        # phase-86.109: the CALENDAR gates NOTIFICATION, never DETECTION.
+        #
+        # `red_now` / `_last_red_sources` are computed above and are updated
+        # UNCONDITIONALLY, so the state machine keeps running on a non-trading
+        # day and a source that goes red on Saturday is still remembered as red
+        # on Monday. Only the page is withheld. That ordering is the whole
+        # design: three independent implementations say the same thing --
+        # Grafana ("suppresses notifications but does not interrupt alert
+        # evaluation"), PagerDuty ("incidents are created regardless ... but
+        # HOW responders are notified varies"), Alertmanager (a muted route
+        # "will not send any notifications" yet "otherwise acts normally").
+        #
+        # Putting the calendar inside `_band()` instead would make a
+        # Friday-dead writer indistinguishable from an idle weekend -- AWS's
+        # "no dogs barking" anti-pattern -- and would break this step's own
+        # criterion 3, which requires a genuinely stale WEEKDAY source to still
+        # classify red.
+        #
+        # FAIL-OPEN: `is_us_trading_day_now` returns True when
+        # exchange_calendars is unavailable, so a calendar-library failure can
+        # never suppress a page. For a notification gate the safe direction is
+        # to notify.
+        trading_day = True
+        try:
+            from backend.backtest.markets import is_us_trading_day_now
+
+            trading_day = is_us_trading_day_now("US")
+        except Exception as exc:
+            logger.warning(
+                "freshness_evaluator: trading-day check fail-open (%r) -- "
+                "notifying as if today were a session.", exc,
+            )
+
+        if trading_day:
+            _last_red_sources = red_now
+        else:
+            # DEFERRED, not dropped. Absorbing the withheld sources into the
+            # baseline would make them "already known red" on Monday, so
+            # `newly_red` would be empty and they would never page -- a weekend
+            # mute that silently becomes permanent. Holding them out means they
+            # are newly red again on the next session if still red, and simply
+            # vanish if they recovered.
+            _last_red_sources = red_now - newly_red
+
+        if newly_red and not trading_day:
+            # Log LOUDLY. A suppressed page that leaves no trace is the
+            # silent-failure mode this gate could otherwise introduce.
+            logger.warning(
+                "freshness_evaluator: %d source(s) newly red on a NON-TRADING "
+                "day -- page DEFERRED (detection unchanged, state held out of "
+                "the baseline so they page on the next session if still red): "
+                "%s",
+                len(newly_red), sorted(newly_red),
+            )
 
         emitted = 0
         sources = payload.get("sources") or {}
-        for table_name in sorted(newly_red):
+        for table_name in (sorted(newly_red) if trading_day else []):
             info = sources.get(table_name) or {}
             try:
                 ratio = info.get("ratio")

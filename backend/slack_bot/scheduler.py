@@ -370,9 +370,12 @@ def _is_us_trading_day_now() -> bool:
     exchange_calendars is unavailable, so a calendar-lib error never suppresses a
     digest. APScheduler has no holiday support, so this in-body guard (not
     day_of_week='mon-fri') is required to cover holidays too."""
-    from backend.backtest.markets import is_trading_day
-    et_today = datetime.now(ZoneInfo("America/New_York")).date()
-    return is_trading_day(et_today, "US")
+    # phase-86.109: the body moved to backend/backtest/markets.py so the
+    # data-freshness notifier could reuse THIS definition instead of growing a
+    # parallel one. Behaviour is unchanged -- same ET "today", same fail-open
+    # polarity. This wrapper is kept because the digest call sites name it.
+    from backend.backtest.markets import is_us_trading_day_now
+    return is_us_trading_day_now("US")
 
 
 async def _compute_cron_health(client: httpx.AsyncClient) -> str | None:
