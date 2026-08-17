@@ -112,6 +112,21 @@ const GONE = [
   // 'the loop-termination rule'; this probe pins the leak's exact phrase.
   ['3rd-CONDITIONAL auto-FAIL rule, and the', 'the STEP-0 rule enumeration (the 420/420 leak)'],
 ]
+// cycle-6 (cycle-5 Q/A, MB): the literal probe above kills only the verbatim
+// restoration; a REWORDED consequence ('a third straight CONDITIONAL must be
+// returned as FAIL') survived. Content-pin the enumeration LINE itself: it
+// must exist, carry the neutral name, and be free of the rule's value/unit/
+// outcome tokens in ANY spelling this pin can see. Inherently non-exhaustive
+// against novel phrasings -- stated, per the cycle-1 precedent -- but it
+// kills the measured MB construction and the ordinal/unit/outcome families.
+{
+  const enumLine = SRC.split('\n').find(l => l.includes('the loop-termination rule')) || ''
+  check('STEP-0 enumeration line exists with the neutral rule name', enumLine.length > 0)
+  check('STEP-0 enumeration is free of value/unit/outcome tokens (any spelling)',
+    enumLine.length > 0
+    && !/3rd|third|CONDITIONAL|auto-?FAIL|straight|consecutive/i.test(enumLine),
+    'reworded restorations of the consequence must redden here')
+}
 for (const [needle, what] of GONE) {
   check(`rail prompt no longer states ${what}`, !SRC.includes(needle),
     `"${needle}" occurs ${SRC.split(needle).length - 1}x`)
@@ -170,9 +185,15 @@ check('nothing sits between the criteria sentence and the withheld-on-purpose bl
 // SRC matched 'const merged = ...' INSIDE the QX2 '// was:' comment and the
 // first version of this fix survived exactly the mutant it targeted (caught
 // by driving both mutants before shipping; the drive is in the live_check).
-const execLines = SRC.split('\n').filter(l => {
+// cycle-6 (cycle-5 Q/A, MN): strip /* */ SPANS from the whole source BEFORE
+// splitting into lines -- a block comment's interior line is unprefixed, so
+// the per-line prefix filter admitted it and the locator found a commented
+// decoy merge before the real one. Span-stripping first makes the interior
+// lines vanish entirely; the per-line filter then handles // and stragglers.
+const SRC_NO_BLOCKS = SRC.replace(/\/\*[\s\S]*?\*\//g, '')
+const execLines = SRC_NO_BLOCKS.split('\n').filter(l => {
   const s = l.trim()
-  return !s.startsWith('//') && !s.startsWith('*') && !s.startsWith('/*')
+  return !s.startsWith('//') && !s.startsWith('*')
 })
 const mergeStmt = execLines.find(l => l.includes('const merged = ')) || ''
 const mergeStripped = mergeStmt.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/, '')

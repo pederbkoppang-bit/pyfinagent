@@ -81,7 +81,7 @@ why via `attempt_number_guidance`.
 
 ---
 
-## 2. Verbatim verification output — regenerated after the last code change
+## 2. Verbatim verification output — regenerated after the CYCLE-3 code change *(cycle-6 mark: the body shows 55/53, true at its tree; the current 60->62/61 runs are in the cycle-5/6 sections)*
 
 ```
 $ python scripts/qa/verify_counter_86_79.py
@@ -244,7 +244,7 @@ diff: **0 lines containing `records_retained: 0` or `qa_wip.py 86.33` appear at 
 (cycle 1), `4b` `qa-verdict.js`'s four lines (cycle 2), `4c` `qa.md`'s two sites
 (cycle 4). The step is no longer blocked on anything outside itself.
 
-`verify_counter_86_79.py` re-run after the qa.md edits: **exit 0, 55 checks, 0 failed.**
+`verify_counter_86_79.py` re-run after the qa.md edits: **exit 0, 55 checks, 0 failed** *(cycle-6 mark: at that tree; 60/59 today)*.
 All five sibling gates re-run green.
 
 
@@ -294,8 +294,12 @@ than the ledger's 6 rows, so the staleness rule does not fire").
    `prior_attempts` -- the like-for-like prior-only count -- against the
    ledger's rows, with the correction note quoting the measured
    false-positive (4>3 on a current ledger while 3==3). One-line agent-file
-   edit, flagged in the harness log for operator review per the
-   separation-of-duties rule.
+   edit, flagged for operator review per the separation-of-duties rule *(cycle-6
+   pointer, closing the cycle-5 Q/A's does-not-reproduce finding: at grading
+   time the flag lived only in the commit message and artifacts; the
+   harness-log row landed one commit later -- the Cycle 1240 entry of
+   2026-08-17 lists both same-day qa.md edits by name, and the operator's
+   same-day Approve-all batch covers the class)*.
 2. **F2 (comment-parking)**: the gate's 4b/4c pins now search EFFECTIVE
    text only -- qa-verdict.js with // lines and /* */ spans stripped,
    qa.md with <!-- --> spans stripped. Driven: the evaluator's N7
@@ -311,3 +315,32 @@ than the ledger's 6 rows, so the staleness rule does not fire").
 4. **F4**: the stale 55-check headlines refreshed with their history.
 5. **F5**: qa_md_patch_86.79.md retitled APPLIED-at-cycle-4 historical
    record; its self-falsifying command is now quoted WITH its output.
+
+
+---
+
+## Cycle 6 GENERATE (2026-08-17): the five cycle-5 findings, landed and driven
+
+1. **F4 completed for the CLASS**: all six remaining CURRENT-labelled 55/53
+   sites are marked at the line with their cycle (two of the misses were the
+   day's third dash-trap -- en-dash and em-dash variants of anchors I had
+   matched with hyphens; the marks say so).
+2. **F5 completed by REPLACEMENT**: qa_md_patch:17's false present-tense
+   sentence is replaced with the correction quoting both falsifying commits
+   AND a verifying command that CAN fail (`git log --oneline -- qa.md`),
+   with the vacuity of the old command (a working-tree diff on a committed
+   tree) named. Third bite of this file; the replacement note records the
+   pattern.
+3. **The harness-log claim carries its pointer** (the Cycle 1240 row).
+4. **E1 (trailing-comment park)**: the gate's JS reader now strips TRAILING
+   // comments quote-aware (a // inside a string is payload); the
+   evaluator's exact construction (`const _pin = 1; // parked: ...`) is
+   KILLED, and the whole-line and deletion forms still die.
+5. **E4 (the unpinned F1)**: two new gate checks pin the staleness rule's
+   operand both ways (prior_attempts present; the inclusive form absent);
+   floor raised 59 -> 61 with the run now at 62. Reverting the F1 edit
+   reddens the gate.
+
+Captured at write time, exits unpiped: gate 62 checks / floor 61 / ALL
+CHECKS PASS / exit 0; E1 drive KILLED; matrix unchanged (11/11 at its last
+run -- the gate additions do not touch its subject).

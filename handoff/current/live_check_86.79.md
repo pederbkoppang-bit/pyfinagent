@@ -11,7 +11,7 @@ python scripts/qa/mutation_matrix_86_79.py     # 11 cells, exit 0
 Every write in both scripts goes to a temp directory. The live repo is only READ.
 `.claude/agents/qa.md` is **not modified by this step** — proof in §8.
 
-> **THESE ARE THE CURRENT NUMBERS (cycle 3).** The captures below are kept verbatim
+> **THESE WERE THE CYCLE-3 NUMBERS** *(cycle-6 mark: current at their capture; the tree has since grown to 60 checks / floor 59 -- see the cycle-5/6 captures at the tail; the label 'CURRENT' outlived its tree twice in this file, which is why every count now carries its cycle)*. The captures below are kept verbatim
 > as the record of what each Q/A actually graded — **not** because they are current:
 >
 > | sections | cycle | totals AS CAPTURED |
@@ -20,7 +20,7 @@ Every write in both scripts goes to a temp directory. The live repo is only READ
 > | §12–§14 | 2 | 50 checks / floor 48 / 9 cells — adds C3b, C3c, M8, M9; F401 removed |
 > | **§15–§17** | **3** | **55 checks / floor 53 / 11 cells** — adds the C3c boundary regime, C3d crash-safety, M10, M11 |
 >
-> **Only §15–§17 reproduce against a current run.** Line numbers inside the earlier
+> **§15–§17 reproduced against the CYCLE-3 tree** *(cycle-6 mark: at today's tree they no longer reproduce -- 55!=60, 53!=59; the current run lives in the tail captures. The dash variant of this sentence survived the first fix pass -- the third dash-trap of the day, now swept by codepoint-insensitive greps.)* Line numbers inside the earlier
 > captures are likewise as-of-then and have since moved; the checker greps for its
 > anchors at runtime and never relies on them.
 
@@ -400,7 +400,7 @@ C3d -- crash mid-prune OVER-counts (the documented safe direction)
 
 ```
 
-## §16. Full run, current (verbatim)
+## §16. Full run at the CYCLE-3 tree (verbatim then; superseded -- current run in the tail captures)
 
 ```
   checks run : 55   (cardinality floor 53)

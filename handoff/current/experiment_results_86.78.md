@@ -426,3 +426,32 @@ Captured at write time, exits unpiped: verify_escalation 52 checks ALL
 CHECKS PASS exit 0; mutation_matrix 13/13 ALL CELLS KILLED exit 0;
 prompt-render 136 and research-gate-workflow 124 both green (the STEP-0
 wording change altered no check counts).
+
+
+---
+
+## Cycle 6 GENERATE (2026-08-17): the block-comment decoy, the reworded restoration, and the sibling sweep
+
+1. **MN**: /* */ SPANS are stripped from the whole source BEFORE
+   line-splitting (the decoy's unprefixed interior line vanishes with its
+   span), then the per-line filter handles // and stragglers. The
+   evaluator's exact decoy construction is KILLED; MO/MD/ME-equivalents
+   (QX1/QX2) re-verified dying.
+2. **MB**: the STEP-0 enumeration line is content-pinned -- it must exist
+   with the neutral name and be free of the rule's value/unit/outcome
+   tokens in any spelling the pin can see (/3rd|third|CONDITIONAL|
+   auto-?FAIL|straight|consecutive/i). The evaluator's reworded
+   restoration is KILLED. Stated bound: no string pin enumerates all
+   phrasings -- the same inherent limit the cycle-1 Q/A ruled WARN; this
+   pin kills the measured families.
+3. **F4/F5 have a REAL queue entry**: 86.107's audit_basis now carries both
+   with their identifying phrases, mechanisms, and named fixes -- the
+   86.93-class sweep completed for the sibling instance the cycle-5 Q/A
+   caught.
+4. The :187 anti-vacuity check's non-independence is acknowledged as the
+   evaluator noted it (MJ reddens it only jointly); its property is
+   documentation of the found statement, and it rides as-is.
+
+Captured at write time, exits unpiped: verify_escalation ALL CHECKS PASS
+exit 0 (55 checks after the MB pin); matrix 13/13 ALL CELLS KILLED exit 0;
+MN/MB/QX1/QX2 all KILLED in the pre-ship drive.

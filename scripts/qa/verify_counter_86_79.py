@@ -61,7 +61,7 @@ SID = "99.1"
 #: and that the constant's own instruction ("raise it when adding checks") had not
 #: been followed; raised to sit just under the current total so a silently-skipped
 #: block is caught rather than absorbed.
-EXPECTED_CHECKS = 59  # cycle-5 (cycle-4 Q/A F3): raised 53 -> 59 to sit just
+EXPECTED_CHECKS = 61  # cycle-6: raised with the two E4 pins (60 -> 62 checks run)  # cycle-5 (cycle-4 Q/A F3): raised 53 -> 59 to sit just
 # under the current 60 -- the floor's own design ("a silently-skipped block is
 # caught rather than absorbed") was violated by cycle 4 adding 7 checks
 # without raising it: N11 (the 5-check doc-pin block commented out, 55 run)
@@ -396,8 +396,35 @@ import re as _re
 _qa_md_raw = (REPO / ".claude" / "agents" / "qa.md").read_text(encoding="utf-8")
 qa_md = _re.sub(r"<!--[\s\S]*?-->", "", _qa_md_raw)
 _qav_raw = (REPO / ".claude" / "workflows" / "qa-verdict.js").read_text(encoding="utf-8")
+
+
+def _strip_js_line(ln: str) -> str:
+    """Drop a TRAILING // comment, quote-aware (cycle-6, evaluator's E1: the
+    prefix-only strip let `const _pin = 1; // null is NEVER 0...` park the
+    pinned bytes in a trailing comment). A // inside a ' " or ` string is
+    payload, not a comment -- track quote state up to the candidate."""
+    out = []
+    q = None
+    i = 0
+    while i < len(ln):
+        c = ln[i]
+        if q:
+            if c == "\\":
+                out.append(ln[i:i + 2]); i += 2; continue
+            if c == q:
+                q = None
+            out.append(c); i += 1; continue
+        if c in ("'", '"', "`"):
+            q = c; out.append(c); i += 1; continue
+        if c == "/" and i + 1 < len(ln) and ln[i + 1] == "/":
+            break  # real comment start -- drop the rest
+        out.append(c); i += 1
+    return "".join(out)
+
+
 qav = "\n".join(
-    ln for ln in _re.sub(r"/\*[\s\S]*?\*/", "", _qav_raw).splitlines()
+    _strip_js_line(ln)
+    for ln in _re.sub(r"/\*[\s\S]*?\*/", "", _qav_raw).splitlines()
     if not ln.strip().startswith("//")
 )
 check("4c APPLIED: qa.md carries the gauge correction",
@@ -415,6 +442,14 @@ check("the applied correction's historical record exists",
       patch.is_file(), str(patch.relative_to(REPO)))
 check("...and it names the field it changed",
       patch.is_file() and "records_retained" in patch.read_text(encoding="utf-8"))
+# cycle-6 (evaluator's E4): the cycle-5 F1 correction -- the staleness rule's
+# operand -- had no pin, so reverting it survived. Pin BOTH halves in
+# effective qa.md text: the like-for-like operand present, the inclusive one
+# absent from the normative sentence.
+check("F1 APPLIED: the staleness rule compares prior_attempts",
+      "if `prior_attempts` (auto) **>** the ledger" in qa_md)
+check("F1 APPLIED: the inclusive-operand form is GONE",
+      "if `attempt_number` (auto) **>** the ledger" not in qa_md)
 
 
 # ══════════════════════════════════════════════════════ CRITERION 5

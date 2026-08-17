@@ -14,7 +14,7 @@ explicit: *"If a fix genuinely needs `qa.md`, stop and ask."* The masterplan ste
 own notes say the same: *"prefer changing `qa_wip.py`, or hand it to a fresh
 executor."*
 
-So this file is the ask. **Nothing in `.claude/agents/qa.md` was modified by step
+*(cycle-6 REPLACEMENT of the sentence that stood here -- 'Nothing in `.claude/agents/qa.md` was modified by step 86.79 -- verify with `git diff --stat .claude/agents/qa.md`'. That was FALSE twice over (9b4d5281 applied the correction at cycle 4, +116/-45; 2dbe09d4 landed the prior_attempts operand at cycle 5), and the offered command was VACUOUS -- a working-tree diff on a committed tree can never dissent. The verifying command that CAN fail: `git log --oneline -- .claude/agents/qa.md | head -5` shows both commits. This is the file's third correction; each prior one fixed the headline and left this sentence.)*
 86.79** — verify with `git diff --stat .claude/agents/qa.md`.
 
 ---
