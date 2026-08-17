@@ -7,7 +7,7 @@ node scripts/qa/verify_escalation_86_78.mjs    # 51 checks, exit 0 (cycle-4 refr
 node scripts/qa/mutation_matrix_86_78.mjs      # 13 cells, exit 0 (cycle-4 refresh; was "10 cells")
 ```
 
-`.claude/agents/qa.md` is **not modified by this step** — §5.
+`.claude/agents/qa.md` is **not modified by this step** — §5. *(SUPERSEDED, cycle-4 mark: true at cycle-1 time only; commits 9b4d5281 and 77f15b4d later edited qa.md for the scrub and the 86.72 addition -- section 10 carries the current state.)*
 
 ---
 
@@ -21,7 +21,7 @@ exit=0        (identical before the change and after)
 
 ## §1. Criterion 1 — the exposure RE-DERIVED, with the enumeration command stated
 
-### 1a. The current `qa.md` text, quoted from disk (grep-anchored, not from memory)
+### 1a. The `qa.md` text AS OF CYCLE 1, quoted from disk *(SUPERSEDED, cycle-4 mark: all three lines quoted below were removed by the 9b4d5281 scrub; the real current quote is section 10's :808)*
 
 ```
 $ grep -n 'MUST state the derived attempt number' .claude/agents/qa.md
@@ -227,6 +227,11 @@ $ git diff --stat -- .claude/agents/qa.md
 (no output — zero-line diff)
 ```
 
+*(SUPERSEDED, cycle-4 mark: the zero-diff was cycle-1 state. Commits
+9b4d5281 and 77f15b4d later edited qa.md for this step's scrub and the
+86.72 field-teaching addition -- both operator-approved in session on
+2026-08-17.)*
+
 **Cross-step regression.** `qa-verdict.js` was also edited earlier today by step
 86.79. That step's gate is still green against the shared file:
 
@@ -236,7 +241,9 @@ $ python scripts/qa/verify_counter_86_79.py   -> exit 0
 
 ## §6. What I could NOT verify — stated plainly
 
-1. **The `qa.md` half is NOT fixed, and it is the larger half.** `:663-668` (the
+1. **The `qa.md` half is NOT fixed** *(SUPERSEDED, cycle-4 mark: the scrub
+   LANDED in 9b4d5281 -- all three quoted regions removed; kept as the
+   cycle-1 record)* **, and it was the larger half.** `:663-668` (the
    trigger), `:684-688` (the escalation consequence) and `:702-704` (*"You MUST state
    the derived attempt number"*) are untouched and operator-gated. The checker asserts
    this residual **still exists**, so it goes red if anyone edits `qa.md` quietly.
@@ -451,8 +458,13 @@ should be run before the next Q/A is trusted on this step.
 **Level 1 -- the standing RULE text (not the exposure).** Scanning every
 Workflow agent transcript's FIRST user message across all session dirs of this
 project (enumeration command in the fenced block below): 413 of 413 qa-verdict
-spawn prompts contain "3rd-CONDITIONAL"/"auto-FAIL" -- because the prompt
-embeds qa.md itself. A judge KNOWING the rule is the design; this is not the
+spawn prompts contain "3rd-CONDITIONAL"/"auto-FAIL" -- *(cycle-5 CORRECTION
+of the causal clause, which the cycle-4 Q/A FALSIFIED: the source is NOT
+qa.md-embedding -- three qa.md-body-unique markers score 0/421 prompts --
+but the RAIL'S OWN STEP-0 line at qa-verdict.js:345, carried verbatim in
+420/420 prompts. The count was right; the cause was wrong; the leak sits in
+the half this step owns and is fixed in the cycle-5 GENERATE.)* A judge
+KNOWING the rule is the design; this is not the
 bias channel and the first census version that counted it (413/413) is
 disclosed as the overcount it was.
 
@@ -478,7 +490,7 @@ Population rule: every `agent-*.jsonl` under
 `~/.claude/projects/-Users-ford--openclaw-workspace-pyfinagent/*/subagents/workflows/wf_*/`;
 a prompt is a qa-verdict spawn iff its first user message contains
 "IMMUTABLE SUCCESS CRITERIA". The census script is reproduced in
-`scratchpad/census_8678_v2.txt`'s generator (12-line Python; SLICE regex
+`the inline population rule and regexes in this section (a scratchpad path was previously cited here; scratchpad files are session-local and the citation was unreproducible -- the cycle-4 Q/A reproduced the census from the inline rule alone, which is the durable derivation)`'s generator (12-line Python; SLICE regex
 `EVIDENCE.*?(?=IMMUTABLE|$)|ADDITIONAL CONTEXT.*`, POS regex as listed).
 
 **The uncomfortable rows are MINE and are the point:** wf_4e01adc8 (86.71
@@ -503,7 +515,7 @@ into measurement at the seam.
 
 ---
 
-## 11. Cycle-4 captures (2026-08-17; exits unpiped)
+## 11. Cycle-4 captures (2026-08-17; exits unpiped; block REGENERATED at cycle 5 -- the previous version showed a grep reading a file before the command that wrote it, and three commands with two outputs)
 
 ```
 $ node scripts/qa/verify_escalation_86_78.mjs > /tmp/ve78.txt 2>&1; echo VERIFY_EXIT=$?
@@ -511,7 +523,7 @@ VERIFY_EXIT=0
 $ tail -2 /tmp/ve78.txt
 
   ALL CHECKS PASS
-$ grep -c "GREEN control established (51 checks)" /tmp/mm78b.txt; node scripts/qa/mutation_matrix_86_78.mjs > /tmp/mm78b.txt 2>&1; echo MATRIX_EXIT=$?
+$ node scripts/qa/mutation_matrix_86_78.mjs > /tmp/mm78b.txt 2>&1; echo MATRIX_EXIT=$?
 MATRIX_EXIT=0
 $ grep -E "M11|cells:" /tmp/mm78b.txt
   KILLED            M11-MERGE-ESCALATION-INTO-THE-VERDICT by: escalation is NESTED in the return, not spread into it
