@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-17 | `4bac49ff` | phase-86.78: consequence blinding -- PASS on cycle 7, the last budgeted attempt |
 | 2026-08-17 | `0ccb75b0` | phase-86.79: the attempt-counter gauge semantics -- PASS on cycle 6 |
 | 2026-08-17 | `1a2e0504` | phase-86.78: cycle 7 -- the locator class closed by a DRIVEN Object.keys assertion |
 | 2026-08-17 | `0c8613e0` | phase-86.78/86.79: cycle 6 -- span-strip before split, STEP-0 content pin, quote-aware trailing stri |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-17 | `a2a3cee0` | phase-86.105: contract banked on a PASSED gate -- audit basis corrected (667 not 6), GENERATE deferr |
 | 2026-08-17 | `8ed8ba54` | phase-86.79: cycle 4 artifacts -- the dropped cycle-3's findings closed at their sites |
 | 2026-08-17 | `250c9741` | phase-86.21: the in-flight 3rd-CONDITIONAL counter -- PASS on cycle 8 |
-| 2026-08-17 | `54c6ec51` | phase-86.78: family-count bound + the recorder's first live measurement noted |
 
 ---
 
+### v6.93.234 — phase-86.78: consequence blinding -- PASS on cycle 7, the last budget... (2026-08-17)
+
+- **phase-86.78: consequence blinding -- PASS on cycle 7, the last budgeted attempt**
 ### v6.93.233 — phase-86.79: the attempt-counter gauge semantics -- PASS on cycle 6 (2026-08-17)
 
 - **phase-86.79: the attempt-counter gauge semantics -- PASS on cycle 6**
