@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-17 | `7bbd6574` | phase-86.75: cycle 2 -- operator discharged C7 in session; enumeration re-shown at today's corpus |
 | 2026-08-17 | `33c47416` | phase-86.69: GENERATE -- the 61.2 guard ARMED by operator token, restart verified, measurement stage |
 | 2026-08-17 | `0ad90da4` | docs(session): record two rail breaches; fill S5 named-fix column; note operator's product-vs-eviden |
 | 2026-08-17 | `77f15b4d` | phase-86.72/86.78: the re-research leg wired + the consequence recorder computed |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-17 | `192ef652` | phase-86.71: the cumulative attempt budget is WIRED AND LIVE -- attempt_gate.py registered as a PreT |
 | 2026-08-17 | `f3c89229` | phase-86.85: cycles 5-7 -- emit_sequence orders by EVENT date with the verdict excluded from the key |
 | 2026-08-17 | `d69da099` | phase-86.84: cycles 4-6 -- D1 verifier fix, re-measurement guarded by floors + independent cross-der |
-| 2026-08-17 | `1c80684a` | phase-86: file 86.105 (handoff layout invariant red) + 86.106 (instruction-surface consolidation) -- |
 
 ---
 
