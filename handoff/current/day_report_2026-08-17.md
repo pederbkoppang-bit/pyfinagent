@@ -46,7 +46,7 @@ exit 1 → 0).
 | step | verdicts | where it stands |
 |---|---|---|
 | **86.97** | C, C, **FAIL** | Criteria 1,2,3,4,6,7 MET at cycle 3. Failed on criterion 5 and one claim that did not reproduce. |
-| **86.94** | F, F, **CONDITIONAL** | **All 7 criteria MET** on their literal wording at cycle 3; capped on evidence integrity. Guard ships green at 45/0. |
+| **86.94** | F, F, **CONDITIONAL** | **All 7 criteria MET** on their literal wording at cycle 3; capped on evidence integrity. ~~Guard ships green at 45/0.~~ **CORRECTED 2026-08-17 (86.94 cycle 5): that was already FALSE when written.** The guard was **44/1** at the park commit `964b0255` itself — that commit added a park note naming the guarded scripts, which is what the tripwire counted — and **42/3** the next morning. See `day_halt.md` and `live_check_86.94.md` §J. |
 
 Both carry a named, actionable diagnosis in `.claude/masterplan.json` notes and a
 row in `handoff/current/night_diagnostics.md`. Neither is a mystery.

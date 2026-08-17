@@ -167,15 +167,29 @@ SELF_REL = "scripts/qa/verify_no_sliding_windows_86_94.py"
 # not merely that the current form is convenient.
 ALLOWLIST_REASONS = {
     ("backend/slack_bot/scheduler.py", "midnight"): (
-        "LEGITIMATELY RELATIVE. This builds the Slack 'shipped today' digest. A "
-        "report about TODAY must move with today; pinning it would freeze the "
-        "digest to one date and is straightforwardly wrong. The NAME is quoted "
-        "widely, but no COUNT produced by this window is quoted as evidence "
-        "-- it is a chat message, regenerated every "
-        "run. MEASURED: the name does appear in CHANGELOG.md and the "
-        "masterplan, but every hit is descriptive (an em-dash cleanup, an "
-        "APScheduler job description, a different scheduler at :761-795); "
-        "none quotes a COUNT produced by this window."),
+        "LEGITIMATELY RELATIVE, AND ITS FIGURES HAVE BEEN QUOTED AS EVIDENCE -- "
+        "corrected in phase-86.94 cycle 5. This builds the Slack 'shipped today' "
+        "digest. A report about TODAY must move with today; pinning it would "
+        "freeze the digest to one date and is straightforwardly wrong, so the "
+        "WINDOW stays. But the criterion-4 judgement attached to it was FALSE. "
+        "Cycles 2-4 asserted 'no COUNT produced by this window is quoted as "
+        "evidence'. MEASURED, and the counterexample is a TRACKED file inside "
+        "the very corpus [3b] scans: handoff/archive/misc/live_check_62.8.md:31 "
+        "records a Slack read-back as verification evidence and quotes "
+        "'\"*Shipped today*\" with 12 real commit lines' plus 'Steps closed: 6' "
+        "-- counts of exactly what _git_today() emitted through this window. "
+        "So the correct statement is the same one frontend_route_inventory "
+        "carries: QUOTED, UNREPRODUCIBLE (the window has slid months past that "
+        "digest and it can never be regenerated), and INERT (a closed step's "
+        "read-back; nothing live depends on it). "
+        "WHY THE EARLIER JUDGEMENT SURVIVED FOUR CYCLES: the cycle-4 probe was "
+        "documented as derived from formatters.py:102-109 and could not match "
+        "what that code emits. add() at formatters.py:71-76 renders "
+        "_truncate(f'*{title}*\\n{body}'), so an asterisk sits between 'today' "
+        "and the newline, and a probe anchored on 'Shipped today\\\\s*\\\\n' matches "
+        "nothing. I had read the CALL SITE and not the RENDERER. The probes "
+        "below were built by EXECUTING format_away_digest_sections and scoring "
+        "against its real output as well as against the tracked artifact above."),
     ("scripts/qa/verify_decision_log_86_97.py", "{first_stamp}"): (
         "RUNTIME-DERIVED FROM A PINNED ARTIFACT, and judged acceptable. "
         "`first_stamp` is read from the FIRST LINE of "
@@ -265,17 +279,35 @@ ALLOWLIST_REASONS = {
 # disappears, `bool(hits)` changes and the judgement RE-OPENS. What no longer
 # re-opens it is someone writing a sentence.
 ALLOWLIST_CLAIMS = {
-    # backend/slack_bot/scheduler.py:501-507 `_git_today()` -> d["commits_today"],
-    # rendered at backend/slack_bot/formatters.py:102-109 as a bulleted list under
-    # "Shipped today" plus "Steps closed: ...". The window emits a LIST and no
-    # count is ever formatted, so a quoted figure would have to be the key with a
-    # value, or the rendered digest block itself.
+    # backend/slack_bot/scheduler.py:501-507 `_git_today()` -> d["commits_today"];
+    # rendered at formatters.py:102-109 THROUGH add() at :71-76, which wraps the
+    # title as `*{title}*\n{body}`. These probes were scored against the output of
+    # a real format_away_digest_sections() call, not against a reading of the
+    # source -- the cycle-4 set was read off the call site alone and matched
+    # neither the render nor the artifact that quotes it.
+    #
+    # NOT INCLUDED, deliberately: a bare `\*Shipped today\*`. It matches the same
+    # single file, so it would not change the bool, but the section HEADER is not
+    # a figure. Criterion 4 asks whether a FIGURE DERIVED FROM the window was
+    # quoted; admitting the header would slide this back toward the name-mention
+    # proxy cycle 4 removed.
     "backend/slack_bot/scheduler.py": {
-        "quoted_as_evidence": False,
+        "quoted_as_evidence": True,
         "figure_probes": [
+            r'\d+\s+real commit lines',
+            r'Steps closed:\s*\S',
+            r'\*Shipped today\*[^\n]*\n\s*[-*]\s+[0-9a-f]{7,}',
             r'commits_today["\']?\s*[:=]\s*[\[\d]',
-            r'"steps_flipped_today"\s*:\s*\[',
-            r'Shipped today\s*\n(?:\s*[-*]\s+[0-9a-f]{7,}\s)',
+        ],
+        # Controls. The first two are VERBATIM output of a real
+        # format_away_digest_sections() call; the third is the sentence in
+        # handoff/archive/misc/live_check_62.8.md:31 that quotes this window's
+        # counts as verification evidence.
+        "probe_fixtures": [
+            "*Shipped today*\n- 8853e74c chore: auto-changelog hook entry for c4b84e4e",
+            "Steps closed: 86.92, 86.94",
+            '"*Shipped today*" with 12 real commit lines',
+            '"commits_today": [',
         ],
     },
     # scripts/qa/verify_decision_log_86_97.py -- window `--since={first_stamp}`.
@@ -287,6 +319,11 @@ ALLOWLIST_CLAIMS = {
             r'commits=\d+\s+decision lines=\d+\s+gap=\d+',
             r'commits matching the recursion guard=\d+',
         ],
+        # Controls: verbatim lines this checker prints (live_check_86.97.md:71).
+        "probe_fixtures": [
+            "commits=51  decision lines=26  gap=25",
+            "commits matching the recursion guard=26",
+        ],
     },
     # scripts/harness/frontend_route_inventory.py -- window `--since=30.days`.
     # Emitted figures are the per-route `opens_30d` counts and the `usage_source`
@@ -297,6 +334,12 @@ ALLOWLIST_CLAIMS = {
             r'"usage_source":\s*"git_activity_30d"',
             r'\d+/\d+ integer opens_30d',
             r'opens_30d=\d+',
+        ],
+        # Controls: verbatim strings from handoff/archive/phase-4.7.0/.
+        "probe_fixtures": [
+            '"usage_source": "git_activity_30d"',
+            "every_route_has_usage_count | PASS (12/12 integer opens_30d)",
+            "No route has opens_30d=0 in this window",
         ],
     },
 }
@@ -669,6 +712,37 @@ for (_path_suffix, _val), _entry in ALLOWLIST.items():
               bool(_claim.get("figure_probes")),
               "quoted_as_evidence with no probe is unfalsifiable -- exactly the "
               "isinstance-only state cycle 3 shipped")
+
+        # EVERY PROBE MUST BE DEMONSTRABLY LIVE, and this is the cycle-5 fix for
+        # the hole that let a FALSE judgement survive four cycles.
+        #
+        # `quoted_as_evidence == bool(hits)` binds the bool to a measurement, but
+        # for a FALSE claim it is satisfied precisely when the probes match
+        # NOTHING -- so a probe set that is silently dead is byte-indistinguishable
+        # from a correct measurement. That is exactly what happened: the cycle-4
+        # scheduler probes could not match the digest their own comment cited, the
+        # claim was False, and the check went green over a tracked counterexample.
+        # Substituting a never-matching literal for those probes ALSO left the
+        # guard at 68/0.
+        #
+        # So each probe carries POSITIVE CONTROLS: fixtures taken from the real
+        # emitted text (for scheduler, the output of an actual
+        # format_away_digest_sections() call, plus the sentence in the artifact
+        # that quotes it). A probe matching none of its own fixtures is dead and
+        # FAILS here, whatever the bool says and whichever way the corpus happens
+        # to fall.
+        _fixtures = _claim.get("probe_fixtures", [])
+        check(f"[3b] {_name}: the probe set carries POSITIVE CONTROLS",
+              bool(_fixtures),
+              "without fixtures a dead probe set is indistinguishable from a "
+              "measured absence")
+        _dead = [p for p in _claim.get("figure_probes", [])
+                 if not any(re.search(p, f) for f in _fixtures)]
+        check(f"[3b] {_name}: every figure probe matches at least one control, so "
+              "none of them is silently dead",
+              not _dead,
+              f"probe(s) match NOTHING even in their own fixtures: {_dead} -- a "
+              "probe that cannot fire cannot contradict the claim it guards")
 
         _figs = figure_sites(_claim)
         _files = sorted({r for r, _, _ in _figs})

@@ -49,7 +49,7 @@ sit relative to the sliding band.
 
 ## The guard
 
-`scripts/qa/verify_no_sliding_windows_86_94.py`, 68 assertions, exit 0.
+`scripts/qa/verify_no_sliding_windows_86_94.py`, 74 assertions, exit 0.
 
 - **Known-member recall is a hard gate.** The rule must find the pre-86.91 form
   of the replay, recovered from git at `06c3265f`, and classify it SLIDING. If
@@ -98,7 +98,7 @@ sit relative to the sliding band.
 
 | member | class | judgement (measured, cycle 4) |
 |---|---|---|
-| `scheduler.py:503` `midnight` | LEGITIMATELY RELATIVE | The window emits `d["commits_today"]` (`:501-507`), rendered as a bulleted list (`formatters.py:102-109`); **no count is ever formatted**. Named in 281 tracked files; a figure it produced is quoted in **0**. `quoted_as_evidence: False`. |
+| `scheduler.py:503` `midnight` | LEGITIMATELY RELATIVE, figures QUOTED | The window stays (a report about today must move with today), but the judgement was **FALSE through cycle 4 and is corrected**: `handoff/archive/misc/live_check_62.8.md:31` (tracked) quotes `"*Shipped today*" with 12 real commit lines` and `Steps closed: 6` as read-back evidence. Quoted, unreproducible, inert. `quoted_as_evidence: True`. |
 | `frontend_route_inventory.py:73` `30.days` | SLIDING, left | Its figures HAVE been quoted as evidence — 3 tracked files, 5 hits (`"usage_source": "git_activity_30d"`, `12/12 integer opens_30d`, `opens_30d=0` in `handoff/archive/phase-4.7.0/`). Quoted, unreproducible, inert. `quoted_as_evidence: True`. |
 | `verify_decision_log_86_97.py:360` `{first_stamp}` | runtime-derived, allowed | Figures **are** quoted (`commits=51  decision lines=26  gap=25`) — always with the clock time they were taken at, and the checker asserts a *relationship*, not a number. `quoted_as_evidence: True`. |
 | `replay_changelog_rule_86_68.py:114` `{CORPUS_SINCE}` | was SLIDING → **FIXED** | The TZ-naive pin. |
@@ -154,7 +154,7 @@ today and would have stayed green through every defect this step is about. It
 cannot fail on the class. The real evidence is in `live_check_86.94.md`.
 
 ```
-verify_no_sliding_windows_86_94.py   ALL GREEN: 68 passed, 0 failed   (exit 0)
+verify_no_sliding_windows_86_94.py   ALL GREEN: 74 passed, 0 failed   (exit 0)
 verify_changelog_flip_86_91.py       ALL GREEN: 42 passed, 0 failed
 verify_workflow_args_boundary.mjs    ALL GREEN: 96 passed, 0 failed
 ruff (default ruleset, new file)     All checks passed!
@@ -234,7 +234,7 @@ names the file is inert. (Cycle 3 bound it to `mentions_reviewed`, a filename
 count over the working tree; that binding is removed, not annotated — see
 `live_check_86.94.md` §J.) A bool cannot be satisfied by vocabulary.
 
-**37 → 45 → 68 assertions.**
+**37 → 45 → 68 → 74 assertions.**
 
 ---
 
@@ -284,9 +284,44 @@ $ bash -c 'source .venv/bin/activate && python scripts/qa/verify_changelog_flip_
 green
 
 $ python scripts/qa/verify_no_sliding_windows_86_94.py
-ALL GREEN: 68 passed, 0 failed
+ALL GREEN: 74 passed, 0 failed
 ```
 
 **Still disclosed, unchanged:** the immutable command runs the *86.91* checker and
 cannot fail on any defect in this step's class; it proves only that this work did
 not break 86.91.
+
+---
+
+## Cycle-5 remediation (after a CONDITIONAL on evidence integrity)
+
+The cycle-4 Q/A found two defects. Both reproduce, and the first is this step's
+own recurring class landing on me one more time.
+
+**1. The `scheduler.py` criterion-4 judgement was FALSE, and my probe was blind to
+the counterexample.** `handoff/archive/misc/live_check_62.8.md:31` is tracked and
+quotes `"*Shipped today*" with 12 real commit lines` plus `Steps closed: 6` — counts
+of exactly what the midnight window emitted, quoted as verification evidence. My
+cycle-4 probe was documented as derived from `formatters.py:102-109` but could not
+match that code's output, because rendering goes through `add()` at
+`formatters.py:71-76` which emits `*{title}*\n{body}` — an asterisk between "today"
+and the newline. **I had read the call site, not the renderer.** Fixed by
+EXECUTING `format_away_digest_sections` and scoring probes against its real output;
+`scheduler.py` is now `quoted_as_evidence: True` — quoted, unreproducible, inert.
+
+**2. Every probe now carries POSITIVE CONTROLS.** The structural hole was that for
+a `False` claim the check passes *precisely when the probes match nothing*, so a
+dead probe set is indistinguishable from a measured absence — the Q/A proved it by
+substituting a never-matching literal and getting a clean 68/0. `probe_fixtures`
+are sampled from the real emitted text, and a probe matching none of its own
+fixtures now FAILS whatever the bool says (cells M-H, M-I).
+
+**3. The correction sweep is rewritten to reproduce.** Class A is 8 carriers, not
+6; Class B has 2 coincidental hits, not 9. Cycle 4 quoted one pattern and reported
+counts from a wider one it never showed — the same "figure that cannot be
+regenerated" defect the step exists to close. Every class now quotes its
+enumeration command, and `day_report_2026-08-17.md:49` ("Guard ships green at
+45/0", which `day_halt.md` itself calls false) is corrected in place.
+
+**Matrix: killed=9 survived=0 unscorable=0, control GREEN at 74/0 first.** Guard
+68 → 74 assertions.
