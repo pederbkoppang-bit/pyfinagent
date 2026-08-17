@@ -35826,3 +35826,53 @@ Artifacts: `contract_86.94.md`, `research_brief_86.94_cycle4.md`,
 `experiment_results_86.94.md`, `evaluator_critique_86.94.md`,
 `live_check_86.94.md`. Filed: **86.104** (section-[1] known-member gate does not
 discriminate). Status stays `pending` -- no step was flipped without a PASS.
+
+## Cycle 215 -- 2026-08-17 -- phase=86.97 result=CONDITIONAL
+
+**PARKED because the day's TOKEN CEILING (rail R3) was exceeded -- 4,585,189 of
+4,500,000, measured -- NOT because the attempt cap ran out. One attempt of three
+remained.** Two Q/A cycles today (4 and 5); verdicts across the step: CONDITIONAL,
+CONDITIONAL, FAIL, CONDITIONAL, CONDITIONAL.
+
+**Research**: gate PASSED (`wf_aeceef87-d82`, 6 sources, 26 URLs). It sharpened
+the diagnosis past the park note: the `:305` assertion was not weak but **VACUOUS**
+-- `reason=` is a literal in the writer's format string, so `"reason=" in log_text`
+holds for every non-empty line the writer can emit and is strictly subsumed by the
+"a line was written" check above it.
+
+**Generate**: the decision is now asserted as DATA -- `(bump, reason,
+created_done, transitioned_done)` compared by exact equality across **five**
+scenarios, against a table derived from the hook's branch structure BEFORE
+anything was driven. Cycle 3 drove 1 of the 9 reason states and pinned 0 values.
+`unrecorded` is a standing negative control. `live_check_86.91.md:104`, the last
+unbounded carrier of the criterion-4 claim, is bounded in place.
+Guard **35 -> 57 assertions**.
+
+**Evaluate**: **all 7 immutable criteria MET and independently re-executed at both
+cycles.** The cycle-5 evaluator re-derived the 9 reason states site-for-site,
+reproduced every mutation cell digit for digit, confirmed the production hook
+md5-identical after ~15 mutant runs, and verified my N-7 equivalence proof two
+ways rather than accepting it. Capped on three WARN findings, all mine, all
+reproduced, all fixed POST-VERDICT and therefore UNGRADED:
+
+- **W1** `experiment_results_86.97.md:185` still carried *"if it were deleted the
+  hook would fail"* -- measured rc=0, the hook writes `bump=minor
+  reason=unrecorded`. That sentence was the original PARK blocker, and cycles 4-5
+  ADDED J1/N-1 while leaving it standing. **Replaced.**
+- **W2** a LIVE non-equivalent survivor: `_flip_magnitude()`'s phase-emptied
+  branch had **no scenario at all**. "Spanning all four bump magnitudes" was true
+  of observed VALUES and false as BRANCH coverage. Fifth scenario added; cell N-8
+  KILLED.
+- **W3** the "END-TO-END" drive was **silently truncated in every cycle** -- the
+  CHANGELOG fixture's separator did not match what the hook looks for, so the row
+  insert, the trim, the file write and the bash tail ran in ZERO drives. Fixed,
+  and the inference is now an ASSERTION (the drive checks the CHANGELOG actually
+  changed); restoring the old seed turns it RED against a green control.
+
+**The pattern across both of today's steps, stated plainly: the product is
+correct and my evidence prose drifts from it.** Every cap today was an artifact
+claim, never a product defect.
+
+Artifacts: `contract_86.97.md`, `research_brief_86.97_cycle4.md`,
+`experiment_results_86.97.md`, `evaluator_critique_86.97.md`,
+`live_check_86.97.md` (§J). Status stays `pending` -- no PASS, no flip.
