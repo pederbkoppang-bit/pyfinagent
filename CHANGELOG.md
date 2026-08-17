@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-17 | `651e1f78` | phase-86.78/86.37: cycle-5 -- the STEP-0 leak closed, comment trap killed, ASK #1 ratified |
 | 2026-08-17 | `936dc97e` | phase-86.37: cycle-4 verdict transcribed; false +3 attribution corrected by the evaluator's derivati |
 | 2026-08-17 | `660c2934` | phase-86.78: cycle-4 verdict recorded as mechanical FAIL; disjoint findings fixed |
 | 2026-08-17 | `b6a3f8e9` | phase-86.75: harness best-practice audit -- CLOSED by operator at the structural-CONDITIONAL boundar |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-17 | `33c47416` | phase-86.69: GENERATE -- the 61.2 guard ARMED by operator token, restart verified, measurement stage |
 | 2026-08-17 | `0ad90da4` | docs(session): record two rail breaches; fill S5 named-fix column; note operator's product-vs-eviden |
 | 2026-08-17 | `77f15b4d` | phase-86.72/86.78: the re-research leg wired + the consequence recorder computed |
-| 2026-08-17 | `1d9a360e` | phase-86.96: string-args dispatch-kill class -- PASS on first evaluation |
 
 ---
 
