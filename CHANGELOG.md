@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-18 | `085a7f2e` | phase-86.109: stop the freshness alarm paging from a dashboard poll; gate the notifier on the tradin |
 | 2026-08-17 | `8200283c` | phase-86.108: parse-failure ledger + derived dark-flag route; PARKED on the 3rd-CONDITIONAL rule |
 | 2026-08-17 | `9ec0de11` | chore: record 86.108's landed criterion 1 in the next-session goal |
 | 2026-08-17 | `d081cd85` | chore: correct commit 471f6e26 -- its message was corrupted by shell backticks |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-17 | `b9be4bdf` | phase-86.37: dropped-gate survival -- PASS on cycle 6 |
 | 2026-08-17 | `07e33d18` | phase-86.79: F5 actually landed -- the em-dash title defeated the first anchor |
 | 2026-08-17 | `2dbe09d4` | phase-86.79: cycle 5 -- prior_attempts staleness rule, effective-text pins, floor 59 |
-| 2026-08-17 | `26d840c9` | phase-86.37: cycle 6 -- the lost attribution fix landed with write-after-replace ordering |
 
 ---
 
+### v6.93.236 — phase-86.109: stop the freshness alarm paging from a dashboard poll;... (2026-08-18)
+
+- **phase-86.109: stop the freshness alarm paging from a dashboard poll; gate the notifier on the tradin**
 ### v6.93.235 — phase-86.28: tier-honest research gate -- PASS on cycle 7; THE HARNES... (2026-08-17)
 
 - **phase-86.28: tier-honest research gate -- PASS on cycle 7; THE HARNESS-REPAIR CORE IS CLOSED**
