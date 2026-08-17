@@ -36065,3 +36065,20 @@ effective text at a floor that catches skipped blocks. The counter was a
 live witness to its own fix: today's evaluators' staleness cross-checks ran
 on the corrected operand. Six-cycle arc: C, C, rail-drop, C, mechanical
 FAIL, PASS. R1-R3 ride the transcribed verdict for the residual queue.
+
+## Cycle 1242 -- 2026-08-17 -- phase=86.78 result=PASS
+
+**Step:** 86.78 -- the judge was told the consequence of its own verdict.
+**PASS on cycle 7** (all six criteria MET on independent re-derivation; the
+locator-decoy regress ended by the DRIVEN Object.keys assertion -- semantics
+no lexical game can evade, proven against the evaluator's own decoy with the
+runtime guard neutered and a no-op control green). What shipped across the
+arc: the consequence-blinded architecture live on every spawn (73/73
+envelopes nested, caller-computed, fail-closed), the two-level exposure
+census with the rail's own STEP-0 leak found and closed, the computed
+judge_was_told_consequence recorder with its first live measurements, the
+framed-PASS re-grade queue with real landing places, and both law-of-the-case
+safeguards (one implemented, one declined with the reason). Seven-cycle arc:
+C, C, rail-drop, C, mechanical FAIL, C, C, PASS -- with the attempt gate at
+5/5, this PASS arrived on the last budgeted attempt. R1 (container-not-
+contents one-liner) and R2 ride the transcribed verdict.
