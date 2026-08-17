@@ -36168,3 +36168,40 @@ Two of its other criteria are visibly working on live data: all six rows carry
 a persisted risk verdict **including `0.0` for the three REJECTs** (baseline
 was 0 of 129), and the completion line now carries its ticker. Parked with
 `escalation_86.74_starved_criterion.md`.
+
+## Cycle 1247 -- 2026-08-17 -- phase=86.108 result=PARKED (3rd-CONDITIONAL rule)
+
+**Step:** 86.108 -- 2,859 structured-output parse failures across all pipeline
+agents. **All six immutable criteria MET** per the cycle-3 evaluator ("the
+product is sound under 28 executed mutation cells" -- its 11 plus my 17,
+reproduced independently). Parked because the verdict sequence reached
+`[CONDITIONAL, CONDITIONAL, CONDITIONAL]`, so the next pass returns FAIL by
+rule regardless of evidence. Not re-spawned; `escalation_86.108_third_conditional.md`
+carries the operator decision. Attempts 4 of 5.
+
+**Shipped.** A parse-failure ledger makes every unparseable agent output a
+countable RECORD (agent verbatim, kind, site, model, rail, rail_basis) at four
+emit sites, replacing a free-text log line that needed four separate
+corrections to interpret and could not attribute a transport at all. A
+read-only `GET /api/settings/flags` closes the dark-flag observability gap over
+a **derived** population of **168** -- not the 7 the step named -- reporting
+each flag's in-force value beside `.env` with a computed `divergent`, and
+admitting only bool/int/float so no secret can enter by construction. Criterion
+1's per-event rail split was established as **not derivable** in the CONTRACT
+rather than discovered mid-GENERATE; an era bucket ships for history and the
+rail is measured from the model on every new event.
+
+**The three cycles are the lesson, and none of the findings was a product
+defect.** Cycle 1: my rail read a global flag, not the transport -- with the
+flag on, every Gemini-served failure was stamped `claude_code`. Cycle 2: the
+fix relocated the defect one seam upstream and I built every new guard at the
+old seam; a hardcoded-model mutant SURVIVED 29/29. Cycle 3: my completeness
+guard was a BLACKLIST, so two AST-legal mutants survived it. Each time the
+guard stopped exactly one level short of the defect. Matrix now **19/19**, 37
+tests, and cells M13-M19 all exist because an evaluator executed a mutation I
+had not written.
+
+**Filed:** 86.112 (stale `effortLevel` test), 86.113 (pre-existing `debate.py`
+F401), 86.114 (the fabricated `APPROVE_REDUCED at 3% NAV`). **Not in force:**
+both new routes 404 on pid 41635 (positive control: `/latency` 200); restart
+batched to session end. No flag promoted, no `.env` written.

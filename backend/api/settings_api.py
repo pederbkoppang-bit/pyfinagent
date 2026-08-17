@@ -416,6 +416,42 @@ async def get_all_settings(settings: Settings = Depends(get_settings)):
     return result
 
 
+@router.get("/flags")
+def get_gated_flags(only: Optional[str] = None):
+    """phase-86.108 (criterion 4): the LIVE value of every operator-gated flag.
+
+    `GET /api/settings/` is filtered by `response_model=FullSettings` to 45
+    fields; `Settings` has 264. Everything in that difference -- including
+    every dark flag the harness must check before claiming a change is live --
+    had no read path at all. This route is that read path.
+
+    For each flag it reports `in_force` (what the RUNNING process holds) beside
+    `env_file` (what `backend/.env` currently says). When they disagree the
+    change is committed and NOT running, which is precisely the state this
+    project's "committed is not in force" rule exists to catch.
+
+    **Deliberately NOT cached and deliberately NOT `response_model`-filtered.**
+    Both would reintroduce the failure being measured: a cached answer can be
+    stale, and a response model would silently drop new flags -- the endpoint
+    would then under-report exactly the flags nobody remembered to declare.
+
+    Read-only. No `.env` is written here and no flag is promoted; the population
+    admits only bool/int/float fields, so no secret-bearing string can appear.
+
+    Args:
+        only: optional comma-separated field names. Unknown names come back
+            under `requested_but_unknown` rather than being silently dropped.
+    """
+    from backend.config.gated_flags import gated_flag_report
+
+    names = [p.strip() for p in only.split(",") if p.strip()] if only else None
+    try:
+        return gated_flag_report(only=names)
+    except Exception as exc:  # fail-open, but never silently
+        logger.error("phase-86.108: gated-flag report FAILED: %r", exc)
+        raise HTTPException(status_code=500, detail=f"gated-flag report failed: {exc!r}")
+
+
 @router.put("/", response_model=FullSettings)
 async def update_settings(body: SettingsUpdate):
     """Update any configurable settings by writing to .env and clearing cache."""

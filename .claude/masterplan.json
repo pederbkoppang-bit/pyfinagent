@@ -26207,6 +26207,85 @@
             "live_check": "live_check_86.100.md carrying the unharnessed run's output beside the harnessed one, the per-step diff evidence for the cycle-1 claim, the count of findings the unharnessed run missed, and the keep/prune recommendation with its evidence"
           },
           "notes": "Filed 2026-08-16 at the operator's request. Cross-references 40.3.1 (deferred, release-triggered) -- keep both; the triggers are different and neither subsumes the other. Uses the existing harness-self-audit workflow, which is structurally report-only by tool restriction. This step is the one most likely to be answered 'keep everything', and its criteria are written so that is a legitimate close."
+        },
+        {
+          "id": "86.111",
+          "priority": "P2",
+          "status": "pending",
+          "harness_required": true,
+          "name": "Google Trends (alt_data) signal reads UNAVAILABLE on 64% of full-path analyses in the last 30 days, far above the '90%+ suppression' the 24h in-process cache's docstring assumes -- AND a separate, confirmed bug leaves the flat alt_data_signal/alt_data_momentum_pct BQ columns empty on 100% of autonomous-loop-persisted rows, same defect shape as the summary-column fix shipped earlier this session",
+          "audit_basis": "Operator flagged the literal graceful-degradation message (backend/tools/alt_data.py:100-103, \"Google Trends rate-limited (429) for this IP; treating as missing signal (not an error).\") during the 2026-08-17 reports-UI session and asked for it to be queued, not fixed inline. MEASURED the same day via BigQuery over financial_reports.analysis_results, analysis_date >= 30 days ago (142 rows): the FLAT alt_data_signal column is empty/NULL on 142/142 rows (100%) -- confirmed by grep that backend/services/autonomous_loop.py (the actual autonomous-loop writer, via _persist_analysis) contains ZERO references to 'alt_data' anywhere in the file, so it never passes alt_data_signal/alt_data_momentum_pct into bq.save_report(...), unlike backend/tasks/analysis.py:293-294 which does. This is the identical defect SHAPE to the final_summary/summary-column bug fixed earlier in this same session (autonomous_loop.py's writer under-populating flat columns that the API-triggered writer populates) -- not yet confirmed whether anything downstream reads these two flat columns. Separately, of the 131/142 rows carrying the NESTED path $.final_synthesis.enrichment_signals.alt_data.signal (the full-analysis path), 84 (64.1%) read 'UNAVAILABLE' with reason 'google_trends_429', and all 84 of those also carry '429' literally in the signal's summary text -- i.e. this measured 64% IS the rate of the message the operator quoted. backend/tools/alt_data.py's own docstring assumes 'the cache suppresses 90%+ of live calls, staying well under Google's observed ~200/day per-IP quota' at 500 tickers/day; a 64% miss rate is far outside that assumption. Read (not yet measured) as a candidate explanation: the cache (_CACHE, alt_data.py:29) is a bare in-process module-level dict with NO persistence layer (no disk/Redis/BQ backing), so its effective TTL is bounded by process uptime, not by the intended 24h -- and this project restarts its backend routinely (CLAUDE.md's 'batch backend restarts to session end' policy implies restarts recur regularly, not never). A second, independent candidate: pytrends' upstream repo has been archived since April 2025 per this same file's own docstring, so Google's anti-scraping posture may have hardened past what any client-side cache can route around. Neither candidate is confirmed; both are stated here as hypotheses for the investigation to test, not as findings -- per this project's measure-don't-assert convention.",
+          "verification": {
+            "success_criteria": [
+              "the 142-row / 100%-flat-empty / 64.1%-UNAVAILABLE measurement is REPRODUCED by execution at the time this step is actually worked, with the query and its verbatim output shown -- numbers will have moved since 2026-08-17 (more rows will exist); reproducing the PATTERN (flat column near-100% empty, UNAVAILABLE rate well above the docstring's implied <10%) is what matters, not an exact match to today's counts",
+              "the process-restart hypothesis is tested, not assumed: measure actual com.pyfinagent.backend restart frequency over the measurement window (launchd/handoff logs) and cross-reference against whether UNAVAILABLE incidents cluster shortly after a restart. State plainly whether this confirms, partially explains, or refutes the hypothesis -- a refutation is a valid, useful outcome and must be recorded as such, not treated as a dead end",
+              "the flat-column bug is FIXED by wiring alt_data_signal and alt_data_momentum_pct into _persist_analysis's bq.save_report(...) call, mirroring the summary-column fix already shipped in backend/services/autonomous_loop.py this session -- OR, if a grep proves no downstream consumer ever reads either flat column, the fix is explicitly declined and that grep's verbatim output is the evidence, never a silent no-op",
+              "a decision is made and RECORDED, with the evidence gathered above (not before it), among: (a) add a persistent cache layer so the mitigation survives process restarts, (b) lengthen the TTL or lower the pytrends call rate further, (c) replace Google Trends with a different alt-data source, or (d) accept the current availability rate as the acceptable cost of a free best-effort signal and ship only the flat-column fix. A step that fixes the column but silently skips this decision does not close",
+              "if a cache/mitigation change ships, it is MUTATION-TESTED: a mutant that reverts the flat-column fix must be caught by re-running the measurement query and observing the flat-empty rate return to ~100%; a mutant that defeats the new mitigation must be caught by the UNAVAILABLE rate returning toward 64%",
+              "no claim in the live_check artifact is asserted without the query or command that produced it shown verbatim"
+            ],
+            "command": "python -c \"import ast; ast.parse(open('backend/tools/alt_data.py').read())\"",
+            "live_check": "live_check_86.111.md carrying: the reproduced BQ measurement (query + verbatim output), the restart-frequency cross-reference and its verdict, the flat-column fix (or the grep proving no consumer exists), the recorded decision among the four options above with its supporting evidence, and the mutation-test results if code changed"
+          },
+          "notes": "Filed 2026-08-17 at the operator's explicit request ('we need to investigate this later in our masterplan'), mid-session while restoring the /reports UI. The quoted message is the INTENDED graceful-degradation text (backend/tools/alt_data.py:15-17: 'sustained 429 surfaces as signal: UNAVAILABLE (not ERROR) so the 12-signal aggregator treats it as a missing-but-not-broken signal') -- what's being queued is the RATE at which that degradation fires (measured 64%, far above the design assumption) and a smaller, already-confirmed side-bug (flat BQ columns always empty) found while measuring it. Related: this same session's summary-column fix in backend/services/autonomous_loop.py::_persist_analysis is the identical defect shape and is the reference pattern for the fix here."
+        },
+        {
+          "id": "86.112",
+          "priority": "P3",
+          "status": "pending",
+          "harness_required": true,
+          "name": "test_phase_40_2 pins effortLevel=='xhigh' but the operator raised .claude/settings.json to 'max' on 2026-08-04 -- the test is stale, the config is correct, and it has been the only red in every adjacent regression sweep since",
+          "audit_basis": "FILED 2026-08-17 by step 86.108, which hit it in every regression sweep it ran and did NOT fix it (a step must not repair unrelated files under its own name). MEASURED: backend/tests/test_phase_40_2_claude_code_v2_1_140_features.py::test_phase_40_2_settings_json_still_valid_json_after_edit asserts parsed.get('effortLevel') == 'xhigh'; .claude/settings.json holds 'max'. CLAUDE.md's effort-policy section records the operator raising Main from xhigh to max on 2026-08-04 during the phase-83 planning session, so the CONFIG is the intended state and the TEST encodes a superseded invariant. `git status --short .claude/settings.json` is empty, so no working-tree edit is involved. The test imports none of 86.108's changed modules (grep count 0).",
+          "verification": {
+            "command": "bash -c 'source .venv/bin/activate && python -m pytest backend/tests/test_phase_40_2_claude_code_v2_1_140_features.py -q'",
+            "success_criteria": [
+              "the current value is READ from .claude/settings.json and reported, rather than assumed from CLAUDE.md prose -- state the command",
+              "the operator's intent is established from a dated source (the CLAUDE.md effort-policy paragraph and/or the commit that changed the value), not inferred from the fact that the test is red",
+              "the fix updates the TEST to the intended invariant and does not change .claude/settings.json -- a red test must never be resolved by editing the config it guards",
+              "the guard still fails if effortLevel is absent or is not one of the documented tiers, demonstrated by mutation with the control observed GREEN first"
+            ],
+            "live_check": "live_check_86.112.md with the read value, the dated intent source, and the mutation cell"
+          },
+          "notes": "Trivial in size, real in effect: it is the only red in the adjacent regression sweep, so it masks any NEW red that lands in the same selection."
+        },
+        {
+          "id": "86.113",
+          "priority": "P3",
+          "status": "pending",
+          "harness_required": true,
+          "name": "backend/agents/debate.py:16 imports typing.Callable and never uses it -- a pre-existing F401 that makes the ruff gate exit 1 on every step whose derived scope includes debate.py",
+          "audit_basis": "FILED 2026-08-17 by step 86.108. MEASURED and proven PRE-EXISTING three ways by that step's cycle-3 evaluator: `uvx ruff check --select F821,F401,F811 backend/agents/debate.py` exits 1 with 'F401 typing.Callable imported but unused'; the same command on `git show HEAD:backend/agents/debate.py` reproduces it; and the Callable occurrence count is 1 in both HEAD and the worktree, so no edit introduced or removed a use. 86.108 deliberately did NOT fix it -- a step should not quietly repair unrelated lines under its own name -- and instead carried a permanently non-zero lint gate.",
+          "verification": {
+            "command": "bash -c 'uvx ruff check --select F821,F401,F811 backend/agents/debate.py'",
+            "success_criteria": [
+              "the import is confirmed unused by a reference search over the whole file, not by trusting ruff alone -- state the command and its output",
+              "the fix removes the import rather than adding a noqa, unless a reason to keep it is found and stated",
+              "the ruff gate over a DERIVED scope (git diff --name-only HEAD UNION git ls-files --others) exits 0 afterwards, shown verbatim",
+              "no behaviour changes: the module still imports and the debate suite still passes, shown verbatim"
+            ],
+            "live_check": "live_check_86.113.md with the reference search, the post-fix derived-scope ruff run, and the suite output"
+          },
+          "notes": "Cosmetic on its own, but it keeps a project-wide quality gate red, which trains readers to ignore it."
+        },
+        {
+          "id": "86.114",
+          "priority": "P2",
+          "status": "pending",
+          "harness_required": true,
+          "name": "risk_debate._judge_parse_fail_fallback fabricates APPROVE_REDUCED at 3% NAV when the Risk Judge's response is unparseable and paper_risk_judge_parse_fail_reject is OFF -- a fabricated verdict on the money path",
+          "audit_basis": "FILED 2026-08-17 by step 86.108 as its ASK-2, deliberately NOT fixed there because flipping a risk default is a behaviour change needing its own step and its own operator decision. The function is at backend/agents/risk_debate.py::_judge_parse_fail_fallback and was left byte-untouched by 86.108 (confirmed by that step's evaluator against the diff). With the flag OFF, an unparseable judge response -- the exact failure class 86.108 made countable -- becomes an APPROVE at 3% NAV rather than a refusal. 86.108's own census shows Risk Judge invalid-JSON lines are a real, recurring population (314 in the filed split), so this path is exercised, not theoretical.",
+          "verification": {
+            "command": "bash -c 'source .venv/bin/activate && python -c \"import ast; ast.parse(open(\\\"backend/agents/risk_debate.py\\\").read()); print(\\\"parses\\\")\"'",
+            "success_criteria": [
+              "the CURRENT behaviour on BOTH flag states is reproduced by driving the real function, not by reading it -- show the returned verdict for each",
+              "how often this path actually fires is MEASURED from the parse-failure ledger and/or the log census, with the population rule stated -- do not assume it is rare or common",
+              "any change to the default is presented as an operator decision with the blast radius stated in both directions (a refusal blocks a trade; an approval sizes one), and is NOT promoted by this step",
+              "whatever ships, an unparseable judge response must remain LOUD and countable -- the 86.108 ledger record must still be produced",
+              "mutation-test every new guard with the control observed GREEN first and a byte-identical restore"
+            ],
+            "live_check": "live_check_86.114.md with the both-flag-states reproduction, the measured firing rate with its denominator, and the mutation matrix"
+          },
+          "notes": "Money path. 86.108 made the failure countable; this step decides what the system should DO about it."
         }
       ]
     }

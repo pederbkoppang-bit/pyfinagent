@@ -33,6 +33,11 @@ from backend.agents.compaction import (
     compact_trace_summary,
 )
 from backend.agents.llm_client import GeminiClient, LLMClient, get_model_max_input_chars
+from backend.agents.parse_failure_ledger import (
+    KIND_PARSE_FAILED,
+    KIND_SCHEMA_VALID_BUT_REJECTED,
+    record_parse_failure,
+)
 from backend.agents.schemas import DevilsAdvocateResult, ModeratorConsensus
 
 _DEBATE_GEN_CONFIG = {"temperature": 0.0, "top_k": 1, "max_output_tokens": 1536}
@@ -53,6 +58,11 @@ _MODERATOR_STRUCTURED_CONFIG = {
 from backend.config import prompts
 
 logger = logging.getLogger(__name__)
+
+# phase-86.108: the emit-site identifier carried on every ledger record from
+# this module. A literal, not `__name__`, so the four sites stay distinguishable
+# even if a module is ever re-exported under another name.
+_LEDGER_SITE = "debate.py:_parse_json"
 
 
 def _generate_with_retry(model: LLMClient, prompt: str, agent_name: str, max_retries: int = 3,
@@ -111,6 +121,18 @@ def _generate_with_retry(model: LLMClient, prompt: str, agent_name: str, max_ret
                 raise
 
 
+def _effective_model_name(declared: str, model) -> Optional[str]:
+    """phase-86.108: the model name the call ACTUALLY used.
+
+    Mirrors `_generate_with_retry`'s own `model_name or model.model_name`
+    resolution, so the rail recorded on a parse-failure record is derived from
+    the same string the routing decision was made on. Returns None when neither
+    source has a name -- `resolve_rail` then records `unknown` with a stated
+    basis rather than guessing a transport.
+    """
+    return declared or getattr(model, "model_name", None) or None
+
+
 def _clean_json(text: str) -> str:
     text = text.strip()
     if text.startswith("```"):
@@ -119,13 +141,25 @@ def _clean_json(text: str) -> str:
     return text.strip()
 
 
-def _parse_json(text: str, label: str) -> Optional[dict]:
+def _parse_json(text: str, label: str, model_name: Optional[str] = None) -> Optional[dict]:
+    # phase-86.108: the legacy warning below is KEPT verbatim so the existing
+    # census (scripts/qa/census_invalid_json_86_108.py) still matches; the
+    # ledger call beside it is what makes the failure a countable RECORD
+    # carrying an agent, a site and the rail in force. Recording never changes
+    # what this function returns.
     try:
         data = json_io.loads(text)
-        return data if isinstance(data, dict) else None
     except json.JSONDecodeError:
         logger.warning(f"{label} returned invalid JSON, using raw text")
+        record_parse_failure(label, KIND_PARSE_FAILED, site=_LEDGER_SITE, model_name=model_name)
         return None
+    if not isinstance(data, dict):
+        record_parse_failure(
+            label, KIND_SCHEMA_VALID_BUT_REJECTED, site=_LEDGER_SITE,
+            detail=f"parsed to {type(data).__name__}, not dict", model_name=model_name,
+        )
+        return None
+    return data
 
 
 def run_debate(
@@ -276,7 +310,8 @@ def run_debate(
                                              cost_tracker=cost_tracker, model_name=general_model_name,
                                              gen_config=_DA_STRUCTURED_CONFIG)
         da_text = _clean_json(da_response.text) if da_response else ""
-        da_result = _parse_json(da_text, "Devil's Advocate")
+        da_result = _parse_json(da_text, "Devil's Advocate",
+                                model_name=_effective_model_name(general_model_name, model))
         if not da_result:
             da_result = {
                 "challenges": [da_text[:1500]],
@@ -321,7 +356,9 @@ def run_debate(
     moderator_text = _clean_json(moderator_response.text) if moderator_response else ""
 
     # Try to parse moderator output as structured JSON
-    debate_result = _parse_json(moderator_text, "Moderator")
+    debate_result = _parse_json(moderator_text, "Moderator",
+                                model_name=_effective_model_name(
+                                    deep_think_model_name or general_model_name, _moderator_model))
 
     if debate_result:
         debate_result.setdefault("bull_case", {"thesis": bull_text, "confidence": 0.5})

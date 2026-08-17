@@ -104,4 +104,32 @@ def get_observability_latency(
     }
 
 
+@router.get("/parse-failures")
+def get_observability_parse_failures(
+    limit: int = Query(50, ge=0, le=500),
+) -> dict[str, Any]:
+    """phase-86.108: the in-process parse-failure ledger, read-only.
+
+    This is the countable half of criterion 3. Before it, an agent's
+    unparseable output existed only as a free-text log line, which is why the
+    step's own census needed four corrections to interpret 2,859 of them and
+    still could not attribute a single one to a transport.
+
+    Read `records_seen` (a monotonic COUNTER), never `records_retained` (a
+    ring-buffer GAUGE that can go down). `reconciles` being false means the
+    two disagree and the numbers should not be trusted.
+
+    Deliberately NOT cached: this endpoint exists so an operator can read what
+    the RUNNING process has seen, and a cached answer is the same
+    committed-is-not-in-force lie it was built to detect.
+    """
+    from backend.agents.parse_failure_ledger import snapshot as _snapshot
+
+    try:
+        return _snapshot(limit=limit)
+    except Exception as exc:  # fail-open, but never silently
+        logger.error("observability: parse-failure snapshot FAILED: %r", exc)
+        return {"error": repr(exc), "records_seen": None, "available": False}
+
+
 __all__ = ["router"]

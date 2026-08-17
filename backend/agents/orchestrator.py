@@ -41,6 +41,7 @@ from backend.agents.cost_tracker import CostTracker
 from backend.agents.debate import run_debate
 from backend.agents.llm_client import GeminiClient, LLMClient, LLMResponse, get_model_max_input_chars, make_client
 from backend.agents.conflict_detector import detect_conflicts
+from backend.agents.parse_failure_ledger import KIND_PARSE_FAILED, record_parse_failure
 from backend.agents.info_gap import detect_info_gaps, retry_critical_gaps
 from backend.agents.memory import (
     FinancialSituationMemory,
@@ -70,6 +71,10 @@ from backend.tools import (
 )
 
 logger = logging.getLogger(__name__)
+
+# phase-86.108: emit-site identifier for the parse-failure ledger. See
+# backend/agents/parse_failure_ledger.py.
+_LEDGER_SITE = "orchestrator.py:_parse_json_with_fallback"
 
 # Sector-aware tool skipping map. Tools listed for a sector are skipped in Step 6.
 # This saves compute for sectors where certain enrichment signals are uninformative.
@@ -305,7 +310,28 @@ def bq_rows_to_search_results(
     return out
 
 
-def _parse_json_with_fallback(json_string: str, agent_name: str) -> Optional[dict]:
+def _client_model_name(client) -> Optional[str]:
+    """phase-86.108: the model a client reports, as a NAMED unit.
+
+    The three synthesis-loop call sites originally wrote
+    `getattr(self.deep_think_client, "model_name", None)` inline. A Q/A pointed
+    out that an inline expression at a call site is a seam no unit test can
+    reach, and that a mutant hardcoding it would silently reinstate the rail
+    misattribution this step exists to remove. Naming it makes it testable;
+    `test_every_parse_call_site_forwards_a_model_name` additionally rejects a
+    LITERAL in that argument position, so hardcoding is caught at any call site
+    whether or not a driver reaches it.
+    """
+    return getattr(client, "model_name", None) or None
+
+
+def _parse_json_with_fallback(json_string: str, agent_name: str,
+                              model_name: Optional[str] = None) -> Optional[dict]:
+    # phase-86.108: legacy warning kept verbatim (the census matches it); the
+    # ledger call beside it makes the failure a countable record. Note the
+    # double-decode arm below -- a string that json-decodes to another string --
+    # can itself raise, which is why the record is taken in the except block
+    # that already covers both.
     try:
         data = json_io.loads(json_string)
         if isinstance(data, str):
@@ -313,6 +339,7 @@ def _parse_json_with_fallback(json_string: str, agent_name: str) -> Optional[dic
         return data
     except json.JSONDecodeError:
         logger.warning(f"{agent_name} returned invalid JSON")
+        record_parse_failure(agent_name, KIND_PARSE_FAILED, site=_LEDGER_SITE, model_name=model_name)
         return None
 
 
@@ -1597,7 +1624,9 @@ class AnalysisOrchestrator:
             critic_text = _clean_json_output(_extract_text(critic_response))
 
             # Parse structured Critic verdict
-            critic_result = _parse_json_with_fallback(critic_text, "Critic")
+            critic_result = _parse_json_with_fallback(
+                critic_text, "Critic",
+                model_name=_client_model_name(self.deep_think_client))
 
             # phase-75.4 (gap5-03): an unparseable critic response used to be silently
             # upgraded to PASS -- the quality gate DISAPPEARED rather than failed
@@ -1621,7 +1650,9 @@ class AnalysisOrchestrator:
                     is_deep_think=True, generation_config=critic_retry_config,
                 )
                 critic_text = _clean_json_output(_extract_text(critic_response))
-                critic_result = _parse_json_with_fallback(critic_text, "Critic-Retry")
+                critic_result = _parse_json_with_fallback(
+                    critic_text, "Critic-Retry",
+                    model_name=_client_model_name(self.deep_think_client))
 
             if not critic_result:
                 logger.warning(
@@ -1678,7 +1709,9 @@ class AnalysisOrchestrator:
             draft_text = _clean_json_output(_extract_text(revision_response))
 
         # Fallback: parse whatever we have
-        final_data = _parse_json_with_fallback(draft_text, "Synthesis-Final")
+        final_data = _parse_json_with_fallback(
+            draft_text, "Synthesis-Final",
+            model_name=_client_model_name(self.synthesis_client))
         if final_data:
             final_data["synthesis_iterations"] = synthesis_iterations
             final_data["critic_degraded"] = critic_degraded

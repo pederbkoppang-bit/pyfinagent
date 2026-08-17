@@ -86,8 +86,17 @@ import re
 from typing import Any, Optional
 
 from backend.utils import json_io
+from backend.agents.parse_failure_ledger import (
+    KIND_PARSE_FAILED,
+    KIND_SCHEMA_VALID_BUT_REJECTED,
+    KIND_TRUNCATED,
+    record_parse_failure,
+)
 
 logger = logging.getLogger(__name__)
+
+# phase-86.108: emit-site identifier for the parse-failure ledger.
+_LEDGER_SITE = "llm_parse.py:parse_llm_json"
 
 
 def clean_json_output(text: str) -> str:
@@ -104,6 +113,7 @@ def parse_llm_json(
     label: str,
     *,
     text: Optional[str] = None,
+    model_name: Optional[str] = None,
 ) -> tuple[Optional[dict], bool]:
     """Parse an LLM response as JSON, reporting truncation instead of retrying.
 
@@ -113,6 +123,12 @@ def parse_llm_json(
             loses truncation detection, which is the whole point of this helper.
         label: agent name for logging.
         text: optional pre-extracted/cleaned text overriding `response.text`.
+        model_name: phase-86.108 -- the model that served the call, used to
+            resolve the transport on a parse-failure record. Omitted -> the
+            record says `rail=unknown` with a stated basis rather than
+            guessing. NOTE this helper still has no production callers (the
+            rewiring is masterplan step 75.5.5), so today the parameter exists
+            for surface uniformity with the three wired emit sites.
 
     Returns:
         `(parsed_dict_or_None, degraded)`.
@@ -147,9 +163,26 @@ def parse_llm_json(
             )
         else:
             logger.warning("%s returned invalid JSON, using raw text", label)
+        # phase-86.108: TRUNCATED and PARSE_FAILED are recorded as different
+        # kinds because their remedies differ -- one is an output budget, the
+        # other is a malformed reply. Collapsing them is how a rate gets
+        # attributed to the wrong cause.
+        record_parse_failure(
+            label,
+            KIND_TRUNCATED if truncated else KIND_PARSE_FAILED,
+            site=_LEDGER_SITE,
+            detail=f"stop_reason={getattr(response, 'stop_reason', None)!r}" if truncated else "",
+            model_name=model_name,
+        )
         return None, truncated
 
     if not isinstance(data, dict):
+        # Valid JSON, rejected by this helper's dict contract. Recorded under a
+        # distinct kind so a schema/prompt remedy is not credited for fixing it.
+        record_parse_failure(
+            label, KIND_SCHEMA_VALID_BUT_REJECTED, site=_LEDGER_SITE,
+            detail=f"parsed to {type(data).__name__}, not dict", model_name=model_name,
+        )
         return None, truncated
 
     # Marking a SUCCESSFUL parse degraded is intentional: truncated JSON can still

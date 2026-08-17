@@ -29,10 +29,18 @@ from google.api_core import exceptions as gcp_exceptions
 
 from backend.agents.cost_tracker import CostTracker
 from backend.agents.llm_client import LLMClient
+from backend.agents.parse_failure_ledger import (
+    KIND_PARSE_FAILED,
+    KIND_SCHEMA_VALID_BUT_REJECTED,
+    record_parse_failure,
+)
 from backend.agents.schemas import RiskAnalystArgument, RiskJudgeVerdict
 from backend.config import prompts
 
 logger = logging.getLogger(__name__)
+
+# phase-86.108: emit-site identifier for the parse-failure ledger. See debate.py.
+_LEDGER_SITE = "risk_debate.py:_parse_json"
 
 _RISK_GEN_CONFIG = {"temperature": 0.0, "top_k": 1, "max_output_tokens": 1024}
 _JUDGE_GEN_CONFIG = {"temperature": 0.0, "top_k": 1, "max_output_tokens": 1536}
@@ -107,6 +115,18 @@ def _generate_with_retry(model: LLMClient, prompt: str, agent_name: str, max_ret
                 raise
 
 
+def _effective_model_name(declared: str, model) -> Optional[str]:
+    """phase-86.108: the model name the call ACTUALLY used.
+
+    Mirrors `_generate_with_retry`'s own `model_name or model.model_name`
+    resolution, so the rail recorded on a parse-failure record is derived from
+    the same string the routing decision was made on. Returns None when neither
+    source has a name -- `resolve_rail` then records `unknown` with a stated
+    basis rather than guessing a transport.
+    """
+    return declared or getattr(model, "model_name", None) or None
+
+
 def _clean_json(text: str) -> str:
     text = text.strip()
     if text.startswith("```"):
@@ -115,13 +135,24 @@ def _clean_json(text: str) -> str:
     return text.strip()
 
 
-def _parse_json(text: str, label: str) -> Optional[dict]:
+def _parse_json(text: str, label: str, model_name: Optional[str] = None) -> Optional[dict]:
+    # phase-86.108: see debate.py:_parse_json -- legacy warning kept verbatim so
+    # the census still matches; the ledger call makes the failure a countable
+    # record. Recording never changes the return value, which matters more here
+    # than anywhere else because this module feeds the risk gate.
     try:
         data = json_io.loads(text)
-        return data if isinstance(data, dict) else None
     except json.JSONDecodeError:
         logger.warning(f"{label} returned invalid JSON, using raw text")
+        record_parse_failure(label, KIND_PARSE_FAILED, site=_LEDGER_SITE, model_name=model_name)
         return None
+    if not isinstance(data, dict):
+        record_parse_failure(
+            label, KIND_SCHEMA_VALID_BUT_REJECTED, site=_LEDGER_SITE,
+            detail=f"parsed to {type(data).__name__}, not dict", model_name=model_name,
+        )
+        return None
+    return data
 
 
 def _judge_parse_fail_fallback(judge_text: str) -> dict:
@@ -293,15 +324,18 @@ def run_risk_debate(
         })
 
     # Parse final round results
-    aggressive_result = _parse_json(_clean_json(aggressive_text), "Aggressive Analyst")
+    aggressive_result = _parse_json(_clean_json(aggressive_text), "Aggressive Analyst",
+                                    model_name=_effective_model_name(general_model_name, model))
     if not aggressive_result:
         aggressive_result = {"position": aggressive_text[:1500], "confidence": 0.5, "max_position_pct": 5}
 
-    conservative_result = _parse_json(_clean_json(conservative_text), "Conservative Analyst")
+    conservative_result = _parse_json(_clean_json(conservative_text), "Conservative Analyst",
+                                      model_name=_effective_model_name(general_model_name, model))
     if not conservative_result:
         conservative_result = {"position": conservative_text[:1500], "confidence": 0.5, "max_position_pct": 1}
 
-    neutral_result = _parse_json(_clean_json(neutral_text), "Neutral Analyst")
+    neutral_result = _parse_json(_clean_json(neutral_text), "Neutral Analyst",
+                                 model_name=_effective_model_name(general_model_name, model))
     if not neutral_result:
         neutral_result = {"position": neutral_text[:1500], "confidence": 0.5, "max_position_pct": 3}
 
@@ -334,7 +368,9 @@ def run_risk_debate(
                                            gen_config=_JUDGE_STRUCTURED_CONFIG,
                                            thinking_budget=_judge_thinking_budget)
     judge_text = _clean_json(judge_response.text) if judge_response else ""
-    judge_result = _parse_json(judge_text, "Risk Judge")
+    judge_result = _parse_json(judge_text, "Risk Judge",
+                               model_name=_effective_model_name(
+                                   deep_think_model_name or general_model_name, _judge_model))
     if not judge_result:
         judge_result = _judge_parse_fail_fallback(judge_text)
 
