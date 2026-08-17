@@ -283,7 +283,11 @@ Recall test: both members named in the masterplan note are found
 carrier: a `grep -cE "reach(es|ed)? the detector|pre-detector|bash exit|recursion
 guard|86\.97"` over that file returned **0**. Its heading is now bounded **in
 place** — *"every decision THAT REACHES THE DETECTOR explains itself"* — with the
-reason stated, not appended. The same grep now returns **5**.
+reason stated, not appended. That grep now returns **4** (matching *lines*); the
+`-o | wc -l` form returns **5** (matching *strings*), because line 112 carries
+two. Cycle 4 first reported 5 for the `-c` form, which is wrong, and the 5 came
+from a pattern carrying an extra alternative I did not quote — see
+`live_check_86.97.md` §J2.
 
 ### The commits-vs-lines gap, re-derived at execution time (criterion 1)
 
@@ -326,3 +330,16 @@ after every run.
 
 **Guard: 35 → 48 assertions.** No criterion reinterpreted; no verdict semantics
 touched; no masterplan step flipped.
+
+---
+
+## Cycle-4 Q/A remediation
+
+All 7 immutable criteria were recorded MET and independently re-executed; the
+verdict capped on three quality findings, all reproduced and all fixed:
+`bump` was parsed but asserted nowhere (the evaluator's surviving mutant is now
+cell N-6, KILLED); a grep figure did not reproduce under the command it named
+(4 lines / 5 matches, and my 5 came from an unquoted pattern variant); and two
+superseded blocks are now marked in place. N-7 is disclosed as an EQUIVALENT
+mutant with the structural proof. Guard 35 -> 48 -> 52 assertions. Full record:
+`live_check_86.97.md` §J5.

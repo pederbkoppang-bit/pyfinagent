@@ -1,7 +1,6 @@
 # live_check — phase-86.97
 
-**STATUS: COMPLETE.** Every block below is verbatim tool output from this
-session, complete and unelided.
+**STATUS: COMPLETE.** *(Sections are CHRONOLOGICAL — §H cycle 2, §I cycle 3, §J cycle 4. Blocks in earlier sections are verbatim output OF THEIR OWN CYCLE; the three that a later cycle changed are marked SUPERSEDED in place. The "verbatim tool output" promise below is per-section, not per-file.)* session, complete and unelided.
 
 ---
 
@@ -168,7 +167,7 @@ looks identical to "nothing to do".
 
   ok   [3] the real hook runs to completion in a temp repo
   ok   [3] a decision line is WRITTEN TO THE FILE (the observable effect, not an extracted namespace)
-  ok   [3] the decision line carries a reason
+  ok   [3] the decision line carries a reason      <-- SUPERSEDED BY §J1: this assertion was VACUOUS and is DELETED
   ok   [3] ISOLATION after the baseline drive: the real repo's decision log is untouched
   ok   [3] recursion guard: an auto-changelog commit exits 0
   ok   [3] recursion guard: and writes NO decision line (the BOUND, measured)
@@ -252,7 +251,7 @@ unrelated subjects (pytest-subprocess, the harness cycle index, Bolt listeners).
 
 ```
 bash -n .claude/hooks/post-commit-changelog.sh   parses
-verify_decision_log_86_97.py                     ALL GREEN: 35 passed, 0 failed
+verify_decision_log_86_97.py                     ALL GREEN: 35 passed, 0 failed   <-- SUPERSEDED BY §J: now 52
 verify_changelog_flip_86_91.py                   ALL GREEN: 42 passed, 0 failed
 verify_workflow_args_boundary.mjs                ALL GREEN: 96 passed, 0 failed
 verify_research_gate_workflow.mjs                ALL GREEN: 124 passed, 0 failed
@@ -405,7 +404,7 @@ re-implementation would be testing a copy, not the guard.
   ok   [5] isolation-check: KILLED -- a corrupted snapshot makes it report FALSE
   ok   [5] isolation-check CONTROL: the true snapshot still reports TRUE
 
-ALL GREEN: 35 passed, 0 failed
+ALL GREEN: 35 passed, 0 failed   <-- SUPERSEDED BY §J: now 52
 ```
 
 Note the two paired assertions on the isolation check. Cycle 2's version of this
@@ -487,7 +486,25 @@ means the detector never ran.
 `live_check_86.91.md:104` read *"every decision now explains itself"*; that file
 contained **zero** bounding language (`grep -c` = 0). The heading now reads
 *"every decision THAT REACHES THE DETECTOR explains itself"* with the reason
-stated in place, not appended. The same grep now returns **5**.
+stated in place, not appended.
+
+**FIGURE CORRECTED (cycle-4 Q/A).** I wrote "the same grep now returns 5"; the
+command I quoted returns **4**. `grep -c` counts matching LINES, and line 112
+carries two matches, so the honest statement is **5 matches across 4 lines** --
+and the 5 came from a *different* pattern I actually ran (it carried an extra
+`REACHES THE DETECTOR` alternative that the quoted pattern does not). Quoting one
+pattern and reporting a count from another is the same defect that capped 86.94
+three times. Both forms, verbatim:
+
+```
+$ grep -cE "reach(es|ed)? the detector|pre-detector|bash exit|recursion guard|86\.97" handoff/current/live_check_86.91.md
+4
+$ grep -oE "reach(es|ed)? the detector|pre-detector|bash exit|recursion guard|86\.97" handoff/current/live_check_86.91.md | wc -l
+5
+```
+
+The substantive property is unchanged and is the one that matters: that file had
+**0** such references before this cycle and has them now.
 
 Swept by claim class, **seeded from `night_diagnostics.md:51`** — an artifact I
 did not write for this purpose — rather than from my own phrasing. Cycle 3
@@ -531,3 +548,58 @@ production hook is verified byte-identical after each run.
 - Four of nine reason states are driven, not all nine. `masterplan_unreadable_at_HEAD`,
   `first_commit`, `detector_error:<Type>` and `flip_created_and_transitioned`
   remain undriven — stated as a bound rather than implied to be covered.
+
+
+### J5. CYCLE-4 Q/A REMEDIATION — a field I parsed and never asserted
+
+The cycle-4 Q/A returned **CONDITIONAL with all 7 immutable criteria MET and
+independently re-executed**, and capped on three findings. All three reproduce.
+
+**1. `bump` was parsed and asserted by nothing.** The evaluator executed
+`return "minor"` → `return "patch"` in `_flip_magnitude()`'s kickoff branch and it
+**SURVIVED at 48/0**: `DECISION_RE` captured `bump`, `parse_decision` returned it,
+and no assertion read it — while my own artifacts said the 4-tuple was "compared
+by exact equality". `bump` is now pinned in all four scenarios, and that mutant is
+cell **N-6**, now KILLED.
+
+**2. A figure that did not reproduce under the command it names.** Corrected in
+§J2 above: `grep -c` returns 4 (lines), the `-o | wc -l` form returns 5
+(matches). My 5 came from a pattern carrying an alternative I never quoted — the
+same *pattern-quoted-≠-derivation-used* defect that capped 86.94 three times.
+
+**3. Superseded blocks left un-annotated.** §E:171 and the two `35 passed` lines
+are now marked **SUPERSEDED in place**, and the header's "verbatim tool output"
+promise is scoped per-section rather than per-file.
+
+```
+  rc=0   ALL GREEN: 52 passed, 0 failed
+  CONTROL GREEN.
+--- N-1 delete the _flip_magnitude() call (hook :214)
+    KILLED   rc=1  FAILED: 44 passed, 8 failed
+--- N-2 never record a reason (force the :267 .get default)
+    KILLED   rc=1  FAILED: 46 passed, 6 failed
+--- N-3 swap flip_created / flip_transitioned
+    KILLED   rc=1  FAILED: 50 passed, 2 failed
+--- N-4 subject-major branch stops recording its reason
+    KILLED   rc=1  FAILED: 50 passed, 2 failed
+--- N-6 kickoff magnitude minor -> patch (the Q/A's surviving Q1 mutant)
+    KILLED   rc=1  FAILED: 51 passed, 1 failed
+--- N-7 subject classifier phase-X.0 magnitude minor -> patch
+    *** SURVIVED ***  rc=0  ALL GREEN: 52 passed, 0 failed
+  rc=0  ALL GREEN: 34 passed, 0 failed
+  SURVIVED, as required -- without [3a] the same mutant is invisible.
+killed=5  survived=1  unscorable=0  of 6
+N-5 attribution control: OK
+production hook byte-identical after the run: True
+```
+
+**N-7 is an EQUIVALENT mutant, and that is proven rather than asserted.** It
+mutates the *subject* classifier's `phase-X.0 → minor` rule at `:81`. That value
+is unobservable: `bump_type = classify_commit(...)` at `:95` is **unconditionally
+overwritten** at `:213-214` (`if bump_type != "major": bump_type =
+_flip_magnitude()`) before its first read at `:278`, so only `major` survives
+that assignment. It is reported as a survivor rather than hidden, and scored as
+equivalent rather than silently re-aimed — it surfaced because my first N-6 anchor
+matched `:81` instead of the kickoff branch.
+
+**Guard: 35 → 48 → 52 assertions.**

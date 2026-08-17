@@ -381,24 +381,38 @@ _MP_CREATED = ('{"phases": [{"steps": ['
                '{"id": "98.0", "status": "done"}, '
                '{"id": "98.1", "status": "pending"}]}]}')
 
+# `bump` IS PINNED TOO, and it was not in cycle 4's first draft. The cycle-4 Q/A
+# executed `return "minor"` -> `return "patch"` in _flip_magnitude()'s kickoff
+# branch and it SURVIVED at 48/0: DECISION_RE captured bump, parse_decision
+# returned it, and no assertion read it. A field that is parsed but never
+# asserted is decoration, and the artifacts had already described the tuple as
+# "compared by exact equality". The magnitudes below are derived from the
+# documented rule (major if the flip emptied a whole top-level phase, minor if
+# the step is the phase kickoff `X.0`, patch otherwise; an explicit `!` subject
+# forces major on its own authority) and each seed is chosen to land on exactly
+# one of them.
 SCENARIOS = [
-    # (label, subject, before_mp, after_mp, expected reason, expected created,
-    #  expected transitioned)
+    # (label, subject, before_mp, after_mp, expected bump, reason, created,
+    #  transitioned)
     ("no_flip -- masterplan unchanged",
-     "feat: a real change", _MP_PENDING, _MP_PENDING, "no_flip", "-", "-"),
+     "feat: a real change", _MP_PENDING, _MP_PENDING, "none", "no_flip", "-", "-"),
+    # 99.1 closes while sibling 99.2 stays pending -> phase not emptied, and
+    # 99.1 is not a `.0` kickoff -> patch.
     ("flip_transitioned -- 99.1 pending -> done",
-     "phase-99.1: close it", _MP_PENDING, _MP_FLIPPED, "flip_transitioned", "-", "99.1"),
+     "phase-99.1: close it", _MP_PENDING, _MP_FLIPPED, "patch", "flip_transitioned", "-", "99.1"),
+    # 98.0 IS a kickoff, and sibling 98.1 stays pending -> minor, not major.
     ("flip_created -- 98.0 appears already done",
-     "phase-98.0: file and close", _MP_PENDING, _MP_CREATED, "flip_created", "98.0", "-"),
+     "phase-98.0: file and close", _MP_PENDING, _MP_CREATED, "minor", "flip_created", "98.0", "-"),
     # The ONLY reason set outside _flip_magnitude() (:216). It is the scenario
     # the :214 mutant must NOT disturb, which is what makes the pair
     # discriminating rather than a single tripwire.
     ("subject_forced_major -- a `!` subject",
-     "feat!: breaking change", _MP_PENDING, _MP_PENDING, "subject_forced_major", "-", "-"),
+     "feat!: breaking change", _MP_PENDING, _MP_PENDING, "major", "subject_forced_major", "-", "-"),
 ]
 
 _observed: dict[str, dict] = {}
-for _label, _subj, _bmp, _amp, _exp_reason, _exp_created, _exp_trans in SCENARIOS:
+for (_label, _subj, _bmp, _amp, _exp_bump, _exp_reason, _exp_created,
+     _exp_trans) in SCENARIOS:
     _rc, _log, _err = drive(HOOK_SRC, _subj, _bmp, _amp)
     _d = parse_decision(_log)
     _observed[_label] = {"rc": _rc, "decision": _d}
@@ -411,6 +425,11 @@ for _label, _subj, _bmp, _amp, _exp_reason, _exp_created, _exp_trans in SCENARIO
               "presence of a line)",
               _d.get("reason") == _exp_reason,
               f"expected {_exp_reason!r}, got {_d.get('reason')!r} in {_d!r}")
+        check(f"[3a] {_label}: bump == {_exp_bump!r} (the MAGNITUDE, which cycle 4 "
+              "parsed and then asserted nowhere -- a `minor`->`patch` mutant "
+              "survived at 48/0)",
+              _d.get("bump") == _exp_bump,
+              f"expected bump={_exp_bump!r}, got {_d.get('bump')!r} in {_d!r}")
         check(f"[3a] {_label}: created_done == {_exp_created!r} and "
               f"transitioned_done == {_exp_trans!r}",
               _d.get("created") == _exp_created and _d.get("transitioned") == _exp_trans,
