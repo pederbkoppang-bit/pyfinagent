@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-17 | `8ccfc287` | phase-86.85: verdict ledger + 3rd-CONDITIONAL rail -- CLOSED by operator authorization at the attemp |
 | 2026-08-17 | `afea9e27` | phase-86.85: PARK at the attempt ceiling -- criteria 1-7 MET, c8 WARN-level meta-predicate vacuity q |
 | 2026-08-17 | `214673b1` | phase-86.71: wire the cumulative attempt budget at the Workflow origin -- PASS on cycle 5/5 |
 | 2026-08-17 | `c90910ef` | phase-86.84: cycle 11 GENERATE -- non-comment-line pin + rendered/cross-checked unclassified aggrega |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-17 | `fca21bc6` | phase-86.94: correct a FALSE criterion-4 judgement and make a dead probe detectable |
 | 2026-08-17 | `88d7d84c` | phase-86.94: bind the criterion-4 claim to a measurement, cover the fail-closed branch |
 | 2026-08-17 | `30b64a89` | docs(preflight): record 2026-08-17 preflight deviation -- 86.94 guard 44/1, self-referential drift |
-| 2026-08-17 | `c4b84e4e` | docs(session): overnight day report + regenerated goal_next |
 
 ---
 
+### v6.93.225 — phase-86.85: verdict ledger + 3rd-CONDITIONAL rail -- CLOSED by opera... (2026-08-17)
+
+- **phase-86.85: verdict ledger + 3rd-CONDITIONAL rail -- CLOSED by operator authorization at the attemp**
 ### v6.93.224 — phase-86.71: wire the cumulative attempt budget at the Workflow origi... (2026-08-17)
 
 - **phase-86.71: wire the cumulative attempt budget at the Workflow origin -- PASS on cycle 5/5**
