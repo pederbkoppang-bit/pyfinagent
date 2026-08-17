@@ -36082,3 +36082,30 @@ safeguards (one implemented, one declined with the reason). Seven-cycle arc:
 C, C, rail-drop, C, mechanical FAIL, C, C, PASS -- with the attempt gate at
 5/5, this PASS arrived on the last budgeted attempt. R1 (container-not-
 contents one-liner) and R2 ride the transcribed verdict.
+
+## Cycle 1243 -- 2026-08-17 -- phase=86.28 result=PASS
+
+**Step:** 86.28 -- the research gate certified at a standard the caller did
+not ask for. **PASS on cycle 7** (all nine criteria re-derived by execution;
+the pre-step baseline independently reproduced in a mirrored tree; the
+evaluator's own 22-mutant battery: zero survivors). What shipped across the
+arc: requested-vs-applied tier reporting in the RETURN VALUE with the
+unsupported-tier violation, the deep-tier divergence held open as an
+operator decision, brief-on-disk corroboration of recency and URL claims,
+and the [7b] driver-level permanent mutant matrix -- the step whose own
+8-attempt history is the F1b regression fixture quoted in CLAUDE.md, now
+fully mirrored in the verdict ledger (the omitted drop row added at
+closure per the evaluator's R4). R1-R5 ride the transcribed verdict.
+
+**THIS CLOSES THE HARNESS-REPAIR CORE.** Fifteen harness steps closed today:
+86.71, 86.85, 86.84, 86.90, 86.96, 86.21, 86.72, 86.75, 86.37, 86.79,
+86.78, 86.28 (twelve by verdict or operator authority in this session's
+drain), plus the armed 86.69 money fix, the banked 86.105 contract, and the
+live F2 research-routing loop. Every Layer-3 mechanism is now live and
+mutation-proven: attempt budget, verdict ledger, 3rd-CONDITIONAL rail,
+consequence blinding with a computed recorder, turn-cap removal with
+committed re-measurement, drop survival on both rails, the re-research
+router, byte-verbatim criteria transport, and the in-flight counter every
+evaluator quotes. Next per the operator's standing directive: switch Main
+to Opus and put the working harness on the money path (86.69 measurement
+tonight, 86.74's starved row, 75.11.4 -> 86.105, then the phase-86 tail).

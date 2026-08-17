@@ -185,3 +185,60 @@ can no longer pass; the absent-branch label is asserted directly.
 
 40 -> 61 -> 64 -> 73 -> 78 -> 92, 0 failed. Production code unchanged since
 cycle 3.
+
+
+---
+
+## Cycle 7 -- verdict TRANSCRIBED VERBATIM (2026-08-17, Workflow rail `wf_f2d3e348-a93`)
+
+**VERDICT: PASS** (ok=true). All NINE criteria re-derived by execution: the 40/0 baseline independently reproduced by running checker+workflow at the pre-step commit in a mirrored tree; symmetric difference 0-removed/84-added baseline->HEAD; the tier machinery driven with field-identity to the live run record on all 10 keys; the [7b] permanent matrix all KILLED today; 22 of the evaluator's own mutants (open-direction, fail-closed-direction, fixture-drift, label-drift, harness) with ZERO survivors and a disclosed near-miss (a crash first read as '0 checks red' -- the probe indicted itself). Five queue-class residuals: R1 stale artifact headlines (92/'six cycles'), R2 the growth attribution off by this step's own 92->97 slice, R3 a byte-identity sentence outlived by 11 other-step commits, R4 the backfill omitted the cycle-7 drop (FIXED at closure with the named run id), R5 no standing mutant cells for the positive controls. None a criterion miss; none hides a defect.
+
+> Transcribed verbatim. Main records the verdict; Main never authors it.
+
+```json
+{
+  "ok": true,
+  "verdict": "PASS",
+  "reason": "All 9 immutable criteria MET, each re-derived by execution rather than read. C1: immutable command exit=0, ALL GREEN 124 passed/0 failed (run twice); the 40/0 baseline INDEPENDENTLY REPRODUCED by running the checker+workflow both at 089726f9 in a mirrored tree; symmetric difference of check NAMES baseline->HEAD = 0 removed/84 added, and at 86.28's own close (d2e987f1) = 97/0 with 0 removed; 29/29 literal-named baseline assertions byte-identical at HEAD and all 6 baseline [7] mutant cells retained (+3 added), so nothing was deleted or weakened. C2: driven, not scanned -- today's driver at tier:'deep' spawns 0 agents and returns tier_requested/tier_applied/tier_supported + a tier_unsupported violation, FIELD-IDENTICAL on all 10 compared keys to the live run record wf_23d9ed4b-22c; ABSENT still spawns, defaults to moderate, reports tier_requested null, raises no violation. C3: VALID_TIERS=['simple','moderate','complex'], every 'deep' occurrence is a comment, only two await agent() sites (stage1 researcher + stage2 verifier) so no fan-out; divergence disclosed in live_check S7 as an operator decision. C4: both corroborations run inside the EXISTING stage-2 verifier and derive from the file (verifyBrief reads recency_section_present and distinct_urls_in_brief from disk); fail-closed preserved across 7 verification shapes driven directly through enforceGate (undefined/null/string/array/number/true/{}). C5: the [7b] DRIVER-level matrix is permanent (4 driver mutants + 1 fixture mutant, anchor-uniqueness asserted per cell), all KILLED in today's run and recorded verbatim -- the cycle-5 NOT-MET is closed. C6: opts.floors and coverage.dry byte-identical to baseline, reasons recorded. C7: researcher.md, CLAUDE.md and the code all say agentType:'researcher', CLAUDE.md's self-contradiction retracted in place, checker asserts the pin. C8: all rider assertions green in [8]. C9: post-change live spawn verified against the run record itself (status completed), and I proved it still describes today's shipped behaviour by driving today's file. ANTI-RUBBER-STAMP: I ran 22 of my own mutants -- 7 open-direction production, 7 fail-closed-direction, 3 fixture-tier-drift, 1 label-drift, 4 fixture/harness -- with the control re-verified GREEN (124/0) before every batch: ZERO survivors, each kill attributed to a named guard. The fixture and harness shapes qa.md says the author's own matrix historically misses (H1/H2/H3/H4) all make the suite go red, so the fixtures and the spawn recorder are load-bearing. One near-miss worth recording: my C7 mutant first read as \"0 checks red\" -- it was a CRASH, not a survivor; the probe indicted itself. Harness compliance clean 5/5 (brief 08:38:58 < contract 09:09:12 < first code commit 09:26:39; gate recomputed live by wf_60de95f7-5dc at 7>=5 sources / 34>=10 URLs / recency_scan_ok; experiment_results present; 0 rows for phase=86.28 in harness_log and masterplan still pending; evidence changed in commit 3315546c and the prior spawn was a NO_VERDICT drop, so this is not verdict-shopping). No unintended production change: 86.28's six commits touch only research-gate.js, the checker, researcher.md, CLAUDE.md, its own handoff artifacts and verdict_ledger.jsonl; secret scan 0 hits; node --check green on both files. FIVE RESIDUALS, all evidence-quality only, named for QUEUEING rather than iteration per the operator directive in force: (R1) experiment_results_86.28.md still states \"Current: 92 passed, 0 failed\" and \"Six evaluate cycles\" -- stale against this step's own delivery (97) and today's tree (124); the criterion's designated evidence carrier, live_check, is current and dated. (R2) live_check's closing sentence attributes the whole 92->124 growth to other steps; the true other-step span is 97->124 (27 checks, 0 removed, independently re-derived by me), because 92->97 was this step's own cycle-7 fix documented directly above it. (R3) live_check S5's \"HEAD is byte-identical to it\" no longer reproduces -- research-gate.js went 40,582 -> 65,098 bytes across 11 commits by OTHER steps since 86.28's freeze; I re-measured the substance and it holds. (R4) the ledger backfill carries 7 rows and omits the cycle-7 drop wf_e03ec2d0-c07 that live_check S9 documents in detail (its source table omits it too, as CLAUDE.md itself notes). (R5) the positive-control checks have no STANDING mutant cell; I demonstrated them killable ad hoc (C1-C5, F1a/F1b/F1c, F2, F3) but the checker does not carry those cells permanently. None of the five hides a defect, none is a criterion miss, and none changed a number the criteria depend on.",
+  "violated_criteria": [],
+  "violation_details": [],
+  "certified_fallback": false,
+  "checks_run": [
+    "immutable_verification_command_exit_0_124_passed",
+    "immutable_command_rerun_stability",
+    "baseline_40_0_independently_reproduced_at_089726f9",
+    "symmetric_difference_check_names_baseline_vs_head_0_removed",
+    "symmetric_difference_check_names_86_28_close_vs_head_0_removed",
+    "baseline_assertion_bodies_byte_identical_29_of_29",
+    "baseline_mutant_table_retained_6_of_6",
+    "independent_mutation_matrix_22_mutants_zero_survivors",
+    "fixture_and_harness_mutation_H1_H4",
+    "fail_closed_direction_mutants_C1_C9",
+    "fixture_tier_drift_mutants_F1a_F1b_F1c",
+    "b1_mutant_builds_and_spawns_not_a_build_failure_kill",
+    "fail_closed_on_7_verification_shapes",
+    "live_workflow_run_record_verified_wf_23d9ed4b_22c",
+    "today_driver_field_identical_to_live_return_10_keys",
+    "criterion_3_valid_tiers_and_no_fanout",
+    "criterion_6_floors_and_coverage_dry_untouched",
+    "criterion_7_doc_drift_grep_researcher_claude_qa",
+    "criterion_8_rider_assertions_green",
+    "harness_compliance_5_item_audit",
+    "research_gate_envelope_and_live_recompute",
+    "log_last_and_masterplan_status",
+    "git_scope_86_28_committed_file_set",
+    "python_lint_gate_ruff_F821_F401_F811",
+    "node_check_both_files",
+    "secret_scan_over_step_diff",
+    "qa_wip_prior_attempt_evidence",
+    "verdict_ledger_sequence_evidence_only",
+    "code_review_heuristics",
+    "evaluator_critique",
+    "experiment_results",
+    "live_check"
+  ],
+  "harness_compliance_ok": true,
+  "research_needed": false,
+  "notes": "SEQUENCE EVIDENCE (gathered, not applied -- any threshold is the caller's). `python scripts/qa/verdict_history_86_21.py --step 86.28 --evidence-only`: status=ok, \"7 verdict(s) from the ledger\", sequence CONDITIONAL -> CONDITIONAL -> NO_VERDICT -> FAIL -> CONDITIONAL -> CONDITIONAL -> NO_VERDICT. Carried through as-is, NO_VERDICT rows included. `python scripts/qa/qa_wip.py 86.28 --spawned-at 2026-08-17T15:39:38Z`: source_present=true, attempt_number=1, attempt_number_status=ok, attempt_number_is_lower_bound=false, prior_attempts=0, records_retained=1 (gauge, includes my own record), records_pruned_known=null, prior_records=[]. CROSS-CHECK per qa.md: prior_attempts (0) is NOT greater than the ledger's 7 rows, so the ledger is NOT stale by that rule. The divergence runs the OTHER way and is worth flagging: the WIP sink holds ZERO prior records for a step the ledger shows 7 verdicts for, and records_pruned_known is null, so the WIP attempt number for this step is an undercount of unknown size -- the ledger is the richer source here and I let it govern. Separately, the ledger's 7 rows were backfilled TODAY (commit 3315546c, recorded_at 15:39:07Z) as labelled reconstructions from the critique's own table, and they omit the cycle-7 drop wf_e03ec2d0-c07 that live_check S9 documents; CLAUDE.md's F1b fixture describes this series as 8 attempts. I did NOT infer verdicts from prior_records bodies. harness_log holds 0 rows for phase=86.28 (secondary cross-check only, and LOG runs after EVALUATE).\n\nWRITE-FIRST: `.claude/agent-memory/qa/verdicts/verdict_wip_86.28__20260817T153938Z.md`, born inert, appended through the run, flipped to COMPLETE with COMPLETED: 2026-08-17T15:55:57Z as my final act. It is a crash-survival record, not a verdict.\n\nWRITE BLOCK DISCLOSED: qa-write-guard.sh correctly denied a Write into the session scratchpad, so the mutation harness scripts were created with bash heredocs into the scratchpad only. NOTHING in the repository was written, moved or deleted at any point; every mutation ran against COPIES in /private/tmp/.../scratchpad/m3 with the control re-verified GREEN (124/0) before each batch, and HEAD was 36e42227 at the start and at the end.\n\nFOR MAIN, not a criterion finding: the auto-commit hook runs `git add -A`, and the working tree currently carries unrelated in-flight work (backend/api/sovereign_api.py, 5 frontend components, several audit jsonl streams, ~40 untracked agent-memory files). Flipping 86.28 to done right now would sweep all of it into a commit titled 86.28. Ruff F821/F401/F811 on the one changed .py is exit 0 (\"All checks passed!\"), so nothing is broken -- it is an attribution hazard, not a correctness one.\n\nNO UI CLAIMS in this step, so gate 1c does not apply and no Playwright capture was needed. No backend/** in the step's diff, so gate 1d does not apply. The step's own diff is .js/.mjs/.md only; the ruff gate was run on the DERIVED working-tree scope for transparency.\n\nThe five residuals in `reason` (R1-R5) are evidence-quality only. Stated explicitly per the operator directive of 2026-08-17: every criterion is substantively met and independently verified by execution, so these belong in a queued follow-up, not another remediation cycle on this step."
+}
+```
