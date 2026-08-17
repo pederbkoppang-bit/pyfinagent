@@ -116,12 +116,15 @@ $ grep -cE '^  (ok|FAIL) ' /tmp/rg37.txt
 124
 ```
 
-The three cycle-2 hardening items -- (a) parametrised drop-test over error
-shapes, (b) a driver-level happy-path assertion, (c) asserting the stage-1
-prompt/researcher.md still TEACH the born-inert marker -- remain queued as
-non-blocking residuals exactly as the cycle-2 Q/A graded them ("all
-fail-closed and none of them a criterion miss"); under the operator's
-product-vs-evidence directive (2026-08-17) they ride the residual queue
-rather than buying cycles. Note (a)'s substance is partly landed already:
-the SELECTIVE-CATCH / SELECTIVE-2 cells in item 5 kill the two measured
-evasion spellings.
+The three cycle-2 hardening items, RE-TRIAGED at cycle 5 against the
+cycle-4 Q/A's own measurements: (a) parametrised drop-test -- partly landed
+via the SELECTIVE-CATCH / SELECTIVE-2 cells, remainder queued; (b)
+driver-level happy-path assertion -- **CLOSED at HEAD and no longer queued**
+*(my cycle-4 re-queue of it was STALE: verify_research_gate_workflow.mjs:534
+drives the real driver asserting recovered.gate_passed === true, and the
+cycle-4 evaluator's own M6 mutant fails exactly that assertion, proving it
+load-bearing)*; (c) the born-inert TEACHING assert -- queued, and WIDENED by
+the cycle-4 evaluator's M9/M10 survivors to cover BOTH prompt halves
+(deleting the teaching from either the stage-1 or the stage-2 prompt leaves
+the checker 124/124 green today). (a)-remainder and (c) ride the residual
+queue per the operator's product-vs-evidence directive.
