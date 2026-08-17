@@ -35876,3 +35876,31 @@ claim, never a product defect.
 Artifacts: `contract_86.97.md`, `research_brief_86.97_cycle4.md`,
 `experiment_results_86.97.md`, `evaluator_critique_86.97.md`,
 `live_check_86.97.md` (§J). Status stays `pending` -- no PASS, no flip.
+
+## Cycle 1231 -- 2026-08-17 -- phase=86.71 result=PASS
+
+**Step:** 86.71 -- wire the cumulative attempt budget (attempt_budget.py had NO
+runtime caller and NO persistence). **Verdict: PASS on cycle 5 of 5** (rail-bound
+PASS-or-FAIL; the fifth counted attempt at the gate's own default ceiling).
+
+**What shipped:** `scripts/harness/attempt_gate.py` -- a PreToolUse hook on the
+Workflow matcher (.claude/settings.json:39). Counts on ATTEMPT into append-only
+`handoff/audit/attempt_budget_audit.jsonl`; denies at the ceiling (exit 2, zero
+tokens) with a written operator escalation + audited `--operator-extend`; PASS
+in the verdict ledger always allows (re-grades never budget-blocked);
+fail-open-but-loud per platform hook semantics; verdict-ledger read failures
+LOUD on stderr with the fail-closed direction stated. Self-test 17 checks;
+mutation matrix 9/9 KILLED incl. the evaluator's own V1/V2 mutants as permanent
+cells G8/G9; crash-guard sweeps all three hook drives.
+
+**Proof highlights (evaluator's own):** 12-process cross-session drive
+(1/5..5/5 then rc=2 DENY); production --status discriminates 86.71 5/5 ESCALATE
+vs 86.84 3/5 CONTINUE; 4,368-cell exhaustive sweep -- no non-PASS history ever
+closes; the gate counted the evaluator's OWN launch as production row 18,
+attempt_number_inclusive=5 -- three independent counters agree.
+
+**FAIL->C->C->C->PASS arc:** cycle-1 FAIL (non-discriminating matrix), cycles
+2-4 CONDITIONAL (capture discipline, tautological check, uncovered loud-swallow),
+cycle-5 PASS after the except branch was driven by a directory-ledger fixture.
+The loop this step exists to terminate terminated its own step: attempt 6 would
+have been denied by the gate it built.
