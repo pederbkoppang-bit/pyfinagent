@@ -35953,3 +35953,17 @@ evidence-class residuals (block-comment pin shape; same-source recount cell)
 ride to P3 step 86.107 per the operator's product-vs-evidence directive.
 Arc: C,C,C,C,F,NV,F,F,C,C,PASS across 11 graded cycles + 2 rail-killed
 attempts -- the very drop mechanism this step diagnosed.
+
+## Cycle 1235 -- 2026-08-17 -- phase=86.90 result=CONDITIONAL (CLOSED by operator resolution of 2026-08-17; final comment edit landed)
+
+**Step:** 86.90 -- the Q/A rail stringified nested evidence/extra to
+"[object Object]", so judges graded rebuilt evidence. Product fixed and
+verified in cycles 1-4 (render boundary + loud container guard, byte-identical
+across both workflow scripts); the F1 rail fired at the 3rd CONDITIONAL, the
+loop stopped, and the operator adjudicated CLOSE (product verified, evidence
+corrected by replacement, the three other reconstructed-evidence PASSes queued
+as 86.93). The last deliverable -- the sparse-array bound comment beside the
+container guard -- landed today, mirrored into research-gate.js per the
+byte-identical block design; checker family 113/124/96 green. Verdict record
+lives in evaluator_critique_86.90.md (pre-ledger vintage; sequence C,C,C,C +
+escalation FAIL + operator CLOSE).

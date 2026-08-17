@@ -217,6 +217,15 @@ function jsonLosslessViolation(value, path, seen) {
     return path + ' has Symbol-keyed properties (JSON drops them)'
   }
   if (Array.isArray(value)) {
+    // phase-86.90 closure bound, stated rather than implied: a SPARSE array
+    // (holes) passes this walk -- getOwnPropertyNames lists only existing
+    // indices, and the index loop below sees `undefined` at a hole, which
+    // JSON renders as null silently. The non-index-own-property case IS
+    // caught two lines down. Neither shape is JSON-CONSTRUCTIBLE (JSON.parse
+    // cannot produce a hole or an extra array property), and every launch
+    // path delivers args as JSON, so no path that exists today reaches the
+    // sparse case. If a non-JSON args channel is ever added, extend this walk
+    // first.
     for (const k of Object.getOwnPropertyNames(descs)) {
       if (k === 'length') continue
       if (!/^(0|[1-9][0-9]*)$/.test(k)) {

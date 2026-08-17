@@ -579,3 +579,18 @@ through JSON-derived args**. This one needs only a caller passing a string. My
 own diff shows I edited that exact expression to route the ELEMENTS through
 `renderArgField` and left the CONTAINER guard one line above untouched -- the
 "guards stop one seam short" shape, on the seam I was building.
+
+---
+
+## Closure edit landed (2026-08-17): the container-bound comment, mirrored per the byte-identical design
+
+The deferred closure edit is in: the sparse-array bound is stated AT the array
+branch of the lossless walk (qa-verdict.js), and -- because the walk lives in
+the delimited byte-identical phase-86.90 block that the runtime's no-import
+constraint forces into BOTH workflow files -- the block was mirrored verbatim
+into research-gate.js (10,601 bytes; checker section [6] re-green). The same
+edit pass landed 86.96's classifyArgs comment (same block, same mirror).
+Comment-only verified: `git diff` on both files shows insertions only, no
+executable line changed. Checker family after the edit: prompt-render 113/113,
+research-gate-workflow 124/124, args-boundary 96/96, `node --check` clean on
+both scripts.

@@ -72,6 +72,22 @@ export const meta = {
 //
 // `typeof` is MANDATORY -- a bare `args === undefined` raises ReferenceError
 // when the identifier is unbound, which is exactly the no-args case.
+//
+// phase-86.96 (the string-args failure class, recorded at the seam it kills):
+// most launches deliver `args` as a JSON STRING, not an object, and FOUR
+// historical dispatches died at this boundary -- all four in the same event
+// class: a string composed by an LLM with exactly one wrong bracket, and the
+// bisection showed substitution REPAIRS it (one character). The priming
+// mechanism (inference from two identically-shaped instances + literature,
+// stated as such in the 86.96 brief): criteria text quoted into the composed
+// string carries the `"},` idiom, which primes the composer to emit a
+// premature close. THE CONTRACT, therefore: launch with args as a REAL JSON
+// OBJECT in the tool call (object-first); the string path stays supported and
+// byte-verbatim for valid JSON, and an invalid string fails FAST here at
+// dispatch (0 tokens) rather than silently -- never "repair" it, a repaired
+// guess can grade the wrong step. Round-trip pinned by
+// scripts/qa/verify_prompt_render_86_90.mjs section [7] (byte-verbatim
+// criteria through BOTH paths, mangle-in-transit cells RED).
 function classifyArgs(bound, raw) {
   const describe = (v) => {
     let preview
@@ -177,6 +193,15 @@ function jsonLosslessViolation(value, path, seen) {
     return path + ' has Symbol-keyed properties (JSON drops them)'
   }
   if (Array.isArray(value)) {
+    // phase-86.90 closure bound, stated rather than implied: a SPARSE array
+    // (holes) passes this walk -- getOwnPropertyNames lists only existing
+    // indices, and the index loop below sees `undefined` at a hole, which
+    // JSON renders as null silently. The non-index-own-property case IS
+    // caught two lines down. Neither shape is JSON-CONSTRUCTIBLE (JSON.parse
+    // cannot produce a hole or an extra array property), and every launch
+    // path delivers args as JSON, so no path that exists today reaches the
+    // sparse case. If a non-JSON args channel is ever added, extend this walk
+    // first.
     for (const k of Object.getOwnPropertyNames(descs)) {
       if (k === 'length') continue
       if (!/^(0|[1-9][0-9]*)$/.test(k)) {
