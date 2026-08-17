@@ -176,7 +176,7 @@ discriminates is **lines that ARE a coerced field: 0**.
 | Question | Answer | How established |
 |---|---|---|
 | Does it have the same defect? | **YES, by construction** at `:236` (`'OBJECTIVE: ' + topic`) and `:245` (`'INTERNAL SCOPE: ' + internalScope`) | **By EXECUTION** -- §1c above, and re-runnably as section `[1]` of the checker |
-| Was it ever triggered? | **NO** -- 0 of 75 spawns carrying `OBJECTIVE: `, 0 of 72 carrying `INTERNAL SCOPE: ` | receipt scan over 507 agent prompts |
+| Was it ever triggered? | **NO** -- 0 coerced of 66 transcripts carrying `OBJECTIVE: `, 0 coerced of 66 carrying `INTERNAL SCOPE: ` *(measured 2026-08-17; population rule: every `*/subagents/workflows/*/agent-*.jsonl` under the project's `~/.claude/projects` tree whose FIRST user message contains the label; coerced = label immediately followed by `[object Object]`; 1,321 transcripts scanned)* | re-derived by command after the cycle-4 escalation found the old denominators (75 / 72, "507 agent prompts") did not reproduce -- the evaluator measured 72 / 59 under its own rule. Three rules, three denominators, one shared fact: **the numerators are 0 under every rule**, and the corpus grows daily, so only a denominator that states its rule is quotable |
 | Fixed? | **YES**, byte-identical block | section `[6]` asserts the two copies match |
 
 ---
@@ -267,9 +267,17 @@ $ node scripts/qa/verify_prompt_render_86_90.mjs
 ...
 [5] MUTATION -- reverting each guard must turn the section above RED (criterion 6)
 
+  ok   [5] restore-plus-concat: CONTROL is clean (expect() false on the UNMUTATED source)
   ok   [5] restore-plus-concat: KILLED (section [2] must go RED when the raw field is concatenated again)
+  ok   [5] restore-plus-concat (research-gate): CONTROL is clean (expect() false on the UNMUTATED source)
   ok   [5] restore-plus-concat (research-gate): KILLED (the research-gate copy must be doing the work too)
+  ok   [5] narrow-the-walk-back-to-Object.keys: CONTROL is clean (expect() false on the UNMUTATED source)
+  ok   [5] narrow-the-walk-back-to-Object.keys: KILLED (section [3] A2 must go RED when the walk stops seeing non-enumerable properties)
+  ok   [5] container-guard-reverted-to-silent-discard: CONTROL is clean (expect() false on the UNMUTATED source)
+  ok   [5] container-guard-reverted-to-silent-discard: KILLED (section [3b] must go RED when a wrong-shaped rubric is silently discarded again)
+  ok   [5] placeholder-instead-of-throw: CONTROL is clean (expect() false on the UNMUTATED source)
   ok   [5] placeholder-instead-of-throw: KILLED (section [3] must go RED when the throw becomes a silent placeholder)
+  ok   [5] identity-arg-accepts-objects: CONTROL is clean (expect() false on the UNMUTATED source)
   ok   [5] identity-arg-accepts-objects: KILLED (an object step id must not be allowed to reach a filename)
 
 [6] DUPLICATE INTEGRITY -- the Workflow runtime forbids imports, so the block is duplicated
@@ -278,8 +286,15 @@ $ node scripts/qa/verify_prompt_render_86_90.mjs
   ok   [6] research-gate.js: the block is present and delimited
   ok   [6] the two copies are BYTE-IDENTICAL
 
-ALL GREEN: 95 passed, 0 failed   (REGENERATED cycle 4)
+ALL GREEN: 95 passed, 0 failed
 ```
+
+*(cycle-5 correction, 2026-08-17: the block above is now the GENUINE tail of a
+live run -- `node scripts/qa/verify_prompt_render_86_90.mjs`, exit 0, run this
+morning. The previous revision showed 4 `KILLED` lines with no `CONTROL is
+clean` lines under a label saying "REGENERATED cycle 4" -- the escalation's
+"edited rather than regenerated" finding. A real `[5]` section emits 6 mutation
+cells, each preceded by its control observed clean on the unmutated source.)*
 
 Immutable command:
 
@@ -308,3 +323,34 @@ step: section `[3]` asserts a "healthy run" against
 born-inert `brief_status` marker phase-86.37 later made mandatory. Queued as a
 discovered defect; the worktree was removed after the measurement
 (`git worktree remove --force`).
+
+---
+
+## 9. Cycle-5 close-out (2026-08-17, operator-attended session)
+
+**Corrections applied this cycle, each by REPLACEMENT at the site that carried
+the wrong figure** (the four artifact-accuracy findings from the 2026-08-16
+escalation §3):
+
+1. §7's `[5]` block regenerated from a live run (was: 4 KILLED lines, 0 CONTROL
+   lines under a "REGENERATED" label; now: the genuine 6-cell tail, exit 0).
+2. `experiment_results_86.90.md` mutation table: the missing M6 container-guard
+   row added under the "6 cells" heading (heading was right, table was short).
+3. The "(REGENERATED cycle 3)" marker under a cycle-4 figure corrected.
+4. §5 denominators re-derived with an explicit population rule and command
+   (66 / 66 under the stated rule, 2026-08-17 corpus; numerators 0 / 0 under
+   every rule ever applied -- the claim that matters is rule-invariant).
+
+**The container-guard bound, stated (the escalation's remaining NOTE).** The
+`criteria` container guard refuses any non-array criteria value -- string,
+object, numeric-key object, number all THROW naming the field, executed in
+section `[3b]`. Its bound, now stated exactly as the prose-walk's bound is
+stated: a value that already IS an array but is not JSON-round-trippable -- a
+SPARSE array, or an array carrying a non-index own property -- passes
+`Array.isArray` and renders its JSON form silently (holes become `null`; the
+extra own property is dropped by `JSON.stringify`). Neither shape is
+constructible from JSON-parsed args, so this is unreachable from every launch
+path that exists today; it is the same non-JSON-reachable class as the disclosed
+Proxy hole in the prose walk. A future caller constructing such an array
+programmatically would get a silently normalised rubric rather than a refusal --
+that is the bound, and it is now written beside the guard it bounds.

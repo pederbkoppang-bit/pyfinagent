@@ -481,3 +481,42 @@ See `handoff/current/escalation_86.90_86.91.md`.
   "verdict_unmodified": true
 }
 ```
+
+---
+
+## Cycle 5 -- OPERATOR RESOLUTION OF THE ESCALATION (2026-08-17)
+
+The 2026-08-16 escalation recorded `[C, C, C, C]`, `would_auto_fail: true`,
+outcome "FAIL by escalation", and handed the decision to the operator. The
+operator reviewed it together with the independent external audit of the same
+morning (artifact d5539ae2) and delegated the resolution to the attended
+session with explicit consent. Resolution:
+
+**86.90 CLOSES as done.** Basis, in the escalation's own structure:
+
+1. **The product is verified.** Every immutable criterion was graded MET by the
+   cycle-4 Q/A on the shipped product; the fix was reproduced three ways
+   pre-fix, localised by execution (template GUILTY, marshalling and transport
+   INNOCENT), and the shipped code has not changed since cycle 1 while four
+   independent evaluators re-derived it. 86.86's PASS was re-graded on the
+   fixed rail and CONFIRMED (`wf_a09930e2-3d7`).
+2. **The four artifact-accuracy findings are corrected by REPLACEMENT** at the
+   sites that carried them (list + before/after in `live_check_86.90.md` §9 and
+   `experiment_results_86.90.md` cycle-5 notes): the [5] block is now a genuine
+   live-run tail with all 6 cells and their controls; the M6 row exists; the
+   stale cycle marker is gone; the denominators carry their population rule.
+3. **The remaining NOTE is discharged by stating the bound**, exactly as the
+   prose-walk bound is stated: sparse arrays and non-index-own-property arrays
+   pass the container guard and render their JSON form silently; neither shape
+   is JSON-constructible, so no launch path that exists today can reach it
+   (`live_check_86.90.md` §9; mirrored as a comment beside the container guard
+   in the closure commit).
+4. **Not silently absorbed:** the three other PASSes graded on reconstructed
+   evidence (85.5, 86.25, 86.34) remain queued as step 86.93, unchanged.
+
+**Why this is not verdict-shopping:** no fifth Q/A was spawned to overturn the
+streak. The F1 rail fired, the loop stopped, the operator adjudicated -- which
+is the rail's designed purpose. The verdict record for this step therefore
+reads: cycles 1-4 CONDITIONAL (transcribed above), escalation FAIL recorded
+2026-08-16, **operator resolution 2026-08-17: CLOSE, product verified, evidence
+corrected, residuals queued (86.93)**.

@@ -439,6 +439,102 @@ console.log('\n[6] DUPLICATE INTEGRITY -- the Workflow runtime forbids imports, 
   }
 }
 
+// ── [7] BYTE-VERBATIM CRITERIA ROUND-TRIP (phase-86.96) ─────────────────────
+// The immutable criteria must survive the caller->script->prompt path
+// byte-for-byte, on BOTH production args shapes, and a payload that cannot be
+// parsed must die LOUD at the boundary before any tokens are spent -- never be
+// repaired, defaulted, or have its text altered in transit (the 86.96 step
+// name records exactly that workaround happening once). The adversarial corpus
+// covers the shapes the 2026-08-16 kills and the parsed cycle-2 payloads
+// disagreed about: quotes, newlines, non-ASCII, and the `"},` bracket idiom.
+console.log('\n[7] BYTE-VERBATIM CRITERIA ROUND-TRIP -- phase-86.96 (criteria 4 + 6)\n')
+
+const ADVERSARIAL_CRITERIA = [
+  'has `backticks`, "double quotes" and a bash -c \'quoted\' command -- bash -c \'source .venv/bin/activate && echo "x"\'',
+  'line one\nline two\nline three (raw newlines inside one criterion)',
+  'non-ASCII: æ ø å ü ß -- 評価基準 -- naïve café',
+  'JSON-shaped: {"k": [1, 2]} plus the "}, close idiom and a stray } bracket',
+]
+// The MINIMAL failing input class from the 86.96 bisection: a `[` closed by
+// `}`. One character wrong (substitution repairs it; insertion does not).
+const BRACKET_DEFECT_PAYLOAD =
+  '{"step_id":"86.96","criteria":["c"],"extra":{"judge_these_specifically":["a","b"}}'
+
+{
+  const qaSrc = fs.readFileSync(SCRIPTS['qa-verdict.js'], 'utf8')
+  const argsObj = { step_id: '86.96', criteria: ADVERSARIAL_CRITERIA, verification_command: 'true' }
+
+  const rObj = await runDriver(qaSrc, argsObj)
+  check('[7] object args: script runs and spawns exactly one evaluator',
+        !rObj.threw && rObj.spawns.length === 1, rObj.threw || `spawns=${rObj.spawns.length}`)
+  const pObj = rObj.spawns.length ? String(rObj.spawns[0].prompt) : ''
+  ADVERSARIAL_CRITERIA.forEach((c, i) =>
+    check(`[7] object args: criterion ${i + 1} arrives BYTE-VERBATIM`, pObj.includes(c)))
+  const posO = ADVERSARIAL_CRITERIA.map((c) => pObj.indexOf(c))
+  check('[7] object args: criteria arrive IN ORDER',
+        posO.every((p, i) => p !== -1 && (i === 0 || p > posO[i - 1])), posO.join(','))
+
+  // The string path is 80.6% of production launches (census 2026-08-17:
+  // 390 parsing strings + 4 failing vs 95 objects over 585 records).
+  const rStr = await runDriverRaw(qaSrc, JSON.stringify(JSON.stringify(argsObj)))
+  check('[7] string args: script runs and spawns exactly one evaluator',
+        !rStr.threw && rStr.spawns.length === 1, rStr.threw || `spawns=${rStr.spawns.length}`)
+  const pStr = rStr.spawns.length ? String(rStr.spawns[0].prompt) : ''
+  ADVERSARIAL_CRITERIA.forEach((c, i) =>
+    check(`[7] string args: criterion ${i + 1} arrives BYTE-VERBATIM`, pStr.includes(c)))
+  check('[7] object and string paths render IDENTICAL prompt bytes', pObj === pStr,
+        `lengths ${pObj.length} vs ${pStr.length}`)
+
+  check('[7] fixture sanity: the bracket-defect payload does NOT parse',
+        (() => { try { JSON.parse(BRACKET_DEFECT_PAYLOAD); return false } catch (_e) { return true } })())
+  const rKill = await runDriverRaw(qaSrc, JSON.stringify(BRACKET_DEFECT_PAYLOAD))
+  check('[7] a malformed string payload dies LOUD at the boundary, spawning NOTHING',
+        rKill.threw !== null && /not parseable as JSON/.test(rKill.threw) && rKill.spawns.length === 0,
+        rKill.threw ? rKill.threw.slice(0, 100) : `spawns=${rKill.spawns.length}`)
+}
+
+// [7] mutation cells -- same three-outcome discipline as [5], control first.
+const MUTANTS7 = [
+  {
+    id: '7-classifyArgs-repairs-instead-of-refusing',
+    file: 'qa-verdict.js',
+    from: "    try { v = JSON.parse(v) } catch (_e) { fail('are PRESENT but not parseable as JSON', raw) }",
+    to: "    try { v = JSON.parse(v) } catch (_e) { v = { step_id: 'RECOVERED' } }",
+    expect: async (src) => {
+      const r = await runDriverRaw(src, JSON.stringify(BRACKET_DEFECT_PAYLOAD))
+      return !r.threw  // DETECTED iff the mutant silently proceeds where the guard refused
+    },
+    why: '[7] must go RED if a malformed payload is silently repaired/defaulted instead of refused',
+  },
+  {
+    id: '7-render-mangles-quotes-in-transit',
+    file: 'qa-verdict.js',
+    from: "  if (t === 'string') return value",
+    to: "  if (t === 'string') return value.replace(/\"/g, \"'\")",
+    expect: async (src) => {
+      const r = await runDriver(src, { step_id: '86.96', criteria: ADVERSARIAL_CRITERIA })
+      const p = r.spawns.length ? String(r.spawns[0].prompt) : ''
+      return !p.includes(ADVERSARIAL_CRITERIA[0])  // DETECTED iff the quotes criterion no longer round-trips
+    },
+    why: 'the 86.96 step-name harm -- criteria text altered in transit -- must turn [7] RED',
+  },
+]
+for (const m of MUTANTS7) {
+  const src = fs.readFileSync(SCRIPTS[m.file], 'utf8')
+  const n = src.split(m.from).length - 1
+  if (n !== 1) { check(`[7] ${m.id}: anchor is unique`, false, `found ${n} occurrences`); continue }
+  let control
+  try { control = (await m.expect(src)) ? 'DETECTED-ON-CONTROL' : 'clean' }
+  catch (e) { control = 'CONTROL-THREW: ' + String((e && e.message) || e).slice(0, 90) }
+  check(`[7] ${m.id}: CONTROL is clean (expect() false on the UNMUTATED source)`,
+        control === 'clean', control)
+  const mutated = src.replace(m.from, m.to)
+  let outcome
+  try { outcome = (await m.expect(mutated)) ? 'DETECTED' : 'SURVIVED -- this guard is not the one doing the work' }
+  catch (e) { outcome = 'UNSCORABLE: the mutant did not build (' + String((e && e.message) || e).slice(0, 90) + ')' }
+  check(`[7] ${m.id}: KILLED (${m.why})`, outcome === 'DETECTED', outcome)
+}
+
 console.log('')
 if (failures.length) {
   console.log(`FAILED: ${pass} passed, ${failures.length} failed`)

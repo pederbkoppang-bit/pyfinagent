@@ -200,3 +200,19 @@ the same authorisation and has two named, mechanical fixes.
 **Three steps, twelve Q/A spawns, ~3.79M tokens. Every criterion graded MET on
 all three; not one reached PASS.** That is the number that should inform the
 call.
+
+---
+
+## 5. OPERATOR RESOLUTION (2026-08-17, recorded by the attended session under delegated authority)
+
+- **86.90 -- RESOLVED, step CLOSES.** The four §3 artifact findings are fixed by
+  replacement and the container-guard bound is stated; details and before/after
+  in `live_check_86.90.md` §9 and `evaluator_critique_86.90.md` "Cycle 5".
+  85.5 / 86.25 / 86.34 stay queued as 86.93.
+- **86.91 -- REMAINS OPEN.** The two surviving guard mutants (M-A: the deleted
+  `_log_decision` call is invisible to the checker; M-B2/M-D: an authorable
+  N-id whitelist survives) have named fixes and are real guard work, not
+  evidence work. Note 86.97 (shipped 2026-08-17 by the drain session, PARKED on
+  its token ceiling with all 7 criteria recorded MET) closed the "three bash
+  exit-0 pre-detector paths" NOTE from §3.
+- **86.88 -- REMAINS OPEN**, unchanged priority (P1).

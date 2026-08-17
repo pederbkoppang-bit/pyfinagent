@@ -202,6 +202,13 @@ would pass on a file that never calls it on the path that matters.
 | M3 | replace the lossless-violation `throw` with `return '(unrenderable)'` | **KILLED** -- `[3]` goes red |
 | M4 | `renderIdentityArg` accepts objects via `String(value)` | **KILLED** -- an object step id reaches a filename |
 | M5 *(cycle 2)* | narrow the walk back to `Object.keys` | **KILLED** -- A2 renders `"REPLACED"` again without throwing |
+| M6 *(cycle 4)* | revert the criteria CONTAINER guard to silent discard | **KILLED** -- `[3b]` goes red when a wrong-shaped rubric is silently discarded again |
+
+*(cycle-5 correction, 2026-08-17: this table carried 5 rows under a "6 cells"
+heading -- the escalation's "6 over 5" finding. The heading was right and the
+table was short: the M6 container-guard cell, added in cycle 4 alongside section
+`[3b]`, was never rowed. Verified against a live run today: section `[5]` emits
+exactly 6 mutation cells, each with its control observed clean first.)*
 
 **CYCLE-3 CORRECTION -- M3 was an ARTIFACT-KILL and this table previously
 over-claimed.** The cycle-2 M3 replacement ended `void ('`, an unterminated
@@ -485,7 +492,7 @@ $ node --check .claude/workflows/research-gate.js && echo parses
 parses                                                              # exit 0
 
 $ node scripts/qa/verify_prompt_render_86_90.mjs
-ALL GREEN: 95 passed, 0 failed                                      # exit 0   (REGENERATED cycle 3)
+ALL GREEN: 95 passed, 0 failed                                      # exit 0   (re-run 2026-08-17, cycle 5; the count first reached 95 in cycle 4 -- the old "cycle 3" label under a cycle-4 figure was the escalation's stale-marker finding, corrected by replacement)
 
 $ node scripts/qa/verify_research_gate_workflow.mjs
 ALL GREEN: 124 passed, 0 failed                                     # exit 0
