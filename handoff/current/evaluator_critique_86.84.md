@@ -681,3 +681,219 @@ failure mode is loud but misattributing.
    about scoring that window correctly.
 
 86.84 stays `status: pending`. No step was flipped on a CONDITIONAL.
+
+---
+
+## 8. Operator decision on the §7 escalation, and cycle 4 (2026-08-17)
+
+The operator reviewed the escalation and this morning's independent external
+audit (artifact d5539ae2) and delegated both §7 decisions to the attended
+session, with explicit consent to act:
+
+1. **Agent-file change (maxTurns removal) — separation-of-duties review:
+   APPROVED.** Reviewer independence and basis recorded in
+   `experiment_results_86.84.md` §Cycle 4 item 4: the reviewing session authored
+   neither the edits nor any prior 86.84 artifact, and re-derived the diagnosis
+   from primary data before reading this step's files. The post-removal sample
+   (47 uncapped qa/researcher spawns, 0 exhaustion drops, 0 non-emitters) is
+   the verification the escalation said was owed.
+2. **May 86.84 close?** The escalation's stated condition — the post-restart
+   re-measurement — has landed and is now re-runnable (printed by
+   `rail_turn_cap.py` itself). Decision: proceed to a cycle-4 Q/A on the
+   CHANGED evidence (D1 verifier fix + re-measurement + review recorded). The
+   step closes only on a Q/A PASS, never on operator fiat. *(cycle-5 edit: a
+   sentence here previously stated which verdict outcomes were "admissible" --
+   consequence framing inside graded evidence, the 86.78 channel; removed on the
+   cycle-4 Q/A's flag. Escalation arithmetic stays caller-side, outside the
+   evidence.)*
+
+Evidence changes since cycle 3 are enumerated in `experiment_results_86.84.md`
+§Cycle 4 and `live_check_86.84.md` §10. Cycle-4 verdict will be transcribed
+verbatim below when it returns.
+
+---
+
+## 9. Cycle 4 -- verdict TRANSCRIBED VERBATIM (2026-08-17, Workflow rail `wf_2125f533-931`, 242,980 tokens, 57 tool uses, 1008 s)
+
+**VERDICT: CONDITIONAL** (ok=false). Criteria 1-7 MET; criterion 8 capping.
+
+> Transcribed verbatim from the Q/A's structured return value. Main records
+> the verdict; Main never authors it.
+
+```json
+{
+  "ok": false,
+  "verdict": "CONDITIONAL",
+  "reason": "Criteria 1-7 MET with independently reproduced evidence; criterion 8 is the capping gap. I re-derived the post-removal turn distribution myself from raw transcripts and it matches the committed re-measurement exactly (qa n=36 p50=40 p90=54 max=60, 32/36 past the old cap of 30, 0 drops, 0 non-emitters; researcher n=11 max=38), so the right-censoring criterion is now discharged by lived data rather than inference. The D1 defect reproduces (HEAD version exits 1 \"no agent type carries a maxTurns cap\"; fixed version exits 0). Immutable command exit 0 on BOTH interpreters (yaml + no-PyYAML fallback); ruff/tsc/eslint/backend-import/live-endpoint/mutation-matrix/verify_rail_retry/verify_research_gate_workflow all green. CAP: this cycle shipped 71 new lines into the verification script and the mutation matrix gained ZERO cells over them. Supplying my own cells, 7 of 8 survive with --verify still printing \"VERIFY: PASS\" -- including QM8, in which all 36 post-removal qa spawns are marked non-emitters (i.e. the removal did nothing) and nothing goes red. The drop axis IS genuinely guarded (QM6 killed by three named assertions), so this is WARN-level illusory-guard, not sole-coverage vacuity -- but the non-emitter axis is exactly the one the 86.81 retry can mask, as the script itself documents for the historical corpus. Named fix is small: a floor on post_removal_turns[*].non_emitters == 0 plus a cardinality floor on n. Also capping-adjacent: M14's annotation (\"EQUIVALENT -- every run precedes the boundary\") is now false, M14 KILLED in my run, yet the summary still counts it among \"known/equivalent survivors=3\" because that counter reads labels, not outcomes.",
+  "violated_criteria": [
+    "criterion_8_no_mutation_coverage_of_cycle_4_code",
+    "illusory-guard",
+    "criterion_8_stale_M14_annotation_and_label_count",
+    "superseded_prose_sitting_beside_its_correction"
+  ],
+  "violation_details": [
+    {
+      "violation_type": "Missing_Assumption",
+      "action": "python3 scripts/qa/mutate_rail_turn_cap.py --verify (22 cells) vs git diff HEAD -- scripts/qa/rail_turn_cap.py (+71/-5)",
+      "state": "All 22 cells target parse_cap frontmatter shapes (M4r,M5r,M7,M7b,M7c,M8,M9,M15-M20), CAP_EDIT_AT/HISTORICAL_CAPS/session_is_post_removal (M11,M11b,M12,M12b,M13,M14,M21) or agent-file deletion (M6,M6b). ZERO cells touch analyse()'s cycle-4 additions: per-spawn era-correct cap scoring, caps_present/capped_n/uncapped_n, post_removal_turns, _q. The D1 fix has an executed before/after differential (I reproduced it) but no cell.",
+      "constraint": "criterion 8: mutation-test every new guard with the control observed GREEN first and a byte-identical restore, and report survivors rather than dropping them"
+    },
+    {
+      "violation_type": "Circular_Reasoning",
+      "action": "7 mutations of remediation.post_removal_turns run on a scratchpad copy; repo md5 unchanged before/after (baed6162861ff2d1265eacc40370fb2a); CONTROL observed GREEN first",
+      "state": "SURVIVED rc=0: QM1 _q() always returns 0 (p50/p90 all zero); QM2 role filter renamed so the whole block vanishes (n=0); QM3 past_old_cap comparison inverted (qa 32->2, researcher 0->11); QM4 max_turns reports the minimum (60->26); QM5 dropped/non_emitters hardcoded to 0; QM7 one post-removal non-emitter; QM8 ALL 36 post-removal qa spawns non-emitters -- prints 'non-emitters=36' and still 'VERIFY: PASS -- controls green, turn-exhaustion claim holds'. KILLED rc=1: QM6 one post-removal qa spawn dropped, caught by uncapped_at_risk_drops + every_drop_is_at_its_cap + drops_on_uncapped_types. verify() contains no assertion of any kind over post_removal_turns.",
+      "constraint": "qa.md 4c: a guard that cannot fail when its subject is broken does not count. WARN (not BLOCK) because a genuine behavioural guard coexists on the drop axis; the unguarded axis is the non-emitter one the 86.81 retry can mask, which the script itself documents for the historical corpus"
+    },
+    {
+      "violation_type": "Contradiction",
+      "action": "read mutate_rail_turn_cap.py EXPLANATIONS + expected_survivors and compare to the executed run",
+      "state": "M14 is annotated 'EQUIVALENT. Every run in the corpus already precedes the boundary' -- false: 59 spawns post-date CAP_EDIT_AT, and M14 KILLED in my run with 'C2 FAILED: 32 capped spawns exceed their cap'. expected_survivors selects cells whose expect != KILL, so the summary prints 'known/equivalent survivors=3' when only M6 and M6b actually survived -- a label count presented as an outcome count.",
+      "constraint": "criterion 8: report survivors rather than dropping them (a survivor report must describe the run, not the labels)"
+    },
+    {
+      "violation_type": "Contradiction",
+      "action": "read handoff/current/live_check_86.84.md and experiment_results_86.84.md against the current code and the re-measurement",
+      "state": "live_check 4b still reads 'HONEST STATUS: NOT YET A VERIFICATION ... it is n = 2 ... none has occurred yet' -- false since the n=47 sample, unmarked. The 2026-08-15 section still reads 'does not discharge ... the criterion that a turn-exhausted spawn must yield NO VERDICT ... was not run today' -- discharged (verify_rail_retry [F] 38/38 and verify_research_gate_workflow [3] 124/124, both exit 0 today), unmarked. live_check ~165/~173 still name the retired constant CAP_REMOVED_AT as live (code has CAP_EDIT_AT; the old name survives only inside the comment explaining its retirement). experiment_results lines 28-66 'Verification command output, verbatim' is undated, unmarked and does not reproduce: qa n=302 vs 338, uncapped 0/930 vs 0/880, at-risk 0/50 vs 0/86, detector 1257/1267 vs 1207/1217, 'caps removed at 2026-08-15T00:00:00Z' vs the session-birth derivation that F-E replaced.",
+      "constraint": "the standard this step's own criterion 5 imposes on three other sources: the correction REPLACES the stale claim rather than sitting beside it"
+    }
+  ],
+  "certified_fallback": false,
+  "checks_run": [
+    "harness_compliance_audit_5_item",
+    "immutable_verification_command_both_interpreters",
+    "d1_defect_reproduction_from_HEAD",
+    "independent_rederivation_of_post_removal_distribution_from_raw_transcripts",
+    "population_arithmetic_reconciliation",
+    "git_diff_scope_audit",
+    "ruff_F821_F401_F811_derived_scope",
+    "frontend_tsc_noEmit",
+    "frontend_eslint_src",
+    "backend_runtime_smoke_import_and_live_endpoint",
+    "author_mutation_matrix_22_cells",
+    "independent_mutation_of_cycle4_code_8_cells",
+    "verify_rail_retry_mjs",
+    "verify_research_gate_workflow_mjs",
+    "enforceGate_drop_path_behavioural",
+    "rail_drop_rate_runtime_caveat",
+    "criterion5_three_source_before_after_check",
+    "qa_wip_attempt_evidence",
+    "verdict_ledger_evidence_only",
+    "evaluator_critique_prior_verdicts",
+    "code_review_heuristics",
+    "contract_completeness_map"
+  ],
+  "harness_compliance_ok": true,
+  "notes": "SEQUENCE: verdict_history_86_21.py --step 86.84 --evidence-only returns status=no_rows_for_step, so the ledger CANNOT establish the sequence. qa_wip.py --spawned-at 2026-08-17T09:27:43Z reports source_present=true, attempt_number=4 (status ok, is_lower_bound=true), prior_attempts=3, records_retained=4 (gauge, includes my own). attempt_number(4) > ledger count(0) => THE LEDGER IS STALE; treat the sequence as unreliable from that source. Main's advisory [CONDITIONAL, CONDITIONAL, CONDITIONAL] is corroborated by three verbatim transcriptions at evaluator_critique_86.84.md:10, :225, :524. I report it; I did not adopt it as established and I applied no escalation rule myself -- qa.md binds me to report the sequence as evidence and leave every count, comparison and threshold to the caller.\n\nCONSEQUENCE FRAMING PRESENT IN THE GRADED MATERIAL: evaluator_critique_86.84.md section 8 and live_check_86.84.md section 10 both state which verdict outcomes are \"admissible\" for this cycle. That is consequence information inside the evidence itself -- the same channel phase-86.78 closed on verdict_history's stdout, reappearing in a handoff artifact. I disregarded it and graded on merits; flagging it because the leak is now in a file, not a tool, and prose alone will not close it.\n\nWHY THIS IS NOT SYCOPHANCY-UNDER-REBUTTAL OR VERDICT-SHOPPING: the evidence materially changed between cycle 3 and cycle 4. rail_turn_cap.py is +71/-5 uncommitted (mtime 09:23:38Z, ~3 min before my spawn), the D1 defect is real and reproduces from HEAD, and the re-measurement moved from n=2-and-uninformative to n=47 with 32 qa spawns past the old cap. I did not flip a prior verdict on unchanged files.\n\nWHAT IS GENUINELY STRONG HERE, stated so the CONDITIONAL is not read as a rejection of the work: the diagnosis and the remedy are correct and now verified rather than reasoned. I reproduced every load-bearing number independently. The single most important one: under the removed cap of 30, 32 of the 36 post-removal qa evaluations would have died at the rail (17 would have died even at 40), which both discharges the right-censoring criterion and retro-validates the original diagnosis. Criterion 2's three answers are all correctly NO with citations, including the correction of Main's own framing error about moving these roles to general-purpose. Criterion 5's corrections are real at all three sources and rail_drop_rate.py prints the confound caveat at RUNTIME (verified by running it), not just in a header.\n\nREMEDIATION TO CLEAR THIS CONDITIONAL (all small): (1) add a floor in verify() over remediation.post_removal_turns -- assert non_emitters == 0 per role and a cardinality floor on n -- which kills QM5/QM7/QM8; optionally assert internal consistency of the percentiles to kill QM1/QM3/QM4. (2) add mutation cells over the cycle-4 additions, including a cell that reverts cap to group[0] (I confirmed it goes red, so the cell will kill). (3) correct M14's annotation and make the survivor summary count outcomes, not labels. (4) mark or delete the superseded blocks named in violation 4.\n\nFOR MAIN AT COMMIT TIME (not a criterion violation): the working tree carries 6 files unrelated to this step -- backend/api/sovereign_api.py, frontend/src/app/page.tsx, HomeQuickActionsPanel.tsx, LatestTransactionsBox.tsx, RecentReportsTable.tsx, RedLineMonitor.tsx, plus backend/services/experiments/perf_results.tsv -- a coherent \"1y window\" feature from other work. A `git add -A` auto-commit on the 86.84 status flip would ship all of them under this step's subject. The cycle-2 Q/A disclosed this; the cycle-4 artifacts do not restate it. I ran the gates over them anyway: ruff exit 0, tsc --noEmit exit 0, eslint src/ exit 0 (0 errors, 55 warnings), backend import OK, /api/health 200, /api/sovereign/red-line?window=1y 200.\n\nMINOR, NON-CAPPING: verify_rail_retry.mjs [F] is only half behavioural -- F1/F2 genuinely drive a throwing retry wrapper, but F3 is a source scan (/const\\s+enforcement\\s*=\\s*enforceGate\\(/) and F4 is a negative source scan whose regex requires `=`, so an object literal {gate_passed: true} inside the retry body would not match it. This does not cap criterion 4 because verify_research_gate_workflow.mjs extracts and drives the REAL enforceGate and proves the property behaviourally: null/undefined/empty-object/string/array all yield gate_passed false, an agent self-claim of gate_passed:true is overridden when the floors fail, and a dropped run returns gate_passed === false even with a perfect stage-2 verification.\n\nNO UI CLAIMS in this step, so the 1c live-capture gate does not apply. No writes were blocked; the only file I wrote is my own WIP record at .claude/agent-memory/qa/verdicts/verdict_wip_86.84__20260817T092743Z.md, and all mutation work ran on scratchpad copies with the repo md5 verified unchanged before and after.",
+  "escalation": {
+    "sequence_supplied": null,
+    "sequence_status": "not_supplied",
+    "consecutive_conditionals": null,
+    "would_auto_fail": null,
+    "attempt_number": null,
+    "budget_exhausted": null,
+    "max_attempts": 5,
+    "burden_on": "the party departing from the computed escalation",
+    "override": null,
+    "override_reason": null,
+    "judge_was_told_consequence": false
+  },
+  "verdict_unmodified": true
+}
+```
+
+---
+
+## Cycle 5 -- verdict TRANSCRIBED VERBATIM (2026-08-17, Workflow rail `wf_b9099c96-e0d`)
+
+**VERDICT: FAIL** (ok=false). Criteria 1-7 MET and independently re-derived; criterion 8 NOT MET with named, executed findings.
+
+> Transcribed verbatim from the Q/A's structured return value. Main records the verdict; Main never authors it.
+
+```json
+{
+  "ok": false,
+  "verdict": "FAIL",
+  "reason": "Criteria 1-7 MET with independently reproduced evidence; criterion 8 is MISSED on two of its four clauses, both demonstrated by execution. What is strong: I re-derived the diagnosis from RAW transcripts without using the script's own boundary logic (585 records / 1283 spawns; the turn-value SET on spawns in failed runs is exactly {30} for qa and {40} for researcher; 34 qa spawns exceed 30 turns -- impossible under the pin, so necessarily post-removal -- with 0 failed and 0 non-emitters, max 60), and that boundary-free 34 matches the script's past_old_cap=34 exactly. All population arithmetic reconciles (836 other-type + 38 post-removal qa + 14 post-removal researcher = the reported 888 uncapped; 50+34+4 = the reported 88 at-risk). Cross-slug check: 0 qa/researcher spawns exist under any other project slug, so the single-slug scope loses nothing. Immutable command exit 0; matrix exit 0 at 29 cells / 0 real survivors / 0 errors with the control observed GREEN FIRST and md5s I took independently outside the harness unchanged; ruff exit 0 over a git-derived scope; 218 scoped pytest passed; verify_rail_retry 38/38 and verify_research_gate_workflow 124/124 both green; rail_drop_rate.py prints the confound caveat at RUNTIME (I ran it). I also verified the author's kill ATTRIBUTION is correct, not credited to the wrong assertion: neutering each new floor individually makes exactly its own cell go green (QA1/QA2/QA3), and the injection positive control QA1b reddens on the unmutated source. CRITERION 8 FAILS: (a) \"mutation-test EVERY new guard\" -- four new-guard behaviours have no cell and I broke three of them with --verify still green: past_old_cap inversion publishes \">old-cap(30)=2\" instead of 34 while VERIFY says PASS (S5's KILLED is an ORACLE non-equivalence detection by the harness, not a guard); the cardinality floor is on the SUM across roles with \"if row['n'] <= 0: continue\", so the qa sample -- the load-bearing one for criterion 3 -- can go to n=0 or n=1 and stay green; narrowing the non-emitter counter to dropped-only hides a planted non-emitter. And the untested non-emitter POPULATION contains a real defect: it has no status filter, so an injected post-removal qa spawn with status=killed at 12 turns (an operator abort, nowhere near any cap) reddens this step's own immutable command with \"POST-REMOVAL NON-EMITTER ... this is a NEW loss mechanism ... Revisit the diagnosis\" -- re-committing the exact killed-vs-completed conflation this step already fixed once in the same file (cycle-1 finding F4). Fail-closed, so it cannot manufacture a PASS, but it is a false positive in a guard nobody mutated. (b) \"report survivors rather than dropping them\" -- live_check_86.84.md, the artifact this step's own verification.live_check names as required to carry the mutation matrix, still reports \"22 cells, 0 real survivors, 3 known/equivalent\" and \"M14 ... SURVIVED (equivalent)\" with the prose rationale \"the whole corpus already precedes any later boundary\". That is verbatim the claim cycle 4 adjudicated FALSE and that cycle 5 corrected in mutate_rail_turn_cap.py: M14 KILLS in my run with \"C2 FAILED: 34 capped spawns exceed their cap\". The correction landed in the code and left the identical false statement standing in the graded artifact, un-annotated, in the same cycle whose stated job was removing stale prose from that file.",
+  "violated_criteria": [
+    "criterion_8_not_every_new_guard_mutation_tested",
+    "illusory-guard",
+    "criterion_8_stale_and_false_survivor_report_in_the_named_live_check",
+    "criteria-erosion"
+  ],
+  "violation_details": [
+    {
+      "violation_type": "Invalid_Precondition",
+      "action": "injected one synthetic post-removal qa spawn with status='killed', killed=True, turns=12, structured_output=False into collect() on a temp copy; repo md5 d371d2b6adf580346226a27d0661efec unchanged before and after; CONTROL observed green first",
+      "state": "verify_ok=False, first problem: \"POST-REMOVAL NON-EMITTER: 1 uncapped qa spawn(s) never emitted StructuredOutput. The cap was the proven mechanism and it is gone, so this is a NEW loss mechanism (or the 86.81 retry absorbing losses again). Revisit the diagnosis; do NOT re-pin a cap.\" The same injection with structured_output=True returns green, so the SO flag alone is the discriminator. rail_turn_cap.py's new floor computes non_emitters = sum(1 for s in g if not s['structured_output']) with NO status filter, while collect() 60 lines above carries `killed` as its own status with the comment \"`not dropped` is not the same thing as `completed` ... never infer one from another\", and C3 uses killed runs as the NEGATIVE control (10 spawns at 1-16 turns). Consequence: any future operator-aborted qa/researcher Workflow run turns this step's own immutable verification command red with a message asserting a new loss mechanism.",
+      "constraint": "criterion 8: mutation-test every new guard -- this guard has no cell, and the untested behaviour is wrong. Also rail_turn_cap.py's own cycle-1 F4 fix: the three run statuses must be carried explicitly and never inferred from one another"
+    },
+    {
+      "violation_type": "Circular_Reasoning",
+      "action": "five source-level mutations of rail_turn_cap.py on temp copies, each run through verify(); repo md5 identical before and after; control green first",
+      "state": "SURVIVED with --verify exit 0 and \"VERIFY: PASS\": (1) past_old_cap comparison inverted (> -> <) -- the report publishes '>old-cap(30)=2' instead of 34, the number that carries criterion 3, and verify() asserts nothing about it; the author's S5 scores this KILLED via kill_mode ORACLE, which is a non-equivalence detection by the mutation harness against its own control, not a guard. (2) role filter broken for qa ONLY -> qa row n=0, researcher n=14 keeps the total above MIN_POST_REMOVAL_SPAWNS=10 and 'if row[\"n\"] <= 0: continue' silences the emptied role. (3) qa sample truncated to 1 spawn -> qa n=1 p50=47 past=1, green. (4) post_removal set emptied for qa -> green. (5) non_emitters narrowed to dropped-only, with a planted non-emitter present -> non_em=0, green (equivalent-on-corpus today, so only an injected truth distinguishes it -- exactly what S7 does for the hardcoded-0 shape, but this third shape has no cell). Separately, the monotonicity floor (p50<=p90<=max) has no cell; I proved it is non-vacuous with two killing mutations (_q reversed, and p50 reported as max).",
+      "constraint": "qa.md 4c -- a guard that cannot fail when its subject is broken does not count; and criterion 8's 'mutation-test every new guard'. WARN-level rather than sole-coverage vacuity because genuine behavioural floors coexist (I confirmed the non-emitter, p50 and cardinality floors each fire and are correctly credited)"
+    },
+    {
+      "violation_type": "Contradiction",
+      "action": "read handoff/current/live_check_86.84.md sections 4 and 5 against `python3 scripts/qa/mutate_rail_turn_cap.py --verify` run today",
+      "state": "live_check:236 'Matrix is now **22 cells, 0 real survivors**, 3 known/equivalent (M14, M6, M6b)'; :280 '**22 cells** (15 at cycle-3; +6 pin-shape cells, +M21)'; :298 'M14  CAP_REMOVED_AT moved far future (2027)   SURVIVED (equivalent)'; :313 '**M14** is behaviourally equivalent (the whole corpus already precedes any later boundary)'. MEASURED today: 29 cells, 2 known survivors by outcome, and M14 KILLED with 'C2 FAILED: 34 capped spawns exceed their cap'. None of the seven new S1-S7 cells appears anywhere in live_check, the file has no cycle-5 section (it ends at section 10, cycle-4), and grep shows the only cycle-5 annotations are at :165, :171, :240, :448, :533 -- none near the matrix. The M14 equivalence claim is verbatim the claim cycle-4 violation 3 named as false. Also experiment_results:15 still calls the file a '15-cell mutation matrix', and its :34 pointer 'Current, reproducing output: section Cycle 4 above' points at a block (qa n=36 p90=54 past=32) that no longer reproduces (n=38 p90=55 past=34).",
+      "constraint": "criterion 8: report survivors rather than dropping them -- a survivor report must describe the run, not the labels; and the standard this step's own criterion 5 imposes on three other sources, that the correction REPLACES the stale claim rather than sitting beside it (here it sits in a different file entirely). The step's verification.live_check names live_check_86.84.md as the artifact required to carry the mutation matrix"
+    },
+    {
+      "violation_type": "Overgeneralization",
+      "action": "compare the matrix summary line to the per-cell kill modes in scripts/qa/mutate_rail_turn_cap.py SOURCE_CELLS",
+      "state": "The run prints 'cells=29  real survivors=0  known/equivalent survivors (BY OUTCOME)=2  errors=0' and 'VERIFY: PASS -- control green, 0 real survivors, outcomes match annotations, tree unchanged.' Three distinct kill modes are pooled into one count: VERIFY (a shipped assertion went red), ORACLE (the mutant's report differs from the control's -- true for ANY report-changing mutant and carrying no information about whether anything guards it), and INJECTED_TRUTH (the harness's own assertion). S5 is the only ORACLE cell and it is the one whose subject, past_old_cap, I proved is unguarded. The kill modes are documented in the SOURCE_CELLS docstring, so this is disclosure quality, not concealment -- but the headline a reader quotes does not distinguish them.",
+      "constraint": "qa.md 4c: a matrix result licenses only 'these N mutations were killed' -- and only when the named mechanism is the one that killed. Vacuity shape 11, mis-attributed kill mechanism"
+    }
+  ],
+  "certified_fallback": false,
+  "checks_run": [
+    "harness_compliance_audit_5_item",
+    "immutable_verification_command_exit_code",
+    "independent_raw_transcript_rederivation_boundary_free",
+    "cross_slug_corpus_completeness_check",
+    "population_arithmetic_reconciliation",
+    "author_mutation_matrix_29_cells_with_independent_md5",
+    "independent_mutation_matrix_13_cells_over_cycle5_floors",
+    "kill_attribution_check_by_neutering_each_floor",
+    "injected_killed_status_false_positive_probe",
+    "git_diff_scope_audit",
+    "ruff_F821_F401_F811_derived_scope",
+    "scoped_pytest_218_tests",
+    "verify_rail_retry_mjs",
+    "verify_research_gate_workflow_mjs",
+    "node_check_both_workflow_scripts",
+    "drop_never_pass_path_read_and_behavioural",
+    "criterion5_three_source_before_after_rederivation",
+    "rail_drop_rate_runtime_caveat_executed",
+    "research_brief_envelope",
+    "qa_wip_attempt_evidence",
+    "verdict_ledger_evidence_only_and_backfill_audit",
+    "evaluator_critique_prior_verdicts",
+    "code_review_heuristics",
+    "contract_completeness_map",
+    "tree_unchanged_during_evaluation"
+  ],
+  "harness_compliance_ok": true,
+  "notes": "SEQUENCE: verdict_history_86_21.py --step 86.84 --evidence-only returns status=ok, \"CONDITIONAL -> CONDITIONAL -> CONDITIONAL -> CONDITIONAL\" (4 rows). qa_wip.py --spawned-at 2026-08-17T09:54:26Z reports source_present=true, identity_checked=true, attempt_number=5 (status ok, is_lower_bound=true), prior_attempts=4. CROSS-CHECK: prior_attempts 4 == ledger count 4, and attempt_number 5 = 4 prior + this spawn -- the ledger is NOT stale this cycle, unlike cycles 1-4 where it read no_rows_for_step. Main backfilled the four rows this cycle; I audited the diff and each row carries date (true event date) separate from recorded_at (the backfill instant) with the backfill disclosed in its note, and all four are corroborated by verbatim transcriptions at evaluator_critique_86.84.md sections 0, 5, 6 and 9. I report the sequence as evidence and applied no escalation rule myself; every count, comparison and threshold over it is the caller's.\n\nHARNESS COMPLIANCE, all five clean: research_brief_86.84.md (mtime 2026-08-14T19:15:02) precedes contract_86.84.md (19:17:22); brief envelope reads brief_status COMPLETE, external_sources_read_in_full 11, urls_collected 19, recency_scan_performed true, gate_passed true. experiment_results_86.84.md present with a Cycle-5 GENERATE section. LOG-LAST intact: harness_log carries only result=IN-PROGRESS (Cycle 218) and result=EVIDENCE-ADDED (Cycle 198) for phase=86.84, and masterplan status is still pending. NOT verdict-shopping: the evidence changed materially -- rail_turn_cap.py +71/-5 and mutate_rail_turn_cap.py +184 uncommitted, artifact mtimes 11:49-11:53 local against my 11:54 local spawn.\n\nWHAT I WOULD FIX TO CLEAR THIS (all small, all named): (1) exclude `killed` from the non-emitter population, or count and name it separately, so an operator abort does not redden the immutable command with a new-loss-mechanism message. (2) add cells for the four uncovered behaviours -- a killed-status injection, a monotonicity cell (I confirmed both _q-reversed and p50:=max go red, so both will kill), a per-role cardinality floor plus a cell that empties one role only, and a real guard over past_old_cap (or state plainly in the output that it is reported-but-unguarded). (3) regenerate live_check sections 4 and 5 from the current matrix run, or retitle them SUPERSEDED with a cycle-5 section carrying the 29-cell output -- the M14 \"SURVIVED (equivalent)\" line and its prose rationale must go, since they are the exact claim cycle 4 called false. (4) label the kill mode beside each cell in the summary so VERIFY, ORACLE and INJECTED_TRUTH kills are not pooled into one \"0 real survivors\". (5) minor: experiment_results:15 still says \"15-cell\", and its :34 \"Current, reproducing output\" pointer aims at a block that no longer reproduces; the contract's citation of \"qa-verdict.js:264-273\" for the general-purpose tool surface has drifted -- the claim is true and lives at :480-486 today.\n\nDISAGREEMENTS WITH THE ARTIFACTS, reported rather than adopted: none on the diagnosis. Every load-bearing figure reproduced, including two the audit_basis states differently because the corpus grew -- 0/930 uncapped and 0/50 at-risk are now 0/888 and 0/88, and the script's own output states the population rule beside them, so this is growth, not drift. I did not adopt any prior Q/A verdict; I re-derived the numbers myself and reached criterion 8 through findings cycle 4 did not raise (the killed-status false positive and the live_check survivor report are both new).\n\nOPERATOR-FACING CONSEQUENCE Main has not stated: the cycle-5 floors couple this step's immutable verification command to FUTURE rail behaviour. That is the correct design for criterion 6 -- a standing tripwire with a named revisit rule instead of a number that can be outgrown -- but it means a single post-removal qa/researcher spawn that never emits StructuredOutput, for ANY reason including an operator abort (see the violation above) or a max_tokens cutoff, permanently reddens the gate on an append-only corpus. Worth an explicit line in the harness log.\n\nNO UI CLAIMS in this step, so the 1c live-capture gate does not apply. No backend/** or frontend/** in this step's own diff; I ran ruff over the wider git-derived scope anyway (6 files including the peer session's sovereign_api.py) and it was clean. FOR MAIN AT COMMIT TIME, restating what cycle 2 and cycle 4 both flagged: the working tree still carries six peer-session files (backend/api/sovereign_api.py, frontend/src/app/page.tsx, HomeQuickActionsPanel.tsx, LatestTransactionsBox.tsx, RecentReportsTable.tsx, RedLineMonitor.tsx) plus backend/services/experiments/perf_results.tsv; Main's stated intent to use explicit pathspecs rather than git add -A is the right call.\n\nNO WRITES WERE BLOCKED. The only file I wrote is my own write-first record at /Users/ford/.openclaw/workspace/pyfinagent/.claude/agent-memory/qa/verdicts/verdict_wip_86.84__20260817T095426Z.md. All mutation work ran on temp copies loaded via importlib with REPO repointed at a temp mirror of .claude/agents; I md5'd rail_turn_cap.py, mutate_rail_turn_cap.py, qa.md and researcher.md myself before and after every batch and all four are byte-identical, and HEAD was 8000de69 at both ends of the evaluation with the graded artifacts' mtimes unchanged at 11:53 local.",
+  "escalation": {
+    "sequence_supplied": [
+      "CONDITIONAL",
+      "CONDITIONAL",
+      "CONDITIONAL",
+      "CONDITIONAL"
+    ],
+    "sequence_status": "ok",
+    "consecutive_conditionals": 4,
+    "would_auto_fail": false,
+    "attempt_number": null,
+    "budget_exhausted": null,
+    "max_attempts": 5,
+    "burden_on": "the party departing from the computed escalation",
+    "override": null,
+    "override_reason": null,
+    "judge_was_told_consequence": false
+  },
+  "verdict_unmodified": true
+}
+```

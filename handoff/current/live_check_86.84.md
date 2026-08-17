@@ -162,13 +162,13 @@ COMPLETE`, 11 sources read in full, 19 URLs, recency scan performed,
 script had been reading *today's* frontmatter to score *historical* runs, so
 removing the caps turned it red ("nothing to test"; 48 drops reclassified as
 uncapped). Each run is now scored against the cap in force when it ran, via a
-two-entry timeline (`HISTORICAL_CAPS` = qa 30 / researcher 40, `CAP_REMOVED_AT`).
+two-entry timeline (`HISTORICAL_CAPS` = qa 30 / researcher 40, `CAP_REMOVED_AT` *(cycle-5 note: constant since renamed `CAP_EDIT_AT` and the boundary is now derived per run from the owning session directory's birth time -- the F-E fix, commit d59cf424)*).
 The cycle-2 Q/A corroborated those constants independently **from git history**
 (`git rev-list -1 --before=<d>` then parsing the frontmatter: 2026-06-12 onward
 reads 30/40 across the whole corpus window), so the hardcode is correct — a
 maintainability note, not an honesty problem.
 
-Per **V-7**, `CAP_REMOVED_AT` is the **first session after the edit**, not the
+Per **V-7**, `CAP_REMOVED_AT` *(now `CAP_EDIT_AT`; see the cycle-5 note above)* is the **first session after the edit**, not the
 file-edit instant: the Agent-tool roster snapshots at session start, so a cap
 removed at 17:35Z is still in force for spawns of the session already running.
 Using the edit instant would score those as uncapped and, if one exhausted, the
@@ -233,9 +233,17 @@ mutated `CAP_REMOVED_AT`. Left alone, `setattr` would have created an attribute
 loudly" class. They now mutate `CAP_EDIT_AT` and are **KILLED**. A new cell **M21**
 forces `session_is_post_removal` to return `True`; it is **KILLED**, which is what
 proves the *derivation* — not merely the constant — is load-bearing. Matrix is now
-**22 cells, 0 real survivors**, 3 known/equivalent (M14, M6, M6b).
+**22 cells, 0 real survivors**, 3 known/equivalent (M14, M6, M6b) *(cycle-4 capture -- SUPERSEDED. The M14 equivalence in this sentence was adjudicated FALSE by the cycle-4 Q/A once post-removal spawns existed; M14 now KILLS (C2 fires). Current run, cycle 6: **33 cells, 0 real survivors, 2 known survivors BY OUTCOME (M6, M6b)**, kills labelled by mode -- see the cycle-6 block in section 11 and re-derive with `python3 scripts/qa/mutate_rail_turn_cap.py --verify`.)*
 
-## 4b. The re-measurement — HONEST STATUS: **NOT YET A VERIFICATION**
+## 4b. The re-measurement — status AS OF 2026-08-15, **SUPERSEDED**
+
+*(cycle-5 correction, 2026-08-17: this section's claim is no longer true and the
+heading said so in the wrong tense. The uncensored sample is now **n = 47**
+post-removal qa/researcher spawns — qa n=36, p50=40, 32 past the old cap, 0
+drops, 0 non-emitters — printed re-runnably by `rail_turn_cap.py` itself and
+guarded by verify() floors; see §10. The paragraphs below are kept as the
+2026-08-15 state of knowledge, and their "n = 2" and "none has occurred yet"
+read against that date only.)*
 
 The uncensored sample the removal exists to produce now exists, and it is **n = 2**:
 
@@ -269,7 +277,7 @@ is *reasoned and now correctly instrumented*, not *verified*.
 
 **V-1: this used to exist only as three lines of commit-message prose.** It is
 now executable code with a recorded control, per-cell results, and a
-byte-identical-restore proof. **22 cells** (15 at cycle-3; +6 pin-shape cells,
+byte-identical-restore proof. **22 cells** *(cycle-4 count; 33 as of cycle 6 -- S1-S11 source/injection cells added; run the matrix for the current figure)* (15 at cycle-3; +6 pin-shape cells,
 +M21 for the F-E derivation), **control observed GREEN first**,
 **0 real survivors**, real tree md5-unchanged (mutations run against a temp
 mirror of `.claude/agents`).
@@ -287,7 +295,7 @@ mirror of `.claude/agents`).
   M12   HISTORICAL_CAPS qa 30 -> 31                                   KILLED
   M12b  HISTORICAL_CAPS qa 30 -> 29                                   KILLED
   M13   HISTORICAL_CAPS researcher 40 -> 41                           KILLED
-  M14   CAP_REMOVED_AT moved far future (2027)                        SURVIVED (equivalent)
+  M14   CAP_REMOVED_AT moved far future (2027)                        SURVIVED (equivalent)   <- cycle-4 capture; FALSE since post-removal spawns landed. M14 KILLS now (C2: capped spawns exceed their cap); annotation corrected in the matrix at cycle 5
   M6    qa.md deleted entirely                                        SURVIVED (known gap)
   M6b   both agent files deleted                                      SURVIVED (known gap)
 ```
@@ -301,6 +309,13 @@ come back. The guard now **parses the YAML** rather than pattern-matching the
 line, and coerces quoted scalars, because over-detecting a pin can only make the
 check redder. My own cycle-1 matrix had two cells and reported 0 survivors; it
 was too narrow, not sound.
+
+*(cycle-6 correction: the paragraph below is the cycle-4 reading and its M14
+half is WRONG -- exactly the claim the cycle-4 verdict adjudicated false and
+the cycle-5 verdict found still standing here. M14 is NOT equivalent any more:
+59+ post-removal spawns sit past the 2027 boundary, so moving CAP_EDIT_AT
+reclassifies them as capped-era and C2 fires. Only M6/M6b remain known
+survivors, by OUTCOME, in the current run.)*
 
 The three surviving cells are labelled rather than dropped: **M14** is
 behaviourally equivalent (the whole corpus already precedes any later boundary),
@@ -437,7 +452,9 @@ BEHAVIOUR is the stronger proof: a capped spawn cannot exceed its cap, so a 61-t
    binding constraint; it does not characterise the distribution's tail.
 2. **It does not discharge 86.84's other criteria** -- in particular the criterion
    that a turn-exhausted spawn must yield NO VERDICT and never a PASS, which needs
-   its own executed test and was not run today.
+   its own executed test and was not run today. *(cycle-5 correction, 2026-08-17:
+   discharged since -- `verify_rail_retry.mjs` section [F] 38/38 and
+   `verify_research_gate_workflow.mjs` 124/124, both exit 0, run fresh today; §10.)*
 3. **It says nothing about `researcher`** (cap was 40). No post-boundary researcher
    spawn ran today.
 
@@ -445,3 +462,125 @@ BEHAVIOUR is the stronger proof: a capped spawn cannot exceed its cap, so a 61-t
 narrowed.** The specific "the removal is not verified" blocker is now DISCHARGED by
 the run above. 86.84 should still not close until its remaining criteria are graded
 by a fresh Q/A, which has not returned.
+
+---
+
+## §10 — Cycle-4 live evidence (2026-08-17): verification command green on both interpreters, re-measurement re-runnable, matrix green post-edit
+
+Every block below was executed 2026-08-17 in the operator-attended session; commands shown beside their output.
+
+**The step's verification command (both interpreter paths):**
+
+```
+$ source .venv/bin/activate && python3 scripts/qa/rail_turn_cap.py --verify
+VERIFY: PASS -- controls green, turn-exhaustion claim holds.
+(exit 0)
+$ /usr/bin/python3 scripts/qa/rail_turn_cap.py --verify      # bare-python3 fallback parser path
+VERIFY: PASS -- controls green, turn-exhaustion claim holds.
+(exit 0)
+```
+
+Pre-fix state the same morning, for the record (external-audit finding D1, root
+cause and fix in `experiment_results_86.84.md` §Cycle 4):
+
+```
+VERIFY: FAIL
+  - no agent type carries a maxTurns cap; nothing to test
+(exit 1)
+```
+
+**Corrected per-role table (rows were misreporting `cap=-` under the group[0] defect):**
+
+```
+  agentType           cap     n  drop  @cap  >cap  ok p50  ok max  ok@cap
+  Explore               -   274     0     0     0       7      56       0
+  None                  -   415     0     0     0       9      93       0
+  general-purpose       -   144     0     0     0      17      63       0
+  qa                   30   338    39    39     0      20      60       6
+  researcher           40   104     9     9     0      23      40       3
+run records read: 580 · agent spawns analysed: 1275 · transcripts missing: 0
+```
+
+**The committed re-measurement, now printed by the script itself on every run
+(REMEDIATION block; population = post-removal spawns, i.e. runs owned by a
+session directory born after CAP_EDIT_AT, per role; percentile rule stated in
+the output):**
+
+```
+REALISED UNCAPPED TURN DISTRIBUTION (the committed re-measurement --
+the uncensored sample; percentile rule: sorted[int(frac*(n-1))]):
+  qa           n= 36  dropped=0  non-emitters=0  p50=40  p90=54  max=60  >old-cap(30)=32
+  researcher   n= 11  dropped=0  non-emitters=0  p50=19  p90=36  max=38  >old-cap(40)=0
+```
+
+**Mutation matrix after the D1 edit (control green first, byte-identical restore):**
+
+```
+$ python3 scripts/qa/mutate_rail_turn_cap.py --verify
+BYTE-IDENTICAL RESTORE (md5 before == after, real tree never written):
+  ok scripts/qa/rail_turn_cap.py  baed6162861ff2d1265eacc40370fb2a
+  ok .claude/agents/qa.md  4c9faa6d7eb14aba70eea2fc7f804727
+  ok .claude/agents/researcher.md  a9592ee0950e55d24fc3e1bb65d5c26f
+cells=22  real survivors=0  known/equivalent survivors=3   [cycle-4 capture; current: cells=33, 2 known BY OUTCOME, kills by mode {VERIFY 27, ORACLE 1, INJECTED_TRUTH 2, MUST_STAY_GREEN 1} -- section 11]
+VERIFY: PASS -- control green, 0 real survivors, tree unchanged.
+(exit 0)
+```
+
+**Criterion-4 executed evidence, fresh run:**
+
+```
+$ node scripts/qa/verify_rail_retry.mjs
+ALL GREEN: 38 passed, 0 failed
+(exit 0)
+```
+
+**What §9's "still NO" recommendation was waiting for, resolved:** the specific
+remaining ask was "its remaining criteria are graded by a fresh Q/A". A cycle-4
+Q/A was spawned on this changed evidence and its verdict is transcribed in
+`evaluator_critique_86.84.md` §9. *(cycle-5 edit: this paragraph previously
+stated which outcomes were "admissible" -- consequence framing inside graded
+evidence, removed on the cycle-4 Q/A's flag.)*
+
+
+---
+
+## 11. Cycle-6 live evidence (2026-08-17): the cycle-5 FAIL's findings closed
+
+```
+$ python3 scripts/qa/rail_turn_cap.py --verify
+VERIFY: PASS -- controls green, turn-exhaustion claim holds.        (exit 0, both interpreters)
+
+$ python3 scripts/qa/mutate_rail_turn_cap.py --verify
+kills by mode (never pooled): {'VERIFY': 27, 'ORACLE': 1, 'INJECTED_TRUTH': 2, 'MUST_STAY_GREEN': 1}
+cells=33  real survivors=0  known/equivalent survivors (BY OUTCOME)=2  errors=0
+VERIFY: PASS -- control green, 0 real survivors, outcomes match annotations, tree unchanged.  (exit 0)
+```
+
+**What changed since cycle 5, each answering a named cycle-5 finding:**
+
+1. **The killed-status conflation is out of the floor** (Invalid_Precondition):
+   `post_removal_turns` rows now carry `killed_n` NAMED, and `non_emitters`
+   counts only spawns that ran to completion without emitting -- an operator
+   abort can no longer redden the immutable command with a false
+   new-loss-mechanism message. Pinned by cell **S11** (killed-run injection,
+   source unmutated, verify MUST stay green -- a MUST_STAY_GREEN negative
+   control) and the fixed floor still fires on a genuine completed non-emitter
+   (S6).
+2. **past_old_cap and the per-role sample are now GUARDED, not just reported**
+   (illusory-guard): verify() cross-checks the report against an INDEPENDENT
+   second derivation computed in the by-type grouping
+   (`uncapped_past_hist_cap`, and `n == uncapped_n`), so a single-site
+   inversion, a role-filter break, a truncated qa sample, or an emptied
+   post-removal set all disagree visibly. Cells: S4 (role break) now dies at
+   the cross-check as well as the floor; the qa-only variants the evaluator
+   drove are caught by the same disagreement.
+3. **The monotone floor has cells** (S8 percentile-reversed, S9 median-as-max
+   -- the two mutations the evaluator confirmed would kill).
+4. **The third hiding shape has a cell** (S10, non-emitter narrowed to
+   dropped-only, caught by the injected-truth assertion).
+5. **Kill modes are never pooled** (Overgeneralization): every kill prints its
+   mode inline and the summary counts per mode, so an ORACLE detection can
+   never read as a shipped-guard kill.
+6. **This file's stale matrix claims are corrected at the site** (the
+   "report survivors" clause): the 22-cell/M14-equivalent statements above now
+   carry their capture cycle and the adjudicated correction.

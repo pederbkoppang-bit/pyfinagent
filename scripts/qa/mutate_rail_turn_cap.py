@@ -88,6 +88,145 @@ def run_cell(mutate) -> tuple[bool, list[str], dict]:
         shutil.rmtree(tmp, ignore_errors=True)
 
 
+# ── phase-86.84 cycle-5: SOURCE-level cells over the cycle-4 additions ──────
+# The cycle-4 Q/A proved the 22 attribute-level cells above never touch
+# analyse()'s new code (per-spawn era-correct caps, post_removal_turns, _q).
+# These cells mutate the SOURCE TEXT of a temp copy -- the real tree is never
+# written -- so the new code paths themselves are under the matrix.
+def _inject_synthetic(mod, kind: str) -> None:
+    """Wrap collect() to append ONE synthetic post-removal qa spawn.
+
+    kind='non_emitter': a COMPLETED spawn that never emitted StructuredOutput
+    -- the true new-loss signal. The live corpus has zero of these, so a
+    reporter that hardcodes zero is EQUIVALENT ON THE CORPUS and only an
+    injected known truth can distinguish it (fixture-must-break-the-symmetry).
+
+    kind='killed': a spawn from a KILLED run -- an operator abort at 12 turns,
+    nowhere near any cap. phase-86.84 cycle-5 proved the first non-emitter
+    floor conflated this with a genuine loss (the F4 class, recommitted); the
+    fixed floor must stay GREEN on it, and cell S11 pins that.
+    """
+    orig = mod.collect
+    killed = kind == "killed"
+
+    def wrapped():
+        data = orig()
+        data["spawns"].append({
+            "run_id": "wf_synthetic-cell",
+            "status": "killed" if killed else "completed",
+            "dropped": False, "completed": not killed, "killed": killed,
+            "agent_type": "qa", "cap": None, "post_removal": True,
+            "session_started_at": "2026-08-17T00:00:00Z", "model": "synthetic",
+            "turns": 12 if killed else 35,
+            "assistant_lines": 12 if killed else 35, "tool_calls": None,
+            "tokens": 0, "structured_output": False,
+            "timestamp": "2026-08-17T00:00:00Z", "workflow": "synthetic",
+        })
+        return data
+
+    mod.collect = wrapped
+
+
+def run_source_cell(old: str | None, new: str | None,
+                    inject: str | None = None) -> tuple[bool, list[str], dict]:
+    """collect+analyse+verify a SOURCE-mutated temp copy of rail_turn_cap.py.
+
+    A missing anchor raises (a no-match replace that silently grades the
+    unmutated source is the operations-that-cannot-fail-loudly trap).
+    `old is None` runs the unmutated source (used by the injection control).
+    """
+    src = TARGET.read_text(encoding="utf-8")
+    if old is not None:
+        if old not in src:
+            raise AssertionError(f"source anchor not found: {old[:70]!r}")
+        src = src.replace(old, new, 1)
+    tmpdir = Path(tempfile.mkdtemp(prefix="rtc_src_"))
+    agents_tmp = None
+    try:
+        mfile = tmpdir / "rail_turn_cap_mut.py"
+        mfile.write_text(src, encoding="utf-8")
+        spec = importlib.util.spec_from_file_location("rtc_srcmut", mfile)
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        agents_tmp = mirror_agents()
+        mod.REPO = agents_tmp
+        if inject:
+            _inject_synthetic(mod, inject)
+        analysis = mod.analyse(mod.collect())
+        ok, problems = mod.verify(analysis)
+        return ok, problems, analysis
+    finally:
+        if agents_tmp is not None:
+            shutil.rmtree(agents_tmp, ignore_errors=True)
+        shutil.rmtree(tmpdir, ignore_errors=True)
+
+
+#: (id, description, old_anchor, new_text, inject, kill_mode, expect)
+#: kill_mode: "VERIFY" -- killed iff verify() goes red with a reason;
+#:            "ORACLE" -- killed iff post_removal_turns differs from the
+#:                        CONTROL's over the same immutable corpus (report
+#:                        fidelity: the published numbers must be the ones the
+#:                        unmutated computation produces);
+#:            "INJECTED_TRUTH" -- killed iff the report shows the injected
+#:                        non-emitter (a reporter that hides a known-planted
+#:                        signal is the mutant; showing it is the kill).
+SOURCE_CELLS = [
+    ("S1", "D1 revert: row cap taken from group[0] again",
+     "caps_present[0]\n                    if len(caps_present) == 1\n                    else (caps_present or None)",
+     'group[0]["cap"]', False, "VERIFY", "KILL"),
+    ("S2", "non-emitter counter floods (counts every post-removal spawn)",
+     '''"non_emitters": sum(
+                    1 for s in g
+                    if not s["structured_output"]
+                    and not s["killed"] and not s["dropped"]
+                ),''',
+     '"non_emitters": len(g),', None, "VERIFY", "KILL"),
+    ("S3", "_q zeroed -- percentiles all report 0",
+     "return sorted_vals[int(frac * (len(sorted_vals) - 1))]",
+     "return 0", False, "VERIFY", "KILL"),
+    ("S4", "post-removal role filter broken -- the sample empties",
+     'g = [s for s in post_removal_spawns if s["agent_type"] == role]',
+     'g = [s for s in post_removal_spawns if s["agent_type"] == role + "_x"]',
+     False, "VERIFY", "KILL"),
+    ("S5", "past_old_cap comparison inverted (> becomes <)",
+     '"past_old_cap": sum(1 for t in turns if t > old_cap),',
+     '"past_old_cap": sum(1 for t in turns if t < old_cap),',
+     False, "ORACLE", "KILL"),
+    ("S6", "INJECTION CONTROL: one synthetic post-removal non-emitter, source unmutated -- the new floor must fire",
+     None, None, "non_emitter", "VERIFY", "KILL"),
+    ("S7", "injection + non_emitters hardcoded to 0 -- the report hides a planted signal",
+     '''"non_emitters": sum(
+                    1 for s in g
+                    if not s["structured_output"]
+                    and not s["killed"] and not s["dropped"]
+                ),''',
+     '"non_emitters": 0,', "non_emitter", "INJECTED_TRUTH", "KILL"),
+    # ── cycle-6 cells (the cycle-5 FAIL's named gaps) ───────────────────────
+    ("S8", "percentile reversed (frac -> 1-frac) -- p90 becomes p10",
+     "return sorted_vals[int(frac * (len(sorted_vals) - 1))]",
+     "return sorted_vals[int((1 - frac) * (len(sorted_vals) - 1))]",
+     None, "VERIFY", "KILL"),
+    ("S9", "median reported as the maximum -- the monotone floor must catch it",
+     '"median_turns": _q(turns, 0.5),',
+     '"median_turns": turns[-1] if turns else 0,',
+     None, "VERIFY", "KILL"),
+    ("S10", "non-emitter narrowed to dropped-only -- a planted completed "
+            "non-emitter is hidden (the third hiding shape, after flood and "
+            "hardcode)",
+     '''if not s["structured_output"]
+                    and not s["killed"] and not s["dropped"]''',
+     '''if not s["structured_output"]
+                    and not s["killed"] and s["dropped"]''',
+     "non_emitter", "INJECTED_TRUTH", "KILL"),
+    # cycle-5 Invalid_Precondition, pinned as a NEGATIVE control: an operator
+    # abort (killed run, 12 turns) must NOT redden the immutable command. The
+    # first floor conflated it; the fixed floor names killed separately.
+    ("S11", "KILLED-RUN INJECTION CONTROL: source unmutated, verify must STAY "
+            "green -- an operator abort is not a new loss mechanism",
+     None, None, "killed", "MUST_STAY_GREEN", "KILL"),
+]
+
+
 # ── cells ───────────────────────────────────────────────────────────────────
 def _write_pin(agents: Path, role: str, line: str) -> None:
     f = agents / f"{role}.md"
@@ -143,10 +282,14 @@ CELLS = [
      lambda m, a: m.HISTORICAL_CAPS.__setitem__("qa", 29), "KILL"),
     ("M13", "HISTORICAL_CAPS researcher 40 -> 41",
      lambda m, a: m.HISTORICAL_CAPS.__setitem__("researcher", 41), "KILL"),
-    # Known-equivalent: the whole corpus already precedes any later boundary.
+    # phase-86.84 cycle-5 (Q/A finding): this cell was annotated EQUIVALENT while
+    # the whole corpus predated the boundary. Since the first post-removal run
+    # landed on disk (2026-08-14T19:35Z) that is no longer true -- moving the
+    # boundary to 2027 reclassifies 59 post-removal spawns as capped-era, C2
+    # fires ("capped spawns exceed their cap"), and the cell KILLS. The
+    # annotation now tracks the outcome; the summary below counts OUTCOMES.
     ("M14", "CAP_EDIT_AT moved far future (2027)",
-     lambda m, a: setattr(m, "CAP_EDIT_AT", "2027-01-01T00:00:00Z"),
-     "SURVIVE_EQUIVALENT"),
+     lambda m, a: setattr(m, "CAP_EDIT_AT", "2027-01-01T00:00:00Z"), "KILL"),
     # F-E: the boundary is now DERIVED FROM DISK, so the derivation itself must be
     # load-bearing too -- a constant-only matrix would not notice if
     # session_is_post_removal stopped discriminating. Forcing it True reclassifies
@@ -162,9 +305,6 @@ CELLS = [
 ]
 
 EXPLANATIONS = {
-    "M14": "EQUIVALENT. Every run in the corpus already precedes the boundary, so "
-           "moving it later changes no row. Not a hole -- there is nothing on the "
-           "far side of the boundary to misclassify yet.",
     "M6": "KNOWN GAP, accepted. A missing agent file makes the role read as "
           "uncapped. Lower severity than a restored pin: a vanished qa.md breaks "
           "the Agent-tool roster loudly and immediately, so this guard is not the "
@@ -193,24 +333,76 @@ def main() -> int:
         return 1
     print()
 
+    # Oracle for the report-fidelity cells: the CONTROL's own re-measurement
+    # over the same immutable corpus. A source mutant whose published numbers
+    # deviate from it is behaviourally non-equivalent by construction.
+    control_prt = analysis["remediation"].get("post_removal_turns")
+
     rows, real_survivors = [], []
     for cid, desc, mutate, expect in CELLS:
         try:
-            ok, problems, analysis = run_cell(mutate)
+            ok, problems, cell_analysis = run_cell(mutate)
             # A cell counts as KILLED only if verify said False AND said why.
             killed = (not ok) and bool(problems)
             outcome = "KILLED" if killed else "SURVIVED"
             first = problems[0][:88] if problems else ""
         except Exception as exc:  # a broken cell is ERROR, never a kill
             outcome, first = "ERROR", f"{type(exc).__name__}: {exc}"[:88]
-            analysis = None
         rows.append((cid, desc, expect, outcome, first))
         if expect == "KILL" and outcome != "KILLED":
             real_survivors.append((cid, desc))
 
+    # phase-86.84 cycle-5: source-level cells over the cycle-4 additions.
+    for cid, desc, old, new, inject, kill_mode, expect in SOURCE_CELLS:
+        try:
+            ok, problems, cell_analysis = run_source_cell(old, new, inject=inject)
+            prt = cell_analysis["remediation"].get("post_removal_turns")
+            if kill_mode == "VERIFY":
+                killed = (not ok) and bool(problems)
+                first = problems[0][:88] if problems else ""
+            elif kill_mode == "ORACLE":
+                killed = prt != control_prt
+                first = ("report deviates from the control oracle"
+                         if killed else "report identical to control")
+            elif kill_mode == "INJECTED_TRUTH":
+                # The harness planted ONE non-emitter; the guard under test is
+                # the injected-truth assertion itself: a report that hides a
+                # known-planted signal is caught, so hiding == KILLED. (S6 is
+                # the paired control proving the plant is visible unmutated.)
+                qa_row = next((r for r in (prt or [])
+                               if r["agent_type"] == "qa"), None)
+                shown = bool(qa_row) and qa_row["non_emitters"] >= 1
+                killed = not shown
+                first = ("mutant hides the planted non-emitter -- caught by the "
+                         "injected-truth assertion" if killed else
+                         "planted signal still visible (mutation ineffective)")
+            elif kill_mode == "MUST_STAY_GREEN":
+                # Not a mutant: a negative control. The cell "kills" (passes)
+                # iff verify stays green under the injection -- a red here is
+                # the cycle-5 false-positive regressing.
+                killed = ok
+                first = ("no false positive on an operator abort" if ok else
+                         "FALSE POSITIVE: " + (problems[0][:70] if problems else ""))
+            else:  # pragma: no cover
+                raise AssertionError(f"unknown kill_mode {kill_mode}")
+            outcome = "KILLED" if killed else "SURVIVED"
+            # cycle-6 (Q/A Overgeneralization finding): the kill MODE travels
+            # with the outcome so VERIFY, ORACLE, INJECTED_TRUTH and
+            # MUST_STAY_GREEN kills are never pooled into one undifferentiated
+            # count -- an ORACLE kill is a harness detection, not a shipped
+            # guard, and the reader must be able to tell.
+            outcome = f"{outcome}[{kill_mode}]" if killed else outcome
+        except Exception as exc:
+            outcome, first = "ERROR", f"{type(exc).__name__}: {exc}"[:88]
+        rows.append((cid, desc, expect, outcome, first))
+        if expect == "KILL" and not outcome.startswith("KILLED"):
+            real_survivors.append((cid, desc))
+
     w = max(len(d) for _, d, _, _, _ in rows)
     for cid, desc, expect, outcome, first in rows:
-        flag = "  <-- REAL SURVIVOR" if (expect == "KILL" and outcome != "KILLED") else ""
+        flag = ("  <-- REAL SURVIVOR"
+                if (expect == "KILL" and not outcome.startswith("KILLED"))
+                else "")
         print(f"  {cid:<5} {desc:<{w}}  {outcome:<8}{flag}")
         if first:
             print(f"        {first}")
@@ -226,13 +418,34 @@ def main() -> int:
         print(f"  {mark}{p.relative_to(REPO)}  {after[p]}")
     print()
 
-    expected_survivors = [c for c, _, _, e, _ in
-                          [(r[0], r[1], r[2], r[2], r[3]) for r in rows]
-                          if e != "KILL"]
+    # phase-86.84 cycle-5 (Q/A finding): the summary previously counted LABELS
+    # (cells whose expectation was not KILL) and presented that as a survivor
+    # count. Count OUTCOMES, and treat a stale annotation as a failure in its
+    # own right -- an expected-survivor that actually KILLED means the
+    # explanation no longer describes the run.
+    survived_known = [(cid, desc) for cid, desc, expect, outcome, _ in rows
+                      if expect != "KILL" and outcome == "SURVIVED"]
+    annotation_mismatch = [(cid, expect, outcome)
+                           for cid, _, expect, outcome, _ in rows
+                           if expect != "KILL" and outcome != "SURVIVED"]
+    mode_counts = {}
+    for _cid, _d, _e, outcome, _f in rows:
+        if outcome.startswith("KILLED["):
+            mode = outcome[len("KILLED["):-1]
+            mode_counts[mode] = mode_counts.get(mode, 0) + 1
+        elif outcome == "KILLED":
+            mode_counts["VERIFY"] = mode_counts.get("VERIFY", 0) + 1
+    print(f"kills by mode (never pooled): {mode_counts}")
+    errors = [(cid, desc) for cid, desc, _, outcome, _ in rows
+              if outcome == "ERROR"]
     print(f"cells={len(rows)}  real survivors={len(real_survivors)}  "
-          f"known/equivalent survivors={len(expected_survivors)}")
+          f"known/equivalent survivors (BY OUTCOME)={len(survived_known)}  "
+          f"errors={len(errors)}")
     for cid, desc in real_survivors:
         print(f"  REAL SURVIVOR {cid}: {desc}")
+    for cid, expect, outcome in annotation_mismatch:
+        print(f"  ANNOTATION MISMATCH {cid}: expected {expect}, observed {outcome}"
+              f" -- the cell's explanation no longer describes the run")
 
     if args.verify:
         if not unchanged:
@@ -241,7 +454,14 @@ def main() -> int:
         if real_survivors:
             print("\nVERIFY: FAIL -- a guard that should have caught a mutant did not.")
             return 1
-        print("\nVERIFY: PASS -- control green, 0 real survivors, tree unchanged.")
+        if annotation_mismatch:
+            print("\nVERIFY: FAIL -- a cell annotation contradicts its observed outcome.")
+            return 1
+        if errors:
+            print("\nVERIFY: FAIL -- a cell errored; an unscored cell is not evidence.")
+            return 1
+        print("\nVERIFY: PASS -- control green, 0 real survivors, outcomes match "
+              "annotations, tree unchanged.")
     return 0
 
 

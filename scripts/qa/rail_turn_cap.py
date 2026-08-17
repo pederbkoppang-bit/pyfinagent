@@ -131,6 +131,11 @@ KILLED_STATUS = "killed"        # "Workflow aborted" -- operator/runtime stop
 MIN_AGENTS = 200
 MIN_DROPS = 5
 MIN_CAPPED_TYPES = 1
+# phase-86.84 cycle-5 (Q/A finding QM2/QM7/QM8): once the boundary has been
+# crossed, the re-measurement must rest on a non-trivial sample -- and a
+# post-removal NON-EMITTER is the one signal verify() previously asserted
+# nothing about, which is exactly the axis the 86.81 retry can mask.
+MIN_POST_REMOVAL_SPAWNS = 10
 
 
 def projects_root() -> Path:
@@ -429,16 +434,53 @@ def analyse(data: dict) -> dict:
 
     rows = []
     for atype, group in sorted(by_type.items(), key=lambda kv: str(kv[0])):
-        cap = group[0]["cap"]
+        # phase-86.84 cycle-4 (external audit 2026-08-17, finding D1): this row
+        # previously took its cap from group[0] -- the alphabetically-first run
+        # record on disk. The moment any POST-removal session sorts first, the
+        # row reads uncapped while 300+ historical spawns in the same group ran
+        # capped, and verify()'s capped_types floor then counts ZERO capped
+        # roles -> exit 1 "no agent type carries a cap; nothing to test" over a
+        # corpus holding 395 capped spawns. A sampled representative is not a
+        # population property: score each spawn against ITS OWN era-correct cap
+        # and report the group's caps as the SET actually observed.
+        caps_present = sorted({s["cap"] for s in group if s["cap"] is not None})
         dropped = [s for s in group if s["dropped"]]
         # F4: `completed` is its own status, NOT "everything that did not drop".
         completed = [s for s in group if s["completed"]]
-        at_cap_dropped = [s for s in dropped if cap is not None and s["turns"] == cap]
-        over_cap = [s for s in group if cap is not None and s["turns"] > cap]
+        at_cap_dropped = [
+            s for s in dropped if s["cap"] is not None and s["turns"] == s["cap"]
+        ]
+        over_cap = [
+            s for s in group if s["cap"] is not None and s["turns"] > s["cap"]
+        ]
         rows.append(
             {
                 "agent_type": atype,
-                "cap": cap,
+                # Single historical cap -> that number (the common case, per
+                # HISTORICAL_CAPS). No capped spawn ever -> None. Multiple
+                # distinct caps -> the list, so a mixed history is visible
+                # rather than averaged away.
+                "cap": (
+                    caps_present[0]
+                    if len(caps_present) == 1
+                    else (caps_present or None)
+                ),
+                "caps_present": caps_present,
+                "capped_n": sum(1 for s in group if s["cap"] is not None),
+                "uncapped_n": sum(1 for s in group if s["cap"] is None),
+                # phase-86.84 cycle-6: an INDEPENDENT second derivation of the
+                # uncapped-past-historical-cap count, computed here from the
+                # by-type grouping so verify() can cross-check the
+                # post_removal_turns report against a different code path. A
+                # single-site inversion of either computation now produces a
+                # visible disagreement instead of a silently wrong published
+                # number (the cycle-5 Q/A proved past_old_cap was
+                # reported-but-unguarded).
+                "uncapped_past_hist_cap": sum(
+                    1 for s in group
+                    if s["cap"] is None
+                    and s["turns"] > HISTORICAL_CAPS.get(str(atype), 10 ** 9)
+                ),
                 "n": len(group),
                 "dropped": len(dropped),
                 "dropped_exactly_at_cap": len(at_cap_dropped),
@@ -451,7 +493,9 @@ def analyse(data: dict) -> dict:
                     else 0
                 ),
                 "completed_at_cap": sum(
-                    1 for s in completed if cap is not None and s["turns"] == cap
+                    1
+                    for s in completed
+                    if s["cap"] is not None and s["turns"] == s["cap"]
                 ),
             }
         )
@@ -555,10 +599,54 @@ def analyse(data: dict) -> dict:
     # would be a forecast dressed as a measurement.
     post_removal_spawns = [s for s in spawns if s.get("post_removal")]
     post_removal_ts = [s["timestamp"] for s in post_removal_spawns if s.get("timestamp")]
+
+    # phase-86.84 cycle-4: THE COMMITTED RE-MEASUREMENT. The realised turn
+    # distribution of post-removal (uncapped) spawns is the uncensored sample
+    # the removal existed to produce -- report it per formerly-capped role so
+    # the right-censoring argument is checked against lived data on every run,
+    # not against a promise. Percentile = value at floor(frac*(n-1)) of the
+    # sorted list; stated so the number cannot float free of its rule.
+    def _q(sorted_vals: list[int], frac: float) -> int:
+        if not sorted_vals:
+            return 0
+        return sorted_vals[int(frac * (len(sorted_vals) - 1))]
+
+    post_removal_turns = []
+    for role, old_cap in sorted(HISTORICAL_CAPS.items()):
+        g = [s for s in post_removal_spawns if s["agent_type"] == role]
+        turns = sorted(s["turns"] for s in g)
+        post_removal_turns.append(
+            {
+                "agent_type": role,
+                "historical_cap": old_cap,
+                "n": len(g),
+                "dropped": sum(1 for s in g if s["dropped"]),
+                # phase-86.84 cycle-6 (cycle-5 Q/A, Invalid_Precondition): a
+                # spawn in a KILLED run -- an operator abort -- never had the
+                # chance to emit StructuredOutput, and counting it here
+                # re-committed the exact killed-vs-completed conflation this
+                # file fixed as F4. The three run statuses stay explicit:
+                # killed is NAMED, dropped is named, and non_emitters counts
+                # only spawns that ran to completion WITHOUT emitting -- the
+                # one shape that genuinely signals a new loss mechanism.
+                "killed_n": sum(1 for s in g if s["killed"]),
+                "non_emitters": sum(
+                    1 for s in g
+                    if not s["structured_output"]
+                    and not s["killed"] and not s["dropped"]
+                ),
+                "median_turns": _q(turns, 0.5),
+                "p90_turns": _q(turns, 0.9),
+                "max_turns": turns[-1] if turns else 0,
+                "past_old_cap": sum(1 for t in turns if t > old_cap),
+            }
+        )
+
     remediation = {
         "cap_edit_at": CAP_EDIT_AT,
         "first_post_removal_run": min(post_removal_ts) if post_removal_ts else None,
         "post_removal_spawns": len(post_removal_spawns),
+        "post_removal_turns": post_removal_turns,
         "live_caps": {r: parse_cap(r) for r in sorted(HISTORICAL_CAPS)},
         "historical_caps": dict(HISTORICAL_CAPS),
         "all_pins_removed": all(parse_cap(r) is None for r in HISTORICAL_CAPS),
@@ -690,6 +778,15 @@ def render(a: dict) -> str:
     else:
         w(f"  first uncapped  : {r['first_post_removal_run']}  "
           f"({r['post_removal_spawns']} spawn(s) past the boundary)")
+        w("  REALISED UNCAPPED TURN DISTRIBUTION (the committed re-measurement --")
+        w("  the uncensored sample; percentile rule: sorted[int(frac*(n-1))]):")
+        for pr in r.get("post_removal_turns", []):
+            w(
+                f"    {pr['agent_type']:<12} n={pr['n']:>3}  dropped={pr['dropped']}  "
+                f"non-emitters={pr['non_emitters']}  p50={pr['median_turns']}  "
+                f"p90={pr['p90_turns']}  max={pr['max_turns']}  "
+                f">old-cap({pr['historical_cap']})={pr['past_old_cap']}"
+            )
     w("     ^ DERIVED FROM DISK, per run, from the birth time of the session")
     w("       directory owning the run record -- never a calendar constant. The")
     w("       roster snapshots at SESSION START, and sessions overlap, so no")
@@ -790,6 +887,81 @@ def verify(a: dict) -> tuple[bool, list[str]]:
             f"CLAIM BROKEN: {cl['drops_on_uncapped_types']} uncapped spawns dropped -- "
             "the cap cannot be the only mechanism"
         )
+
+    # ── The re-measurement itself is guarded (phase-86.84 cycle-5) ──────────
+    # The cycle-4 Q/A proved by mutation that verify() asserted NOTHING over
+    # remediation.post_removal_turns: zeroed percentiles, a vanished role block
+    # and a non-emitter flood all left this function green (QM1/QM2/QM7/QM8).
+    # The non-emitter axis is exactly the one the 86.81 retry can mask, so a
+    # re-measurement without a floor is an illusory guard.
+    if r["first_post_removal_run"] is not None:
+        prt = r.get("post_removal_turns") or []
+        if not prt:
+            problems.append(
+                "RE-MEASUREMENT MISSING: the boundary has been crossed but "
+                "post_removal_turns is empty -- the committed uncensored sample "
+                "is not being produced"
+            )
+        total_post = sum(row["n"] for row in prt)
+        if prt and total_post < MIN_POST_REMOVAL_SPAWNS:
+            problems.append(
+                f"cardinality floor: only {total_post} post-removal qa/researcher "
+                f"spawns < {MIN_POST_REMOVAL_SPAWNS} -- refusing to certify the "
+                "re-measurement on a truncated sample (or a broken role filter)"
+            )
+        for row in prt:
+            if row["n"] <= 0:
+                continue
+            if row["non_emitters"]:
+                problems.append(
+                    f"POST-REMOVAL NON-EMITTER: {row['non_emitters']} uncapped "
+                    f"{row['agent_type']} spawn(s) never emitted StructuredOutput. "
+                    "The cap was the proven mechanism and it is gone, so this is a "
+                    "NEW loss mechanism (or the 86.81 retry absorbing losses "
+                    "again). Revisit the diagnosis; do NOT re-pin a cap."
+                )
+            if row["dropped"]:
+                problems.append(
+                    f"POST-REMOVAL DROP: {row['dropped']} uncapped "
+                    f"{row['agent_type']} run(s) failed -- same revisit rule"
+                )
+            if row["median_turns"] < 1:
+                problems.append(
+                    f"re-measurement broken for {row['agent_type']}: p50 "
+                    f"{row['median_turns']} with n={row['n']} -- a real spawn "
+                    "takes at least one turn, so the percentile computation is "
+                    "not reading real data"
+                )
+            if not (row["median_turns"] <= row["p90_turns"] <= row["max_turns"]):
+                problems.append(
+                    f"re-measurement broken for {row['agent_type']}: p50 "
+                    f"{row['median_turns']} / p90 {row['p90_turns']} / max "
+                    f"{row['max_turns']} are not monotone"
+                )
+            # phase-86.84 cycle-6: the report must AGREE with the independent
+            # by-type derivation. For qa/researcher, "uncapped" and
+            # "post-removal" are the same population (a pre-removal spawn of a
+            # formerly-capped role always carries its historical cap), so a
+            # role-filter break, a truncated sample, or an emptied set on
+            # either side produces a visible disagreement here.
+            brow = next((r2 for r2 in a["by_agent_type"]
+                         if r2["agent_type"] == row["agent_type"]), None)
+            if brow is not None:
+                if row["n"] != brow["uncapped_n"]:
+                    problems.append(
+                        f"re-measurement disagrees with the by-type derivation "
+                        f"for {row['agent_type']}: post_removal n={row['n']} vs "
+                        f"uncapped_n={brow['uncapped_n']} -- one of the two "
+                        "computations is broken (or a cap was re-pinned)"
+                    )
+                if row["past_old_cap"] != brow["uncapped_past_hist_cap"]:
+                    problems.append(
+                        f"past_old_cap disagrees with its independent "
+                        f"derivation for {row['agent_type']}: "
+                        f"{row['past_old_cap']} vs "
+                        f"{brow['uncapped_past_hist_cap']} -- the published "
+                        "number no longer reflects the computation"
+                    )
     return (not problems), problems
 
 

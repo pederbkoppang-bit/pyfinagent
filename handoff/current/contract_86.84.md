@@ -64,7 +64,7 @@ which reach **63 and 56 turns — both above 40.**
    agentType are independent settings; change only the cap.
    **This corrects a framing error of mine.** I had asked whether these roles
    could move onto the uncapped default subagent. They must not:
-   `qa-verdict.js:264-273` shows `general-purpose` re-expands to
+   `qa-verdict.js:264-273` *(cycle-6 note: drifted to ~:480-486 as the file grew; the claim itself is unchanged -- grep for the passage, line numbers rot)* shows `general-purpose` re-expands to
    Edit/Write/Bash plus the full deferred MCP surface, which phase-75.20
    deliberately pinned away from. And my premise about the researcher was also
    wrong — `research-gate.js:46` records that the researcher gets `Write` from
