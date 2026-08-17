@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-17 | `214673b1` | phase-86.71: wire the cumulative attempt budget at the Workflow origin -- PASS on cycle 5/5 |
 | 2026-08-17 | `c90910ef` | phase-86.84: cycle 11 GENERATE -- non-comment-line pin + rendered/cross-checked unclassified aggrega |
 | 2026-08-17 | `2a6cd4b6` | phase-86.85/86.71: cycle 12/5 GENERATE -- prefix-related filter fixtures + the except branch driven |
 | 2026-08-17 | `cbbd1566` | phase-86.84/86.85/86.71: cycle 10/11/4 GENERATE -- coupling pin + prose-rot replacements + loud fail |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-17 | `30b64a89` | docs(preflight): record 2026-08-17 preflight deviation -- 86.94 guard 44/1, self-referential drift |
 | 2026-08-17 | `c4b84e4e` | docs(session): overnight day report + regenerated goal_next |
 | 2026-08-17 | `11de67e1` | docs(86.98-input): verdict population measured across 44 sessions -- 377 verdicts |
-| 2026-08-17 | `964b0255` | phase-86.94: PARK at the cap -- R2 circuit breaker tripped, step work stops |
 
 ---
 
+### v6.93.224 — phase-86.71: wire the cumulative attempt budget at the Workflow origi... (2026-08-17)
+
+- **phase-86.71: wire the cumulative attempt budget at the Workflow origin -- PASS on cycle 5/5**
 ### v6.93.223 — phase-86.92: PASS -- close the restored args-boundary gate, queue two... (2026-08-16)
 
 - **phase-86.92: PASS -- close the restored args-boundary gate, queue two successors**
