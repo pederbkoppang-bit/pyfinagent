@@ -800,3 +800,27 @@ claim-set rather than by grepping strings I had just edited, I swept the
 forward-looking artifacts FIRST, and I re-measured the underlying numbers
 independently rather than propagating them. That raises the floor; it does not
 close the question.
+
+---
+
+## C6 re-measurement (2026-08-17, Main): the missing row is STARVED, not broken
+
+Re-ran the C6 probe three days after the cycle-7 grade:
+
+```
+SELECT DATE(created_at), ticker, LENGTH(factors_json),
+       STRPOS(factors_json,'RiskJudge')>0
+FROM `sunny-might-477607-p8.financial_reports.signals_log`
+WHERE created_at >= TIMESTAMP('2026-08-14') ORDER BY created_at LIMIT 50
+-- 1 row: 2026-08-14  $CYCLE  fj_len=19  RiskJudge=False
+```
+
+Population rule: every signals_log row since the fix went live; the one row is
+the same cycle-marker the cycle-7 Q/A measured. **Zero gated buys have occurred
+in the three days since the fix** -- C6's missing artifact cannot exist until
+the book produces one, and the drought's cause is owned by steps 86.38/86.47/
+86.69 (the 86.69 empty-HOLD regression starves the BUY funnel upstream).
+Decision under the operator's product-vs-evidence directive: no evaluation is
+spawned against a criterion starved of its input (it would fail on C6
+unchanged, ~200K tokens for no information). 86.74 stays open; its closing
+rail-bound evaluation fires when the first organic gated buy writes the row.
