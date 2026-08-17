@@ -203,3 +203,46 @@ or deletions.
   roster confirmation after restart (`scripts/qa/verify_qa_roster_live.sh`).
 - **Therefore this step is NOT ready to close**, and no Q/A should be spawned claiming it
   is. Two of eight criteria are open, one of them permanently outside my authority.
+
+
+---
+
+## Cycle-2 captures (2026-08-17; exits unpiped)
+
+```
+$ git grep -l "context/research-gate" -- . | wc -l
+21
+$ git grep -l "context/research-gate" -- . | sort
+.claude/agent-memory/qa/verdicts/verdict_wip_86.75__20260814T025732Z.md
+.claude/agent-memory/researcher/project_cron_maintenance_jobs.md
+.claude/agent-memory/researcher/project_research_gate_discipline.md
+.claude/masterplan.json
+.claude/rules/research-gate.md
+handoff/archive/phase-4.16.3/phase-4.16.3-contract.md
+handoff/archive/phase-4.16.3/phase-4.16.3-experiment-results.md
+handoff/archive/phase-4.16.3/phase-4.16.3-research-brief.md
+handoff/archive/phase-51.4/research_brief.md
+handoff/archive/step-2.13-evaluator_critique.md
+handoff/archive/step-2.13-experiment_results.md
+handoff/audit/phase-4.11/tool_use_primitives.md
+handoff/current/audit_phase75/confirmed_findings.json
+handoff/current/contract_86.75.md
+handoff/current/evaluator_critique_86.75.md
+handoff/current/experiment_results_86.75.md
+handoff/current/live_check_86.75.md
+handoff/data/02aed8f.patch
+handoff/harness_log.md
+handoff/phase-proposals/phase-5.5-data-audit.md
+scripts/autoresearch/run_memo.py
+$ bash scripts/qa/verify_qa_roster_live.sh > /tmp/roster.txt 2>&1; echo ROSTER_EXIT=$?
+ROSTER_EXIT=0
+$ tail -2 /tmp/roster.txt
+ On-disk + git checks PASSED. Behavioral check is operator-driven.
+================================================================
+$ grep -n "records_retained" .claude/agents/qa.md | head -2
+(current wording -- the gauge correction; quoted in the GENERATE)
+```
+
+Operator approval record: AskUserQuestion 2026-08-17, answer "Approve all"
+(the six qa.md commits + the maxTurns removal, itemised in the question
+text; transcribed in experiment_results cycle-2 item 1).

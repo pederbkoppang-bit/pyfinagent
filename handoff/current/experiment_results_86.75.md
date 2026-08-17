@@ -182,3 +182,41 @@ do-not-override instruction buys reproducibility at the cost of validity.
   cannot restore the ordering; they stop the next cycle compounding it.
 - **86.78 is filed, not fixed** — deliberately, since it is a fourth `qa.md` edit.
 - **No Q/A has graded this re-derivation.** The step is NOT flipped.
+
+
+---
+
+## Cycle 2 GENERATE (2026-08-17): the operator-owed half discharged; the enumeration re-shown at today's corpus
+
+1. **C7 -- DISCHARGED BY THE OPERATOR, in session.** All agent-file changes
+   since 2026-08-12 (six commits touching qa.md net +268/-19, one removing
+   both maxTurns caps) were presented in plain terms via AskUserQuestion and
+   the operator answered **"Approve all"** (2026-08-17, attended). Roster
+   liveness: `scripts/qa/verify_qa_roster_live.sh` on-disk + git checks
+   PASSED (this session postdates every edit), and the behavioural half is
+   confirmed by execution rather than by a synthetic probe -- all seven
+   evaluators spawned today operate under the current rules (they cite the
+   gauge language, the qa.md 4c vacuity clause, and the alongside-never-
+   inside escalation architecture in their own verdicts).
+2. **C6 -- the enumeration SHOWN, with its population rule, at today's
+   corpus.** Population: tracked files only, `git grep -l
+   "context/research-gate" -- .` -> **21 files** (the count moves as
+   artifacts mentioning the deletion accrue -- 11 at the cycle-1 re-check,
+   21 today; the RULE is the stable object, stated here beside the count).
+   Classification, a LIVE pointer being code that opens/reads the path or
+   an instruction directing a reader there as authoritative: 20 of 21 are
+   deletion notes, audit records, or artifacts describing this very test
+   (incl. 4 of this step's own files -- the self-match class, disclosed);
+   the single .py, `scripts/autoresearch/run_memo.py`, states in its own
+   docstring that nothing reads the path. **Live pointers: 0.** Full list
+   in live_check_86.75.md cycle-2 section.
+3. **The C1 residual is closed by a LATER step, verified now**: qa.md's
+   records_retained wording was corrected by the 86.79 line of work -- the
+   current text calls it a gauge, and every evaluator today quoted
+   "records_retained=N (gauge, not counter)" in its own notes.
+4. **The harness-order breach, disclosed here as the critique required**:
+   `handoff/harness_log.md:34389` carries a pre-EVALUATE `phase=86.75` row
+   from commit 9a59a4fa (token `result=IMPLEMENTED-PENDING-REVIEW`, not a
+   verdict). The breach is contained, not repaired -- ordering cannot be
+   restored retroactively; the row's own token requests the review that
+   item 1 above now records.
