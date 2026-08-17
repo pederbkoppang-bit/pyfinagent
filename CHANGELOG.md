@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-17 | `2d861f5f` | phase-86.97: assert the DECISION, not the existence of a log line; bound the last carrier |
 | 2026-08-17 | `d84a41b2` | phase-86.94: PARK at the 3-attempt rail -- criteria 1,2,3,4,6,7 MET, criterion 5 not |
 | 2026-08-17 | `dc8d64d9` | phase-86.94: delete the mislabelled stale block, withdraw a misquote, enforce fixture provenance |
 | 2026-08-17 | `fca21bc6` | phase-86.94: correct a FALSE criterion-4 judgement and make a dead probe detectable |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-16 | `6c801544` | phase-86.97: cycle-2 -- my buildability oracle had the step's own defect |
 | 2026-08-16 | `3894ac71` | phase-86.97: guard the decision log against a call the 86.91 checker cannot see |
 | 2026-08-16 | `e45c1bf6` | phase-86.92: PASS -- close the restored args-boundary gate, queue two successors |
-| 2026-08-16 | `45b74291` | phase-86.92: cycle-2 -- my own positive control could not fail |
 
 ---
 
