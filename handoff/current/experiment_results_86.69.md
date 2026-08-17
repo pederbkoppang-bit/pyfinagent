@@ -73,6 +73,39 @@ The phase-61.2 machinery (verified from source + its 33 tests):
   green suite encodes that policy; changing it belongs to the flag, not
   to a silent default flip).
 
+### The NULL-consumer derivation (added after cycle 1; it was the criterion's
+### actual requirement and cycle 1 asserted it instead)
+
+The criterion says *"prove no consumer reads it as a HOLD, **deriving** the
+consumer set rather than asserting it"*. Cycle 1 discharged the NULL half with
+three asserted bullets. The research brief derives 10 readers + 3 writers with
+file:line, **but its table analyses the effect of the FABRICATED 0.0/HOLD** --
+only `api/models.py:99-100` and `frontend/src/lib/types.ts:123-126` are shown
+to handle a NULL. The NULL behaviour of the other 8 was never derived.
+
+Derived (by the cycle-1 evaluator, reproduced here because it is the evidence
+the criterion asks for, not a summary of it):
+
+- `signal_attribution.py:185` --
+  `str(analysis.get('recommendation','')).upper() or 'HOLD'` yields **`"NONE"`**
+  for a present-but-None key, **not `"HOLD"`**. The `or`-escape fires only on
+  an ABSENT key, and the key is present with value None. This is the one site
+  that could plausibly have re-created a HOLD, and it does not.
+- NULL is a member of **neither** `_BUY_RECS` nor `_DOWNGRADE_RECS`, so it
+  cannot be read as a buy signal or as a downgrade.
+- `_fold_degraded_for_trading` (`:2772`, reached by the `return` at `:1254`)
+  removes `_degraded` rows **before** `decide_trades`, so no degraded row
+  reaches the trading path at all. That same fold also averts a second hazard
+  worth naming: `portfolio_manager.py:353/430` do
+  `.get("final_score", 0)`, which on a present-but-None key returns **None**
+  and would raise on the sort -- unreachable only because the fold runs first.
+
+So the absence is represented as an absence at the persistence boundary AND no
+consumer converts it back into a verdict. **Recorded honestly: this derivation
+is the evaluator's work, not Main's** -- Main asserted where the criterion
+required derivation, and this section exists so the criterion is met by
+evidence rather than by the assertion it rejected.
+
 ## Criterion 7 -- the ASK, and how the approval was executed
 
 ASK-1 (arm the flag) + ASK-3 (restart now vs session end) were put to the
@@ -119,7 +152,17 @@ is the in-force evidence, stated as a chain rather than claimed as a read.
 ## Criteria 4+5 -- MEASURED, and the measurement does NOT discriminate
 
 The first post-arm cycle ran `cycle-1786989600`, 2026-08-17T18:00:00Z, held by
-pid 41635 (the process proven to load the flag). It produced **6 analyses**.
+pid 41635 (the process proven to load the flag). It produced **7 analyses**.
+
+**The tables below say 6 and are a DATED capture** taken at 19:41:57Z; DELL
+landed at 19:46:09Z, after they were written. Re-measured now: **n=7, zero=0,
+and `summary_len=0` on ALL SEVEN**. That last figure matters and no artifact
+stated it: the *zero-score* half of the defect's row signature is gone
+post-arm, but the *empty-summary* half is **100% present** (PRE 29/151, POST
+40/62, POST_ARM 7/7). A peer session is already fixing it -- an uncommitted
+`_persist_analysis` edit at 19:42:56Z makes the full path persist
+`final_synthesis.final_summary` instead of the lite-path-only
+`risk_assessment.reason`. Not this step's work and not in its commit.
 Everything below is from `scratchpad/measure_86_69.py`, which prints every
 query beside its result.
 
@@ -148,15 +191,35 @@ WHERE DATE(analysis_date) BETWEEN '2026-05-01' AND CURRENT_DATE() GROUP BY regim
 | POST | 62 | 11 | **17.7%** |
 | **POST_ARM** | **6** | **0** | **0.0%** |
 
-### THE FROZEN BASELINES DO NOT REPRODUCE -- reported, not reconciled
+### THE FROZEN BASELINES DO REPRODUCE -- under a DIFFERENT regime boundary
 
-`live_check_86.69.md` §4 froze `PRE 95/251 = 37.8%; POST 211/260 = 81.2%`.
-Re-running that same query today gives `PRE 87/238 = 36.6%; POST 219/281 =
-77.9%`. POST growing is expected. **PRE SHRINKING (251 -> 238) is not**, because
-2026-05-01..2026-06-10 is a closed historical window. Table reconciles
-(54 + 238 + 286 = 578). **No cause is asserted.** The direction is unaffected,
-but a baseline that cannot be regenerated is not a baseline, so both readings
-are given with their queries.
+**This REPLACES the cycle-1 claim that the PRE side had "unexplained" shrunk in
+a closed historical window. That claim was wrong, and the correction is not
+mine** -- the evaluator found it and I reproduced it independently:
+
+```sql
+-- PRE cut at 06-12 (the AUDIT-BASIS partition)
+n=251  zero=95   -> 37.8%      <- the frozen baseline, EXACTLY
+-- PRE cut at 06-10 (the partition PUBLISHED in this file)
+n=238  zero=87   -> 36.6%
+-- the 13 rows that separate them, 2026-06-11..06-12
+n=13   zero=8    -> 61.5%
+```
+
+The two readings were **never comparable**: the audit basis partitions
+`PRE <= 06-12 / POST >= 06-15`, while the query published here uses
+`PRE <= 06-10 / POST >= 06-11`. Nothing was lost from a closed window -- the
+entire 13-row delta is the 06-11..06-12 band, which the published rule assigns
+to POST and the audit-basis rule assigns to PRE.
+
+**That band is itself corroborating evidence**, not noise: at 61.5% zero-score
+it sits between the PRE (37.8%) and POST (80.5%) regimes, which is what a
+break landing ON 2026-06-11 looks like -- independently supporting criterion
+1's corrected break date.
+
+Lesson recorded rather than buried: a baseline is only meaningful **with its
+partition attached**, and "the number changed" is not evidence of data loss
+until the boundary rule has been held constant.
 
 ### *** THE HONEST CONCLUSION: THIS CYCLE PROVES NOTHING ABOUT THE FIX ***
 
