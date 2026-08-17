@@ -36050,3 +36050,18 @@ NOTE (separation-of-duties): this session edited qa.md twice today -- the
 and the 86.79 prior_attempts staleness one-liner (flagged at its cycle-5
 record) -- both await no further review per the operator's Approve-all, but
 are listed here for the record.
+
+## Cycle 1241 -- 2026-08-17 -- phase=86.79 result=PASS
+
+**Step:** 86.79 -- records_retained counted the current spawn; pruning could
+undercount. **PASS on cycle 6** (all seven criteria re-derived by execution;
+criteria byte-immutable across 42 masterplan revisions). What shipped across
+the arc: attempt_number/prior_attempts with honest unit semantics
+(records_retained demoted to a labelled gauge), the loss ledger
+(records_pruned_known) that survives pruning, fail-closed None-never-0 on
+every uncomputable path, the doc-and-code agreement applied by a fresh
+executor, and a 62-check gate whose pins now search comment-stripped
+effective text at a floor that catches skipped blocks. The counter was a
+live witness to its own fix: today's evaluators' staleness cross-checks ran
+on the corrected operand. Six-cycle arc: C, C, rail-drop, C, mechanical
+FAIL, PASS. R1-R3 ride the transcribed verdict for the residual queue.
