@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-17 | `d69da099` | phase-86.84: cycles 4-6 -- D1 verifier fix, re-measurement guarded by floors + independent cross-der |
 | 2026-08-17 | `1c80684a` | phase-86: file 86.105 (handoff layout invariant red) + 86.106 (instruction-surface consolidation) -- |
 | 2026-08-17 | `22cb3640` | docs(session): 2026-08-17 day report, diagnostics, regenerated goal_next; park 86.97 on the ceiling |
 | 2026-08-17 | `6f8d29e3` | phase-86.97: replace a false claim, cover the phase-emptied branch, un-truncate the end-to-end drive |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-16 | `4f2bba7f` | phase-86.94: measurement 2 -- the bare-date count went DOWN while the repo GREW |
 | 2026-08-16 | `757c58ad` | phase-86.94: the guard flagged ITSELF the moment it was committed |
 | 2026-08-16 | `f1b02a36` | phase-86.94: the phase-86.91 window fix was incomplete -- a pinned timestamp is TZ-local |
-| 2026-08-16 | `a8c71ab7` | phase-86.97: PARK at the 3-attempt cap -- FAIL on two claims that did not reproduce |
 
 ---
 
