@@ -35936,3 +35936,20 @@ driven at cycle 12, and the single evidence-class residual (constant
 anti-vacuity meta-predicates) queued as P3 step 86.107. No verdict record was
 rewritten; the close authority is the operator's at the exhausted attempt
 ceiling, exactly as the budget's escalation path was designed.
+
+## Cycle 1234 -- 2026-08-17 -- phase=86.84 result=PASS
+
+**Step:** 86.84 -- the Layer-3 rail drop is TURN-BUDGET EXHAUSTION; remedy =
+cap REMOVAL + committed uncensored re-measurement. **PASS on cycle 11** (all 8
+criteria MET, re-derived by execution). The realised uncapped distribution now
+prints on every run with verify() floors (qa n=54 p50=41 p90=54 max=62 -- 50
+of 54 past the retired cap of 30; drop rate at the cap 12.2% -> 0/104 at
+risk); the orphan-transcript sweep makes re-dispatch-erased attempts visible
+(erased=N per role, unclassified aggregated + rendered + cross-checked); the
+confounded model attribution is retracted at all three sources with runtime
+caveats. Matrix 41 cells / 0 real survivors, kills never pooled
+{VERIFY 32, ORACLE 2, INJECTED_TRUTH 2, MUST_STAY_GREEN 3}. Two
+evidence-class residuals (block-comment pin shape; same-source recount cell)
+ride to P3 step 86.107 per the operator's product-vs-evidence directive.
+Arc: C,C,C,C,F,NV,F,F,C,C,PASS across 11 graded cycles + 2 rail-killed
+attempts -- the very drop mechanism this step diagnosed.
