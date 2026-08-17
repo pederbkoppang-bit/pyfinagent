@@ -49,3 +49,18 @@ shipped code does.
   `python3 scripts/harness/attempt_gate.py --operator-extend 86.85 --by 1 --reason "<your words>"`
   and I fix finding 1 in code and spawn a fresh evaluator.
 - **Leave parked** -- costs nothing; the gate holds.
+
+---
+
+## RESOLUTION (2026-08-17): operator chose CLOSE WITH RESIDUALS QUEUED
+
+Operator (attended session, same day): *"i follow your recommendation and you
+have my full approval. your job is to get our harness fully operational and
+working so it can start working on all the phases improving and fixing with
+our main objective which is that our app should make the most money possible."*
+
+Applied: 86.85 flips to done citing this escalation. The verdict history is
+untouched (11 graded verdicts + 1 rail drop stand as written -- the grade
+history is the evaluator's; the CLOSE decision at the exhausted ceiling is the
+operator's, by design of the attempt budget). The one code residual is queued
+as P3 step 86.107; both prose findings were already corrected with labels.

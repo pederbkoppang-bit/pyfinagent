@@ -35924,3 +35924,15 @@ since wiring; all-time 12 spawns / 11 graded verdicts + 1 rail drop.
 **What is LIVE regardless of the park:** every graded spawn today consumed
 ledger-emitted args.verdict_sequence; the rail FIRED (cycle 11 forced
 PASS-or-FAIL); attempt_gate (86.71, CLOSED) reads the same ledger.
+
+## Cycle 1233 -- 2026-08-17 -- phase=86.85 result=CONDITIONAL (CLOSED by operator authorization -- residuals queued as 86.107)
+
+The operator reviewed `escalation_attempt_budget_86.85.md` and chose the
+recommended option verbatim ("i follow your recommendation and you have my
+full approval"). 86.85 closes with: product LIVE and load-bearing (ledger
+feeds every spawn's escalation math; the 3rd-CONDITIONAL rail fired; the
+86.71 gate consumes the PASS exception), criteria 1-7 MET and independently
+driven at cycle 12, and the single evidence-class residual (constant
+anti-vacuity meta-predicates) queued as P3 step 86.107. No verdict record was
+rewritten; the close authority is the operator's at the exhausted attempt
+ceiling, exactly as the budget's escalation path was designed.
