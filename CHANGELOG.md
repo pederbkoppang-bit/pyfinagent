@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-17 | `ba74813b` | phase-86.79/86.72: gate pins the APPLIED doc state; 86.72 cycle-1 FAIL transcribed |
 | 2026-08-17 | `bfdecb14` | phase-86.21: cycle 8 -- the five named fixes at their sites |
 | 2026-08-17 | `7bbd6574` | phase-86.75: cycle 2 -- operator discharged C7 in session; enumeration re-shown at today's corpus |
 | 2026-08-17 | `33c47416` | phase-86.69: GENERATE -- the 61.2 guard ARMED by operator token, restart verified, measurement stage |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-17 | `cbbd1566` | phase-86.84/86.85/86.71: cycle 10/11/4 GENERATE -- coupling pin + prose-rot replacements + loud fail |
 | 2026-08-17 | `65e38c3b` | phase-86.96 + 86.90 + 86.72: byte-verbatim round-trip guard (section 7, 113/113), 86.96 diagnosis ex |
 | 2026-08-17 | `192ef652` | phase-86.71: the cumulative attempt budget is WIRED AND LIVE -- attempt_gate.py registered as a PreT |
-| 2026-08-17 | `f3c89229` | phase-86.85: cycles 5-7 -- emit_sequence orders by EVENT date with the verdict excluded from the key |
 
 ---
 
