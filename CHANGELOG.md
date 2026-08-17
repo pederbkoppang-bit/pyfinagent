@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-17 | `0ccb75b0` | phase-86.79: the attempt-counter gauge semantics -- PASS on cycle 6 |
 | 2026-08-17 | `1a2e0504` | phase-86.78: cycle 7 -- the locator class closed by a DRIVEN Object.keys assertion |
 | 2026-08-17 | `0c8613e0` | phase-86.78/86.79: cycle 6 -- span-strip before split, STEP-0 content pin, quote-aware trailing stri |
 | 2026-08-17 | `b9be4bdf` | phase-86.37: dropped-gate survival -- PASS on cycle 6 |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-17 | `8ed8ba54` | phase-86.79: cycle 4 artifacts -- the dropped cycle-3's findings closed at their sites |
 | 2026-08-17 | `250c9741` | phase-86.21: the in-flight 3rd-CONDITIONAL counter -- PASS on cycle 8 |
 | 2026-08-17 | `54c6ec51` | phase-86.78: family-count bound + the recorder's first live measurement noted |
-| 2026-08-17 | `1777cc8d` | phase-86.72: cycle 2 -- consumer, round counter, corrected census, end-to-end drive |
 
 ---
 
+### v6.93.233 — phase-86.79: the attempt-counter gauge semantics -- PASS on cycle 6 (2026-08-17)
+
+- **phase-86.79: the attempt-counter gauge semantics -- PASS on cycle 6**
 ### v6.93.232 — phase-86.37: dropped-gate survival -- PASS on cycle 6 (2026-08-17)
 
 - **phase-86.37: dropped-gate survival -- PASS on cycle 6**
