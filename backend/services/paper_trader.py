@@ -1133,6 +1133,28 @@ class PaperTrader:
         self.bq.save_paper_snapshot(snap)
         return snap
 
+    def save_intraday_snapshot(self) -> dict:
+        """Append one NAV point to the append-only intraday history.
+
+        Called every 15min during market hours by the intraday scheduler
+        job (backend/api/paper_trading.py), NOT part of the daily
+        Screen/Analyze/Decide/Trade cycle -- this does exactly one thing:
+        re-price open positions with live quotes via `mark_to_market()`
+        (already safe to call out-of-band; used the same way by
+        `adjust_cash_and_mtm` and directly in tests) and persist the
+        resulting NAV with a real timestamp. No trades, no LLM calls, no
+        kill-switch evaluation -- valuation only.
+        """
+        mtm = self.mark_to_market()
+        row = {
+            "snapshot_ts": datetime.now(timezone.utc).isoformat(),
+            "total_nav": round(mtm["nav"], 2),
+            "cash": round(mtm["cash"], 2),
+            "positions_value": round(mtm["positions_value"], 2),
+        }
+        self.bq.save_paper_intraday_snapshot(row)
+        return row
+
     # ── 4.5.7 Kill-switch ────────────────────────────────────────
 
     def flatten_all(self, reason: str = "manual_flatten") -> dict:

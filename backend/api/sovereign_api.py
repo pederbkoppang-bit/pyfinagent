@@ -1,7 +1,7 @@
 """phase-10.5.0 Sovereign UI backend read endpoints.
 
 Three endpoints feeding the planned `/sovereign` route:
-- `GET /api/sovereign/red-line?window=7d|30d|90d`  -- NAV time-series
+- `GET /api/sovereign/red-line?window=1d|7d|30d|90d`  -- NAV time-series
 - `GET /api/sovereign/leaderboard`                  -- per-strategy summary
 - `GET /api/sovereign/compute-cost?window=7d|30d|90d` -- daily provider breakdown
 
@@ -20,6 +20,7 @@ import time
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Literal, Optional
+from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Query
 from pydantic import BaseModel
@@ -135,6 +136,50 @@ class EfficiencyResponse(BaseModel):
 def _bq_client():
     from google.cloud import bigquery
     return bigquery.Client(project=_GCP_PROJECT)
+
+
+def _fetch_intraday_snapshots() -> list[RedLinePoint]:
+    """Today's NAV points from `paper_portfolio_intraday_snapshots`, one
+    per ~15min tick written by the intraday scheduler job
+    (`backend/api/paper_trading.py::_add_intraday_scheduler_job`).
+
+    "Today" is the current trading day in America/New_York (matches the
+    exchange calendar the writer runs on), not UTC -- a UTC "today" would
+    clip the last ~4-5 evening hours of a US trading session. `date` on
+    each point is formatted `HH:MM` ET so the x-axis reads as a time-of-day
+    session chart (Robinhood/TradingView "1D" convention), not a date axis.
+    """
+    try:
+        tz = ZoneInfo("America/New_York")
+        now_et = datetime.now(tz)
+        start_of_day_et = now_et.replace(hour=0, minute=0, second=0, microsecond=0)
+        since_iso = start_of_day_et.astimezone(timezone.utc).isoformat()
+
+        client = _bq_client()
+        sql = f"""
+          SELECT snapshot_ts, total_nav
+          FROM `{_GCP_PROJECT}.financial_reports.paper_portfolio_intraday_snapshots`
+          WHERE snapshot_ts >= @since_ts
+          ORDER BY snapshot_ts
+        """
+        from google.cloud import bigquery
+        params = [bigquery.ScalarQueryParameter("since_ts", "TIMESTAMP", since_iso)]
+        cfg = bigquery.QueryJobConfig(query_parameters=params)
+        rows = client.query(sql, job_config=cfg, timeout=30).result()
+
+        out: list[RedLinePoint] = []
+        for r in rows:
+            ts = r["snapshot_ts"]
+            if ts.tzinfo is None:
+                ts = ts.replace(tzinfo=timezone.utc)
+            local = ts.astimezone(tz)
+            out.append(
+                RedLinePoint(date=local.strftime("%H:%M"), nav=float(r["total_nav"] or 0.0), source="actual")
+            )
+        return out
+    except Exception as exc:
+        logger.warning("sovereign red-line: intraday BQ fail-open: %r", exc)
+        return []
 
 
 def _fetch_snapshots(window_days: int) -> list[dict]:
@@ -318,7 +363,7 @@ def _fetch_bq_daily_bytes(window_days: int) -> list[dict]:
 
 @router.get("/red-line", response_model=RedLineResponse)
 def get_red_line(
-    window: Literal["7d", "30d", "90d"] = Query("30d"),
+    window: Literal["1d", "7d", "30d", "90d"] = Query("30d"),
 ) -> RedLineResponse:
     start = time.perf_counter()
     cache = get_api_cache()
@@ -333,12 +378,26 @@ def get_red_line(
         )
         return cached
 
-    days = _WINDOW_DAYS[window]
-    snapshots = _fetch_snapshots(days)
-    series = _forward_fill_calendar(snapshots, days)
-    note = None
-    if not snapshots:
-        note = "no snapshots returned by BQ; series empty until first NAV recorded"
+    if window == "1d":
+        # Intraday: today's session at ~15min resolution, backed by
+        # `paper_portfolio_intraday_snapshots` -- a DIFFERENT table and
+        # granularity from the daily-close windows below, so it has its
+        # own fetch path rather than sharing `_forward_fill_calendar`
+        # (which is calendar-day-shaped and would be meaningless here).
+        series = _fetch_intraday_snapshots()
+        note = None
+        if not series:
+            note = (
+                "no intraday snapshots yet today -- market may be closed, "
+                "or the 15min snapshot job has not ticked yet"
+            )
+    else:
+        days = _WINDOW_DAYS[window]
+        snapshots = _fetch_snapshots(days)
+        series = _forward_fill_calendar(snapshots, days)
+        note = None
+        if not snapshots:
+            note = "no snapshots returned by BQ; series empty until first NAV recorded"
 
     response = RedLineResponse(
         window=window,

@@ -26,7 +26,7 @@ import {
   YAxis,
 } from "recharts";
 
-export type RedLineWindow = "7d" | "30d" | "90d";
+export type RedLineWindow = "1d" | "7d" | "30d" | "90d";
 
 export interface RedLinePoint {
   date: string;
@@ -60,7 +60,7 @@ export interface RedLineMonitorProps {
   liveBand?: "green" | "amber" | "red" | "unknown";
 }
 
-const WINDOW_OPTIONS: RedLineWindow[] = ["7d", "30d", "90d"];
+const WINDOW_OPTIONS: RedLineWindow[] = ["1d", "7d", "30d", "90d"];
 
 // phase-73: per-band color tokens for the live-now marker. Static literals
 // so Tailwind JIT and Recharts both pick them up (cycle-68 JIT-safe lesson).
@@ -92,7 +92,14 @@ export function RedLineMonitor({
   // "today's close".
   const todayIso = new Date().toISOString().slice(0, 10);
   const lastActual = series.length > 0 ? series[series.length - 1] : null;
+  // The "1d" window's points carry a time-of-day label ("09:30"), not a
+  // calendar date, so `date < todayIso` below is meaningless for it (and
+  // would wrongly evaluate true, splicing a synthetic point at a
+  // "YYYY-MM-DD" x-value onto an axis of "HH:MM" categories). The intraday
+  // series is already real ~15min-resolution backend data ending close to
+  // "now", so the live-now overlay adds nothing there.
   const shouldOverlay =
+    window !== "1d" &&
     liveNav != null &&
     liveNav > 0 &&
     lastActual != null &&

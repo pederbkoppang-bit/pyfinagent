@@ -1069,6 +1069,49 @@ class BigQueryClient:
         job_config = self._job_config(query_parameters=params)
         self.client.query(query, job_config=job_config).result(timeout=60)
 
+    def save_paper_intraday_snapshot(self, row: dict) -> None:
+        """Append-only insert into `paper_portfolio_intraday_snapshots`.
+
+        Unlike `save_paper_snapshot` (MERGE on `snapshot_date`, one row per
+        calendar day), this table is deliberately many-rows-per-day -- the
+        natural key is the capture instant (`snapshot_ts`), not the day -- so
+        a plain INSERT is correct here, mirroring `save_paper_trade`.
+        """
+        row = {k: v for k, v in row.items() if v is not None}
+        if "snapshot_ts" not in row:
+            raise ValueError(
+                "save_paper_intraday_snapshot requires a 'snapshot_ts' field"
+            )
+        table = self._pt_table("paper_portfolio_intraday_snapshots")
+        cols = ", ".join(row.keys())
+        vals = ", ".join(f"@v_{k}" for k in row.keys())
+        query = f"INSERT INTO `{table}` ({cols}) VALUES ({vals})"
+        params = []
+        for k, v in row.items():
+            if k == "snapshot_ts":
+                params.append(bigquery.ScalarQueryParameter(f"v_{k}", "TIMESTAMP", v))
+            elif isinstance(v, float):
+                params.append(bigquery.ScalarQueryParameter(f"v_{k}", "FLOAT64", v))
+            elif isinstance(v, int):
+                params.append(bigquery.ScalarQueryParameter(f"v_{k}", "INT64", v))
+            else:
+                params.append(bigquery.ScalarQueryParameter(f"v_{k}", "STRING", str(v)))
+        job_config = self._job_config(query_parameters=params)
+        self.client.query(query, job_config=job_config).result(timeout=60)
+
+    def get_paper_intraday_snapshots(self, since_iso: str) -> list[dict]:
+        """Rows at/after `since_iso` (a UTC ISO timestamp string), oldest first."""
+        query = f"""
+            SELECT snapshot_ts, total_nav, cash, positions_value
+            FROM `{self._pt_table("paper_portfolio_intraday_snapshots")}`
+            WHERE snapshot_ts >= @since_ts
+            ORDER BY snapshot_ts
+        """
+        job_config = self._job_config(query_parameters=[
+            bigquery.ScalarQueryParameter("since_ts", "TIMESTAMP", since_iso),
+        ])
+        return [dict(r) for r in self.client.query(query, job_config=job_config).result(timeout=30)]
+
     def get_paper_snapshots(self, limit: int = 365) -> list[dict]:
         query = f"""
             SELECT * FROM `{self._pt_table("paper_portfolio_snapshots")}`

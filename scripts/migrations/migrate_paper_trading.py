@@ -83,11 +83,24 @@ PAPER_SNAPSHOTS_SCHEMA = [
     bigquery.SchemaField("analysis_cost_today", "FLOAT64", mode="NULLABLE"),
 ]
 
+PAPER_INTRADAY_SNAPSHOTS_REF = f"{PROJECT_ID}.{DATASET}.paper_portfolio_intraday_snapshots"
+PAPER_INTRADAY_SNAPSHOTS_SCHEMA = [
+    # TIMESTAMP, not the daily table's STRING snapshot_date -- this table is
+    # append-only (many rows per day), so the natural key is the instant, not
+    # the calendar day. Written every 15min during market hours by the
+    # intraday scheduler job (backend/api/paper_trading.py).
+    bigquery.SchemaField("snapshot_ts", "TIMESTAMP", mode="REQUIRED"),
+    bigquery.SchemaField("total_nav", "FLOAT64", mode="REQUIRED"),
+    bigquery.SchemaField("cash", "FLOAT64", mode="NULLABLE"),
+    bigquery.SchemaField("positions_value", "FLOAT64", mode="NULLABLE"),
+]
+
 ALL_TABLES = [
     ("paper_portfolio", PAPER_PORTFOLIO_REF, PAPER_PORTFOLIO_SCHEMA),
     ("paper_positions", PAPER_POSITIONS_REF, PAPER_POSITIONS_SCHEMA),
     ("paper_trades", PAPER_TRADES_REF, PAPER_TRADES_SCHEMA),
     ("paper_portfolio_snapshots", PAPER_SNAPSHOTS_REF, PAPER_SNAPSHOTS_SCHEMA),
+    ("paper_portfolio_intraday_snapshots", PAPER_INTRADAY_SNAPSHOTS_REF, PAPER_INTRADAY_SNAPSHOTS_SCHEMA),
 ]
 
 

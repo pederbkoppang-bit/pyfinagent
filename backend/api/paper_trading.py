@@ -44,6 +44,7 @@ _background_tasks: set[asyncio.Task] = set()
 # APScheduler instance (set by lifespan)
 _scheduler = None
 _scheduler_job_id = "paper_trading_daily"
+_intraday_scheduler_job_id = "paper_intraday_snapshot"
 
 
 # ── Models ───────────────────────────────────────────────────────
@@ -1428,6 +1429,8 @@ def init_scheduler(scheduler):
     if settings.paper_trading_enabled:
         _add_scheduler_job(settings)
         logger.info(f"Paper trading scheduler active: daily at {settings.paper_trading_hour}:00 ET")
+        _add_intraday_scheduler_job()
+        logger.info("Paper trading intraday-snapshot scheduler active: every 15min, 9:30-16:00 ET mon-fri")
 
 
 def _add_scheduler_job(settings):
@@ -1490,3 +1493,66 @@ async def _scheduled_run():
         logger.info(f"Scheduled paper trading result: {result.get('status')}")
     except Exception as e:
         logger.error(f"Scheduled paper trading failed: {e}", exc_info=True)
+
+
+def _is_regular_trading_hours(now_et: datetime) -> bool:
+    """NYSE/NASDAQ regular session: 09:30-16:00 America/New_York, weekdays.
+
+    The cron trigger below fires on the coarser `minute='*/15' hour='9-16'`
+    grid (which also ticks at 09:00/09:15 pre-open and 16:15 post-close);
+    this filters those two stray ticks so every WRITTEN row is inside the
+    real session -- the intraday chart's x-axis should not show pre/post
+    market flat segments as if they were live trading."""
+    if now_et.weekday() >= 5:  # 5=Sat, 6=Sun -- defense in depth; the cron's
+        return False           # own day_of_week="mon-fri" already excludes these
+    minutes = now_et.hour * 60 + now_et.minute
+    return (9 * 60 + 30) <= minutes <= (16 * 60)
+
+
+async def _scheduled_intraday_snapshot():
+    """APScheduler callback: one NAV point, no trading, no LLM calls.
+
+    Deliberately NOT `run_daily_cycle` -- that runs the full autonomous
+    Screen/Analyze/Decide/Trade pipeline (LLM cost, real order placement).
+    This calls only `PaperTrader.save_intraday_snapshot()`, which re-prices
+    open positions with live quotes and appends one row. Fail-open: any
+    error is logged, never raised, so a bad tick cannot take down the
+    scheduler (matches `_scheduled_run`'s discipline)."""
+    now_et = datetime.now(ZoneInfo("America/New_York"))
+    if not _is_regular_trading_hours(now_et):
+        return
+    try:
+        settings = get_settings()
+        bq = get_bq_client()
+        trader = PaperTrader(settings, bq)
+        row = await asyncio.to_thread(trader.save_intraday_snapshot)
+        logger.info(f"Intraday snapshot: nav={row['total_nav']}")
+    except Exception as e:
+        logger.error(f"Intraday snapshot failed: {e}", exc_info=True)
+
+
+def _add_intraday_scheduler_job():
+    """Registers the 15min intraday-snapshot cron. Piggybacks on
+    `paper_trading_enabled` (checked by the caller) rather than a
+    separate settings flag -- this job's only purpose is to serve the
+    same live paper portfolio, so there is no scenario where paper
+    trading should be on and this should be off."""
+    if not _scheduler:
+        return
+    _scheduler.add_job(
+        _scheduled_intraday_snapshot,
+        "cron",
+        minute="*/15",
+        hour="9-16",
+        day_of_week="mon-fri",
+        timezone=ZoneInfo("America/New_York"),
+        id=_intraday_scheduler_job_id,
+        name="Paper trading intraday snapshot (15min)",
+        replace_existing=True,
+        # Same reasoning as the daily job's grace window (phase-44.2.X): a
+        # missed 15min tick has no harm running a few minutes late, and
+        # coalesce=True collapses any backlog (e.g. backend down for an
+        # hour) into a single catch-up run instead of firing N times.
+        misfire_grace_time=600,
+        coalesce=True,
+    )
