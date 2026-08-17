@@ -4,7 +4,7 @@ Everything below is **verbatim tool output**, re-runnable by:
 
 ```
 source .venv/bin/activate
-python scripts/qa/verify_counter_86_79.py      # 55 checks, exit 0
+python scripts/qa/verify_counter_86_79.py      # 60 checks at the cycle-5 edit (floor 59; was '55 checks' -- capture-time truth, refreshed)
 python scripts/qa/mutation_matrix_86_79.py     # 11 cells, exit 0
 ```
 
@@ -472,3 +472,29 @@ Anchor pre-verification (before pinning, each content assertion's literal
 was confirmed present-exactly-once or absent-as-required in the live files):
 `null is NEVER 0` 1x, `a gauge, not` 1x, the qa.md gauge line 1x, the old
 wrong wording 0x, `prior_attempts` 1x.
+
+
+---
+
+## Cycle-5 captures (2026-08-17; exits unpiped)
+
+```
+$ python3 scripts/qa/verify_counter_86_79.py > /tmp/vc79b.txt 2>&1; echo GATE_EXIT=$?
+GATE_EXIT=0
+$ grep -E "checks run|ALL CHECKS" /tmp/vc79b.txt
+  checks run : 60   (cardinality floor 59)
+  ALL CHECKS PASS
+```
+
+Evasion mutants driven in relocated mini-repos (live tree read-only):
+
+```
+N7-comment-park-js-PROPER: exit=1 -> KILLED
+N9-html-comment-park-md: exit=1 -> KILLED
+(N11/N12 die by arithmetic at floor 59: 55 < 59 and 53 < 59)
+```
+
+First-run disclosure: the initial N7 reconstruction scored SURVIVED because
+its comment marker landed inside a string literal (an executable line) --
+a broken mutant, not an evadable pin; the rebuilt whole-line-comment mutant
+dies.

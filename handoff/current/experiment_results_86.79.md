@@ -8,7 +8,7 @@
 > back from a run performed after the last code change. Prior verdicts, verbatim, are
 > in `handoff/current/evaluator_critique_86.79.md`.
 
-**Current totals: 55 checks (floor 53), 11 mutation cells, 11 killed.**
+**Current totals at the cycle-5 edit: 60 checks (floor 59 -- raised per F3), 11 mutation cells, 11 killed. *(The '55 checks (floor 53)' that stood here was capture-time truth outlived by growth -- the cycle-4 tail -2 capture could not expose the drift.)***
 
 ---
 
@@ -284,3 +284,30 @@ evaluator ran `qa_wip.py --spawned-at` and quoted
 `records_pruned_known` in its own notes; the 86.21 cycle-8 PASS explicitly
 exercised the lower-bound cross-check ("attempt_number (4) is NOT greater
 than the ledger's 6 rows, so the staleness rule does not fire").
+
+
+---
+
+## Cycle 5 GENERATE (2026-08-17): the five cycle-4 residuals, landed and driven
+
+1. **F1 (the arithmetic)**: qa.md's staleness rule now compares
+   `prior_attempts` -- the like-for-like prior-only count -- against the
+   ledger's rows, with the correction note quoting the measured
+   false-positive (4>3 on a current ledger while 3==3). One-line agent-file
+   edit, flagged in the harness log for operator review per the
+   separation-of-duties rule.
+2. **F2 (comment-parking)**: the gate's 4b/4c pins now search EFFECTIVE
+   text only -- qa-verdict.js with // lines and /* */ spans stripped,
+   qa.md with <!-- --> spans stripped. Driven: the evaluator's N7
+   (rule parked in a // comment) and N9 (qa.md sentence inverted, original
+   parked in an HTML comment) both now exit non-zero. DISCLOSED: my first
+   N7 reconstruction survived -- the comment marker landed INSIDE a string
+   literal, still an executable line -- the mutant was broken, not the pin;
+   rebuilt to comment out the whole line, it dies.
+3. **F3 (the absorbable block)**: EXPECTED_CHECKS raised 53 -> 59 per the
+   floor's own design note; N11 (55 run) and N12 (exactly 53) now fail the
+   floor by arithmetic. Gate at the cycle-5 edit: 60 checks, floor 59,
+   ALL CHECKS PASS, exit 0.
+4. **F4**: the stale 55-check headlines refreshed with their history.
+5. **F5**: qa_md_patch_86.79.md retitled APPLIED-at-cycle-4 historical
+   record; its self-falsifying command is now quoted WITH its output.

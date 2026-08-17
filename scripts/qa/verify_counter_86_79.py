@@ -61,7 +61,11 @@ SID = "99.1"
 #: and that the constant's own instruction ("raise it when adding checks") had not
 #: been followed; raised to sit just under the current total so a silently-skipped
 #: block is caught rather than absorbed.
-EXPECTED_CHECKS = 53
+EXPECTED_CHECKS = 59  # cycle-5 (cycle-4 Q/A F3): raised 53 -> 59 to sit just
+# under the current 60 -- the floor's own design ("a silently-skipped block is
+# caught rather than absorbed") was violated by cycle 4 adding 7 checks
+# without raising it: N11 (the 5-check doc-pin block commented out, 55 run)
+# and N12 (the whole C4 tail, exactly 53) both survived at floor 53.
 
 _results: list[tuple[str, bool, str]] = []
 
@@ -383,8 +387,19 @@ shutil.rmtree(tmp)
 # with everything green. The gate now pins the APPLIED state at both
 # doc-agreement surfaces; the patch file stays asserted as the historical
 # record of what was applied.
-qa_md = (REPO / ".claude" / "agents" / "qa.md").read_text(encoding="utf-8")
-qav = (REPO / ".claude" / "workflows" / "qa-verdict.js").read_text(encoding="utf-8")
+# cycle-5 (cycle-4 Q/A F2, N7/N9): whole-file byte-presence pins were
+# satisfiable by an inert copy -- the rule moved into a // comment in the
+# payload file, or the qa.md sentence INVERTED with the original parked in
+# an HTML comment. Search EFFECTIVE text only: JS with // and /* */ lines
+# stripped; markdown with <!-- --> spans stripped.
+import re as _re
+_qa_md_raw = (REPO / ".claude" / "agents" / "qa.md").read_text(encoding="utf-8")
+qa_md = _re.sub(r"<!--[\s\S]*?-->", "", _qa_md_raw)
+_qav_raw = (REPO / ".claude" / "workflows" / "qa-verdict.js").read_text(encoding="utf-8")
+qav = "\n".join(
+    ln for ln in _re.sub(r"/\*[\s\S]*?\*/", "", _qav_raw).splitlines()
+    if not ln.strip().startswith("//")
+)
 check("4c APPLIED: qa.md carries the gauge correction",
       "Do NOT use `records_retained` as the attempt number" in qa_md)
 check("4c APPLIED: the old wrong wording is GONE from qa.md",

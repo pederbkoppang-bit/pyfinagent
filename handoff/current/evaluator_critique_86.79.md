@@ -244,3 +244,80 @@ force (see `live_check_86.78.md` §9).
 | 1 | `wf_61338c26-b90` | **CONDITIONAL** |
 | 2 | `wf_44776e5d-ca3` | **CONDITIONAL** |
 | 3 | `wf_303908bd-83a` | **NO VERDICT** (drop, uncovered by the retry) |
+
+
+---
+
+## Cycle 4 -- verdict TRANSCRIBED VERBATIM (2026-08-17, Workflow rail `wf_07b25e6e-013`)
+
+**VERDICT: CONDITIONAL** (ok=false). All SEVEN criteria substantively MET and re-derived (the evaluator ran its own relocated-repo battery: N1-N6 killed by correctly-attributed assertions; the pre-cycle-4 gate SURVIVED the same reverts, proving cycle 4 load-bearing; it discarded nothing silently). Residuals, each with a named fix: F1 (criterion-4 relevant) -- qa.md:715, authored by this step, compares the INCLUSIVE attempt_number against the prior-only ledger, so it calls a perfectly current ledger STALE (4>3 while prior_attempts 3==3); conservative direction, cannot invert a verdict; fix: compare prior_attempts. F2 (WARN) -- the 4b/4c pins are whole-file byte-presence: N7 (rule moved to a // comment in the payload file) and N9 (qa.md sentence INVERTED with the original parked in an HTML comment) both survive; natural reverts die 6/6; fix: scope pins to the payload array / normative section. F3 -- EXPECTED_CHECKS stayed 53 while the gate grew to 60, so the cycle-4 block is silently skippable (N11 55/exit 0; N12 exactly 53/exit 0) against the constant's own stated design; fix: raise to just under 60. F4 (evidence) -- stale 55-check headlines. F5 (evidence) -- qa_md_patch_86.79.md still titled PROPOSED - NOT APPLIED, falsified by its own stated command.
+
+> Transcribed verbatim. Main records the verdict; Main never authors it.
+
+```json
+{
+  "ok": false,
+  "verdict": "CONDITIONAL",
+  "reason": "All SEVEN immutable criteria are substantively MET and were re-derived independently by me, not merely read: C1 records_retained=priors+1 (2 priors -> 3) with the producing line grep-quoted as qa_wip.py:507 `\"records_retained\": len(records),`; C2 before write-first retained=2/attempt_number=None(no_record_for_this_spawn) vs after 3/3/ok; C3 six records -> prune(keep=3) -> retained=3 (saturation) while attempt_number=6 survives via the loss ledger (records_pruned_known=3), and I re-ran the printed enumeration command myself (20 hits / 5 files / 0 non-allowlisted -> no production caller); C4 all 10 fields qa.md tells the judge to read exist in the live payload, no `verdict` key, is_verdict=false, and the step states which side moved and why; C5 F1b CONTINUE at 1-4 and ESCALATE at 5/5+, verdict-keyed boundary discriminates (1 not armed / 2 armed / PASS resets / missing ledger -> None not 0); C6 all three uncomputable paths return None and exhaustion yields {'ESCALATE'} under every flag combination; C7 control GREEN first (60 checks) then 11/11 matrix cells KILLED by named assertions with the subject sha256 unchanged. Immutable command exit 0; gate exit 0 (60 checks, floor 53); ruff F821/F401/F811 clean over a 37-file derived scope; both sibling gates exit 0; harness compliance clean 5/5. I mutation-tested the cycle-4 work myself in a relocated repo (live tree only READ): N1-N6 all KILLED by the correctly-attributed assertion, both halves of the ANDed guard redden independently, and the pre-cycle-4 gate SURVIVED the same reverts (N10b/N10c) -- so cycle 4 is genuinely load-bearing and its claim reproduces. CAPPED, not failed, by three named residuals: (F1) qa.md:715, a sentence THIS step's commit 9b4d5281 authored and §8 claims it corrected, compares the INCLUSIVE attempt_number against a ledger that can only hold PRIOR verdicts, so it fires on a perfectly current ledger -- measured on this very step, 4>3 says \"STALE\" while prior_attempts 3 == 3 rows means CURRENT; harm direction is conservative and it can never invert a verdict; (F2) the new 4b/4c pins are whole-file byte-presence, so moving the rule out of the prompt payload into a `//` comment (N7) and INVERTING the qa.md sentence with the bytes parked in an HTML comment (N9) both SURVIVE -- WARN, not vacuity, since a natural revert dies 6/6; (F3) EXPECTED_CHECKS stayed 53 while the gate grew to 60, so commenting out the 5-check block cycle 4 added leaves \"checks run : 55\" and exit 0 (N11), and the whole 7-check C4 tail leaves exactly 53 and exit 0 (N12) -- the constant's own comment says it was raised so a skipped block is \"caught rather than absorbed\". F4 and F5 are EVIDENCE-QUALITY ONLY and are stated as such for queueing rather than iteration per the operator directive.",
+  "violated_criteria": [
+    "residual: qa.md staleness cross-check compares an INCLUSIVE counter against an exclusive count (fires on a current ledger)",
+    "residual: 4b/4c doc pins are whole-file byte-presence, satisfiable by an inert comment copy",
+    "residual: cardinality floor not raised with the cycle-4 checks -- the new block is silently skippable",
+    "evidence-quality: stale headline check counts (55 vs 60) in experiment_results and live_check",
+    "evidence-quality: qa_md_patch_86.79.md still titled PROPOSED - NOT APPLIED, falsified by its own stated command"
+  ],
+  "violation_details": [
+    {
+      "violation_type": "Contradiction",
+      "action": "read .claude/agents/qa.md:715 then run qa_wip.py 86.79 --spawned-at <my WRITTEN stamp> and verdict_history_86_21.py --step 86.79 --evidence-only",
+      "state": "qa.md:715 (git blame -> 9b4d5281, THIS step) says 'if attempt_number (auto) > the ledger's verdict count, the ledger is STALE'. qa.md:658-660 (same step) defines attempt_number as INCLUSIVE of the current attempt, and the ledger can only ever hold rows for PRIOR attempts. Measured on 86.79 itself: attempt_number=4, ledger rows=3 (CONDITIONAL -> CONDITIONAL -> NO_VERDICT), i.e. exactly one row per prior spawn (prior_attempts=3). The rule as written orders me to call a perfectly current ledger STALE; prior_attempts (3) > rows (3) is False. The pre-fix wording compared records_retained, which carried the same inclusive off-by-one, so the arithmetic error is inherited -- but this step OWNED and rewrote that sentence while criterion 4 is 'the DOC and the CODE are made to agree'. Direction is conservative (over-reports staleness) and it cannot invert a verdict.",
+      "constraint": "criterion 4 -- the DOC and the CODE are made to agree; NOT evidence-quality (a live instruction in a shipped agent file every future Q/A reads). Named fix: compare prior_attempts, not attempt_number."
+    },
+    {
+      "violation_type": "Missing_Assumption",
+      "action": "relocated-repo mutation cells N7 and N9 against verify_counter_86_79.py (control GREEN at 60 checks first)",
+      "state": "N7: deleted 'null is NEVER 0' from the PROMPT PAYLOAD array in qa-verdict.js and left the bytes in a '// vestigial doc note' comment -> gate GREEN, rule gone from what the judge is actually sent. N9: inverted the qa.md normative sentence to 'Feel free to use records_retained as the attempt number' and parked the original bytes in an HTML comment -> gate GREEN. The five new checks are whole-file substring tests ('X in qa_md' / 'X in qav'), so byte presence is assumed to imply payload presence.",
+      "constraint": "qa.md 4c guard-vacuity -- WARN level, not BLOCK: N1-N6 prove the pins DO redden on a natural revert (delete/reword), and each kill was by the correctly-attributed assertion. Named fix: scope the pins to the prompt-payload array and to the normative section rather than the whole file."
+    },
+    {
+      "violation_type": "Threshold_Not_Met",
+      "action": "relocated-repo mutation cells N11 and N12 -- comment out the cycle-4 doc-pin block, then the whole C4 doc/patch tail",
+      "state": "EXPECTED_CHECKS = 53 while the gate now runs 60 (slack 7). N11 (5-check cycle-4 block skipped): rc=0, 'checks run : 55 (cardinality floor 53)' -> SURVIVED. N12 (7-check C4 tail skipped): rc=0, 'checks run : 53' -> SURVIVED, sitting exactly on the floor. verify_counter_86_79.py:60-64 states the constant was 'raised to sit just under the current total so a silently-skipped block is caught rather than absorbed' after the cycle-1 Q/A found 12 checks of slack; cycle 4 added checks without following that instruction, and the absorbable block is precisely the one cycle 4 added.",
+      "constraint": "the checker's own stated cardinality-floor design (verify_counter_86_79.py:6-8, :60-64). Named fix: raise EXPECTED_CHECKS to sit just under 60."
+    },
+    {
+      "violation_type": "Contradiction",
+      "action": "grep 'Current totals|55 checks' handoff/current/experiment_results_86.79.md handoff/current/live_check_86.79.md, then run the gate",
+      "state": "experiment_results_86.79.md:11 'Current totals: 55 checks (floor 53), 11 mutation cells, 11 killed.' and live_check_86.79.md:7 '# 55 checks, exit 0' are present-tense claims; the gate now prints 'checks run : 60 (cardinality floor 53)'. The cycle-4 capture used `tail -2`, which shows only 'ALL CHECKS PASS' and therefore cannot expose the drift. The dated historical captures (:88, :143, :330, :406) are correctly preserved and are NOT a finding.",
+      "constraint": "qa.md 4b -- a verbatim capture must be regenerated, never edited, and headline totals must reproduce. EVIDENCE-QUALITY ONLY: queueable, not iteration-worthy."
+    },
+    {
+      "violation_type": "Contradiction",
+      "action": "read handoff/current/qa_md_patch_86.79.md:1,:3,:18 then run its own stated command: git diff --stat 9b4d5281^ 9b4d5281 -- .claude/agents/qa.md",
+      "state": "The file is still titled '# PROPOSED - NOT APPLIED', states 'Status: WRITTEN OUT FOR THE OPERATOR, DELIBERATELY NOT APPLIED.', and instructs the reader that 'Nothing in .claude/agents/qa.md was modified by step 86.79 -- verify with git diff --stat'. That command returns '1 file changed, 116 insertions(+), 45 deletions(-)'. The correction WAS applied at cycle 4 by a fresh executor; the gate's replacement check now calls this file 'the applied correction's historical record' but asserts only that it exists and contains the literal 'records_retained', not that its status line is accurate. Commit 61e359b4 ('mark the superseded PARTIAL sections') touched experiment_results only, not this file.",
+      "constraint": "criterion 4 supporting record must not assert the opposite of the verified state; the cycle-3 stale-label finding was fixed inside the gate while the same stale label survives in the artifact the gate cites. EVIDENCE-QUALITY ONLY: queueable."
+    }
+  ],
+  "certified_fallback": false,
+  "checks_run": [
+    "harness_compliance_audit_5_items",
+    "immutable_verification_command_exit_0",
+    "verify_counter_86_79_reproduction_60_checks_exit_0",
+    "python_lint_gate_ruff_F821_F401_F811_derived_scope_37_files",
+    "independent_rederivation_criteria_1_2_3_5_6",
+    "independent_enumeration_of_prune_callers",
+    "mutation_matrix_86_79_control_green_then_11_of_11_killed",
+    "independent_mutation_cells_N1_N12_relocated_repo",
+    "pre_cycle4_gate_control_N10a_N10b_N10c",
+    "sibling_gates_86_36_and_86_21",
+    "claim_reproduction_anchor_counts_and_field_coverage",
+    "prior_attempt_evidence_qa_wip",
+    "verdict_ledger_evidence_evidence_only_mode",
+    "git_scope_and_tree_motion_recheck",
+    "code_review_heuristics"
+  ],
+  "harness_compliance_ok": true,
+  "research_needed": false,
+  "notes": "PRIOR-ATTEMPT EVIDENCE (gathered, not applied as a trigger). qa_wip.py 86.79 --spawned-at 2026-08-17T14:17:02Z: source_present=true, attempt_number_status=ok, attempt_number=4, prior_attempts=3, records_retained=4 (GAUGE, per records_retained_unit -- NOT used as the attempt number), attempt_number_is_lower_bound=true, records_pruned_known=null. verdict_history_86_21.py --step 86.79 --evidence-only: status=ok, 3 rows, sequence CONDITIONAL -> CONDITIONAL -> NO_VERDICT (the NO_VERDICT row carried through as-is, not dropped). CROSS-CHECK, reported as observed: the qa.md rule as literally written (attempt_number 4 > ledger 3) says STALE, but the ledger holds exactly one row per prior spawn (prior_attempts 3 == 3 rows, and the 3 prior WIP records are dated 20260814T073710Z / T081202Z / T101030Z), so the sequence is CURRENT and I treat it as reliable. That mismatch is finding F1 above, not a property of this ledger. Secondary cross-check: handoff/harness_log.md carries FOUR rows for phase=86.79 including TWO headed \"Cycle 3\" (one CONDITIONAL(ESCALATED, not re-spawned), one NO_VERDICT(rail drop)) against 3 attempts -- the ledger governs and I report the log's disagreement rather than reconciling it. Aggregates over the sequence are deliberately not computed here.\n\nHARNESS COMPLIANCE 5/5: (1) research_brief_86.79.md brief_status COMPLETE, gate_passed true, 10 sources read in full, 25 URLs, recency scan true; (2) mtime chain brief 08-14T09:05:37 < contract 09:14:15 < qa_wip.py 09:18:56; (3) experiment_results + live_check present; (4) masterplan 86.79 status=pending and no cycle-4 log row yet -- log-last honoured; (5) evidence CHANGED since the cycle-3 drop (ba74813b 15:19 + 8ed8ba54 15:31 on 2026-08-17 vs 08-14), so this is the documented fresh-respawn, not verdict-shopping.\n\nSCOPE / UNINTENDED CHANGE: the cycle-4 commits touch only verify_counter_86_79.py, experiment_results_86.79.md and live_check_86.79.md, plus 86.72's critique, one verdict-ledger row and one attempt-budget audit line co-committed and disclosed in ba74813b's message. No unintended production change. Note the spawn prompt attributes the gate change to 8ed8ba54; it is actually in ba74813b (8ed8ba54 is artifacts-only) -- an attribution slip in the prompt, not in the artifacts.\n\nTREE MOTION DURING EVALUATION: HEAD moved cb279731 -> 9aa2f64e mid-run (651e1f78 phase-86.78/86.37 cycle-5 + changelog). The only product file touched is .claude/workflows/qa-verdict.js, one line, exactly the STEP-0 wording change the prompt disclosed (\"the 3rd-CONDITIONAL auto-FAIL rule\" -> \"the loop-termination rule\"). It touches none of 86.79's pinned literals (all three still 1x) and the gate re-run at the new HEAD is still ALL CHECKS PASS / 60 checks / exit 0. The grade holds at 9aa2f64e.\n\nMETHOD DISCLOSURE: my mutation cells ran against COPIES in a scratch temp tree (repo files copied out, mutated there, checker driven with __file__-relative REPO resolving to the temp root). The live tree was only ever READ -- no repo file was opened for writing, and the author's own matrix independently reports the subject sha256 identical before and after. A relocated CONTROL was observed GREEN (60 checks, 0 fails) before any mutant, so relocation itself is not scoring kills.\n\nNO UI CLAIMS in this step, so gate 1c does not apply; no backend/** or frontend/** in the diff, so 1b/1d do not apply. No security or trading-domain heuristic fired (harness tooling, no money path, no secrets, no LLM-to-execution path).\n\nWRITE-FIRST RECORD (evidence for any next spawn, never a verdict): .claude/agent-memory/qa/verdicts/verdict_wip_86.79__20260817T141702Z.md, marked COMPLETE at 2026-08-17T14:32:37Z.\n\nHOUSEKEEPING FLAG FOR MAIN (not part of the verdict): a PostToolUse hook reported .claude/agent-memory/qa/MEMORY.md at 20.6KB, approaching its 24.4KB read limit, and asked for compaction to under 17.1KB. I did not compact it -- a mass rewrite of the shared index mid-EVALUATE is exactly the tree motion the harness warns against, and it is not the evaluator's call. Please queue it."
+}
+```

@@ -712,8 +712,15 @@ audit finding that proposed this deletion would have taken it too.
   `qa_wip.py` is written automatically by every spawn; the ledger is appended
   **by hand** and *nothing writes it automatically yet*. So:
 
-  > if `attempt_number` (auto) **>** the ledger's verdict count, **the ledger
+  > if `prior_attempts` (auto) **>** the ledger's verdict count, **the ledger
   > is STALE** — say so in `notes` and treat the sequence as unreliable.
+  > *(phase-86.79 cycle-5 correction: this rule previously compared
+  > `attempt_number`, which is INCLUSIVE of the current spawn while the
+  > ledger can only hold PRIOR verdicts — so it called every perfectly
+  > current ledger stale (measured on 86.79 itself: 4>3 while
+  > prior_attempts 3 == 3 rows). `prior_attempts` is the like-for-like
+  > count. Direction of the old bug was conservative; it never inverted a
+  > verdict.)*
   >
   > If `attempt_number` is `null`, **the comparison cannot be made at all**: say
   > `sequence: UNKNOWN` in `notes` and stop there. Do **not** substitute
