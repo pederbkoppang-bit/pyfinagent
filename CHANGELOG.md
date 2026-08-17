@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-17 | `31f80cdf` | phase-86.84: turn-cap removal + uncensored re-measurement -- PASS on cycle 11 |
 | 2026-08-17 | `567f1a56` | phase-86.74: C6 re-measured after 3 post-fix days -- zero gated buys, the row is STARVED not broken |
 | 2026-08-17 | `8ccfc287` | phase-86.85: verdict ledger + 3rd-CONDITIONAL rail -- CLOSED by operator authorization at the attemp |
 | 2026-08-17 | `afea9e27` | phase-86.85: PARK at the attempt ceiling -- criteria 1-7 MET, c8 WARN-level meta-predicate vacuity q |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-17 | `d84a41b2` | phase-86.94: PARK at the 3-attempt rail -- criteria 1,2,3,4,6,7 MET, criterion 5 not |
 | 2026-08-17 | `dc8d64d9` | phase-86.94: delete the mislabelled stale block, withdraw a misquote, enforce fixture provenance |
 | 2026-08-17 | `fca21bc6` | phase-86.94: correct a FALSE criterion-4 judgement and make a dead probe detectable |
-| 2026-08-17 | `88d7d84c` | phase-86.94: bind the criterion-4 claim to a measurement, cover the fail-closed branch |
 
 ---
 
+### v6.93.226 — phase-86.84: turn-cap removal + uncensored re-measurement -- PASS on... (2026-08-17)
+
+- **phase-86.84: turn-cap removal + uncensored re-measurement -- PASS on cycle 11**
 ### v6.93.225 — phase-86.85: verdict ledger + 3rd-CONDITIONAL rail -- CLOSED by opera... (2026-08-17)
 
 - **phase-86.85: verdict ledger + 3rd-CONDITIONAL rail -- CLOSED by operator authorization at the attemp**
