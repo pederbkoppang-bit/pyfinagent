@@ -1,6 +1,6 @@
 # live_check — phase-86.94
 
-**STATUS: COMPLETE.** Both measurements taken, ≥1h apart, as criterion 1 requires. Cycle-2 remediation in §I.
+**STATUS: COMPLETE.** Both measurements taken, ≥1h apart, as criterion 1 requires. Cycle-2 remediation in §I; **cycle-4 remediation in §J** (§E was replaced by it — the `mentions_reviewed` design it described no longer exists).
 
 Every block is verbatim tool output from this session. **No count in this file
 is quoted without the clock time and HEAD it was taken at** — that is the whole
@@ -262,29 +262,67 @@ a recall test that can silently not run is not a recall test.
   ok   [3b] frontend_route_inventory.py: the entry carries a stated REASON
 ```
 
-*(Cycle-3: this block previously showed `37 / 5 / 0` mention counts — the cycle-1
-numbers, captured before `QUOTE_DIRS` was widened to the whole `handoff/` tree.
-It is regenerated here from the shipped run, which prints `282 / 6 / 49`. The
-cycle-2 commit claimed §C/§E/§G had all been regenerated; that was true for §C
-and §G and **false for §E**, which is the same accompany-not-replace defect one
-level up.)*
+**THE BLOCK ABOVE IS THE CYCLE-3 STATE AND IS SUPERSEDED. The design it shows —
+`mentions_reviewed`, a pinned count of files whose text contains the member's
+FILENAME — was removed in cycle 4 and is not merely annotated.** It was wrong in
+two measured ways: it answered a different question from the one criterion 4
+asks, so the bool it guarded stayed green when falsified; and it counted over the
+working tree, 89.5% of which is gitignored, so it was a number about a machine.
+Full account in §J. The current run prints:
 
-| member | class | criterion-4 judgement (measured) |
+```
+[3b] CRITERION 4 -- do any quoted figures derive from a SLIDING member?
+
+  ok   [3b] the quote corpus is the TRACKED set (a working-tree walk is a number about a machine, the same defect class this step closes)
+  ok   [3b] the quote corpus is non-empty (an empty grep proves nothing)
+  ok   [3b] scheduler.py: the criterion-4 judgement is a STRUCTURED claim, not a sentence (quoted_as_evidence is an explicit bool)
+  ok   [3b] scheduler.py: the claim carries FIGURE PROBES, so it can be contradicted by a measurement
+       scheduler.py: NAMED in 281 tracked file(s); a FIGURE it produced is QUOTED in 0
+  ok   [3b] scheduler.py: quoted_as_evidence=False matches the measured figure evidence
+  ok   [3b] scheduler.py: the entry carries a stated REASON
+  ok   [3b] verify_decision_log_86_97.py: the criterion-4 judgement is a STRUCTURED claim, not a sentence (quoted_as_evidence is an explicit bool)
+  ok   [3b] verify_decision_log_86_97.py: the claim carries FIGURE PROBES, so it can be contradicted by a measurement
+       verify_decision_log_86_97.py: NAMED in 9 tracked file(s); a FIGURE it produced is QUOTED in 2: handoff/current/experiment_results_86.97.md, handoff/current/live_check_86.97.md
+           handoff/current/experiment_results_86.97.md  ~commits=\d+\s+decision lines=\d+\s+gap=\d+  -> 'commits=47  decision lines=24  gap=23'
+           handoff/current/live_check_86.97.md  ~commits=\d+\s+decision lines=\d+\s+gap=\d+  -> 'commits=51  decision lines=26  gap=25'
+           handoff/current/live_check_86.97.md  ~commits matching the recursion guard=\d+  -> 'commits matching the recursion guard=26'
+  ok   [3b] verify_decision_log_86_97.py: quoted_as_evidence=True matches the measured figure evidence
+  ok   [3b] verify_decision_log_86_97.py: the entry carries a stated REASON
+  ok   [3b] frontend_route_inventory.py: the criterion-4 judgement is a STRUCTURED claim, not a sentence (quoted_as_evidence is an explicit bool)
+  ok   [3b] frontend_route_inventory.py: the claim carries FIGURE PROBES, so it can be contradicted by a measurement
+       frontend_route_inventory.py: NAMED in 5 tracked file(s); a FIGURE it produced is QUOTED in 3: handoff/archive/phase-4.7.0/experiment_results.md, handoff/archive/phase-4.7.0/phase-4.7.0-contract.md, handoff/archive/phase-4.7.1/phase-4.7.1-contract.md
+           handoff/archive/phase-4.7.0/experiment_results.md  ~"usage_source":\s*"git_activity_30d"  -> '"usage_source": "git_activity_30d"'
+           handoff/archive/phase-4.7.0/experiment_results.md  ~\d+/\d+ integer opens_30d  -> '12/12 integer opens_30d'
+           handoff/archive/phase-4.7.0/experiment_results.md  ~opens_30d=\d+  -> 'opens_30d=0'
+  ok   [3b] frontend_route_inventory.py: quoted_as_evidence=True matches the measured figure evidence
+  ok   [3b] frontend_route_inventory.py: the entry carries a stated REASON
+```
+
+The single most useful line is `scheduler.py: NAMED in 281 tracked file(s); a
+FIGURE it produced is QUOTED in 0`. Those are the two predicates side by side:
+the old tripwire tracked 281 and moved whenever anyone wrote a sentence; the
+judgement actually at stake is 0.
+
+| member | class | criterion-4 judgement (measured, cycle 4) |
 |---|---|---|
-| `backend/slack_bot/scheduler.py:503` `midnight` | **LEGITIMATELY RELATIVE** | A Slack "shipped today" digest must move with today. Name appears in **282** files (measured over the whole `handoff/` tree; `mentions_reviewed: 282`), but every hit is descriptive (em-dash cleanup, an APScheduler job description, a different scheduler at `:761-795`); none quotes a count from this window. |
-| `frontend_route_inventory.py:73` `30.days` | **SLIDING, left** | A rolling 30 days is the intended semantics, so the window stays. **Its figures HAVE been quoted as evidence** — measured over the whole `handoff/` tree, **49** files mention it, and an archived `experiment_results.md` uses its counts as success criteria (`usage_source: git_activity_30d`, `every_route_has_usage_count \| PASS (12/12 integer opens_30d)`). Those figures are unreproducible (the window has slid months past them) and inert (closed step, nothing live depends on them). `quoted_as_evidence: True, mentions_reviewed: 49`. |
-| `verify_decision_log_86_97.py:360` `{first_stamp}` | **runtime-derived, allowed** | Figures **are** derived and **are** quoted — but each is quoted with the clock time it was taken at, and the checker asserts a *relationship*, never a pinned number. Upper bound floats with HEAD by design. |
+| `backend/slack_bot/scheduler.py:503` `midnight` | **LEGITIMATELY RELATIVE** | A Slack "shipped today" digest must move with today. The window emits `d["commits_today"]` (`:501-507`), rendered as a bulleted list by `formatters.py:102-109`; **no count is ever formatted**. Named in 281 tracked files, **0** of which quote a figure it produced. `quoted_as_evidence: False`. |
+| `frontend_route_inventory.py:73` `30.days` | **SLIDING, left** | A rolling 30 days is the intended semantics, so the window stays. **Its figures HAVE been quoted as evidence** — 3 tracked files, 5 hits: `handoff/archive/phase-4.7.0/experiment_results.md` carries `"usage_source": "git_activity_30d"`, `12/12 integer opens_30d` and `opens_30d=0`. Unreproducible (the window has slid months past them) and inert (closed step). `quoted_as_evidence: True`. |
+| `verify_decision_log_86_97.py:360` `{first_stamp}` | **runtime-derived, allowed** | Figures **are** derived and **are** quoted — `commits=51  decision lines=26  gap=25` and `commits matching the recursion guard=26` — but each is quoted with the clock time it was taken at, and the checker asserts a *relationship*, never a pinned number. `quoted_as_evidence: True`. |
 | `replay_changelog_rule_86_68.py:114` `{CORPUS_SINCE}` | **was SLIDING → FIXED** | The TZ-naive pin. Corrected to `...Z`; figures unchanged. |
 
-**The check enforces disclosure, not absence.** An earlier version asserted the
-script name was absent from the quote corpus, and immediately falsified two of my
-own allowlist claims — correctly as to the proxy, misleadingly as to the
-question, since every hit was descriptive prose. Criterion 4 asks for a
-*judgement to be stated*, so the check now surfaces the mention sites for audit
-and requires the entry to have stated one. **This step's own artifacts are
-excluded from that count, and the exclusion is stated rather than quietly
-applied** — they necessarily discuss every member by name, which would guarantee
-a hit for each and make the check meaningless.
+**Two corrections to this section's own prior wording, replaced not accompanied.**
+(i) The cycle-2/3 entry put `usage_source: git_activity_30d` and
+`/portfolio 2 /login 1` inside quote marks; neither string is in the cited file.
+It reads `"usage_source": "git_activity_30d"` (JSON form) and the second is
+line-wrapped across `:62-63`. Paraphrase inside quote marks is not a quote, and
+the probes above use the verbatim forms. (ii) The cited file itself,
+`handoff/archive/_quarantine_2026-04-21/phase-3.7.5-v22/experiment_results.md`,
+is **gitignored**, so it was never admissible evidence on a fresh clone; the
+tracked carriers named above replace it.
+
+**This step's own artifacts are excluded from the corpus, and the exclusion is
+stated rather than quietly applied** — they necessarily discuss every member by
+name, which would guarantee a hit for each and make the check meaningless.
 
 ---
 
@@ -488,3 +526,202 @@ look identical.
 ### Net
 
 **30 → 37 assertions.** Nothing weakened, no criterion reinterpreted.
+
+---
+
+## J. CYCLE-4 REMEDIATION — the three named findings, and one the guard was hiding
+
+The park note records the cycle-3 state as "the shipped guard is ALL GREEN 45/0".
+**That was already false when it was written.** The guard was `44/1` at
+`964b0255` (2026-08-17T00:51:13+02:00) — the commit that recorded it green — and
+`42/3` by the time this cycle began. Preflight caught it; the provenance is in
+`handoff/current/day_halt.md`.
+
+### J0. Why it was red, and why that is the finding rather than a chore
+
+`[3b]` pinned `mentions_reviewed`, a count of files whose text contains a
+member's **filename**. Since the pinning commit exactly three handoff files were
+added, and two of them merely *name* the guarded scripts: the park note itself
+(`overnight_halt.md`) and `day_report_2026-08-17.md`; `day_halt.md` then moved all
+three pins at once. **None quotes any figure derived from any window.** The
+tripwire fired on writing prose about the thing it guards — the textbook
+change-detector shape ("fails in the face of an unrelated change to production
+code that does not introduce any real bugs", Google SWE-book ch.12).
+
+### J1. Finding (a) — `quoted_as_evidence` was only `isinstance`-checked
+
+Measured against the cycle-3 tree, both directions, scoring by FAIL-SET DELTA
+because the base was already dirty:
+
+```
+--- M-D frontend_route_inventory quoted_as_evidence True -> FALSE (a wrong bool) ---
+    rc=1  FAILED: 42 passed, 3 failed
+    *** SURVIVED *** -- a factually WRONG criterion-4 judgement ships GREEN.
+
+--- M-E scheduler quoted_as_evidence False -> TRUE (a wrong bool, other direction) ---
+    rc=1  FAILED: 42 passed, 3 failed
+    *** SURVIVED *** -- a factually WRONG criterion-4 judgement ships GREEN.
+```
+
+**Fix:** the bool is bound to a measurement of the property criterion 4 names.
+`figure_probes` are patterns for a figure *produced by that member's window*,
+each derived from the emitting expression in the member's own source — never
+from my phrasing, which is the recall trap criterion 2 forbids for the
+enumeration. The check asserts `quoted_as_evidence == bool(hits)`.
+
+**And the corpus became the tracked set.** The research gate measured what I had
+not: `handoff/` holds **49,094** `.md` of which **5,167** are tracked — **43,927
+(89.5%) gitignored** via `.gitignore:80`. 45 of `frontend_route_inventory`'s 50
+hits were in the ignored quarantine, and the allowlist's own smoking-gun citation
+is itself gitignored. The count was a number about a machine in precisely the
+class this step exists to close. Verified the True judgements survive the repair:
+5 tracked hits across 3 tracked files, listed in §E.
+
+### J2. Finding (b) — the fail-closed `<unparsed>` branch had no cell
+
+```
+--- M-A fail-OPEN: <unparsed> append -> bare continue ---
+    rc=1  FAILED: 42 passed, 3 failed
+    *** SURVIVED *** -- FAIL set identical to BASE; no cell covers this.
+```
+
+The module's central claim — an unparseable window fails closed rather than being
+skipped — was asserted by a comment and executed by nothing.
+
+That comment's own example was also **stale, and is replaced rather than left
+standing**: it said `--since 2026-08-11` (space form) reaches the branch. It no
+longer does; once `PLAUSIBLE_VALUE` landed, `window_value()` returns
+`('2026-08-11', True)` and takes the ordinary value path. Re-measured, the shapes
+that actually reach it are an argv list with a **variable** value, the
+f-string-element form, `--since=` built by concatenation, and `--after` +
+variable. An argv list with a runtime-computed bound is a realistic idiom, so
+this was an uncovered branch, not a corner.
+
+Four cells added, each asserting the reported value **is** `<unparsed>` — the
+only signal that separates this branch from `classify()`.
+
+### J3. Finding (c) — the argv cells were credited to the wrong leg
+
+The argv widening has two separable mechanisms. Measured:
+
+```
+--- M-B neutralise VALUE_ARGV_RE  (argv VALUE-PARSE leg) ---
+    *** SURVIVED *** -- FAIL set identical to BASE.
+
+--- M-C neutralise WINDOW_RE argv alternative  (argv VISIBILITY leg) ---
+    KILLED -- 3 NEW failure(s):
+      + FAIL [4] argv-list-after: KILLED -- ... the argv-list spelling of the --after synonym ...
+      + FAIL [4] argv-list-form: KILLED -- ... the ARGV-LIST spelling ...
+```
+
+So the cells are killed by **visibility** (`WINDOW_RE`'s `["']\s*,` alternative),
+not by the value parse. `VALUE_ARGV_RE` was **entirely uncovered**, and the reason
+is J2: with it neutralised, argv sites fall through to the fail-closed branch and
+are flagged anyway. **The two uncovered mechanisms were masking each other.**
+
+**Fix:** every cell now asserts its mechanism — value-classification cells assert
+`value != "<unparsed>"`, fail-closed cells assert `value == "<unparsed>"`. This is
+the distinction the mutation literature says is the whole game: assertion kills
+"imply that the test oracles actually capture the correct program behaviour",
+while others "may only show coincidental impacts" (arXiv:2306.02319, corroborated
+arXiv:2511.11999).
+
+### J4. The mutation matrix — control observed GREEN first
+
+Every cell was named in `contract_86.94.md` **before** the work. A mutant whose
+anchor does not apply is scored UNSCORABLE and counts as a failure, never a kill.
+
+```
+CONTROL -- the shipped tree, observed BEFORE any mutation is scored
+  rc=0   ALL GREEN: 68 passed, 0 failed
+  CONTROL GREEN. Kills below are differential against it.
+
+--- M-A: restore the fail-OPEN `continue` in place of the <unparsed> append
+    KILLED   rc=1  FAILED: 60 passed, 8 failed
+--- M-B: neutralise VALUE_ARGV_RE (argv VALUE-PARSE leg)
+    KILLED   rc=1  FAILED: 66 passed, 2 failed
+--- M-C: neutralise WINDOW_RE's argv alternative (argv VISIBILITY leg)
+    KILLED   rc=1  FAILED: 58 passed, 10 failed
+--- M-D: frontend_route_inventory quoted_as_evidence True -> FALSE (wrong bool)
+    KILLED   rc=1  FAILED: 67 passed, 1 failed
+--- M-E: scheduler quoted_as_evidence False -> TRUE (wrong bool, other direction)
+    KILLED   rc=1  FAILED: 67 passed, 1 failed
+--- M-F: widen the corpus back to the WORKING TREE (untracked files included)
+    KILLED   rc=1  FAILED: 67 passed, 1 failed
+--- M-G: the quoted figures VANISH from the corpus (probes match nothing)
+    KILLED   rc=1  FAILED: 67 passed, 1 failed
+
+killed=7  survived=0  unscorable=0  of 7
+PASS
+```
+
+**M-A, M-B, M-D and M-E all went from SURVIVED to KILLED.** That is the R8 proof
+obligation discharged: the replacement is strictly stronger than what it removed,
+not a loosening to get green. M-G is the specific check that drift detection was
+**preserved** — if the quoted figures vanish, the judgement still re-opens. What
+no longer re-opens it is someone writing a sentence.
+
+### J5. Criterion 5 — the correction sweep, by claim class with a recall test
+
+My cycle-3 sweep searched my own wording and missed survivors. This one is seeded
+from the artifacts. **Recall test first**, on two members known to exist:
+
+```
+seed1: masterplan note phrase 'mentions_reviewed pinned'   -> .claude/masterplan.json:1
+seed2: park-note phrase 'ALL GREEN 45/0'                   -> .claude/masterplan.json
+                                                              handoff/current/contract_86.94.md
+```
+
+Both found, so the sweep is not blind. Class A (`mentions_reviewed`) over tracked
+files returns 6 carriers, and each is dispositioned rather than counted:
+
+| carrier | disposition |
+|---|---|
+| `scripts/qa/verify_no_sliding_windows_86_94.py` | **removed** — the field no longer exists |
+| `.claude/masterplan.json` (86.94 note) | **corrected** — describes the replacement |
+| `handoff/current/live_check_86.94.md` §E | **replaced** in place, not annotated |
+| `handoff/current/experiment_results_86.94.md` | **replaced** in place |
+| `handoff/current/contract_86.94.md` | current cycle; already states the replacement |
+| `handoff/current/day_halt.md` | **RECORD, left verbatim** — it captures this morning's preflight output at the moment it was taken, and states that bumping the number is forbidden. Editing captured output would falsify the record, the same reasoning that left `evaluator_critique_86.91.md` untouched in cycle 3. |
+
+Class B (`45/0`, `45 assertions`) returned 12 files, and **9 are coincidental** —
+`all 45 heuristic names`, `all 45 trades`, `all 457 test files`, and a DOI
+containing `46.4.268`. Reporting the raw hit count as if it were the class would
+have been the over-sweep mirror of cycle 3's under-sweep. The real carriers are
+`.claude/masterplan.json`, this file, and `experiment_results_86.94.md`;
+`handoff/harness_log.md:35751` is an **append-only cycle record** and gets a new
+entry rather than a rewrite.
+
+### J6. What is NOT claimed
+
+- The immutable command still runs the **86.91** checker and cannot fail on any
+  defect in this step's class. It was green throughout and proves only that this
+  work did not break 86.91. Disclosed in the contract; the evidence is this file.
+- The guard still excludes itself from its own scan (§H1), and a real sliding
+  window introduced *into it* would not be caught by it. Unchanged bound.
+- `figure_probes` are a **judgement about which figures matter**, made by me and
+  auditable in the source. They are not a proof that no other figure from these
+  windows was ever quoted anywhere; they are a falsifiable statement about the
+  figures each window actually emits, checked against the tracked corpus.
+
+### Net
+
+**45 → 68 assertions.** No criterion reinterpreted; no allowlist member added or
+removed; no window rule relaxed.
+
+### J7. Three corrections made AFTER the cycle-3 verdict — never graded by any Q/A
+
+The cycle-3 evaluator returned CONDITIONAL, and I then made three further
+corrections. **No verdict has ever been taken on them**, so they are re-stated
+here rather than left for a reader to notice the timestamps. A fresh Q/A grades
+the current tree, and this is what changed under it:
+
+| id | what was wrong | disposition in the current tree |
+|---|---|---|
+| **W1** | `live_check_86.94.md:274` and `experiment_results_86.94.md:99` still read *"Name appears in **37** files"* — the cycle-1 figure — while the instrument printed 282. | Corrected, then superseded entirely by cycle 4: both now read the tracked-corpus figure (281 named / 0 figure-quoted). Verified: `grep "37 file"` over both artifacts returns nothing. |
+| **W2** | Both artifacts claimed the widened `WINDOW_RE` *"immediately found a live site the old one missed"*. **I re-measured it myself and it is FALSE** — reverting only the widening leaves the live-site enumeration byte-identical, so it found **zero**. What I mistook for a find was `census_qa_write_guard_log_86_31.py:64`, an `argparse` flag for a non-git tool, i.e. a false positive I then excluded with the git-proximity rule. | **Retracted in place**, not annotated: `experiment_results_86.94.md:215` now carries the retraction and the measurement. The widening's real effect is confined to the mutation cells — a future-introduction gap, which is what criterion 6 governs. |
+| **W3** | The allowlist prose said **55** files where the instrument measured 49. | Reconciled, then superseded by cycle 4 (the prose no longer carries a mention count at all — the count was the defect). Verified: `grep "55 file"` over both artifacts and the guard returns nothing. |
+
+W2 is the one that matters, because it is a claim I made in my own favour and
+then had to withdraw on my own measurement. It is recorded as a retraction rather
+than quietly deleted.

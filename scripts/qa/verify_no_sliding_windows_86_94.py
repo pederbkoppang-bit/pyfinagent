@@ -219,15 +219,86 @@ ALLOWLIST_REASONS = {
 # fired on the entry's own REJECTION of one ("...not 'never quoted'"), i.e. the
 # probe matched its own correction.
 #
-# So the claim is now DATA. `quoted_as_evidence` is an explicit bool, and
-# `mentions_reviewed` pins the mention count the author actually looked at. If
-# the corpus drifts, the count stops matching and the judgement RE-OPENS instead
-# of ageing silently into a false statement. A bool cannot be satisfied by
-# vocabulary.
+# So the claim is DATA. `quoted_as_evidence` is an explicit bool. A bool cannot
+# be satisfied by vocabulary.
+#
+# CYCLE 4 REPLACED WHAT THE BOOL IS BOUND TO, and the previous binding is gone
+# rather than annotated -- a correction must replace, not accompany.
+#
+# Cycle 3 bound the bool to `mentions_reviewed`, a pinned count of files whose
+# text contains the member's FILENAME. Two things were wrong with it, both
+# measured rather than argued:
+#
+#   1. WRONG PROPERTY. Criterion 4 asks whether a FIGURE DERIVED FROM the window
+#      was quoted as evidence. `name in text` answers a different question, so
+#      the bool it guarded stayed green when FALSIFIED. Measured 2026-08-17:
+#      flipping frontend_route_inventory True->False, and scheduler False->True,
+#      each left the FAIL set byte-identical. A wrong judgement shipped green in
+#      BOTH directions -- the defect the cycle-3 evaluator named.
+#   2. UNREPRODUCIBLE CORPUS -- the same class this whole step exists to close.
+#      The count walked the WORKING TREE: 49,094 `.md` under handoff/, of which
+#      only 5,167 are tracked; 43,927 (89.5%) are gitignored via `.gitignore:80`
+#      (`handoff/archive/_quarantine_*/`). 45 of frontend_route_inventory's 50
+#      hits were in the ignored quarantine, and the allowlist's own smoking-gun
+#      citation below is ITSELF gitignored -- so on a fresh clone the number
+#      differed and the evidence for the bool was absent. A count over "whatever
+#      .md happens to be on this disk" is a number about a MACHINE exactly as
+#      `--since=<bare date>` is a number about a CLOCK.
+#      In practice it behaved as a pure change-detector: it went RED inside the
+#      very commit that recorded it green, because that commit added a park note
+#      that merely NAMES the scripts, and RED again when the next session wrote
+#      its own report. Neither quoted a figure. Google's SWE-book calls this
+#      exact shape brittle -- a failure "in the face of an unrelated change ...
+#      that does not introduce any real bugs" (abseil.io/resources/swe-book ch12).
+#
+# The binding is now the property itself. `figure_probes` are patterns for a
+# figure PRODUCED BY THAT MEMBER'S WINDOW, each derived from the emitting
+# expression in the member's own source -- never from an author's phrasing, which
+# is the recall trap criterion 2 forbids for the enumeration. The check asserts
+# `quoted_as_evidence == bool(hits)`, so a wrong bool now fails in both
+# directions, while prose that merely names a file is inert. in-toto v1 states
+# the general form: a claim binds to its subject BY DIGEST, and "Subjects are
+# assumed to be immutable" -- a name over a mutable corpus is the binding that
+# spec explicitly rejects.
+#
+# Drift detection is PRESERVED, not dropped: if a quoted figure appears or
+# disappears, `bool(hits)` changes and the judgement RE-OPENS. What no longer
+# re-opens it is someone writing a sentence.
 ALLOWLIST_CLAIMS = {
-    "backend/slack_bot/scheduler.py": {"quoted_as_evidence": False, "mentions_reviewed": 282},
-    "scripts/qa/verify_decision_log_86_97.py": {"quoted_as_evidence": True, "mentions_reviewed": 6},
-    "scripts/harness/frontend_route_inventory.py": {"quoted_as_evidence": True, "mentions_reviewed": 49},
+    # backend/slack_bot/scheduler.py:501-507 `_git_today()` -> d["commits_today"],
+    # rendered at backend/slack_bot/formatters.py:102-109 as a bulleted list under
+    # "Shipped today" plus "Steps closed: ...". The window emits a LIST and no
+    # count is ever formatted, so a quoted figure would have to be the key with a
+    # value, or the rendered digest block itself.
+    "backend/slack_bot/scheduler.py": {
+        "quoted_as_evidence": False,
+        "figure_probes": [
+            r'commits_today["\']?\s*[:=]\s*[\[\d]',
+            r'"steps_flipped_today"\s*:\s*\[',
+            r'Shipped today\s*\n(?:\s*[-*]\s+[0-9a-f]{7,}\s)',
+        ],
+    },
+    # scripts/qa/verify_decision_log_86_97.py -- window `--since={first_stamp}`.
+    # The emitted figure is the "commits=N decision lines=N gap=N" triple and the
+    # recursion-guard count printed beside it.
+    "scripts/qa/verify_decision_log_86_97.py": {
+        "quoted_as_evidence": True,
+        "figure_probes": [
+            r'commits=\d+\s+decision lines=\d+\s+gap=\d+',
+            r'commits matching the recursion guard=\d+',
+        ],
+    },
+    # scripts/harness/frontend_route_inventory.py -- window `--since=30.days`.
+    # Emitted figures are the per-route `opens_30d` counts and the `usage_source`
+    # tag naming the window that produced them.
+    "scripts/harness/frontend_route_inventory.py": {
+        "quoted_as_evidence": True,
+        "figure_probes": [
+            r'"usage_source":\s*"git_activity_30d"',
+            r'\d+/\d+ integer opens_30d',
+            r'opens_30d=\d+',
+        ],
+    },
 }
 ALLOWLIST = ALLOWLIST_REASONS
 
@@ -372,8 +443,21 @@ def scan_text(rel: str, text: str) -> list[tuple[str, int, str, str, str]]:
                 # FAIL CLOSED. The first version `continue`d here, which meant a
                 # window whose value the pattern could not parse was SILENTLY
                 # SKIPPED -- a fail-OPEN inside the module whose central claim is
-                # that it fails closed. Measured: `--since 2026-08-11` (space
-                # form) matched WINDOW_RE but not VALUE_RE, so it vanished.
+                # that it fails closed.
+                #
+                # THE ORIGINAL EXAMPLE FOR THIS COMMENT IS NO LONGER TRUE and is
+                # replaced rather than left standing beside a correction. It read:
+                # "Measured: `--since 2026-08-11` (space form) matched WINDOW_RE
+                # but not VALUE_RE, so it vanished." That stopped being the case
+                # when PLAUSIBLE_VALUE landed -- window_value() now returns
+                # ('2026-08-11', True) for the space form, which takes the normal
+                # value path. Re-measured 2026-08-17, the shapes that actually
+                # reach this branch are: an argv list whose value is a VARIABLE
+                # (`["git","log","--since", win]`), the f-string-element form,
+                # `--since=` with an empty value, and `--after` + variable. The
+                # argv-with-variable form is a realistic idiom, so this is an
+                # uncovered branch and not a corner case; section [4] now has
+                # cells for it.
                 found.append((rel, i, "<unparsed>", "SLIDING",
                               ("a window option was found but its value could not be "
                                "parsed -- failing closed rather than skipping")))
@@ -489,27 +573,44 @@ QUOTE_SURFACES = [".claude/masterplan.json", "CHANGELOG.md"]
 # as good as the corpus it was taken over.
 QUOTE_DIRS = ["handoff"]
 
+# THE CORPUS IS THE TRACKED SET, and that is a correctness requirement, not tidying.
+# Walking the working tree made this section's own figures unreproducible in
+# exactly the class the step exists to close: 89.5% of the `.md` under handoff/
+# is gitignored (`.gitignore:80`), so the same command answered differently on a
+# fresh clone than on this laptop. `git ls-files` is the enumeration rule, it is
+# the same rule `tracked_files()` already uses for the scan itself, and it is
+# stated here rather than left implicit.
+#
+# CONSEQUENCE, STATED: the quarantined archive is no longer evidence. The cycle-2
+# citation for frontend_route_inventory pointed at
+# handoff/archive/_quarantine_2026-04-21/phase-3.7.5-v22/experiment_results.md,
+# which is gitignored. Its figures are ALSO quoted in tracked archives
+# (handoff/archive/phase-4.7.0/, phase-4.7.1/), so the True judgement stands on
+# tracked evidence -- measured, not assumed: 5 tracked hits across 3 files.
+def _tracked_set() -> set[str]:
+    out = subprocess.run(["git", "ls-files"], cwd=REPO,
+                         capture_output=True, text=True, check=False).stdout
+    return {ln for ln in out.splitlines() if ln.strip()}
 
-def quote_corpus() -> str:
-    parts = []
-    for rel in QUOTE_SURFACES:
-        p = REPO / rel
-        if p.exists():
-            parts.append(p.read_text(encoding="utf-8", errors="replace"))
-    for d in QUOTE_DIRS:
-        for p in (REPO / d).glob("*.md"):
-            parts.append(p.read_text(encoding="utf-8", errors="replace"))
-    return "\n".join(parts)
 
+_TRACKED = _tracked_set()
 
 MENTIONS = {}
 for _rel in QUOTE_SURFACES:
     _p = REPO / _rel
-    if _p.exists():
+    if _p.exists() and _rel in _TRACKED:
         MENTIONS[_rel] = _p.read_text(encoding="utf-8", errors="replace")
 for _d in QUOTE_DIRS:
     for _p in sorted((REPO / _d).rglob("*.md")):
-        MENTIONS[str(_p.relative_to(REPO))] = _p.read_text(encoding="utf-8", errors="replace")
+        _r = str(_p.relative_to(REPO))
+        if _r in _TRACKED:
+            MENTIONS[_r] = _p.read_text(encoding="utf-8", errors="replace")
+
+check("[3b] the quote corpus is the TRACKED set (a working-tree walk is a number "
+      "about a machine, the same defect class this step closes)",
+      bool(_TRACKED) and all(r in _TRACKED for r in MENTIONS),
+      "the corpus contains untracked files, so this section is not reproducible "
+      "on a fresh clone")
 
 check("[3b] the quote corpus is non-empty (an empty grep proves nothing)",
       sum(len(v) for v in MENTIONS.values()) > 10000,
@@ -529,26 +630,65 @@ check("[3b] the quote corpus is non-empty (an empty grep proves nothing)",
 # the check surfaces the mention sites for audit and requires the entry to have
 # stated one.
 SELF = "86.94"
+
+
+def figure_sites(claim: dict) -> list[tuple[str, str, str]]:
+    """(relpath, pattern, matched text) for every QUOTED FIGURE of this member.
+
+    The predicate criterion 4 actually asks about. Compare `name in text`, which
+    answers "was this file talked about" and is satisfied by any sentence.
+    """
+    out = []
+    for rel, text in MENTIONS.items():
+        if SELF in rel:
+            continue
+        for pat in claim.get("figure_probes", []):
+            m = re.search(pat, text)
+            if m:
+                out.append((rel, pat, m.group(0)[:70].replace("\n", "\\n")))
+    return out
+
+
 for (_path_suffix, _val), _entry in ALLOWLIST.items():
     _name = Path(_path_suffix).name
-    _sites = [rel for rel, text in MENTIONS.items()
-              if _name in text and SELF not in rel]
-    print(f"       {_name}: mentioned outside this step's own artifacts in "
-          f"{len(_sites)} file(s)" + (": " + ", ".join(_sites[:4]) if _sites else ""))
     _claim = ALLOWLIST_CLAIMS.get(_path_suffix)
+    _named = [rel for rel, text in MENTIONS.items() if _name in text and SELF not in rel]
+
     check(f"[3b] {_name}: the criterion-4 judgement is a STRUCTURED claim, not a "
           "sentence (quoted_as_evidence is an explicit bool)",
           isinstance(_claim, dict) and isinstance(_claim.get("quoted_as_evidence"), bool),
           "no machine-readable claim -- a prose predicate is satisfiable by vocabulary "
           "and cannot be contradicted by the measurement")
+
     if isinstance(_claim, dict):
-        check(f"[3b] {_name}: mentions_reviewed matches the measured count, so a "
-              "drifting corpus RE-OPENS the judgement instead of ageing into a "
-              "false statement",
-              _claim.get("mentions_reviewed") == len(_sites),
-              f"entry pins mentions_reviewed={_claim.get('mentions_reviewed')} but the "
-              f"scan measured {len(_sites)} -- re-review the sites and re-state the "
-              "judgement rather than bumping the number")
+        # A claim with no probe cannot be contradicted by anything. An
+        # unfalsifiable entry is the defect, so it fails rather than passing
+        # vacuously.
+        check(f"[3b] {_name}: the claim carries FIGURE PROBES, so it can be "
+              "contradicted by a measurement",
+              bool(_claim.get("figure_probes")),
+              "quoted_as_evidence with no probe is unfalsifiable -- exactly the "
+              "isinstance-only state cycle 3 shipped")
+
+        _figs = figure_sites(_claim)
+        _files = sorted({r for r, _, _ in _figs})
+        print(f"       {_name}: NAMED in {len(_named)} tracked file(s); "
+              f"a FIGURE it produced is QUOTED in {len(_files)}"
+              + (": " + ", ".join(_files[:3]) if _files else ""))
+        for _r, _p, _t in _figs[:3]:
+            print(f"           {_r}  ~{_p}  -> {_t!r}")
+
+        # THE BOOL IS NOW BOUND TO THE MEASUREMENT, in both directions. Flipping
+        # it either way fails. Cycle 3's binding could not do this: with only an
+        # isinstance check, True->False and False->True both shipped GREEN.
+        check(f"[3b] {_name}: quoted_as_evidence={_claim.get('quoted_as_evidence')} "
+              "matches the measured figure evidence",
+              _claim.get("quoted_as_evidence") == bool(_figs),
+              f"claim says {_claim.get('quoted_as_evidence')} but "
+              f"{len(_figs)} quoted figure(s) were measured in {len(_files)} tracked "
+              f"file(s) -- re-review and re-state the judgement. Sites: "
+              f"{_files[:4]}")
+
     check(f"[3b] {_name}: the entry carries a stated REASON",
           len(_entry) > 80,
           "an allowlist entry without a stated reason is a silent exemption")
@@ -603,11 +743,65 @@ INJECTIONS = [
     ("tz-naive-pin", 'sh("git", "log", "--since=2026-08-11T00:00:00")',
      "a pinned but TZ-NAIVE timestamp -- the shape phase-86.91 believed was a fix"),
 ]
+# A KILL MUST NAME THE MECHANISM THAT MADE IT, or the cell cannot tell a real
+# detection from a coincidental one. Every cell used to assert only
+# `bool(hits)` filtered on h[3] == "SLIDING", never the VALUE field h[2] -- so a
+# cell was green whether classify() fired on a parsed value or the fail-closed
+# <unparsed> branch caught it, and the two are different claims about the rule.
+# The mutation literature is explicit that this distinction is the whole game:
+# assertion kills "imply that the test oracles actually capture the correct
+# program behaviour", while other kills "may only show coincidental impacts of
+# the mutation" (arXiv:2306.02319, corroborated arXiv:2511.11999).
+#
+# MEASURED 2026-08-17, all 11 injections differenced against the clean control:
+# every one is killed by classify() on a PARSED value; none reaches the
+# fail-closed branch. So each asserts value != "<unparsed>". This also corrects
+# an attribution recorded in cycle 3: neutralising VALUE_ARGV_RE (the argv
+# VALUE-PARSE leg) leaves every cell GREEN, because argv sites then fall through
+# to the fail-closed branch and are still flagged. What actually kills the two
+# argv cells is WINDOW_RE's argv alternative -- the VISIBILITY leg. Neutralising
+# that turns exactly `argv-list-form` and `argv-list-after` red, and nothing else.
 for mid, injected, why in INJECTIONS:
     mutated = CLEAN_TEXT + "\n" + injected + "\n"
     hits = [h for h in scan_text(CLEAN_REL, mutated) if h[3] == "SLIDING"]
     check(f"[4] {mid}: KILLED -- introducing {why} is flagged SLIDING", bool(hits),
           "the guard stayed green after a sliding window was introduced")
+    check(f"[4] {mid}: the kill is attributable -- classify() fired on a PARSED "
+          "value, not the fail-closed catch-all",
+          bool(hits) and all(h[2] != "<unparsed>" for h in hits),
+          f"reported value(s) {[h[2] for h in hits]} -- a cell that cannot name "
+          "its mechanism cannot distinguish a real detection from a coincidental one")
+
+# ── FAIL-CLOSED BRANCH (scan_text): its own cells ───────────────────────────
+#
+# The module's central claim is that an unparseable window FAILS CLOSED rather
+# than being skipped. Until now that branch had ZERO cells: restoring the
+# fail-OPEN `continue` in its place left all assertions green, so the claim was
+# asserted by a comment and executed by nothing. Each cell below asserts the
+# reported value IS "<unparsed>", which is the only signal that distinguishes
+# this branch from classify(); without it the cells would be satisfiable by the
+# ordinary value path and would prove nothing about fail-closing.
+FAILCLOSED_INJECTIONS = [
+    ("fc-argv-variable", 'subprocess.run(["git", "log", "--since", win])',
+     "an argv list whose window value is a VARIABLE -- the repo's dominant git "
+     "idiom with a runtime-computed bound, which no static value pattern can read"),
+    ("fc-argv-fstring", 'subprocess.run(["git", "log", "--since", f"{lo}"])',
+     "the f-string-element form of the same argv idiom"),
+    ("fc-empty-equals", 'sh("git", "log", "--since=" + WINDOW)',
+     "`--since=` built by concatenation, so the value is absent at the option"),
+    ("fc-after-variable", 'subprocess.run(["git", "log", "--after", cutoff])',
+     "the --after synonym with a variable value"),
+]
+for mid, injected, why in FAILCLOSED_INJECTIONS:
+    mutated = CLEAN_TEXT + "\n" + injected + "\n"
+    hits = [h for h in scan_text(CLEAN_REL, mutated) if h[3] == "SLIDING"]
+    check(f"[4] {mid}: KILLED -- {why} is flagged SLIDING", bool(hits),
+          "an unparseable window was SKIPPED -- the module fails OPEN")
+    check(f"[4] {mid}: it is the FAIL-CLOSED branch that fired (value == '<unparsed>')",
+          any(h[2] == "<unparsed>" for h in hits),
+          f"reported value(s) {[h[2] for h in hits]} -- this cell is being satisfied "
+          "by the ordinary value path, so it does not cover the fail-closed branch "
+          "and restoring the fail-OPEN `continue` would leave it green")
 
 # A REPRODUCIBLE form must NOT be flagged, or the guard is just noise and will
 # be switched off. A detector that flags everything discriminates nothing.

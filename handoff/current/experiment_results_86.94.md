@@ -49,7 +49,7 @@ sit relative to the sliding band.
 
 ## The guard
 
-`scripts/qa/verify_no_sliding_windows_86_94.py`, 45 assertions, exit 0.
+`scripts/qa/verify_no_sliding_windows_86_94.py`, 68 assertions, exit 0.
 
 - **Known-member recall is a hard gate.** The rule must find the pre-86.91 form
   of the replay, recovered from git at `06c3265f`, and classify it SLIDING. If
@@ -60,7 +60,9 @@ sit relative to the sliding band.
   `backend/slack_bot/scheduler.py` builds the Slack "shipped today" digest, and a
   report about today must move with today. A blanket prohibition would break
   correct code and then be switched off.
-- **Criterion 4 is enforced as disclosure, not absence** (see below).
+- **Criterion 4 is enforced as a BOUND MEASUREMENT** — `quoted_as_evidence` must
+  equal what a figure-probe search over the tracked corpus actually finds, so the
+  judgement can be contradicted (see below).
 
 ### Two defects my own rule had first, both of this step's classes
 
@@ -94,22 +96,31 @@ sit relative to the sliding band.
 
 ## Criterion 4 — the judgement, stated
 
-| member | class | judgement (measured) |
+| member | class | judgement (measured, cycle 4) |
 |---|---|---|
-| `scheduler.py:503` `midnight` | LEGITIMATELY RELATIVE | Name appears in **282** files (measured over the whole `handoff/` tree); every hit descriptive (em-dash cleanup, an APScheduler job description, a different scheduler at `:761-795`). No count from this window is quoted. |
-| `frontend_route_inventory.py:73` `30.days` | SLIDING, left | **Corrected cycle 2:** its figures HAVE been quoted as evidence — an archived `experiment_results.md` uses them as success criteria. Quoted, unreproducible, and inert (closed step, nothing live depends on them), so the window is left but the judgement is no longer "never quoted". |
-| `verify_decision_log_86_97.py:360` `{first_stamp}` | runtime-derived, allowed | Figures **are** quoted — always with the clock time they were taken at, and the checker asserts a *relationship*, not a number. |
+| `scheduler.py:503` `midnight` | LEGITIMATELY RELATIVE | The window emits `d["commits_today"]` (`:501-507`), rendered as a bulleted list (`formatters.py:102-109`); **no count is ever formatted**. Named in 281 tracked files; a figure it produced is quoted in **0**. `quoted_as_evidence: False`. |
+| `frontend_route_inventory.py:73` `30.days` | SLIDING, left | Its figures HAVE been quoted as evidence — 3 tracked files, 5 hits (`"usage_source": "git_activity_30d"`, `12/12 integer opens_30d`, `opens_30d=0` in `handoff/archive/phase-4.7.0/`). Quoted, unreproducible, inert. `quoted_as_evidence: True`. |
+| `verify_decision_log_86_97.py:360` `{first_stamp}` | runtime-derived, allowed | Figures **are** quoted (`commits=51  decision lines=26  gap=25`) — always with the clock time they were taken at, and the checker asserts a *relationship*, not a number. `quoted_as_evidence: True`. |
 | `replay_changelog_rule_86_68.py:114` `{CORPUS_SINCE}` | was SLIDING → **FIXED** | The TZ-naive pin. |
 
-**The check enforces disclosure rather than absence, and that was a correction.**
-My first version asserted the script name was absent from the quote corpus. It
-immediately falsified two of my own allowlist claims — correctly as to the proxy,
-misleadingly as to the question, because every hit was descriptive prose rather
-than a quoted count. Criterion 4 asks for a judgement to be *stated*, so the
-check now surfaces mention sites for audit and requires the entry to state one.
-This step's own artifacts are excluded from the count, and the exclusion is
-stated: they necessarily name every member, which would guarantee a hit for each
-and make the check vacuous.
+**The bool is now bound to a measurement, and the previous binding is gone rather
+than annotated.** Cycles 2-3 bound it to `mentions_reviewed`, a pinned count of
+files containing the member's *filename*. Measured: flipping
+`frontend_route_inventory` True→False and `scheduler` False→True each left the
+guard's FAIL set byte-identical — **a factually wrong judgement shipped green in
+both directions.** It also counted over the working tree, 89.5% of which is
+gitignored, so it was a number about a machine in the very class this step
+closes; it went red inside the commit that recorded it green, because that commit
+added a park note that merely *names* the scripts.
+
+`figure_probes` replace it: patterns for a figure *produced by that member's
+window*, each derived from the emitting expression in the member's own source,
+matched against the **git-tracked** corpus, with the check asserting
+`quoted_as_evidence == bool(hits)`. A wrong bool now fails in both directions
+(M-D, M-E), and drift on the relevant corpus still re-opens the judgement (M-G),
+while prose that merely names a file is inert. This step's own artifacts remain
+excluded, and the exclusion is stated: they necessarily name every member, which
+would guarantee a hit for each and make the check vacuous.
 
 ---
 
@@ -143,7 +154,7 @@ today and would have stayed green through every defect this step is about. It
 cannot fail on the class. The real evidence is in `live_check_86.94.md`.
 
 ```
-verify_no_sliding_windows_86_94.py   ALL GREEN: 45 passed, 0 failed   (exit 0)
+verify_no_sliding_windows_86_94.py   ALL GREEN: 68 passed, 0 failed   (exit 0)
 verify_changelog_flip_86_91.py       ALL GREEN: 42 passed, 0 failed
 verify_workflow_args_boundary.mjs    ALL GREEN: 96 passed, 0 failed
 ruff (default ruleset, new file)     All checks passed!
@@ -215,9 +226,67 @@ worse.** Checking for the word "quoted" passed for the true entry, the false one
 it replaced, *and* the sentence "never quoted as evidence". My first fix — a
 deny-list of phrases — then fired on the entry's own **rejection** of one of
 them ("…not 'never quoted'"), i.e. the probe matched its own correction. The
-judgement is now **data**: `quoted_as_evidence` is an explicit bool and
-`mentions_reviewed` pins the count actually reviewed, so a drifting corpus
-re-opens the judgement instead of ageing into a false statement. A bool cannot be
-satisfied by vocabulary.
+judgement is now **data**: `quoted_as_evidence` is an explicit bool bound to
+`figure_probes` — patterns for a figure the member's window actually emits,
+matched against the git-tracked corpus. A wrong bool fails in both directions and
+a change in the quoted figures re-opens the judgement, while prose that merely
+names the file is inert. (Cycle 3 bound it to `mentions_reviewed`, a filename
+count over the working tree; that binding is removed, not annotated — see
+`live_check_86.94.md` §J.) A bool cannot be satisfied by vocabulary.
 
-**37 → 45 assertions.**
+**37 → 45 → 68 assertions.**
+
+---
+
+## Cycle-4 remediation (after the overnight PARK at the 3-attempt cap)
+
+**Starting state: the guard was RED, not "ALL GREEN 45/0" as the park note
+records.** `42 passed, 3 failed` — all three the `mentions_reviewed` tripwire
+firing because last night's own park note and day report *name* the guarded
+scripts. Provenance: `handoff/current/day_halt.md`.
+
+| file | change |
+|---|---|
+| `scripts/qa/verify_no_sliding_windows_86_94.py` | `mentions_reviewed` → `figure_probes`; corpus restricted to `git ls-files`; `quoted_as_evidence == bool(hits)`; 4 fail-closed `<unparsed>` cells; per-cell mechanism assertions; the stale space-form comment replaced. **45 → 68 assertions.** |
+| `handoff/current/live_check_86.94.md` | §E replaced (not annotated); §J added with the full cycle-4 evidence. |
+| `handoff/current/experiment_results_86.94.md` | criterion-4 section replaced; stale `45` counts corrected. |
+| `.claude/masterplan.json` | 86.94 note corrected — the design it described no longer exists. |
+
+**The three findings the cycle-3 evaluator named, each measured before and after:**
+
+| # | finding | before | after |
+|---|---|---|---|
+| (a) | `quoted_as_evidence` only `isinstance`-checked, so a wrong bool stays green | M-D **SURVIVED**, M-E **SURVIVED** | both **KILLED** |
+| (b) | the `<unparsed>` fail-closed branch has no mutation cell | M-A **SURVIVED** | **KILLED** |
+| (c) | the argv cells may be credited to the wrong leg | M-B **SURVIVED** (value-parse leg uncovered); M-C kills exactly the 2 argv cells | M-B **KILLED**; attribution corrected to the visibility leg |
+
+The two uncovered mechanisms in (b) and (c) were **masking each other**: with
+`VALUE_ARGV_RE` neutralised, argv sites fell through to the fail-closed branch and
+were still flagged, so neither leg could be tested while the other was intact.
+
+**One finding the guard was hiding, surfaced by the research gate:** the
+`mentions_reviewed` corpus walked the working tree, of which **89.5%
+(43,927 of 49,094 `.md` under `handoff/`) is gitignored**. 45 of 50 hits for
+`frontend_route_inventory` were in the ignored quarantine, and the allowlist's own
+smoking-gun citation was itself gitignored — so the evidence for
+`quoted_as_evidence: True` was absent on a fresh clone. The corpus is now the
+tracked set, and the True judgements were re-verified against tracked carriers.
+
+**Mutation matrix: `killed=7 survived=0 unscorable=0`, control observed GREEN
+(68/0) before any cell was scored.** Full transcript in `live_check_86.94.md` §J.
+M-A/B/D/E moving from SURVIVED to KILLED is the evidence that this replaced a
+weaker check with a stronger one rather than deleting a red check to get green.
+
+**Verification, re-run after every edit:**
+
+```
+$ bash -c 'source .venv/bin/activate && python scripts/qa/verify_changelog_flip_86_91.py > /dev/null && echo green'
+green
+
+$ python scripts/qa/verify_no_sliding_windows_86_94.py
+ALL GREEN: 68 passed, 0 failed
+```
+
+**Still disclosed, unchanged:** the immutable command runs the *86.91* checker and
+cannot fail on any defect in this step's class; it proves only that this work did
+not break 86.91.

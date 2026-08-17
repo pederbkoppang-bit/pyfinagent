@@ -1,128 +1,88 @@
-# Contract — phase-86.94
+# Contract — phase-86.94, cycle 4
 
-**Written BEFORE any GENERATE work.** Research gate cleared first.
-
----
-
-## Step
-
-`86.94` (P2) — *"corpora and windows defined relative to `now` are not
+**Step:** `86.94` — corpora and windows defined relative to `now` are not
 reproducible: `git log --since=<bare date>` is applied at the CURRENT time of
 day, so at least one measurement frozen into an immutable criterion cannot be
-regenerated"*
+regenerated.
+
+**Cycle:** 4 (prior: FAIL, FAIL, CONDITIONAL — parked overnight at the 3-attempt
+rail). **Attempt budget this session: 3.**
 
 ---
 
-## Research gate — PASSED (enforced, audit-class, loop-until-dry)
+## 1. Research gate — PASSED (enforced, not self-reported)
 
-`.claude/workflows/research-gate.js` by `scriptPath` (rail R7), run
-`wf_2c05296c-5d4`, 2 agents, 227,210 tokens, 1081s.
+`Workflow({scriptPath: '.claude/workflows/research-gate.js'})`, run
+`wf_c533d502-21e`. The script RECOMPUTED the verdict and cross-checked the
+self-report against the brief on disk; **they agreed**.
 
 ```
-gate_passed: true          agent_self_reported_gate_passed: true
-self_report_disagreed: false               violations: []
-sources_floor_ok: 17 >= 5                  urls_floor_ok: 45 >= 10
-recency_scan_ok                            audit_class_dry_ok
-brief_on_disk_ok: handoff/current/research_brief_86.94.md (46121 chars, independently read)
-brief_status_in_brief: COMPLETE            all_17_claimed_sources_present_in_brief
-urls_collected_corroborated: 45 <= 45 distinct URLs in the brief
-coverage: {audit_class: true, rounds: 12, dry_rounds: 3, K_required: 2, dry: true}
+gate_passed: true      violations: []      self_report_disagreed: false
+sources_floor_ok: 7 >= 5        urls_floor_ok: 23 >= 10
+recency_scan_ok                 all_7_claimed_sources_present_in_brief
+brief_on_disk_ok: handoff/current/research_brief_86.94_cycle4.md
+                  (18346 chars, independently read)
+brief_status_in_brief: COMPLETE
 ```
 
-Read in full includes: `git-log(1)`, `git-rev-list(1)`, `gitrevisions(7)`, git's
-own `date.c`, reproducible-builds `SOURCE_DATE_EPOCH`, Ruff `DTZ005`, Prometheus
-querying basics, dbt incremental microbatch, Databricks time-series feature
-store, PLOS Comp Biol reproducibility, arXiv 2306.11391 / 2602.08561v3 / 2604.25944.
+Brief: `handoff/current/research_brief_86.94_cycle4.md`. Sources read in full:
+Google SWE-book ch.12 (brittleness taxonomy), arXiv 2306.02319 + 2511.11999
+(mutation kill-reason taxonomy), arXiv 2507.15892 (StaAgent — metamorphic
+testing *of a static analyser's rules*), in-toto v1 statement spec, SLSA v1.0
+verifying-artifacts, cherryleaf docs-as-tests (2026-08).
+
+**The gate changed the design.** It produced F3 (below), which I did not have and
+which invalidates the first fix I had drafted.
 
 ---
 
-## Hypothesis — REPRODUCED BY EXECUTION before this contract
+## 2. Starting state — the guard is RED, and that is this cycle's first evidence
 
-### H1 — the class, proven from git's own resolution rather than from a count
-
-The cleanest proof is not a count diff. `git rev-parse` prints what git actually
-resolved:
+The park note records "the shipped guard is ALL GREEN 45/0". **That is stale.**
+Measured at preflight this morning and again after the gate:
 
 ```
-now: 2026-08-16 23:09:03 CEST
-
-$ git rev-parse --since=2026-08-11
---max-age=1786482543          -> local 2026-08-11 23:09:03 CEST | UTC 2026-08-11T21:09:03Z
-
-$ git rev-parse --since=today
---max-age=1786914543          -> local 2026-08-16 23:09:03 CEST | UTC 2026-08-16T21:09:03Z
+FAILED: 42 passed, 3 failed
 ```
 
-The bare date **carried today's clock time (23:09:03) onto the target date**.
-And `--since=today` resolved to **now**, not midnight:
+All three failures are the same assertion — the `mentions_reviewed` equality at
+`verify_no_sliding_windows_86_94.py:544-551` disagreeing with the pins at
+`:227-231`:
 
-```
---since=today                     : 0 commits
---since=<today>T00:00:00          : 64 commits
-```
+| member | pinned | measured |
+|---|---|---|
+| `backend/slack_bot/scheduler.py` | 282 | **283** |
+| `scripts/qa/verify_decision_log_86_97.py` | 6 | **9** |
+| `scripts/harness/frontend_route_inventory.py` | 49 | **50** |
 
-— even though `git-log(1)` and `git-rev-list(1)` both describe `today` as
-midnight. That is a documentation-vs-behaviour gap, not a misreading.
-
-### H2 — the phase-86.91 fix is INCOMPLETE, and this is design-deciding
-
-86.91 answered its criterion by pinning `CORPUS_SINCE = "2026-08-11T00:00:00"`.
-**A naive pinned timestamp is still TZ-local.** Measured on this repo varying
-only the machine timezone. NOTE the two pairs measure different corpora and the
-label matters: the block below is the **open-ended** whole-history count (no
-upper bound), so it drifts with every new commit — measured 766/846 at the time
-of writing and 776/856 a few hours later. The **both-ends-pinned** pair, which is
-the one the replay actually uses, is a stable 707 (Oslo/UTC/NY) vs 787 (Seoul):
-
-```
-Europe/Oslo        --since=2026-08-11T00:00:00 -> 766
-Asia/Seoul         --since=2026-08-11T00:00:00 -> 846
-America/New_York   --since=2026-08-11T00:00:00 -> 766
-UTC                --since=2026-08-11T00:00:00 -> 766
-(Seoul, Z form)    --since=2026-08-11T00:00:00Z -> 766
-(NY,    Z form)    --since=2026-08-11T00:00:00Z -> 766
-```
-
-An 80-commit spread on the same repo and the same command, decided by `$TZ`. The
-`Z` form normalises it.
-
-**The asymmetry is explained by measurement, not waved at:** New York and Oslo
-coincide because the band they straddle is empty, while Seoul's is not.
-
-```
-commits in [2026-08-10T22:00Z, 2026-08-11T04:00Z): 0     <- Oslo vs NY band
-commits in [2026-08-10T15:00Z, 2026-08-11T00:00Z): 80    <- Seoul band
-```
-
-So the defect's *magnitude is data-dependent*: a TZ-naive pin can look perfectly
-stable for months and then move by 80 commits when someone runs it elsewhere, or
-when commits land in a previously-empty band. Silence is not evidence of safety.
-
-### H3 — the drift is only observable when commits fall in the slid band
-
-For criterion 1 I must show two bare-date runs ≥1h apart with **differing**
-counts. That required choosing the boundary date by measurement: the last commit
-on 2026-08-11 is at 22:36:46, already behind the current cutoff, so that date's
-drift window is **exhausted** and two runs tonight would agree — a true result
-that would have looked like a refutation. 2026-08-13 has 22 commits in the
-22:52–23:52 band, so it straddles.
-
-**Measurement 1** (persisted at capture time, not retyped):
-
-```
-MEASUREMENT 1
-local_time: 2026-08-16 22:50:20 CEST
-utc:        2026-08-16T20:50:20Z
-HEAD:       a5cbfd678b4871c44f28a549793536171546f242
-bare   --since=2026-08-13          : 376
-pinned --since=2026-08-13T00:00:00 : 424
-```
-
-Measurement 2 is taken after ≥1h has elapsed, in GENERATE.
+Cause, measured: since the pinning commit `964b0255` (2026-08-17T00:51:13+02:00)
+exactly three handoff files were added, and two of them merely **name** the
+guarded scripts — `handoff/current/overnight_halt.md` (the park note itself) and
+`handoff/current/day_report_2026-08-17.md`, then `handoff/current/day_halt.md`
+this morning. **None quotes any figure derived from any window.** The guard went
+`45 -> 44` *inside the commit that recorded it green*, and `44 -> 42` when this
+morning's deviation record was written. Full account:
+`handoff/current/day_halt.md`.
 
 ---
 
-## Immutable success criteria — copied VERBATIM from `.claude/masterplan.json`
+## 3. Hypothesis
+
+The three findings the cycle-3 evaluator named are all instances of one defect:
+**a claim is bound to the wrong referent, and a kill is credited to the wrong
+mechanism.** Fixing the binding (not the numbers) closes all three and also
+closes the brittleness that turned the guard red overnight.
+
+- `quoted_as_evidence` is bound to *nothing* — only `isinstance` is checked.
+- `mentions_reviewed` is bound to `name in text` over the **working tree**, which
+  is both the wrong property (criterion 4 asks about a quoted *figure*, not a
+  filename) and an unreproducible corpus.
+- The `[4]` cells are bound to `h[3] == "SLIDING"` only, never to `h[2]`, so no
+  cell can say *which* mechanism killed it.
+
+---
+
+## 4. Immutable success criteria — copied VERBATIM from `.claude/masterplan.json`
 
 1. "the drift is REPRODUCED first, by EXECUTION and WITHOUT PINNED FIGURES: run the bare-date command twice at times of day that differ by at least an hour and show the two counts DIFFER, and show that the midnight-pinned form differs from both. Do NOT copy a specific count into this criterion -- by this step's own thesis no such count can be regenerated, and an earlier revision of this criterion pinned 621/592/706, which measured 560/712 the same day. That revision was the identical trap this step exists to close, committed inside the criterion written to prevent it"
 2. "the class is enumerated FROM SOURCE, not hand-listed: the enumeration rule is written down, the command is quoted with its output, and each member is classified as REPRODUCIBLE or SLIDING with the reason per member"
@@ -132,62 +92,102 @@ Measurement 2 is taken after ≥1h has elapsed, in GENERATE.
 6. "a regression guard is added that would go RED if a new bare-date or now-relative window is introduced into a measurement script, and it is mutation-tested with the control observed GREEN first"
 7. "verdict semantics are UNCHANGED: nothing here may turn a non-PASS into a PASS"
 
-Immutable command:
+**Immutable command** (unchanged):
 `bash -c 'source .venv/bin/activate && python scripts/qa/verify_changelog_flip_86_91.py > /dev/null && echo green'`
 
-**Disclosed weakness:** this command runs the *86.91* checker, which is green
-today and would stay green through every defect this step is about. It cannot
-fail on the class. The real evidence goes in `live_check_86.94.md`.
+**Disclosed, as in cycle 3:** this command runs the *86.91* checker and
+**cannot fail on any defect in this step's class**. It was green throughout and
+proves only that 86.94's work did not break 86.91. The real evidence is
+`live_check_86.94.md`. This is a defect in the step's filing, not a claim of
+coverage.
 
 ---
 
-## Plan
+## 5. Plan
 
-**P1 — reproduce (criterion 1).** Two bare-date runs ≥1h apart on a date whose
-commits straddle the band, plus the midnight-pinned form, plus the
-`git rev-parse` resolution proof. **No figure is pinned into any criterion**, and
-every count is quoted with the clock time and HEAD it was taken at.
+### P1 — criterion 4 becomes falsifiable AND reproducible (evaluator finding (a); brief F3/F4/F5)
 
-**P2 — enumerate FROM SOURCE with a written-down rule (criteria 2, 3).** The rule
-is stated in the checker; the class is git revision-range windows and
-now-relative corpus arithmetic in measurement scripts. **Known-member recall is a
-hard gate:** the scan must find the pre-86.91 form of
-`replay_changelog_rule_86_68.py`, recovered from git, and FAIL if it cannot.
-Per-member classification REPRODUCIBLE / SLIDING with the reason.
+Replace `mentions_reviewed: int` with `figure_probes: [regex]` and assert
+**`quoted_as_evidence == bool(probe hits)`**.
 
-**P3 — classify and judge each member (criterion 4).** For every SLIDING member,
-state whether any figure derived from it was ever quoted in a masterplan
-criterion, an `audit_basis`, a handoff artifact or the CHANGELOG. A member whose
-numbers were never quoted may be left — **but the judgement is stated, not
-silent.** The research names three analytical defects and, importantly, **one
-CORRECT relative use** (`scheduler.py:503`) that a blanket ban would break: the
-guard must therefore be an allowlist, not a prohibition.
+- Each probe is derived **from the emitting expression**, not from my phrasing:
+  `scheduler.py` → `_git_today()` at `:501-507` → `d["commits_today"]`, rendered
+  by `formatters.py:102-109`; `verify_decision_log_86_97.py` → the
+  `commits=N decision lines=N gap=N` triple; `frontend_route_inventory.py` →
+  `opens_30d` / `"usage_source": "git_activity_30d"`.
+- **The corpus becomes git-tracked files only.** Brief F3: `handoff/` holds
+  49,094 `.md` of which only 5,167 are tracked — **43,927 (89.5%) gitignored**
+  via `.gitignore:80`. A count over "whatever is on this disk" is a number about
+  a machine exactly as `--since=<bare date>` is a number about a clock. The
+  allowlist's own smoking-gun citation
+  (`handoff/archive/_quarantine_2026-04-21/phase-3.7.5-v22/experiment_results.md`)
+  is itself gitignored.
 
-**P4 — correct unreproducible figures everywhere (criterion 5).** Replace, never
-annotate. The enumeration of sites is driven by the **claim class**, with a
-known-member recall seed — the 86.97 FAIL earlier tonight was caused by
-enumerating from my own wordings, and I will not repeat it in the step whose
-criterion 3 is a recall test.
+**Pre-measured** (probe 3, both corpora): all three probe sets discriminate.
+Tracked-only, `frontend_route_inventory` drops 71 hits → **5**, still non-empty,
+in tracked `handoff/archive/phase-4.7.0/` and `phase-4.7.1/`. So the True claim
+survives the corpus repair rather than depending on ignored files.
 
-**P5 — the regression guard (criterion 6).** An AST + allowlist detector on the
-`lint_limits_usage.py` template (research: no off-the-shelf rule exists — Ruff
-`DTZ005` bans tz-naive `now()`, not `now()` itself). Mutation-tested with the
-control observed GREEN first, and every mutant checked to BUILD before scoring.
+### P2 — a mutation cell for the fail-closed `<unparsed>` branch (finding (b); brief F6)
+
+Measured 4/4 shapes that reach `:374-379`: argv-list with a variable value, the
+f-string-element form, `--since=` with an empty value, `--after` + variable. Add
+cells asserting `h[2] == "<unparsed>"`.
+
+### P3 — every cell carries its mechanism (finding (c); brief F7)
+
+Value-classification cells assert `h[2] != "<unparsed>"`; fail-closed cells
+assert `h[2] == "<unparsed>"`.
+
+### P4 — corrections that REPLACE (criterion 5)
+
+- `:372-379`'s motivating comment is **stale**: it says the space form
+  `--since 2026-08-11` reaches the fail-closed path. It no longer does —
+  `window_value()` returns `('2026-08-11', True)` once `PLAUSIBLE_VALUE` matches.
+- The allowlist entry presents **paraphrases inside quote marks**
+  (`usage_source: git_activity_30d`, `/portfolio 2 /login 1`); the file actually
+  reads `"usage_source": "git_activity_30d"` and the second is line-wrapped.
+- Every carrier of a `mentions_reviewed` figure must be swept by the **claim
+  class with a known-member recall test**, not by my own wordings.
 
 ---
 
-## Non-goals
+## 6. Mutations — named BEFORE the work, each to be RUN with the control observed green
 
-- Banning relative windows outright. One measured member is legitimately
-  relative; a ban would break it.
-- Re-running or amending phase-86.68's or 86.91's closed criteria.
-- Fixing `frontend_route_inventory.py`'s behaviour beyond classification if no
-  quoted figure derives from it — that judgement is stated under criterion 4.
+| id | mutation | required outcome |
+|---|---|---|
+| M-A | restore the fail-OPEN `continue` in place of the `<unparsed>` append | RED (today: **SURVIVED**) |
+| M-B | neutralise `VALUE_ARGV_RE` (argv value-parse leg) | RED (today: **SURVIVED**) |
+| M-C | neutralise `WINDOW_RE`'s argv alternative (visibility leg) | RED (today: kills exactly the 2 argv cells) |
+| M-D | `frontend_route_inventory` `quoted_as_evidence` True→**False** | RED (today: **SURVIVED**) |
+| M-E | `scheduler` `quoted_as_evidence` False→**True** | RED (today: **SURVIVED**) |
+| M-F | widen the corpus back to untracked files | RED (reproducibility regression) |
+| M-G | delete a figure probe from a True member | RED (drift on the *relevant* corpus still re-opens) |
+
+M-A/B/D/E surviving today is the measured basis for the change. **Scoring is by
+FAIL-SET DELTA against BASE**, because BASE is currently dirty; a plain
+green/red comparison would be meaningless.
 
 ---
 
-## References
+## 7. Explicit non-goals / rails
 
-- `handoff/current/research_brief_86.94.md` (gate PASSED, 17 sources / 45 URLs, dry)
-- Measurement 1 persisted at capture time; measurement 2 taken in GENERATE
-- `reference_git_since_bare_date_slides_with_clock` (auto-memory, this class)
+- **R8:** `mentions_reviewed` is REPLACED by a strictly stronger predicate, not
+  deleted to get green. Proof obligation: M-D and M-E must go from SURVIVED to
+  KILLED. If they do not, the change is a loosening and must be reverted.
+- **R5:** no edits to `.claude/agents/qa.md`, `qa-verdict.js`,
+  `research-gate.js`.
+- Criterion 7: no verdict semantics touched; no masterplan step flipped by this
+  work other than 86.94 itself, and only on a Q/A PASS.
+- The window rule itself (`WINDOW_RE`, `classify`) is **not** relaxed. No
+  allowlist member is added or removed.
+
+## 8. References
+
+- `handoff/current/research_brief_86.94_cycle4.md` (gate `wf_c533d502-21e`)
+- `handoff/current/day_halt.md` — preflight deviation, the red's provenance
+- `.claude/masterplan.json` 86.94 notes — park diagnosis + the three
+  post-verdict corrections (W1/W2/W3) that were never re-graded
+- Probes: `probe_86_94_attribution.py`, `probe2_86_94.py`, `probe3_witness.py`,
+  `probe4_wrongbool.py` (scratchpad; outputs transcribed into
+  `live_check_86.94.md`)
