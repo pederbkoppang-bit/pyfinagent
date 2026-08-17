@@ -429,3 +429,56 @@ INJECTED_TRUTH 2, MUST_STAY_GREEN 2}`, byte-identical restore md5
 cycle-9's `8a01f10a...` because cycle 10 edited the source; qa.md
 `4c9faa6d...` and researcher.md `a9592ee0...` unchanged); report rows now
 read `qa n=49 ... erased=2(non-emit 2)` (corpus grew 46->49 since cycle 9).
+
+
+---
+
+## Cycle 11 GENERATE (2026-08-17): both cycle-10 survivors killed, one new survivor found and killed the documented way
+
+The cycle-10 CONDITIONAL executed two survivors against the guards cycle 10
+itself added -- F1 (the coupling pin satisfied by a // comment retaining the
+retired literal while the emitted header drifts) and F2 (erased_unclassified
+computed but referenced nowhere: not rendered, not verified, no cell;
+hardcoding 0 invisible to all four modes). Both closed with the verdict's
+own named one-liners, each hardened past the minimum:
+
+1. **F1 -- the pin requires the literal on a NON-COMMENT line** (first
+   non-whitespace not `//`, `*`, `/*`). The realistic drift path is exactly
+   the evaluator's construction: these files ALREADY quote retired literals
+   in comments because criterion 5 mandates quote-then-replace
+   (qa-verdict.js:106/:609/:628, research-gate.js:880). Residual STATED in
+   the code, not hidden: a literal in a trailing same-line comment after
+   code still passes -- narrower than the bytes check, not airtight against
+   deliberate evasion. Cell **S16** drives the executed MUT-A verbatim (all
+   non-comment occurrences renamed in the MIRRORED qa-verdict.js, literal
+   retained in a // line): KILLED[VERIFY] where the bytes pin stayed green.
+2. **F2 -- the aggregates are rendered AND cross-checked.** render() prints
+   `unclassified orphans: 41 (post-removal 0)` in the DEFAULT report;
+   verify() recomputes both aggregates from the erased_transcripts actually
+   collected and reddens on mismatch. Cells **S17/S18** are the executed
+   MUT-C hardcodes: both KILLED[VERIFY].
+3. **S18's FIRST run SURVIVED, reported and closed rather than dropped**:
+   post-removal unclassified is genuinely 0 on today's corpus, so a
+   hardcoded 0 was equivalent-on-corpus -- the exact
+   fixture-must-break-the-symmetry class the matrix's own docstring names.
+   Closed by planting ONE synthetic post-removal role=None orphan
+   (inject kind `unclassified_orphan`); the same plant makes S17
+   corpus-independent (its 41 real orphans age out ~30d -- the S14
+   fragility, closed by construction instead of by a note). **S18b** is the
+   paired control: unmutated source + the same plant must stay green,
+   proving the cells kill the MUTATION, not the plant.
+4. **Composition residual disclosed** (the cycle-10 verdict's F1+F2
+   composition): with both fixes, the surviving path to an invisible
+   erased channel now requires a literal moved into a TRAILING same-line
+   comment AND a verify()/render() regression at once; the honest claim is
+   "harder", not "impossible", and S16 is the tripwire that must stay red
+   on the known construction.
+
+Post-change, captured at write time (counts move with the corpus):
+`--verify` VERIFY_EXIT=0 taken UNPIPED, report carrying the new
+unclassified line; matrix `cells=41 real survivors=0 known/equivalent
+(BY OUTCOME)=2 errors=0`, kills by mode `{VERIFY 32, ORACLE 2,
+INJECTED_TRUTH 2, MUST_STAY_GREEN 3}`, byte-identical restore md5
+`642401bb1b325f80e9f8f5e0594bbc36` (rail_turn_cap.py -- moved from
+cycle-10's b2601f66... because cycle 11 edited the source; qa.md and
+researcher.md unchanged).

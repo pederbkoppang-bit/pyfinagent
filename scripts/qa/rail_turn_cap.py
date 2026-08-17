@@ -909,6 +909,9 @@ def render(a: dict) -> str:
                 f"max={pr['max_turns']}  "
                 f">old-cap({pr['historical_cap']})={pr['past_old_cap']}"
             )
+        w(f"    unclassified orphans: {r.get('erased_unclassified', 0)} "
+          f"(post-removal {r.get('erased_unclassified_post_removal', 0)}) -- "
+          "role=None erased attempts, visible in the DEFAULT report, not only --json")
     w("     ^ DERIVED FROM DISK, per run, from the birth time of the session")
     w("       directory owning the run record -- never a calendar constant. The")
     w("       roster snapshots at SESSION START, and sessions overlap, so no")
@@ -1018,19 +1021,59 @@ def verify(a: dict) -> tuple[bool, list[str]]:
     # verify() now asserts the literals still appear in the files that emit
     # them; a red here means the classifier must be retargeted, not that the
     # rail regressed.
+    # cycle-11 (cycle-10 Q/A, F1): "in file bytes" was satisfiable by a //
+    # comment retaining the retired literal while the emitted header drifted
+    # (executed MUT-A survivor) -- and these files ALREADY quote retired
+    # literals in comments because criterion 5 mandates quote-then-replace
+    # (qa-verdict.js:106/:609/:628, research-gate.js:880). The pin now
+    # requires the literal on a NON-COMMENT line (first non-whitespace not
+    # //, * or /*). Residual, stated rather than hidden: a literal in a
+    # TRAILING same-line comment after code still passes -- narrower than
+    # the bytes check, not airtight against deliberate evasion; matrix cell
+    # S16 drives the exact MUT-A evasion and must stay red.
     for _role, (marker, wf_file) in ROLE_MARKERS.items():
         wf_path = REPO / wf_file
         try:
             wf_src = wf_path.read_text(encoding="utf-8", errors="replace")
         except OSError:
             wf_src = ""
-        if marker not in wf_src:
+        non_comment = [
+            ln for ln in wf_src.splitlines()
+            if not ln.lstrip().startswith(("//", "*", "/*"))
+        ]
+        if not any(marker in ln for ln in non_comment):
             problems.append(
                 f"ORPHAN-CLASSIFIER COUPLING BROKEN: {wf_file} no longer "
-                f"contains the prompt literal {marker!r} that the erased-"
-                "attempt role classifier matches -- retarget the classifier "
-                "in collect() or the erased counter will silently read zero"
+                f"contains the prompt literal {marker!r} on any NON-COMMENT "
+                "line (a comment quoting the retired text does not emit it) "
+                "-- retarget the classifier in collect() or the erased "
+                "counter will silently read zero"
             )
+
+    # ── The unclassified-orphan aggregates are CROSS-CHECKED (cycle-11) ────
+    # cycle-10 Q/A, F2: erased_unclassified / _post_removal were computed
+    # into the remediation dict and referenced NOWHERE else -- not rendered,
+    # not verified, no cell; hardcoding either to 0 was invisible to every
+    # mode (executed MUT-C survivor). verify() now recomputes both from the
+    # erased_transcripts actually collected, and render() prints them in the
+    # default report.
+    _rem = a["remediation"]
+    _et = _rem.get("erased_transcripts", [])
+    _want_total = sum(1 for e in _et if e.get("role") is None)
+    _want_post = sum(1 for e in _et
+                     if e.get("role") is None and e.get("post_removal"))
+    if _rem.get("erased_unclassified") != _want_total:
+        problems.append(
+            f"UNCLASSIFIED-ORPHAN AGGREGATE INCONSISTENT: stored "
+            f"{_rem.get('erased_unclassified')!r} != recount {_want_total} "
+            "from erased_transcripts -- the role=None channel is misreported"
+        )
+    if _rem.get("erased_unclassified_post_removal") != _want_post:
+        problems.append(
+            f"UNCLASSIFIED-ORPHAN POST-REMOVAL AGGREGATE INCONSISTENT: stored "
+            f"{_rem.get('erased_unclassified_post_removal')!r} != recount "
+            f"{_want_post} from erased_transcripts"
+        )
 
     # ── The re-measurement itself is guarded (phase-86.84 cycle-5) ──────────
     # The cycle-4 Q/A proved by mutation that verify() asserted NOTHING over

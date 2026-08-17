@@ -699,3 +699,35 @@ cell with its `by:` evidence -- regenerate with the command, do not trust
 this excerpt for cell-level audit. The report's per-role rows now carry
 `erased=N(non-emit M)` and the qa row reads `n= 49 ... erased=2(non-emit
 2)` on today's corpus.)*
+
+
+---
+
+## 15. Cycle-11 captures (2026-08-17 -- exits taken unpiped; regenerated whole)
+
+```
+$ python3 scripts/qa/rail_turn_cap.py --verify > /tmp/rv2.txt 2>&1; echo VERIFY_EXIT=$?
+VERIFY_EXIT=0
+$ tail -1 /tmp/rv2.txt
+VERIFY: PASS -- controls green, turn-exhaustion claim holds.
+$ grep "unclassified orphans" /tmp/rv2.txt
+    unclassified orphans: 41 (post-removal 0) -- role=None erased attempts, visible in the DEFAULT report, not only --json
+$ python3 scripts/qa/mutate_rail_turn_cap.py > /tmp/m84_c11b.txt 2>&1; echo MATRIX_EXIT=$?
+MATRIX_EXIT=0
+$ grep -A4 "BYTE-IDENTICAL RESTORE" /tmp/m84_c11b.txt | head -5
+BYTE-IDENTICAL RESTORE (md5 before == after, real tree never written):
+  ok scripts/qa/rail_turn_cap.py  642401bb1b325f80e9f8f5e0594bbc36
+  ok .claude/agents/qa.md  4c9faa6d7eb14aba70eea2fc7f804727
+  ok .claude/agents/researcher.md  a9592ee0950e55d24fc3e1bb65d5c26f
+$ tail -3 /tmp/m84_c11b.txt
+kills by mode (never pooled): {'VERIFY': 32, 'ORACLE': 2, 'INJECTED_TRUTH': 2, 'MUST_STAY_GREEN': 3}
+cells=41  real survivors=0  known/equivalent survivors (BY OUTCOME)=2  errors=0
+```
+
+*(Disclosure: an EARLIER run of this cycle's matrix, before the orphan
+plant existed, printed `cells=40 real survivors=1` with S18 the survivor --
+that run is why the plant exists. The survivor was reported, its cause
+measured (post-removal unclassified genuinely 0 -> hardcode equivalent on
+corpus), and the fix follows the matrix's own documented pattern. The full
+cell list with by-lines regenerates with the command; this excerpt is not
+the cell-level audit.)*

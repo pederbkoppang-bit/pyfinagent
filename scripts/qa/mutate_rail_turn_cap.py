@@ -120,9 +120,54 @@ def _inject_synthetic(mod, kind: str) -> None:
     floor conflated this with a genuine loss (the F4 class, recommitted); the
     fixed floor must stay GREEN on it, and cell S11 pins that.
     """
+    if kind == "wf_comment_evasion":
+        # cycle-11 (cycle-10 Q/A F1, the executed MUT-A): rename the EMITTED
+        # header on every non-comment line of the MIRRORED qa-verdict.js while
+        # retaining the retired literal in a // comment -- house style already
+        # quotes retired text in comments (criterion 5), so this is the
+        # realistic drift path. The non-comment-line pin must REDDEN; the old
+        # bytes pin stayed green here, which was the survivor.
+        wfp = Path(mod.REPO) / ".claude" / "workflows" / "qa-verdict.js"
+        s = wfp.read_text(encoding="utf-8")
+        lines = s.splitlines()
+        n_replaced = 0
+        for i, ln in enumerate(lines):
+            if ("IMMUTABLE SUCCESS CRITERIA" in ln
+                    and not ln.lstrip().startswith(("//", "*", "/*"))):
+                lines[i] = ln.replace("IMMUTABLE SUCCESS CRITERIA",
+                                      "BINDING ACCEPTANCE TESTS")
+                n_replaced += 1
+        assert n_replaced >= 1, "evasion mutation matched nothing -- fixture dead"
+        lines.append("// IMMUTABLE SUCCESS CRITERIA -- retired header retained "
+                     "in a comment (the MUT-A evasion, quoted per house style)")
+        wfp.write_text("\n".join(lines) + "\n", encoding="utf-8")
+        return
+
     orig = mod.collect
     killed = kind == "killed"
     errored = kind == "errored"
+
+    if kind == "unclassified_orphan":
+        # cycle-11 (S18's first run): the post-removal unclassified count is
+        # genuinely 0 on today's corpus, so hardcoding 0 was EQUIVALENT ON
+        # THE CORPUS -- the same symmetry class this docstring already names
+        # for non_emitter. Plant ONE post-removal role=None orphan so the
+        # recount wants 1 and a hardcoded 0 misreports. The same plant makes
+        # S17 corpus-independent (the 41 real pre-removal orphans age out
+        # ~30d, after which S17 unplanted would degrade to equivalent -- the
+        # S14 fragility, closed here by construction instead of by a note).
+        def wrapped_orphan():
+            data = orig()
+            data.setdefault("erased_transcripts", []).append({
+                "run_id": "wf_synthetic-orphan", "role": None,
+                "post_removal": True, "agent_type": None,
+                "session_started_at": "2026-08-17T00:00:00Z",
+                "non_emitter": True,
+            })
+            return data
+
+        mod.collect = wrapped_orphan
+        return
 
     def wrapped():
         data = orig()
@@ -243,6 +288,31 @@ SOURCE_CELLS = [
      '"qa": ("IMMUTABLE SUCCESS CRITERIA", ".claude/workflows/qa-verdict.js")',
      '"qa": ("IMMUTABLE SUCCESS CRITERIA DRIFTED", ".claude/workflows/qa-verdict.js")',
      None, "VERIFY", "KILL"),
+    # ── cycle-11 (cycle-10 Q/A): the two executed survivors, kept permanent.
+    ("S16", "emitted header renamed while the retired literal survives ONLY "
+            "in // comments (the cycle-10 Q/A's executed MUT-A) -- the "
+            "non-comment-line pin must redden where the bytes pin stayed green",
+     None, None, "wf_comment_evasion", "VERIFY", "KILL"),
+    ("S17", "erased_unclassified hardcoded to 0 (the cycle-10 Q/A's executed "
+            "MUT-C) -- the verify() recount from erased_transcripts must "
+            "catch the misreport; a synthetic orphan is planted so the kill "
+            "does not depend on the 41 real pre-removal orphans that age out",
+     '"erased_unclassified": sum(\n            1 for e in data.get("erased_transcripts", [])\n            if e.get("role") is None),',
+     '"erased_unclassified": 0,',
+     "unclassified_orphan", "VERIFY", "KILL"),
+    ("S18", "erased_unclassified_post_removal hardcoded to 0 -- same class, "
+            "the post-removal half. On the bare corpus this value IS 0, so "
+            "the first run of this cell SURVIVED as equivalent-on-corpus "
+            "(fixture-must-break-the-symmetry); the planted post-removal "
+            "role=None orphan breaks the symmetry",
+     '"erased_unclassified_post_removal": sum(\n            1 for e in data.get("erased_transcripts", [])\n            if e.get("role") is None and e.get("post_removal")),',
+     '"erased_unclassified_post_removal": 0,',
+     "unclassified_orphan", "VERIFY", "KILL"),
+    ("S18b", "paired control for the orphan plant -- UNMUTATED source with "
+             "the same planted orphan: stored aggregates and recount both "
+             "see the plant, so verify must stay green (proves S17/S18 kill "
+             "the MUTATION, not the plant)",
+     None, None, "unclassified_orphan", "MUST_STAY_GREEN", "KILL"),
     ("S14", "erased-transcript accounting neutered -- the orphan glob stops "
             "seeing re-dispatch-erased attempts. ORACLE kill against a REAL "
             "present signal: the live corpus carries the two 529-killed "
