@@ -251,3 +251,25 @@ for the arithmetic audit: 40 / 61 / 64 / 73 / 78 / 92 / 95 / 97.
 
 `.claude/workflows/research-gate.js` remains frozen since cycle 3 -- this
 fix is entirely in the checker.
+
+
+---
+
+## Closing re-capture (2026-08-17; exits unpiped)
+
+The captures above show the checker at their trees (40 pre-step; 92 at the
+cycle-6 edit). The same command today:
+
+```
+$ node scripts/qa/verify_research_gate_workflow.mjs > /tmp/rg28.txt 2>&1; echo EXIT=$?
+EXIT=0
+$ tail -1 /tmp/rg28.txt
+ALL GREEN: 124 passed, 0 failed
+```
+
+The growth 92 -> 124 is OTHER steps' additions to the shared checker
+(86.37's behavioural drop tests and retry assertions among them -- the
+symmetric-difference attribution was independently derived in the 86.37
+cycle-5/6 verdicts); every [7b] driver-mutant and the fixture-mutant from
+this step's cycle-6 delivery re-run KILLED today, quoted at the tail of the
+run. Criterion 1's strictly-more-than-40 floor holds at every tree since.
