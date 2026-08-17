@@ -328,8 +328,20 @@ n/would_auto_fail from args.verdict_sequence alone). The cycle-3 work:
    checker section [8]: 8-recorder-neutered (regex -> never-match) and
    8-recorder-hardcoded-false (revert to the hardcode) both KILLED; the
    positive/negative/rule-text/absent drives are the control set. Family
-   126/124/96 green.
+   green at write time (126/124/96; the prompt-render count moves as the
+   86.72 cycle-2 work adds cells to the same section -- 136 at the last
+   pre-eval run; the two recorder cells and the four control drives are
+   unchanged).
 
 Caller discipline forward: sequence-as-data only; no positional prose in
 evidence/extra (the 86.21 cycle-7 spawn, launched after the census, is the
 first under the discipline and carries none).
+
+
+### Cycle-3 addendum: the recorder's first LIVE measurement
+
+The 86.72 cycle-1 evaluation (wf_9bc5bc53-351, launched after this fix
+shipped) returned `escalation.judge_was_told_consequence: false` computed
+from its caller text -- the first live spawn measured by the recorder, on a
+prompt kept clean under the new discipline. The census, the computed
+recorder, and a live measurement now exist end to end.
