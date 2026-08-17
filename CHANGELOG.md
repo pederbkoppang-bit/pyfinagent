@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-17 | `de895f25` | chore: add the 86.69 research brief that its evaluation cites |
 | 2026-08-17 | `2e9597bd` | phase-75.11.4: status-aware handoff backfill + 86.69/86.74 parked with escalations |
 | 2026-08-17 | `be4b3151` | chore: overnight drain goal for the Opus 5 session |
 | 2026-08-17 | `2506ca65` | phase-86.28: tier-honest research gate -- PASS on cycle 7; THE HARNESS-REPAIR CORE IS CLOSED |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-17 | `56c2f540` | feat(sovereign): add 15-min intraday ("1d") window to Red Line Monitor |
 | 2026-08-17 | `13ef5bae` | chore: backfill 86.37/86.79 verdict-ledger rows (labelled reconstructions) |
 | 2026-08-17 | `86f7dbbd` | phase-86.75: cycle-2 verdict transcribed -- 8/8 criteria MET, caps unrepairable-history + prose; pro |
-| 2026-08-17 | `54eace07` | phase-86.78: cycle 4 -- the blocker repaired at the named line, ledger backfilled, falsified claim r |
 
 ---
 
