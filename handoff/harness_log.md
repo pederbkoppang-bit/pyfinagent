@@ -36029,3 +36029,24 @@ siblings. C7's separation-of-duties half was ALSO operator-discharged today
 (all agent-file changes since 2026-08-12 approved in session); the roster
 liveness was verified by the evaluator against its own system-prompt
 snapshot -- stronger than the script's probe.
+
+## Cycle 1240 -- 2026-08-17 -- phase=86.37 result=PASS
+
+**Step:** 86.37 -- a dropped research gate destroys the whole run. **PASS on
+cycle 6** (all six criteria reproduced by the evaluator's own execution;
+compliance CLEAN after the operator ratified the reused gate in session --
+ASK #1, open since 2026-08-11, answered today). What shipped across the arc:
+the stage-1 wrap so a drop RESOLVES structurally (gate_passed:false beside a
+populated recovery report -- the 187K-token loss class closed), the
+born-inert envelope doctrine end to end, the doc reconciliation, and a
+checker whose guards each provably fail. The drop-survival machinery carried
+today's live gates (86.69, 86.105) and the 86.84 closing evaluation's 38/38
+retry checks. Six-cycle arc: F, C, C, C(+erosion caught), C(one lost
+sentence -- the write-after-assert heredoc trap, named), PASS. Residuals
+R1-R3 ride the transcribed verdict; R3 (STAGE1_MAX_ATTEMPTS unpinned,
+86.81's constant, unbounded-retry token shape) deserves early pickup.
+NOTE (separation-of-duties): this session edited qa.md twice today -- the
+86.72 research-on-demand section (operator-approved in the same-day batch)
+and the 86.79 prior_attempts staleness one-liner (flagged at its cycle-5
+record) -- both await no further review per the operator's Approve-all, but
+are listed here for the record.
