@@ -67,8 +67,10 @@ the risk-debate line now carries its ticker.
 
 ## Ops
 
-Backend pid 41635 (started 13:57:16Z) and frontend pid 32313 both healthy.
-**No restart performed and none pending.** No flag promoted, no `.env` written,
+Backend pid **41635** (started 13:57:16Z) healthy and holding the armed
+86.69 flag. The frontend restarted DURING this session (pid 32313 -> 99819)
+-- **not by Main**; it accompanies the peer session's `frontend/src/**` and
+`/reports` work. **Main performed no restart and none is pending.** No flag promoted, no `.env` written,
 no gate loosened, paper only. A peer session's uncommitted work
 (`autonomous_loop.py` — a good `_persist_analysis` summary fix landed
 19:42:56Z — plus `sovereign_api.py` and six frontend files) was deliberately
