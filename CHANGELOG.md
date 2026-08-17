@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-17 | `1d9a360e` | phase-86.96: string-args dispatch-kill class -- PASS on first evaluation |
 | 2026-08-17 | `140f1ac3` | phase-86.37/86.78: cycle-4 re-capture + the consequence-exposure census staged |
 | 2026-08-17 | `d33aabe2` | phase-86.21: cycle 7 -- the last two artifact fixes at the named sites |
 | 2026-08-17 | `6345166d` | phase-86.90: [object Object] render boundary -- CLOSED per operator resolution; sparse-array bound c |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-17 | `22cb3640` | docs(session): 2026-08-17 day report, diagnostics, regenerated goal_next; park 86.97 on the ceiling |
 | 2026-08-17 | `6f8d29e3` | phase-86.97: replace a false claim, cover the phase-emptied branch, un-truncate the end-to-end drive |
 | 2026-08-17 | `fee1c51d` | phase-86.97: pin the bump magnitude; correct a figure that did not reproduce |
-| 2026-08-17 | `2d861f5f` | phase-86.97: assert the DECISION, not the existence of a log line; bound the last carrier |
 
 ---
 
+### v6.93.228 — phase-86.96: string-args dispatch-kill class -- PASS on first evaluation (2026-08-17)
+
+- **phase-86.96: string-args dispatch-kill class -- PASS on first evaluation**
 ### v6.93.227 — phase-86.90: [object Object] render boundary -- CLOSED per operator r... (2026-08-17)
 
 - **phase-86.90: [object Object] render boundary -- CLOSED per operator resolution; sparse-array bound c**
