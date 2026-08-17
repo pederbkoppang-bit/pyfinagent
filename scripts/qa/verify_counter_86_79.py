@@ -375,12 +375,30 @@ check("measured retention == keep TOTAL, exactly as the comment now claims",
       f"retained={retained} keep={qa_wip.DEFAULT_KEEP}")
 shutil.rmtree(tmp)
 
-# The residual divergence (qa.md) must be LOUD, which is what criterion 4 forbids
-# leaving silent. Two independent channels, neither of which is a qa.md edit.
+# cycle-4 (the dropped cycle-3's write-first findings, items 1+2): the block
+# here used to assert the UN-APPLIED state ("the un-applied qa.md correction
+# is written out for the operator") -- true through cycle 3, FALSE from cycle
+# 4 when commit 9b4d5281 applied the correction; and the gate asserted ZERO
+# content on qa.md / qa-verdict.js, so members 4b and 4c could be reverted
+# with everything green. The gate now pins the APPLIED state at both
+# doc-agreement surfaces; the patch file stays asserted as the historical
+# record of what was applied.
+qa_md = (REPO / ".claude" / "agents" / "qa.md").read_text(encoding="utf-8")
+qav = (REPO / ".claude" / "workflows" / "qa-verdict.js").read_text(encoding="utf-8")
+check("4c APPLIED: qa.md carries the gauge correction",
+      "Do NOT use `records_retained` as the attempt number" in qa_md)
+check("4c APPLIED: the old wrong wording is GONE from qa.md",
+      "the count of prior Q/A spawns" not in qa_md)
+check("4b APPLIED: qa-verdict.js states attempt_number/prior_attempts semantics",
+      "attempt_number" in qav and "prior_attempts" in qav)
+check("4b APPLIED: qa-verdict.js pins the null-is-never-0 rule",
+      "null is NEVER 0" in qav)
+check("4b APPLIED: qa-verdict.js states the gauge distinction",
+      "a gauge, not" in qav)
 patch = REPO / "handoff" / "current" / "qa_md_patch_86.79.md"
-check("the un-applied qa.md correction is written out for the operator",
+check("the applied correction's historical record exists",
       patch.is_file(), str(patch.relative_to(REPO)))
-check("...and it names the exact line it would change",
+check("...and it names the field it changed",
       patch.is_file() and "records_retained" in patch.read_text(encoding="utf-8"))
 
 
