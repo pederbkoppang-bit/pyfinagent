@@ -78,7 +78,10 @@ decisions I cannot take under the standing constraints.
 
 ## ASK #1 -- ratify phase-86.37's REUSED research gate, or direct a fresh one
 
-**Carried over from the 2026-08-10 goal, still unanswered.**
+**ANSWERED 2026-08-17 (attended session, AskUserQuestion): "Ratify the reuse
+(Recommended)" -- the disclosed, twice-re-verified 86.31 brief stands as
+86.37's gate. Recorded by Main; the ruling is quoted in
+experiment_results_86.37.md cycle 5 and evaluator_critique_86.37.md.**
 
 86.37 fixed the researcher rail. Its own research gate was **REUSED, not re-run**
 -- and the awkwardness is structural: *the rail being fixed is the rail that runs

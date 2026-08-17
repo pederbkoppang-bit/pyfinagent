@@ -388,3 +388,41 @@ recorder, and a live measurement now exist end to end.
    F4 -- the override field has no writer (structurally unsettable; 0/76
    rows carry it); F5 -- the recorder's false-negative surface; both ride
    the 86.107 residual queue via the transcribed verdict.
+
+
+---
+
+## Cycle 5 GENERATE (2026-08-17): the rail's own leak closed; the comment trap killed after killing me once
+
+The cycle-4 verdict (returned CONDITIONAL, recorded FAIL by the mechanical
+rail rule) found the leak in the half this step owns. Each finding closed:
+
+1. **The 420/420 STEP-0 leak**: qa-verdict.js:345's enumeration named the
+   rule's value, unit and outcome in EVERY spawn prompt, 60 lines above the
+   deliberately-withheld block -- and my census had attributed the
+   100%-prevalence hit to qa.md-embedding, which the evaluator falsified
+   with three qa.md-body markers scoring 0/421. Fixed both ways: the
+   enumeration now reads "the loop-termination rule" (value/unit/outcome
+   dropped), and the census's causal clause is CORRECTED at the site in
+   live_check section 10. A fifth GONE probe pins the leak's exact phrase.
+2. **The comment-token vacuity (QX2/QX6)**: the nesting assertion now
+   locates the merge statement among EXECUTABLE LINES ONLY and
+   comment-strips it before requiring the escalation token. DISCLOSED:
+   my FIRST version of this fix survived QX2 -- the naive statement regex
+   matched 'const merged' INSIDE the '// was:' comment -- caught by driving
+   both mutants before shipping (the discipline the cycle-1 evaluator of
+   86.72 taught this session). Post-fix drive: QX1 flatten, QX2
+   comment-was-line, QX6 inline-comment ALL exit non-zero (KILLED);
+   an anti-vacuity check pins that the found statement is real.
+3. **The 86.93 landing place**: extended in the masterplan audit_basis with
+   both framed run ids and the mitigation -- the previously-false queue
+   claim is now true, with its falsification recorded in the critique.
+4. **The four stale live_check blocks** carry SUPERSEDED marks; the
+   nonexistent scratchpad citation is replaced by the inline derivation;
+   section 11 is regenerated with matching commands and outputs (verified
+   reproducing before commit).
+
+Captured at write time, exits unpiped: verify_escalation 52 checks ALL
+CHECKS PASS exit 0; mutation_matrix 13/13 ALL CELLS KILLED exit 0;
+prompt-render 136 and research-gate-workflow 124 both green (the STEP-0
+wording change altered no check counts).

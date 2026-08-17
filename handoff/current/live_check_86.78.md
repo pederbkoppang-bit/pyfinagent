@@ -529,3 +529,34 @@ $ grep -E "M11|cells:" /tmp/mm78b.txt
   KILLED            M11-MERGE-ESCALATION-INTO-THE-VERDICT by: escalation is NESTED in the return, not spread into it
   cells: 13   killed: 13   survived/unearned: 0
 ```
+
+
+---
+
+## 12. Cycle-5 captures (2026-08-17; exits unpiped)
+
+```
+$ node scripts/qa/verify_escalation_86_78.mjs > /tmp/ve78d.txt 2>&1; echo VERIFY_EXIT=$?
+VERIFY_EXIT=0
+$ tail -1 /tmp/ve78d.txt
+  ALL CHECKS PASS
+$ node scripts/qa/mutation_matrix_86_78.mjs > /tmp/mm78d.txt 2>&1; echo MATRIX_EXIT=$?
+MATRIX_EXIT=0
+$ tail -1 /tmp/mm78d.txt
+  ALL CELLS KILLED
+```
+
+The three targeted mutants, driven through PYFIN_QA_VERDICT_OVERRIDE
+(each a temp copy; the tracked file never written):
+
+```
+QX2-comment-was-line: exit=1 -> KILLED
+QX6-inline-comment: exit=1 -> KILLED
+QX1-flatten: exit=1 -> KILLED
+ALL THREE MUTANTS DIE
+```
+
+Disclosure: the FIRST version of the cycle-5 fix survived QX2 (the naive
+statement regex matched inside the comment); the fix-of-the-fix filters to
+executable lines first, and the failed first attempt is recorded in the
+checker's own comment.

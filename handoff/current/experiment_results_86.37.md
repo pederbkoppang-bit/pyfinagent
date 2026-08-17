@@ -337,3 +337,36 @@ corrected. Cycle 4 adds only the dated re-capture at today's tree
 formally queues the three non-blocking hardening items under the operator's
 product-vs-evidence directive. No code changed this cycle; the immutable
 command output is in live_check section 6.
+
+
+---
+
+## Cycle 5 GENERATE (2026-08-17): the blocker RULED, the erosion owned, the two evidence defects fixed
+
+1. **OPERATOR ASK #1 IS ANSWERED**: the attending operator ruled "Ratify the
+   reuse (Recommended)" via AskUserQuestion on 2026-08-17 -- the disclosed
+   86.31 brief (envelope independently re-verified by the cycle-1 AND
+   cycle-4 evaluators: 12 sources in full, 64 urls_collected, gate_passed
+   true, 66 distinct URLs on disk) stands as this step's research gate. The
+   ruling is recorded at operator_asks_2026-08-11.md (ASK #1 header) with
+   the verbatim answer.
+2. **The criteria-erosion is owned, not excused**: cycle 3 made ASK #1 the
+   sole reason for PARK; my cycle-4 artifacts dropped all mention of it.
+   The cycle-4 Q/A caught the erosion; this section restores the blocker's
+   full history and its resolution in one place.
+3. **The false +3 attribution is corrected at the site** (live_check
+   section 6): the three added checks are phase-86.81's 2026-08-14 stage-1
+   RETRY assertions, derived by the evaluator's symmetric difference of
+   check() titles (+3/-0 against the cycle-3 baseline); 86.28's commits
+   predate that baseline and were already inside the 121. My attribution
+   was a guess dressed as a derivation; the correction says so.
+4. **The residuals are re-triaged against the evaluator's own measurements**
+   (live_check section 6): (b) is CLOSED at HEAD (:534 drives the real
+   driver; the evaluator's M6 kills it) and no longer queued; (c) is
+   WIDENED to both prompt halves by the M9/M10 survivors; (a)'s remainder
+   rides the queue.
+
+No product code changed this cycle. The cycle-4 evaluator's independent
+verification stands: all six criteria MET by its own execution (its own
+driver harness for before/after; its own 7-cell hermetic matrix killing
+every code-path mutant, including a construction absent from mine).

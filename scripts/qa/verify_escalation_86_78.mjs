@@ -105,6 +105,12 @@ const GONE = [
   ['recommend operator', 'the F1b escalation consequence'],
   ['at 5+', 'the budget threshold'],
   ['State the derived attempt number', 'the self-count demand'],
+  // cycle-5 (cycle-4 Q/A, the 420/420 finding): the rail's own STEP-0 line
+  // shipped the rule's value, unit and outcome in EVERY prompt, 60 lines
+  // above the deliberately-withheld block -- and the census had
+  // misattributed it to qa.md-embedding. The enumeration now says
+  // 'the loop-termination rule'; this probe pins the leak's exact phrase.
+  ['3rd-CONDITIONAL auto-FAIL rule, and the', 'the STEP-0 rule enumeration (the 420/420 leak)'],
 ]
 for (const [needle, what] of GONE) {
   check(`rail prompt no longer states ${what}`, !SRC.includes(needle),
@@ -155,18 +161,32 @@ check('nothing sits between the criteria sentence and the withheld-on-purpose bl
 // asserted only that the runtime `leaked` throw EXISTS in the source -- and cell M11
 // (spread escalation into the verdict) left that throw untouched, so it SURVIVED. A
 // check that the guard exists is not a check that the property holds.
+// cycle-5 (cycle-4 Q/A QX2/QX6): the cycle-4 property regex was satisfied by
+// a COMMENT token -- '// was: const merged = { ...verdict, escalation, ... }'
+// or '/* escalation */' inside the merge -- while the returned object carried
+// no escalation at all. Strip comments from the merge STATEMENT before
+// asserting, so only executable tokens count.
+// The statement is located among EXECUTABLE lines only -- a naive regex over
+// SRC matched 'const merged = ...' INSIDE the QX2 '// was:' comment and the
+// first version of this fix survived exactly the mutant it targeted (caught
+// by driving both mutants before shipping; the drive is in the live_check).
+const execLines = SRC.split('\n').filter(l => {
+  const s = l.trim()
+  return !s.startsWith('//') && !s.startsWith('*') && !s.startsWith('/*')
+})
+const mergeStmt = execLines.find(l => l.includes('const merged = ')) || ''
+const mergeStripped = mergeStmt.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/, '')
 check('escalation is NESTED in the return, not spread into it',
-  // cycle-4 (cycle-3 Q/A blocker B1): the previous assertion pinned the WHOLE
-  // LINE literal 'const merged = { ...verdict, escalation }', so a sibling
-  // step legitimately ADDING a key (86.72's research_routing) turned this
-  // checker red while the property it guards -- escalation nested, never
-  // spread -- held throughout. Assert the PROPERTY: the merge line carries
-  // `escalation` as a bare key (nested), and no spread of escalation exists
-  // anywhere. The evaluator's named repair, applied verbatim in spirit:
-  // prefix/key-membership, keeping the anti-spread conjunct.
-  /const merged = \{ \.\.\.verdict, [^}]*\bescalation\b/.test(SRC)
+  // cycle-4 (cycle-3 Q/A blocker B1): assert the PROPERTY, not a whole-line
+  // literal -- added sibling keys (86.72's research_routing) must not redden
+  // this. cycle-5: the token must survive COMMENT-STRIPPING of the executable
+  // merge statement (QX2/QX6 killed), and no spread of escalation may exist.
+  /\{ \.\.\.verdict, [^}]*\bescalation\b/.test(mergeStripped)
   && !/\{[^}]*\.\.\.escalation/.test(SRC),
-  'the mutation that flattens it must not survive; added sibling keys may')
+  'flatten must die; comment tokens must not count; added sibling keys may pass')
+check('...and the comment-stripper is not vacuous (the raw statement was non-empty)',
+  mergeStmt.length > 20 && mergeStripped.includes('escalation'),
+  'the merge statement was found and carries the executable token')
 check('...and the shipped code ALSO throws at runtime (defence in depth)',
   SRC.includes('const leaked = Object.keys(escalation).filter')
   && /if \(leaked\.length > 0\) \{\s*\n\s*throw new Error/.test(SRC))

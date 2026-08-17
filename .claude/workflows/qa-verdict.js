@@ -342,7 +342,7 @@ const PROMPT = [
   '',
   'STEP 0 (binding): Read .claude/agents/qa.md IN FULL and follow it as your operating instructions -- it is the',
   'single source of truth for the Q/A role (verification order, the deterministic-first discipline, the lint +',
-  'runtime-smoke gates, the output schema, the no-auto-PASS clause, the 3rd-CONDITIONAL auto-FAIL rule, and the',
+  'runtime-smoke gates, the output schema, the no-auto-PASS clause, the loop-termination rule, and the',
   'no-second-opinion-shopping rule). This runtime read makes any qa.md edit live immediately on the Workflow path.',
   'Also read docs/runbooks/per-step-protocol.md if you need the runbook context.',
   '',
