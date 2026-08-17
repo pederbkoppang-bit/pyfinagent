@@ -32,6 +32,17 @@
         ]
       },
       {
+        "matcher": "Workflow",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PROJECT_DIR:-$(pwd)}/scripts/harness/attempt_gate.py\"",
+            "timeout": 45,
+            "statusMessage": "attempt-gate (phase-86.71): cumulative per-step attempt budget at the Workflow origin seam. Counts on ATTEMPT (launch), not outcome, into append-only handoff/audit/attempt_budget_audit.jsonl; denies at the ceiling (exit 2, zero tokens) with a written operator escalation + the audited --operator-extend path; PASS in the verdict ledger always allows (re-grades never budget-blocked). Fail-open-but-loud on internal errors per the official hook semantics (only exit 2 blocks). Self-test: python3 scripts/harness/attempt_gate.py --self-test; matrix: scripts/qa/mutation_matrix_86_71.py --verify."
+          }
+        ]
+      },
+      {
         "matcher": "Write|Edit",
         "hooks": [
           {

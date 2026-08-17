@@ -12,10 +12,16 @@ actually runs.
 
 Reset-on-success is a HEALTH-CHECK idiom (is the dependency up right now?).
 Applying it to WORK ACCOUNTING (how much have we spent on this item?) is the root
-cause. Every bound in the SRE literature is cumulative over a window, never a
-consecutive streak: Google SRE's retry budget caps retries as a *ratio of total
-requests*; Azure's and Fowler's circuit breakers count failures over a rolling
-window. None of them reset on one success.
+cause. (phase-86.71 research-gate correction, 2026-08-17: an earlier revision of
+this paragraph claimed "none of them reset on one success" about the breaker
+literature -- FALSE for Fowler's canonical circuit breaker, whose half-open
+state DOES reset the failure count on a successful probe. The true and narrower
+claim: circuit breakers answer a LIVENESS question, where reset-on-success is
+correct; WORK-ACCOUNTING bounds -- Google SRE's retry budget as a ratio of
+total requests, GEP-3388 retry budgets -- are cumulative over a window, and
+that is the family this module belongs to. The 5-attempt / 1.2M-token ceilings
+are sourced INTERNALLY from this repo's measured distribution below, and must
+never be attributed to Anthropic or any external source.)
 
 WHAT THIS ADDS -- and what it deliberately does NOT touch
 --------------------------------------------------------
