@@ -35904,3 +35904,23 @@ attempt_number_inclusive=5 -- three independent counters agree.
 cycle-5 PASS after the except branch was driven by a directory-ledger fixture.
 The loop this step exists to terminate terminated its own step: attempt 6 would
 have been denied by the gate it built.
+
+## Cycle 1232 -- 2026-08-17 -- phase=86.85 result=CONDITIONAL (PARKED at the attempt ceiling; operator escalation written)
+
+**Step:** 86.85 -- verdict ledger writer + 3rd-CONDITIONAL rail. **Cycle-12
+verdict: CONDITIONAL** (criteria 1-7 MET and independently driven; criterion 8
+NOT MET at the evaluator's own WARN severity: the cycle-12 anti-vacuity
+meta-predicates are constants, while the behavioural guards they annotate are
+genuine -- all mutants die, and the matrix transitively pins fixture drift).
+
+**PARKED, not iterated**, per the operator's product-vs-evidence directive
+(2026-08-17): no PRODUCT-class defect is open; the meta-predicate fix is
+queued as step 86.107; both prose findings were corrected post-verdict with
+labels. Escalation: `handoff/current/escalation_attempt_budget_86.85.md`
+(close-with-residuals recommended; audited --operator-extend quoted; leaving
+parked costs nothing). Attempt counters stated without conflation: gate 5/5
+since wiring; all-time 12 spawns / 11 graded verdicts + 1 rail drop.
+
+**What is LIVE regardless of the park:** every graded spawn today consumed
+ledger-emitted args.verdict_sequence; the rail FIRED (cycle 11 forced
+PASS-or-FAIL); attempt_gate (86.71, CLOSED) reads the same ledger.

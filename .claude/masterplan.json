@@ -25950,6 +25950,25 @@
           "audit_basis": "MEASURED 2026-08-17 (external audit, commands in the audit artifact): wc -c CLAUDE.md=47,673, .claude/agents/qa.md=50,411, .claude/agents/researcher.md=20,737, .claude/rules/*.md=82,364 total, docs/runbooks/per-step-protocol.md=24,679 -- instructed surface 257,087 bytes. grep -cio over correction-scar markers in CLAUDE.md = 12. Workflow-rail context assembly all-time ~139.7M tokens across 579 runs; qa mean ~168K/spawn -- the doc surface is the largest controllable component of that assembly."
         },
         {
+          "id": "86.107",
+          "priority": "P3",
+          "status": "pending",
+          "harness_required": true,
+          "name": "86.85/86.84 evidence residuals -- de-tautologize the anti-vacuity meta-predicates and close the parked steps' queued findings",
+          "audit_basis": "Filed 2026-08-17 under the operator's product-vs-evidence churn directive: evidence-class findings queue as residuals instead of buying evaluator cycles. From 86.85 cycle-12 (wf_6821f477-9d7): the FILTER-axis anti-vacuity predicates in verdict_ledger_write.py --self-test and test_phase_86_85_verdict_ledger_write.py are constant string-literal expressions (free names=[], true in an empty namespace) -- derive them from the fixture rows actually appended, the pattern the DATE-axis check already uses; behavioural coverage is real meanwhile (M23/M24 kill; matrix transitively pins fixture drift). Also sweep any evidence residuals the 86.84 cycle-11 verdict files.",
+          "verification": {
+            "command": "bash -c 'source .venv/bin/activate && python -c \"import ast; ast.parse(open(\\\"scripts/qa/verdict_ledger_write.py\\\").read()); print(\\\"parses\\\")\"'",
+            "success_criteria": [
+              "every anti-vacuity predicate in the touched self-tests/tests is derived from runtime data (fixture rows, file contents), never from constant literals -- shown by an AST free-name check quoted in the artifacts",
+              "the de-tautologized predicates are mutation-tested: drifting the fixture back to a prefix-unrelated pair must turn the predicate red, with the control observed GREEN first and a byte-identical restore",
+              "no verdict semantics change and no gate is loosened; the parked steps' histories are not rewritten -- corrections replace prose, never verdict records",
+              "any residual filed by the 86.84 cycle-11 verdict is either fixed the same way or explicitly re-queued with its verdict citation"
+            ],
+            "live_check": "live_check_86.107.md with the AST free-name check output and the fixture-drift mutation transcript"
+          },
+          "notes": "Operator-gated: parked parents 86.85/86.84 close via the escalation files, not via this step. This step is pure evidence-hygiene; P3."
+        },
+        {
           "id": "86.93",
           "priority": "P2",
           "status": "pending",

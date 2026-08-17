@@ -26,7 +26,7 @@ test the criteria demand.**
 | `scripts/qa/verdict_ledger_write.py` | **new** -- the writer. Append-one-row, dedup-refusing, fail-loud, append-only. Carries `--emit-sequence` and `--self-test`. |
 | `scripts/qa/mutation_matrix_86_85.py` | **new** -- mutation matrix, zero repo writes. **10 cells** as of the cycle-3 remediation. It shipped with 5; cycle 1 proved those 5 blind to ORDERING (+M6, M7), cycle 2 proved 7 still left NEW guards uncovered (+M8 I/O fail-loud, M9 step_id-in-key, M10 empty-step). See §5 and §6. |
 | `backend/tests/test_phase_86_85_verdict_ledger_write.py` | **new** -- 25 pytest regressions, one per mutation cell. Promised in contract §6.3 and initially substituted by `--self-test` **without disclosure**; the cycle-2 Q/A flagged that as a scope-honesty violation and it is now discharged. |
-| `handoff/verdict_ledger.jsonl` | 35 -> 43 rows at `d1c4a79d`; 86.74 backfilled 0 -> 8 labelled rows. Now 45 in the working tree, the +2 being this step's own cycle-1 and cycle-2 FAIL rows. |
+| `handoff/verdict_ledger.jsonl` | 35 -> 43 rows at `d1c4a79d`; 86.74 backfilled 0 -> 8 labelled rows. Now 45 in the working tree *(cycle-12 post-verdict annotation, QA-C12-C: this count was true at its capture and carries no command; the ledger grows with every graded cycle -- 68 rows at the cycle-12 evaluation, enumeration `python3 -c "print(sum(1 for l in open('handoff/verdict_ledger.jsonl') if l.strip()))"`; the two commit-anchored figures beside it reproduce exactly)*, the +2 being this step's own cycle-1 and cycle-2 FAIL rows. |
 
 **No production/trading code was touched.** No flag promoted, no `.env` written, no
 manual cycle, no restart.
@@ -263,7 +263,7 @@ and is recorded as a follow-up.
    is weaker evidence than a live write and is marked so rather than blended in.
 3. **`recorded_at` is absent on 14 of 43 rows** because they predate the field.
    Those rows cannot distinguish event time from write time retrospectively.
-4. **Only one consumer is proven.** `enforceEscalation` is driven end-to-end;
+4. **Two consumers are live** *(cycle-12 post-verdict REPLACEMENT: this bold headline said "Only one consumer is proven." while its own body two lines later said the second went live -- QA-C12-B, the correction-must-replace-the-HEADLINE lesson)*. `enforceEscalation` is driven end-to-end;
    `attempt_budget.py` (86.71) went LIVE mid-drain (2026-08-17, commit
    192ef652: attempt_gate.py registered as a PreToolUse hook, reading this
    ledger's emit_sequence for its PASS exception). *(cycle-11 correction: this
