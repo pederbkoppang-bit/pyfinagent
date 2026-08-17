@@ -333,9 +333,18 @@ n/would_auto_fail from args.verdict_sequence alone). The cycle-3 work:
    pre-eval run; the two recorder cells and the four control drives are
    unchanged).
 
-Caller discipline forward: sequence-as-data only; no positional prose in
-evidence/extra (the 86.21 cycle-7 spawn, launched after the census, is the
-first under the discipline and carries none).
+*(cycle-4 REPLACEMENT of a falsified forward claim -- the original said
+"Caller discipline forward: sequence-as-data only; no positional prose in
+evidence/extra", and the cycle-3 evaluator measured Main's VERY NEXT spawn
+-- the cycle-3 evaluation itself -- tripping the shipped detector on the
+phrase naming the termination rule's two outcomes, used in HISTORICAL
+narration. The honest discipline is stronger and is now stated as such:
+spawn prompts avoid the detector's literal phrases ENTIRELY, narration
+included, because the recorder cannot distinguish narration from framing
+-- and per the underlying study the bias channel does not require intent.
+The recorder is a fixed-literal detector: the evaluator's 7-case probe
+missed 6 of 6 rewordings, so every census figure and the boolean are LOWER
+BOUNDS, stated wherever they appear.)*
 
 
 ### Cycle-3 addendum: the recorder's first LIVE measurement
@@ -345,3 +354,37 @@ shipped) returned `escalation.judge_was_told_consequence: false` computed
 from its caller text -- the first live spawn measured by the recorder, on a
 prompt kept clean under the new discipline. The census, the computed
 recorder, and a live measurement now exist end to end.
+
+
+---
+
+## Cycle 4 GENERATE (2026-08-17): the blocker repaired at the named line; everything else queued as graded
+
+1. **B1/B2 (the blocker the evaluator refused to queue)**: this step's two
+   shipped instruments were broken by a SIBLING step's legitimate edit --
+   86.72 added `research_routing` to the merge line, and
+   `verify_escalation_86_78.mjs:159` asserted the WHOLE-LINE literal.
+   Repaired exactly as the verdict named: the assertion is now the
+   PROPERTY (the merge line carries `escalation` as a bare key -- regex
+   `const merged = \{ \.\.\.verdict, [^}]*\bescalation\b` -- keeping the
+   anti-spread conjunct), and matrix cell M11's anchor tracks the current
+   line with the flatten mutant still dying. Post-repair, exits unpiped:
+   verify 51 checks ALL CHECKS PASS exit 0; matrix 13/13 ALL CELLS KILLED
+   exit 0; the :6-7 recipe cardinalities refreshed (37->51, 10->13) with
+   the history stated. The un-disclosure is owned: the artifact claiming
+   family-green was written 23 minutes after the breaking commit and
+   quoted the three FAMILY checkers while this step's own two were red --
+   the scope-must-be-derived lesson, recorded here.
+2. **The falsified forward claim is REPLACED in place** (above): my own
+   cycle-3 spawn tripped the detector in historical narration;
+   the discipline now bans the literal phrases entirely and states the
+   recorder's lower-bound nature.
+3. **The stale ledger is BACKFILLED** (the evaluator measured attempt 4 vs
+   0 rows): cycles 1/2 CONDITIONAL + the cycle-2 rail drop as NO_VERDICT,
+   each labelled BACKFILL/reconstruction with sources named, keyed by
+   cycle per the 86.85 precedent; today's cycle-3 row recorded at the
+   seam. The sequence source for this step is no longer stale.
+4. **Queued as graded (evidence-quality, per the verdict's own triage)**:
+   F4 -- the override field has no writer (structurally unsettable; 0/76
+   rows carry it); F5 -- the recorder's false-negative surface; both ride
+   the 86.107 residual queue via the transcribed verdict.

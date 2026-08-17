@@ -122,8 +122,12 @@ const MUTATIONS = [
     desc: "[cycle-1 Q/A survivor QA-F] spread `escalation` into the verdict object -- "
         + 'caller-computed fields would surface as top-level siblings of ok/verdict in '
         + 'the object Main transcribes VERBATIM: caller output presented as judge output',
-    anchor: 'const merged = { ...verdict, escalation }',
-    repl: 'const merged = { ...verdict, ...escalation }  // MUTANT: flattened',
+    // cycle-4: anchor tracks the CURRENT merge line -- 86.72 legitimately
+    // added research_routing as a sibling key, which is exactly the change
+    // the repaired property assertion must tolerate while the flatten below
+    // still dies against it.
+    anchor: 'const merged = { ...verdict, escalation, research_routing }',
+    repl: 'const merged = { ...verdict, ...escalation, research_routing }  // MUTANT: flattened',
     expect: ['escalation is NESTED in the return, not spread into it'],
   },
   {

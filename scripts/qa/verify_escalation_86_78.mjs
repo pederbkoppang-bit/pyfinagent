@@ -156,9 +156,17 @@ check('nothing sits between the criteria sentence and the withheld-on-purpose bl
 // (spread escalation into the verdict) left that throw untouched, so it SURVIVED. A
 // check that the guard exists is not a check that the property holds.
 check('escalation is NESTED in the return, not spread into it',
-  SRC.includes('const merged = { ...verdict, escalation }')
+  // cycle-4 (cycle-3 Q/A blocker B1): the previous assertion pinned the WHOLE
+  // LINE literal 'const merged = { ...verdict, escalation }', so a sibling
+  // step legitimately ADDING a key (86.72's research_routing) turned this
+  // checker red while the property it guards -- escalation nested, never
+  // spread -- held throughout. Assert the PROPERTY: the merge line carries
+  // `escalation` as a bare key (nested), and no spread of escalation exists
+  // anywhere. The evaluator's named repair, applied verbatim in spirit:
+  // prefix/key-membership, keeping the anti-spread conjunct.
+  /const merged = \{ \.\.\.verdict, [^}]*\bescalation\b/.test(SRC)
   && !/\{[^}]*\.\.\.escalation/.test(SRC),
-  'the mutation that flattens it must not survive')
+  'the mutation that flattens it must not survive; added sibling keys may')
 check('...and the shipped code ALSO throws at runtime (defence in depth)',
   SRC.includes('const leaked = Object.keys(escalation).filter')
   && /if \(leaked\.length > 0\) \{\s*\n\s*throw new Error/.test(SRC))

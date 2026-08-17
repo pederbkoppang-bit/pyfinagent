@@ -3,8 +3,8 @@
 Verbatim tool output. Re-runnable:
 
 ```
-node scripts/qa/verify_escalation_86_78.mjs    # 37 checks, exit 0
-node scripts/qa/mutation_matrix_86_78.mjs      # 10 cells, exit 0
+node scripts/qa/verify_escalation_86_78.mjs    # 51 checks, exit 0 (cycle-4 refresh; was "37 checks" -- the checker grew across cycles and 86.72's sibling key briefly turned it red via a whole-line literal, repaired to a property assertion)
+node scripts/qa/mutation_matrix_86_78.mjs      # 13 cells, exit 0 (cycle-4 refresh; was "10 cells")
 ```
 
 `.claude/agents/qa.md` is **not modified by this step** — §5.
@@ -499,3 +499,21 @@ self-declaration -- and no caller has ever declared it (all 8 leaky spawns
 recorded nothing). The cycle-3 fix computes it AT RENDER TIME from the same
 caller-controlled strings this census sliced, converting self-declaration
 into measurement at the seam.
+
+
+---
+
+## 11. Cycle-4 captures (2026-08-17; exits unpiped)
+
+```
+$ node scripts/qa/verify_escalation_86_78.mjs > /tmp/ve78.txt 2>&1; echo VERIFY_EXIT=$?
+VERIFY_EXIT=0
+$ tail -2 /tmp/ve78.txt
+
+  ALL CHECKS PASS
+$ grep -c "GREEN control established (51 checks)" /tmp/mm78b.txt; node scripts/qa/mutation_matrix_86_78.mjs > /tmp/mm78b.txt 2>&1; echo MATRIX_EXIT=$?
+MATRIX_EXIT=0
+$ grep -E "M11|cells:" /tmp/mm78b.txt
+  KILLED            M11-MERGE-ESCALATION-INTO-THE-VERDICT by: escalation is NESTED in the return, not spread into it
+  cells: 13   killed: 13   survived/unearned: 0
+```
