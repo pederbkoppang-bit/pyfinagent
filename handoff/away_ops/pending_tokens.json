@@ -1,5 +1,5 @@
 {
- "updated": "2026-07-10",
+ "updated": "2026-08-17",
  "format_note": "Canonical open-operator-asks file (away-ops-rules.md token mechanics). Every entry carries the EXACT reply string(s); the operator replies in the Slack bot channel and the 62.2 handler records it to handoff/operator_tokens.jsonl. Return-day 2026-07-06: disposition/disposition_note/disposition_at fields added per goal_phase66 Part-1 table (schema-tolerant per scheduler.py:499-503; research_brief_66.0.md). 2026-07-07: TRIAGE 63-65 APPROVED + away-plists KEEP ARMED + 66.3 start-now authorized + SETUP-TOKEN adopted, all via in-session AskUserQuestion (operator present).",
  "asks": [
   {
@@ -212,6 +212,21 @@
    "recommended": "pending the measured reflection cost from the 68.4 drill (entry will be updated)",
    "disposition": "open_awaiting_measured_cost",
    "disposition_at": "2026-07-10T00:00:00+00:00"
+  },
+  {
+   "id": "ARM-SYNTHESIS-INTEGRITY-86.69",
+   "raised_by": "86.69 GENERATE (attended session 2026-08-17, Main)",
+   "raised_at": "2026-08-17",
+   "due": "resolved same day",
+   "ask": "Arm phase-61.2's fail-closed synthesis guard (PAPER_SYNTHESIS_INTEGRITY_ENABLED=true in backend/.env) so a parse-failed full analysis routes to the working lite fallback instead of fabricating an empty 0.0/HOLD row, and a both-paths failure persists an honest NULL row excluded from trading. Predicate measured 211/211 sensitive, 38/38 specific; 33 tests green. Plus: restart the backend NOW (not session end) so tonight's cycle runs fixed.",
+   "reply_options": [
+    "Yes -- arm it",
+    "No -- keep it dark"
+   ],
+   "recommended": "Yes -- arm it",
+   "disposition": "approved_in_session",
+   "disposition_note": "OPERATOR APPROVED via in-session AskUserQuestion (operator present -- same channel as the 2026-07-07 precedent recorded in this file's format_note): 'Yes -- arm it (Recommended)' AND 'Now (Recommended)' for the restart. Token applied by touching tokens_cursor; .env write follows under this authorization. Recorded by Main.",
+   "disposition_at": "2026-08-17T13:05:59+00:00"
   }
  ]
 }

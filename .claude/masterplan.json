@@ -25969,6 +25969,27 @@
           "notes": "Operator-gated: parked parents 86.85/86.84 close via the escalation files, not via this step. This step is pure evidence-hygiene; P3."
         },
         {
+          "id": "86.108",
+          "priority": "P1",
+          "status": "pending",
+          "harness_required": true,
+          "name": "2,859 structured-output parse failures across ALL pipeline agents -- the CC rail is handed a Gemini-shaped schema contract it honours nothing of, and every agent's invalid JSON degrades inputs silently",
+          "audit_basis": "FILED 2026-08-17 by the 86.69 research gate (wf_8515024d-2fe, brief section D3-D4) as explicitly out-of-scope-but-owned: counted over every rotated backend log, '<agent> returned invalid JSON' (orchestrator.py:315) fires 2,859 times -- Analyst 926, Critic 602, Moderator 359, Advocate 342, Judge 314, Synthesis-Final 264 (9.2%), Critic-Retry 52. Synthesis reaches the book (86.69 armed the 61.2 guard for it); the other 2,595 degrade debate inputs SILENTLY. Mechanism: _SYNTHESIS_STRUCTURED_CONFIG (orchestrator.py:129-133) carries temperature/top_k/max_output_tokens/response_mime_type/response_schema -- a Gemini structured-output contract -- while the full path rides the CC rail whose --json-schema is post-hoc validated, not constrained (phase-78.1 measurement), and the repo already no-ops max_tokens at claude_code_client.py:280. ALSO RIDES HERE: the settings-endpoint blind spot (GET /api/settings/ exposes 45 keys but not paper_synthesis_integrity_enabled nor the diversity flags -- dark-flag live values are unreadable from the running process; measured 86.69 + q1 doc).",
+          "verification": {
+            "command": "bash -c 'source .venv/bin/activate && python -c \"import ast; ast.parse(open(\\\"backend/agents/orchestrator.py\\\").read()); print(\\\"parses\\\")\"'",
+            "success_criteria": [
+              "the per-agent parse-failure rates are re-derived with the population rule and command stated, split by rail (claude_code vs gemini) so the transport attribution is measured, not inherited from 86.69's brief",
+              "the remedy is chosen from EVIDENCE about what each transport actually supports: state what the CC rail's structured-output path guarantees and what it does not, with the doc or measurement cited, before any schema/prompt change is designed",
+              "whatever is built, an agent's invalid-JSON output must degrade LOUDLY at the record level (marked, countable) rather than silently -- and the fix must not loosen any gate or fabricate any default verdict",
+              "the dark-flag observability gap is closed or explicitly re-queued: a read-only route (or equivalent) exposes the LIVE value of operator-gated flags so committed-is-not-in-force checks can read the running process",
+              "NO flag is promoted and NO .env is written by this step; operator-gated changes are recorded as numbered asks",
+              "mutation-test every new guard with the control observed GREEN first and a byte-identical restore"
+            ],
+            "live_check": "live_check_86.108.md with the per-agent/per-rail failure table, the transport-guarantee evidence, and the loud-degradation demonstration"
+          },
+          "notes": "Filed under the operator's product-vs-evidence directive from 86.69's ASK-2. P1 because 2,595 silent input degradations bear directly on analysis quality (the money path), even with synthesis now guarded."
+        },
+        {
           "id": "86.93",
           "priority": "P2",
           "status": "pending",
