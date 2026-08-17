@@ -26,20 +26,26 @@ The step text builds its reproduction on 36.17. **That no longer reproduces** --
 phase-86.20's real mid-flight state, replayable by anyone:
 
 ```
-$ git stash list >/dev/null; for c in 688ac349 7145f566; do
-    git show $c:handoff/harness_log.md | grep -cE "^## Cycle.*phase=86\.21"
-    git show $c:handoff/current/evaluator_critique_86.21.md | grep -cE "^# CYCLE|^## VERDICT"
-  done
-  --- 688ac349 ---
-  harness_log rows for 86.21 : 0
-  recorded verdict headers   : 0
-  --- 7145f566 ---
-  harness_log rows for 86.21 : 0
-  recorded verdict headers   : 0
+$ git show "688ac349:handoff/harness_log.md" | grep -c 'phase=86.20 result='
+0
+$ git show "688ac349:handoff/current/evaluator_critique_86.20.md" | grep -c '^## Cycle'
+1
+
+$ git show "7145f566:handoff/harness_log.md" | grep -c 'phase=86.20 result='
+0
+$ git show "7145f566:handoff/current/evaluator_critique_86.20.md" | grep -c '^## Cycle'
+2
 ```
 
-**Two recorded verdicts, status still `pending`, and the grep the rule prescribes
-returns ZERO.** That is criterion 1 exactly. It is not a historical anecdote: both
+*(cycle-7 REPLACEMENT, closing the cycle-5 Q/A's fix-2: the fence above is the
+live_check §2 replay VERBATIM -- the previous fence grepped 86.21's OWN
+artifacts, returned 0/0 at both commits, and sat under a "Two recorded
+verdicts" headline its own output contradicted. The masterplan status at both
+commits is `pending`.)*
+
+**Two recorded verdicts (critique headers 1 then 2), status still `pending`,
+and the log-grep the rule prescribes returns ZERO at both commits.** That is
+criterion 1 exactly. It is not a historical anecdote: both
 Q/As at those commits stated in their own verdicts that the log carried no rows
 for the step, and each was hand-fed its history by Main -- the party the rule
 constrains.
@@ -215,6 +221,12 @@ harmless and silently extends a "consecutive" run straight across a
 `PASS_WITH_FINDINGS` -- and the corpus contains that token today.
 
 ## 8. Verification, and what I did NOT do
+
+*(cycle-7 note, closing the cycle-5 Q/A's fix-5 placement: STALE -- a
+well-formed ledger missing recent verdicts -- is the FIFTH failure mode the
+four statuses cannot represent; named and demonstrated in section 11
+(lines around "A well-formed but STALE ledger"), with the current instance:
+the tail is [C, C], so one more CONDITIONAL is the 3rd and arms the rail.)*
 
 ```
 $ bash -c 'grep -c "^## Cycle" handoff/harness_log.md && ls handoff/current/evaluator_critique_*.md | head -3'
@@ -721,3 +733,28 @@ cross-check makes the staleness **visible**; it does not fix it.
 **This is the strongest evidence for step 86.76**, whose basis has been escalated
 accordingly: the harness re-derived a shipped implementation, and I re-derived it again on
 top, inside one 24-hour window.
+
+
+---
+
+## 13. Cycle 7 (2026-08-17): the last two artifact fixes, and the live state
+
+Of the cycle-5 verdict's five named fixes, cycles 6 landed (1) the third
+scoring-path cell (a behaviour-preserving mutant must score "survived";
+verified: the always-KILLED defect makes the matrix REFUSE at rc=5), (3) the
+regenerated 20-case self-test block and 20/16 figures, (4) the cycle-4/5
+record in section 11 with the seven print-layer mutants disclosed as
+knowingly unguarded (the cycle-5 Q/A measured their differentials and agreed
+the scope call), and (5) the STALE fifth-failure-mode disclosure. Cycle 7
+lands the remaining two AT THE NAMED SITES: section 2's fence is now the
+live_check §2 replay verbatim (the old fence self-contradicted -- fixed by
+REPLACEMENT with the supersession note in place), and section 8 carries the
+STALE pointer the fix asked for.
+
+THE PRODUCT IS LIVE AND LOAD-BEARING TODAY: every evaluator spawned in the
+2026-08-17 drain ran `python scripts/qa/qa_wip.py <sid> --spawned-at ...` and
+`verdict_history_86_21.py --evidence-only` and quoted their outputs (e.g. the
+86.71 cycle-5 PASS cross-checked prior_attempts==ledger rows==attempt gate row
+as "three counters agree"). Captured at write time: self-test 20 cases
+SELF-TEST PASSED exit 0; matrix ALL 16 MUTANTS KILLED exit 0, md5 unchanged;
+the three broken-scoring self-check cells print "correct".
