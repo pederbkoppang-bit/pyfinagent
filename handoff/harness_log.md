@@ -35967,3 +35967,18 @@ container guard -- landed today, mirrored into research-gate.js per the
 byte-identical block design; checker family 113/124/96 green. Verdict record
 lives in evaluator_critique_86.90.md (pre-ledger vintage; sequence C,C,C,C +
 escalation FAIL + operator CLOSE).
+
+## Cycle 1236 -- 2026-08-17 -- phase=86.96 result=PASS
+
+**Step:** 86.96 -- the Q/A rail's string-args dispatch-kill class. **PASS on
+the first evaluation.** Failure reproduced deterministically from the two
+2026-08-16 killed payloads; trigger bisected to ONE wrong bracket
+(substitution parses, insertion fails -- minimal failing input is one
+character); layer localised to CALLER COMPOSITION with marshalling proven
+faithful two-sidedly; byte-verbatim criteria round-trip pinned by checker
+section [7] on BOTH production args shapes with mangle-in-transit cells RED;
+object-first contract recorded at classifyArgs. Evaluator re-derived every
+figure and ran its own 6-cell matrix. Residuals (R1 fixture reach, R2
+descriptive $-lines, R3-tail twin-comment) queued under the
+product-vs-evidence directive; R3 also flagged a false claim in Main's spawn
+prompt (artifacts clean -- graded on artifacts), fixed in the next edit pass.
