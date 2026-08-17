@@ -36013,3 +36013,19 @@ banked 86.105's contract); the evaluator then re-drove both arms itself,
 its production-ledger router run reading 'round 2 of 2'. Section [8]: five
 survivor cells + LG-1 whole-script leak-guard + the :638 scoring fix, family
 136/124/96. Five evidence residuals ride the transcribed verdict.
+
+## Cycle 1239 -- 2026-08-17 -- phase=86.75 result=CONDITIONAL (CLOSED by operator authorization -- all 8 criteria MET, cap unrepairable-history)
+
+**Step:** 86.75 -- the harness best-practice audit (subtraction-first changes;
+the attempt counter's file-order defect; the research-gate doctrine
+consolidation). **Cycle-2 evaluator: "ALL EIGHT immutable criteria are MET
+on my own independent re-derivation -- NO CRITERION WORK REMAINS."** Capped
+CONDITIONAL only on the 2026-08-13 order breaches (GENERATE before gate; a
+pre-EVALUATE log row) which are historical and unrepairable -- the evaluator:
+"I will not certify clean what is not" -- plus prose fixed same-day. The
+structural-CONDITIONAL close authority was exercised by the attending
+operator ("i approve them both"), covering 86.75 now and identically-shaped
+siblings. C7's separation-of-duties half was ALSO operator-discharged today
+(all agent-file changes since 2026-08-12 approved in session); the roster
+liveness was verified by the evaluator against its own system-prompt
+snapshot -- stronger than the script's probe.

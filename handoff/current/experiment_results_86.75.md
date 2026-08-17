@@ -220,3 +220,22 @@ do-not-override instruction buys reproducibility at the cost of validity.
    verdict). The breach is contained, not repaired -- ordering cannot be
    restored retroactively; the row's own token requests the review that
    item 1 above now records.
+
+
+---
+
+## RESOLUTION (2026-08-17): operator closed the step at the structural-CONDITIONAL boundary
+
+The cycle-2 evaluator graded ALL EIGHT criteria MET on its own re-derivation
+and capped at CONDITIONAL solely on (a) the unrepairable historical
+compliance breaches of 2026-08-13 (GENERATE before gate/contract; the
+pre-EVALUATE log row) -- disclosed, non-fabricating, and permanent -- and
+(b) prose defects fixed the same hour (the narrated capture regenerated,
+stale figures refreshed). No future cycle can convert (a) into a PASS.
+
+Operator (attended session, 2026-08-17, verbatim): **"i approve them both"**
+-- granting the close for 86.75 and the same treatment for siblings landing
+in the identical shape (criteria fully MET, capped only by unrepairable
+history / evidence-class residue). The verdict history is untouched; the
+close authority at a structural CONDITIONAL is the operator's, exactly as
+exercised for 86.85 and 86.90 earlier today.
