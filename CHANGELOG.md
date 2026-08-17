@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-17 | `d33aabe2` | phase-86.21: cycle 7 -- the last two artifact fixes at the named sites |
 | 2026-08-17 | `6345166d` | phase-86.90: [object Object] render boundary -- CLOSED per operator resolution; sparse-array bound c |
 | 2026-08-17 | `31f80cdf` | phase-86.84: turn-cap removal + uncensored re-measurement -- PASS on cycle 11 |
 | 2026-08-17 | `567f1a56` | phase-86.74: C6 re-measured after 3 post-fix days -- zero gated buys, the row is STARVED not broken |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-17 | `fee1c51d` | phase-86.97: pin the bump magnitude; correct a figure that did not reproduce |
 | 2026-08-17 | `2d861f5f` | phase-86.97: assert the DECISION, not the existence of a log line; bound the last carrier |
 | 2026-08-17 | `d84a41b2` | phase-86.94: PARK at the 3-attempt rail -- criteria 1,2,3,4,6,7 MET, criterion 5 not |
-| 2026-08-17 | `dc8d64d9` | phase-86.94: delete the mislabelled stale block, withdraw a misquote, enforce fixture provenance |
 
 ---
 
