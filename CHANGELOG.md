@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-17 | `2506ca65` | phase-86.28: tier-honest research gate -- PASS on cycle 7; THE HARNESS-REPAIR CORE IS CLOSED |
 | 2026-08-17 | `3315546c` | phase-86.28: ledger backfilled from the critique's own table; closing re-capture at 124 |
 | 2026-08-17 | `4bac49ff` | phase-86.78: consequence blinding -- PASS on cycle 7, the last budgeted attempt |
 | 2026-08-17 | `0ccb75b0` | phase-86.79: the attempt-counter gauge semantics -- PASS on cycle 6 |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-17 | `54eace07` | phase-86.78: cycle 4 -- the blocker repaired at the named line, ledger backfilled, falsified claim r |
 | 2026-08-17 | `983f1001` | phase-86.72: the re-research leg -- PASS on cycle 2 |
 | 2026-08-17 | `a2a3cee0` | phase-86.105: contract banked on a PASSED gate -- audit basis corrected (667 not 6), GENERATE deferr |
-| 2026-08-17 | `8ed8ba54` | phase-86.79: cycle 4 artifacts -- the dropped cycle-3's findings closed at their sites |
 
 ---
 
+### v6.93.235 — phase-86.28: tier-honest research gate -- PASS on cycle 7; THE HARNES... (2026-08-17)
+
+- **phase-86.28: tier-honest research gate -- PASS on cycle 7; THE HARNESS-REPAIR CORE IS CLOSED**
 ### v6.93.234 — phase-86.78: consequence blinding -- PASS on cycle 7, the last budget... (2026-08-17)
 
 - **phase-86.78: consequence blinding -- PASS on cycle 7, the last budgeted attempt**
