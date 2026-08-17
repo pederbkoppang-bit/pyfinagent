@@ -25913,6 +25913,43 @@
           "audit_basis": "ENUMERATED AND CLASSIFIED (not repaired) during phase-86.97, which scoped itself to enumeration + classification + the end-to-end guard. The three pre-detector `exit 0` paths in .claude/hooks/post-commit-changelog.sh run BEFORE the detector heredoc and therefore never reach any Python in the hook; phase-86.97 proved this by a lexical rule whose soundness preconditions it asserts (no bash functions, no trap/source/eval, exactly one heredoc). Of the three, the recursion guard was judged LEGITIMATELY-SILENT and recorded as a BOUND -- a commit the hook itself created is by construction not a bump candidate. The OTHER TWO were classified MUST-LOG and deliberately left unfixed: making a pre-detector bash path write to the decision log is a BEHAVIOURAL change to a hook that runs on EVERY commit, and phase-86.97's criteria scope it to classification only. THE HARM: if CHANGELOG.md is deleted or its `### Recent Activity` anchor is renamed, every subsequent commit produces no changelog row AND no decision line, and from outside that is indistinguishable from a run of genuinely-chore commits. The decision log is the only place an operator would find out, and it stays empty. NOTE the fix is not merely 'add a log line': the pre-detector paths are bash, the logger is Python inside the heredoc, so a repair has to either move the guards after the detector (changing when they run) or add a bash-side writer that agrees with the Python one on format -- a design question, which is why it is its own step."
         },
         {
+          "id": "86.105",
+          "name": "the handoff layout invariant is red -- six violations on 2026-08-17 (two logs and an audit stream at handoff/ root, three stray current/ files), and at least one violation has a live writer that will recreate it after a bare move",
+          "status": "pending",
+          "verification": {
+            "success_criteria": [
+              "python3 scripts/housekeeping/verify_handoff_layout.py exits 0 after the fix, output quoted -- and the 2026-08-17 red run (exit 1, six findings) is quoted beside it as the before",
+              "every misplaced TRACKED file is moved with git mv so history survives; nothing is deleted; handoff/prompt_leak_redteam_audit.jsonl keeps its append-only content byte-identical across the move",
+              "the WRITER of each root-level log is found and repointed, or shown already dead -- a move without repointing regresses on the writer's next fire; if the writer is operator-owned (launchd plist, crontab), the repoint is recorded as a numbered operator ask instead of edited unilaterally",
+              "every consumer reading the old paths is found by grep and repointed in the same commit, with the grep command and its output quoted",
+              "no file under .claude/hooks is modified by this step, and verdict semantics are unchanged"
+            ],
+            "command": "bash -c 'source .venv/bin/activate && python3 scripts/housekeeping/verify_handoff_layout.py > /dev/null && echo green'",
+            "live_check": "live_check_86.105.md carrying the before (exit 1) and after (exit 0) runs, the writer-and-consumer enumeration with commands, and the git mv list"
+          },
+          "notes": "Filed 2026-08-17 by the operator-attended session from the external harness audit (finding D3). The six violations measured: current/experiment_results_86.29.md, current/contract_86.1.md, current/research_brief_80.5.md flagged for archive/misc; handoff/autoresearch.launchd.log and handoff/autoresearch.log (logs at root); handoff/prompt_leak_redteam_audit.jsonl (audit stream at root). Step 76.9.5 touches the autoresearch side elsewhere -- coordinate, do not duplicate.",
+          "audit_basis": "MEASURED 2026-08-17: python3 scripts/housekeeping/verify_handoff_layout.py -> exit 1 with exactly the six findings named in notes. The autoresearch logs at root have an active nightly writer, so a bare move regresses on its next fire -- hence criterion 3."
+        },
+        {
+          "id": "86.106",
+          "name": "the always-loaded instruction surface is 257KB and contradicts the vendor guidance it runs under -- CLAUDE.md 47.7KB carrying 12 correction scars, qa.md 50.4KB -- no step owns shrinking it, and every Layer-3 spawn pays the assembly cost",
+          "status": "pending",
+          "verification": {
+            "success_criteria": [
+              "the surface is measured before and after with the same command (wc -c over CLAUDE.md, .claude/rules/*.md, .claude/agents/qa.md, .claude/agents/researcher.md, docs/runbooks/per-step-protocol.md), and CLAUDE.md lands at or under 24,000 bytes (half its 2026-08-17 size of 47,673) with qa.md at or under 30,000 (from 50,411)",
+              "NO BINDING RULE IS LOST: every removed passage is either relocated verbatim to a linked reference file that is not auto-loaded, with a one-line pointer left where it stood, or shown superseded with the superseding text or commit cited -- enumerated in a relocation ledger the evaluator can sample",
+              "history and correction narratives (the CORRECTED / previously-said / stale scars) move to the appendix; the surviving text states only the CURRENT rule, once -- per the vendor guidance verified live in the 2026-08-17 audit ('Bloated CLAUDE.md files cause Claude to ignore your actual instructions'; 'Ruthlessly prune')",
+              "no rule's MEANING changes: this step is relocation and deduplication only; any text whose meaning would change is left in place and flagged for its own step -- and the research floors, F1/F1b, the no-self-eval doctrine, and every operator-verbatim instruction survive verbatim wherever they land",
+              "the roster-snapshot caveat is honored: qa.md/researcher.md deletions are inert until the next session start, so the closing record states that the next session must run scripts/qa/verify_qa_roster_live.sh and spot-check one live Q/A spawn citing the surviving rules",
+              "verdict semantics are UNCHANGED: no gate, floor, or escalation rule is weakened by relocation"
+            ],
+            "command": "bash -c 'wc -c CLAUDE.md .claude/agents/qa.md .claude/agents/researcher.md'",
+            "live_check": "live_check_86.106.md carrying before/after wc -c, a sampled relocation-ledger audit, and the next-session roster verification note"
+          },
+          "notes": "Filed 2026-08-17 from the external harness audit (finding D2 -- the one over-engineering cost with no owner; operator directive of the same day: make the harness work, do not over-engineer it). Vendor basis verified against the live page: code.claude.com/docs/en/best-practices names 'The over-specified CLAUDE.md' as a failure pattern with the fix 'Ruthlessly prune. If Claude already does something correctly without the instruction, delete it or convert it to a hook', and recommends skills for episodic knowledge so it loads on demand. Doc drift is also a defect factory here: 86.65, 86.75, 86.77, 86.81 and 86.83 are all fixes to drifted prose.",
+          "audit_basis": "MEASURED 2026-08-17 (external audit, commands in the audit artifact): wc -c CLAUDE.md=47,673, .claude/agents/qa.md=50,411, .claude/agents/researcher.md=20,737, .claude/rules/*.md=82,364 total, docs/runbooks/per-step-protocol.md=24,679 -- instructed surface 257,087 bytes. grep -cio over correction-scar markers in CLAUDE.md = 12. Workflow-rail context assembly all-time ~139.7M tokens across 579 runs; qa mean ~168K/spawn -- the doc surface is the largest controllable component of that assembly."
+        },
+        {
           "id": "86.93",
           "priority": "P2",
           "status": "pending",
