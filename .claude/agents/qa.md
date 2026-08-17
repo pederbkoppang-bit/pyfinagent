@@ -884,5 +884,7 @@ any way: the verdict stands on the criteria exactly as before, and the
 ROUTING of the signal is computed caller-side, outside your view, like the
 escalation. Do not set it to soften a FAIL, to defer a judgement you can
 make from the evidence on disk, or more than the bounds allow (the caller
-enforces at most 2 re-research rounds per step). Omit both fields entirely
-in the normal case.
+enforces at most 2 re-research rounds per step via
+`scripts/harness/research_router.py`, which counts research-gate launches
+for the step in the attempt-gate audit stream and REFUSES dispatch at the
+bound). Omit both fields entirely in the normal case.

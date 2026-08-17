@@ -593,13 +593,32 @@ console.log('\n[8] CALLER-SIDE ROUTING -- consequence recorder + re-research leg
   const absent = m.enforceEscalation(V, SEQ, {})
   check('[8] absent caller_text -> false, never a throw', absent.judge_was_told_consequence === false)
 
+  // cycle-2 (cycle-1 Q/A, IM-7): the fixture values are DISTINCTIVE so a
+  // fabricated spec cannot echo them by accident; every field is asserted.
+  const SPEC = { objective: 'OBJ-UNIQ-8672', output_format: 'FMT-UNIQ-8672',
+                 tool_scope: 'SCOPE-UNIQ-8672', task_boundaries: 'BOUND-UNIQ-8672' }
   const on = m.enforceResearchRouting({ verdict: 'FAIL', research_needed: true,
-    research_brief_spec: { objective: 'o', output_format: 'f', tool_scope: 't', task_boundaries: 'b' } })
-  check('[8] research_needed=true -> surfaced with the spec echoed',
-        on.research_needed === true && on.research_brief_spec && on.research_brief_spec.objective === 'o')
+    research_brief_spec: SPEC })
+  check('[8] research_needed=true -> surfaced with the spec ECHOED field-for-field',
+        on.research_needed === true && on.research_brief_spec
+        && on.research_brief_spec.objective === 'OBJ-UNIQ-8672'
+        && on.research_brief_spec.output_format === 'FMT-UNIQ-8672'
+        && on.research_brief_spec.tool_scope === 'SCOPE-UNIQ-8672'
+        && on.research_brief_spec.task_boundaries === 'BOUND-UNIQ-8672')
+  const g = on.next_action_on_research_needed
   check('[8] guidance present and carries the Tmax=2 bound',
-        typeof on.next_action_on_research_needed === 'string'
-        && on.next_action_on_research_needed.includes('at most 2'))
+        typeof g === 'string' && g.includes('at most 2'))
+  // cycle-2 (cycle-1 Q/A survivors IM-1/IM-4/IM-5/IM-6): the control pins
+  // every property the cells below mutate -- target, instruction, stagnation
+  // clause, floors sentence -- so each cell has a check that owns it.
+  check('[8] guidance routes to the RESEARCHER target (research-gate.js), never the judge',
+        typeof g === 'string' && g.includes('research-gate.js') && !g.includes('qa-verdict.js'))
+  check('[8] guidance carries the spawn instruction verbatim',
+        typeof g === 'string' && g.includes('Spawn the research gate BEFORE the next GENERATE'))
+  check('[8] guidance carries the stagnation rule',
+        typeof g === 'string' && g.includes('stagnation'))
+  check('[8] guidance carries the floors-unchanged sentence',
+        typeof g === 'string' && g.includes('Floors are unchanged'))
   const off = m.enforceResearchRouting({ verdict: 'PASS' })
   check('[8] absent fields -> research_needed null, guidance null',
         off.research_needed === null && off.next_action_on_research_needed === null)
@@ -620,6 +639,43 @@ console.log('\n[8] CALLER-SIDE ROUTING -- consequence recorder + re-research leg
      'const wanted = false',
      async (mod) => (await mod.enforceResearchRouting({ research_needed: true,
        research_brief_spec: { objective: 'o', output_format: 'f', tool_scope: 't', task_boundaries: 'b' } })).next_action_on_research_needed === null],
+    // cycle-2: the cycle-1 evaluator's five SURVIVORS, kept permanent. Each
+    // now dies against the property-owning checks added above.
+    ['8-target-repointed-at-the-judge (IM-5)', "'Workflow({scriptPath: \".claude/workflows/research-gate.js\", args: {step_id, '",
+     "'Workflow({scriptPath: \".claude/workflows/qa-verdict.js\", args: {step_id, '",
+     async (mod) => {
+       const gg = (await mod.enforceResearchRouting({ research_needed: true,
+         research_brief_spec: { objective: 'o', output_format: 'f', tool_scope: 't', task_boundaries: 'b' } })).next_action_on_research_needed
+       return !(typeof gg === 'string' && gg.includes('research-gate.js') && !gg.includes('qa-verdict.js'))
+     }],
+    ['8-spawn-instruction-deleted (IM-1)', "? ('Spawn the research gate BEFORE the next GENERATE: '",
+     "? ('Proceed: '",
+     async (mod) => {
+       const gg = (await mod.enforceResearchRouting({ research_needed: true,
+         research_brief_spec: { objective: 'o', output_format: 'f', tool_scope: 't', task_boundaries: 'b' } })).next_action_on_research_needed
+       return !(typeof gg === 'string' && gg.includes('Spawn the research gate BEFORE the next GENERATE'))
+     }],
+    ['8-stagnation-clause-deleted (IM-4)', "'is stagnation and ends the loop. Floors are unchanged: >=5 sources read '",
+     "'. Floors are unchanged: >=5 sources read '",
+     async (mod) => {
+       const gg = (await mod.enforceResearchRouting({ research_needed: true,
+         research_brief_spec: { objective: 'o', output_format: 'f', tool_scope: 't', task_boundaries: 'b' } })).next_action_on_research_needed
+       return !(typeof gg === 'string' && gg.includes('stagnation'))
+     }],
+    ['8-floors-sentence-deleted (IM-6)', "'is stagnation and ends the loop. Floors are unchanged: >=5 sources read '",
+     "'is stagnation and ends the loop. '",
+     async (mod) => {
+       const gg = (await mod.enforceResearchRouting({ research_needed: true,
+         research_brief_spec: { objective: 'o', output_format: 'f', tool_scope: 't', task_boundaries: 'b' } })).next_action_on_research_needed
+       return !(typeof gg === 'string' && gg.includes('Floors are unchanged'))
+     }],
+    ['8-spec-fabricated (IM-7)', "? verdict.research_brief_spec : null",
+     "? { objective: 'made-up', output_format: 'x', tool_scope: 'y', task_boundaries: 'z' } : null",
+     async (mod) => {
+       const rr = await mod.enforceResearchRouting({ research_needed: true,
+         research_brief_spec: { objective: 'OBJ-UNIQ-8672', output_format: 'FMT-UNIQ-8672', tool_scope: 'SCOPE-UNIQ-8672', task_boundaries: 'BOUND-UNIQ-8672' } })
+       return !(rr.research_brief_spec && rr.research_brief_spec.objective === 'OBJ-UNIQ-8672')
+     }],
     ['8-tmax-bound-removed', "task_boundaries>, brief_path}}). Bounds: at most 2 '",
      "task_boundaries>, brief_path}}). Bounds: '",
      async (mod) => {
@@ -628,6 +684,23 @@ console.log('\n[8] CALLER-SIDE ROUTING -- consequence recorder + re-research leg
        return !(typeof g === 'string' && g.includes('at most 2') && g.includes('stagnation'))
      }],
   ]
+  // cycle-2 (cycle-1 Q/A): the RUNTIME leak-guard, mutation-demonstrated via a
+  // whole-script drive (the guard lives in the tail assembly, unreachable from
+  // the sliced pure functions). LG-1: spreading research_routing into the
+  // merged return must THROW the phase-86.72 invariant, never ship caller
+  // fields as judge fields.
+  {
+    const from = 'const merged = { ...verdict, escalation, research_routing }'
+    const to = 'const merged = { ...verdict, escalation, ...research_routing }'
+    const n = qsrc.split(from).length - 1
+    if (n !== 1) { check('[8] LG-1 leak-guard: anchor unique', false, `found ${n}`) }
+    else {
+      const r = await runDriver(qsrc.replace(from, to), { step_id: '9.9', criteria: ['c'] })
+      check('[8] LG-1 leak-guard: spreading research_routing THROWS the invariant',
+            !!r.threw && r.threw.includes('phase-86.72 invariant violated'),
+            r.threw ? r.threw.slice(0, 90) : 'no throw -- the guard is inert')
+    }
+  }
   for (const [id, from, to, red] of CELLS8) {
     const n = qsrc.split(from).length - 1
     if (n !== 1) { check(`[8] ${id}: anchor unique`, false, `found ${n}`); continue }
@@ -635,8 +708,11 @@ console.log('\n[8] CALLER-SIDE ROUTING -- consequence recorder + re-research leg
     try {
       mod2 = await buildMod(qsrc.replace(from, to))
       outcome = (await red(mod2)) ? 'DETECTED' : 'SURVIVED'
-    } catch (e) { outcome = 'DETECTED (mutant broke the build: ' + String((e && e.message) || e).slice(0, 60) + ')' }
-    check(`[8] ${id}: KILLED`, outcome.startsWith('DETECTED'), outcome)
+    } catch (e) { outcome = 'UNSCORABLE: the mutant did not build (' + String((e && e.message) || e).slice(0, 60) + ')' }
+    // cycle-2 (cycle-1 Q/A latent-harness finding): a mutant that fails to
+    // BUILD never reached the guard and licenses NOTHING -- section [7]
+    // already scores this case UNSCORABLE; this loop now agrees.
+    check(`[8] ${id}: KILLED`, outcome === 'DETECTED', outcome)
   }
 }
 

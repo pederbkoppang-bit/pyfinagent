@@ -327,6 +327,14 @@ start, so a runtime read can only ADD text and never RETRACT it. **A
 DELETION from `qa.md` still requires a session restart on this path**, and
 `scripts/qa/verify_qa_roster_live.sh` is how you check.
 
+**Research-on-demand (phase-86.72):** the Workflow return carries
+`research_routing` beside `escalation`. If `research_needed` is true, run
+`python3 scripts/harness/research_router.py --verdict-json <return.json>
+--step-id <sid>` and execute the emitted launch verbatim (DISPATCH), stop
+loudly on REFUSE (Tmax=2 rounds, counted from the attempt-gate audit
+stream), and do nothing on NO_SIGNAL. Consumer doc:
+`docs/runbooks/per-step-protocol.md` §4 "Research-on-demand".
+
 **If `ok: false` / verdict is CONDITIONAL or FAIL — the canonical
 cycle-2 flow (per Anthropic's
 [multi-agent research system](https://www.anthropic.com/engineering/multi-agent-research-system)

@@ -331,6 +331,29 @@ must be FAIL with `violation_type: Unjustified_Inference`.
 Counter resets after: a PASS verdict, a FAIL verdict, or a new
 step-id (which is a structurally distinct problem and starts fresh).
 
+#### Research-on-demand (phase-86.72 -- the F2 leg on the live rail)
+
+The Workflow return may carry `research_routing` beside `escalation` (both
+computed caller-side, outside the judge's view). When
+`research_routing.research_needed` is `true`, Main runs the CONSUMER before
+any further GENERATE:
+
+```
+python3 scripts/harness/research_router.py --verdict-json <captured-return.json> --step-id <sid>
+```
+
+The router decides `DISPATCH` (emits the exact research-gate Workflow launch
+built from the judge's `research_brief_spec`), `REFUSE` (exit 3, loud --
+budget exhausted at TMAX_ROUNDS=2, counted from research-gate launches in
+`handoff/audit/attempt_budget_audit.jsonl`, or a malformed spec), or
+`NO_SIGNAL` (no spawn -- the normal case). Main executes the emitted launch
+verbatim with the Workflow tool; the router never launches anything itself
+and never touches the verdict. Stagnation (a round adding no new
+read-in-full sources) ends the loop early -- Main judges that from
+consecutive briefs. Driven end-to-end 2026-08-17: a signal-carrying stub
+dispatched the REAL 86.105 research gate (wf_5eacb773-aa5); the real 86.72
+cycle-1 return (no signal) caused no spawn.
+
 ### 5. LOG
 
 Append to `handoff/harness_log.md` using the Cycle format.
