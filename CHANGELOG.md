@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-17 | `b9be4bdf` | phase-86.37: dropped-gate survival -- PASS on cycle 6 |
 | 2026-08-17 | `07e33d18` | phase-86.79: F5 actually landed -- the em-dash title defeated the first anchor |
 | 2026-08-17 | `2dbe09d4` | phase-86.79: cycle 5 -- prior_attempts staleness rule, effective-text pins, floor 59 |
 | 2026-08-17 | `26d840c9` | phase-86.37: cycle 6 -- the lost attribution fix landed with write-after-replace ordering |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-17 | `1777cc8d` | phase-86.72: cycle 2 -- consumer, round counter, corrected census, end-to-end drive |
 | 2026-08-17 | `ba74813b` | phase-86.79/86.72: gate pins the APPLIED doc state; 86.72 cycle-1 FAIL transcribed |
 | 2026-08-17 | `bfdecb14` | phase-86.21: cycle 8 -- the five named fixes at their sites |
-| 2026-08-17 | `7bbd6574` | phase-86.75: cycle 2 -- operator discharged C7 in session; enumeration re-shown at today's corpus |
 
 ---
 
+### v6.93.232 — phase-86.37: dropped-gate survival -- PASS on cycle 6 (2026-08-17)
+
+- **phase-86.37: dropped-gate survival -- PASS on cycle 6**
 ### v6.93.231 — phase-86.75: harness best-practice audit -- CLOSED by operator at the... (2026-08-17)
 
 - **phase-86.75: harness best-practice audit -- CLOSED by operator at the structural-CONDITIONAL boundar**
