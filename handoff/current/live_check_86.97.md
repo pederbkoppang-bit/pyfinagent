@@ -603,3 +603,78 @@ equivalent rather than silently re-aimed — it surfaced because my first N-6 an
 matched `:81` instead of the kickoff branch.
 
 **Guard: 35 → 48 → 52 assertions.**
+
+
+### J6. CYCLE-6 — POST-VERDICT, UNGRADED. The cycle-5 CONDITIONAL's three WARNs
+
+**No Q/A has graded these.** The day's token ceiling (R3) was exceeded —
+**4,585,189 of 4,500,000** — at the step boundary immediately after the cycle-5
+verdict, so step work stopped. One attempt of three remained; the budget, not the
+attempt cap, is why this step parks. Recorded here rather than folded in silently.
+
+All three findings reproduce. All three are mine.
+
+**W1 — a FALSE claim still standing, and it was the original PARK blocker.**
+`experiment_results_86.97.md:185-187` still read *"It is covered incidentally by
+the end-to-end driver (if it were deleted the hook would fail)"*. Measured: rc=**0**,
+and the hook writes `bump=minor reason=unrecorded`. The hook does not fail.
+Cycles 4 and 5 **added** section J1 and cell N-1 and left the false sentence
+standing — accompany-not-replace, one file from the criterion that forbids it.
+**Replaced, not annotated.**
+
+**W2 — a LIVE, non-equivalent surviving mutant.** `_flip_magnitude()`'s
+phase-emptied branch (`:201`, `return "major"`) had **no scenario at all**: no
+seed emptied a phase, and scenario 4's `major` comes from the *subject* path
+(`:216`) where `_flip_magnitude()` is never called. So my "spanning all four bump
+magnitudes" was true of the observed **values** and false as **branch coverage** —
+the producing branch was 3 of 4. A fifth scenario closes both steps of a
+two-step phase; the mutant is now cell **N-8**, KILLED.
+
+**W3 — the "END-TO-END" drive was silently truncated in every cycle.**
+`CHANGELOG_SEED` used `|---|---|---|` while the hook requires
+`startswith("|------")` (`:357`), so `insert_idx` stayed `None` and the heredoc
+`sys.exit(0)`d at `:362`. The dedup guard, the row insert, the MAX_ROWS trim, the
+file write and the bash tail executed in **zero** drives, across every cycle of
+this step, while the artifacts called it end-to-end. Criterion 4's load-bearing
+clause still held (`_log_decision(bump_type)` at `:278` is *before* the cut, and
+delete-the-call was genuinely killed), but the fixture could not represent
+production — inside the guard built to close a fixture-blindness defect.
+
+Fixed with the one-line separator, **and the inference is now an assertion**: the
+drive records whether the CHANGELOG actually changed, so a truncated heredoc can
+no longer look identical to a successful run. That assertion is mutation-tested —
+restoring the old seed turns it RED (`52 passed, 1 failed`) against a green
+control.
+
+```
+  rc=0   ALL GREEN: 57 passed, 0 failed
+  CONTROL GREEN.
+--- N-1 delete the _flip_magnitude() call (hook :214)
+    KILLED   rc=1  FAILED: 46 passed, 11 failed
+--- N-2 never record a reason (force the :267 .get default)
+    KILLED   rc=1  FAILED: 50 passed, 7 failed
+--- N-3 swap flip_created / flip_transitioned
+    KILLED   rc=1  FAILED: 54 passed, 3 failed
+--- N-4 subject-major branch stops recording its reason
+    KILLED   rc=1  FAILED: 55 passed, 2 failed
+--- N-6 kickoff magnitude minor -> patch (the Q/A's surviving Q1 mutant)
+    KILLED   rc=1  FAILED: 56 passed, 1 failed
+--- N-8 phase-emptied magnitude major -> patch (the Q/A's surviving W2 mutant)
+    KILLED   rc=1  FAILED: 56 passed, 1 failed
+--- N-9 the end-to-end seed cannot represent production (W3)
+    KILLED   rc=1  FAILED: 56 passed, 1 failed
+--- N-7 subject classifier phase-X.0 magnitude minor -> patch
+    *** SURVIVED ***  rc=0  ALL GREEN: 57 passed, 0 failed
+  rc=0  ALL GREEN: 35 passed, 0 failed
+  SURVIVED, as required -- without [3a] the same mutant is invisible.
+killed=7  survived=1  unscorable=0  of 8
+N-5 attribution control: OK
+production hook byte-identical after the run: True
+```
+
+**N-7 remains the only survivor and is EQUIVALENT — now independently confirmed.**
+The cycle-5 Q/A checked my proof two ways rather than taking it: `classify_commit`'s
+result is unconditionally overwritten unless it is `major`, so the subject
+classifier's `minor`/`patch` never reaches the log.
+
+**Guard: 35 → 48 → 52 → 57 assertions.**

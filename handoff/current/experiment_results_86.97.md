@@ -182,9 +182,17 @@ rewrite); and the verbatim checker output in `live_check_86.91.md`.
   invalidated by this step's own criterion-5 docstring edit **in the commit that
   stated it**. All six sites now name the commit; the *property* was never wrong.
 - `bump_type = _flip_magnitude()` (hook `:214`) is the second call site the
-  research surfaced. It is covered incidentally by the end-to-end driver (if it
-  were deleted the hook would fail), but it has **no dedicated mutation cell**.
-  Stated rather than implied.
+  research surfaced. **CORRECTED phase-86.97 cycle 6 — the sentence that stood
+  here was FALSE and is replaced, not annotated.** It read: *"It is covered
+  incidentally by the end-to-end driver (if it were deleted the hook would
+  fail)."* Measured, twice, by me and again by two evaluators: deleting it gives
+  **rc=0** and the hook writes `bump=minor reason=unrecorded` instead of
+  `bump=none reason=no_flip` — a spurious minor bump carrying an unexplained
+  reason. The hook does **not** fail. This was the named FAIL/PARK blocker, and
+  cycles 4 and 5 added section J1 and cell N-1 while leaving the false sentence
+  standing — accompany-not-replace, one file away from the criterion that
+  forbids it. The `[3a]` scenario table now pins the decision for four scenarios,
+  which is what actually kills the mutant.
 
 ---
 

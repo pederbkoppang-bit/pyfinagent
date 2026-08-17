@@ -248,11 +248,22 @@ for n, _l in post:
 # ── [3] END-TO-END: DRIVE THE REAL HOOK ─────────────────────────────────────
 print("\n[3] END-TO-END -- drive the REAL hook in a temp git repo (criterion 4)\n")
 
+# THE SEPARATOR SHAPE IS LOAD-BEARING, and getting it wrong silently truncated
+# every "end-to-end" drive this step ever made. The hook looks for
+# `line.strip().startswith("|------")` (post-commit-changelog.sh:357); the seed
+# used `|---|---|---|`, which does not match, so `insert_idx` stayed None and the
+# heredoc `sys.exit(0)`d at :362. Lines 364-386 -- the dedup guard, the row
+# insert, the MAX_ROWS trim and the actual file write -- plus the hook's bash
+# tail executed in ZERO drives, in every cycle of this step, while the artifacts
+# called the drive END-TO-END. Production CHANGELOG.md:9 is `|------|--------|--------|`.
+# A fixture that cannot represent production tests a path production never takes.
 CHANGELOG_SEED = (
     "# Changelog\n\n## v1.0.0\n\n### Recent Activity\n\n"
-    "| Date | Commit | Description |\n|---|---|---|\n"
+    "| Date | Commit | Description |\n|------|--------|-------------|\n"
 )
 
+
+LAST_DRIVE: dict = {}
 
 EMPTY_MP = '{"phases": []}'
 
@@ -297,6 +308,13 @@ def drive(hook_src: str, subject: str = "feat: a real change",
         r = subprocess.run(["bash", str(hp)], cwd=tmp, env=env, check=False,
                            capture_output=True, text=True, timeout=120)
         log = tmp / "handoff" / "logs" / "changelog-decisions.log"
+        # LAST_DRIVE records the OBSERVABLE side effect of the run, so the
+        # "end-to-end" claim can be asserted instead of inferred from the
+        # fixture's shape. Cycles 1-5 inferred it and were wrong for every
+        # drive: the seed's separator did not match what the hook looks for, so
+        # the heredoc exited before it ever touched the CHANGELOG.
+        LAST_DRIVE["changelog"] = (tmp / "CHANGELOG.md").read_text(encoding="utf-8")
+        LAST_DRIVE["changelog_changed"] = LAST_DRIVE["changelog"] != CHANGELOG_SEED
         return r.returncode, (log.read_text(encoding="utf-8") if log.exists() else ""), r.stderr
 
 
@@ -335,6 +353,16 @@ check("[3] a decision line is WRITTEN TO THE FILE (the observable effect, not an
       "extracted namespace)", log_text.strip() != "",
       "no decision-log file was produced -- this is the assertion the 86.91 "
       "extraction structurally could not make")
+# THE DRIVE MUST REACH THE END OF THE HEREDOC, asserted on the observable effect.
+# Without this, a fixture that the hook silently rejects looks identical to a
+# successful end-to-end run -- which is exactly what happened for five cycles.
+check("[3] the drive REACHES the CHANGELOG write (a truncated heredoc looks "
+      "identical to a successful end-to-end run)",
+      LAST_DRIVE.get("changelog_changed") is True,
+      "the hook exited before modifying the CHANGELOG, so the row-insert, the "
+      "dedup guard, the MAX_ROWS trim and the bash tail ran in ZERO drives -- "
+      "the fixture cannot represent production")
+
 # ── [3a] THE DECISION ITSELF, PER SCENARIO (phase-86.97 cycle 4) ────────────
 #
 # WHAT THIS REPLACES, and why it was not merely weak but VACUOUS. The assertion
@@ -375,6 +403,20 @@ _MP_PENDING = ('{"phases": [{"steps": ['
 _MP_FLIPPED = ('{"phases": [{"steps": ['
                '{"id": "99.1", "status": "done"}, '
                '{"id": "99.2", "status": "pending"}]}]}')
+# Phase 97 exists ONLY as these two steps, so closing both empties the whole
+# top-level phase -- the ONLY input that makes _flip_magnitude() return "major".
+# Without it, `major` was only ever produced by the SUBJECT path (:216), on which
+# _flip_magnitude() is never called, so the phase-emptied branch at :201 had no
+# scenario at all and a `major`->`patch` mutant there survived. Found by the
+# cycle-5 Q/A; my "spanning all four bump magnitudes" was true of the observed
+# VALUES and false as branch coverage.
+_MP_97_BEFORE = ('{"phases": [{"steps": ['
+                 '{"id": "97.0", "status": "pending"}, '
+                 '{"id": "97.1", "status": "pending"}]}]}')
+_MP_97_EMPTIED = ('{"phases": [{"steps": ['
+                  '{"id": "97.0", "status": "done"}, '
+                  '{"id": "97.1", "status": "done"}]}]}')
+
 _MP_CREATED = ('{"phases": [{"steps": ['
                '{"id": "99.1", "status": "pending"}, '
                '{"id": "99.2", "status": "pending"}, '
@@ -408,6 +450,12 @@ SCENARIOS = [
     # discriminating rather than a single tripwire.
     ("subject_forced_major -- a `!` subject",
      "feat!: breaking change", _MP_PENDING, _MP_PENDING, "major", "subject_forced_major", "-", "-"),
+    # The phase-emptied branch (:201). This is the only scenario in which
+    # _flip_magnitude() itself returns "major"; scenario 4's major comes from the
+    # subject path, where _flip_magnitude() is never called.
+    ("flip empties the whole phase -- 97.0 and 97.1 both close",
+     "phase-97.1: close the phase", _MP_97_BEFORE, _MP_97_EMPTIED, "major",
+     "flip_transitioned", "-", "97.0,97.1"),
 ]
 
 _observed: dict[str, dict] = {}
