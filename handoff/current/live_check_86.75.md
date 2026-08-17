@@ -240,9 +240,21 @@ $ tail -2 /tmp/roster.txt
  On-disk + git checks PASSED. Behavioral check is operator-driven.
 ================================================================
 $ grep -n "records_retained" .claude/agents/qa.md | head -2
-(current wording -- the gauge correction; quoted in the GENERATE)
+669:  **Do NOT use `records_retained` as the attempt number.** It counts retained
+672:  `records_retained_unit`; believe the payload, not the name. The JSON
 ```
 
 Operator approval record: AskUserQuestion 2026-08-17, answer "Approve all"
 (the six qa.md commits + the maxTurns removal, itemised in the question
 text; transcribed in experiment_results cycle-2 item 1).
+
+
+*(cycle-3 note: the line above was previously a narrated parenthetical where
+the command's output belongs -- the cycle-2 Q/A filed it as the qa.md 4b
+shape even though the claim was true, and it is now the real regenerated
+output. Stale figures refreshed the same pass: the checker floor comparison
+runs at 124 today (>= the 121 criterion floor); qa.md's gate row sits at
+:606 and the gauge wording at :669/:672 (line numbers move; the commands
+are the derivation); the floors moved to research-gate.js:433-434 and
+`git log -S "const FLOOR_SOURCES = 5"` still returns only the creating
+commit.)*
