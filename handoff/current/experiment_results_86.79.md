@@ -246,3 +246,41 @@ diff: **0 lines containing `records_retained: 0` or `qa_wip.py 86.33` appear at 
 
 `verify_counter_86_79.py` re-run after the qa.md edits: **exit 0, 55 checks, 0 failed.**
 All five sibling gates re-run green.
+
+
+---
+
+## Cycle 4 GENERATE (2026-08-17): the dropped cycle-3's three findings, closed at their sites
+
+The cycle-3 rail drop returned no verdict but its write-first record named
+three findings. Each is closed, and two turned out to have been closed
+already by later steps -- verified rather than assumed:
+
+1. **The gate now guards criterion 4's members 4b/4c by CONTENT**
+   (`verify_counter_86_79.py`, the replaced C4 block): the stale
+   un-applied-state assertions ("the un-applied qa.md correction is written
+   out for the operator" -- true through cycle 3, FALSE from commit 9b4d5281
+   which applied it) are REPLACED with applied-state content pins: qa.md
+   must carry the gauge correction ("Do NOT use `records_retained` as the
+   attempt number") and must NOT carry the old wrong wording ("the count of
+   prior Q/A spawns" -- 0 hits); qa-verdict.js must state
+   attempt_number/prior_attempts semantics, the null-is-never-0 rule, and
+   the gauge distinction. A revert of either 4b or 4c now REDDENS the gate;
+   the patch file stays asserted as the historical record. Gate run: ALL
+   CHECKS PASS, exit 0 (live_check cycle-4 section).
+2. **The stale-label finding is the SAME defect** -- the replaced block above
+   IS the cycle-4-created stale label ("The residual divergence (qa.md)
+   must be LOUD"), gone with the replacement.
+3. **The two unguarded fields were closed by later work, verified now**:
+   `records_retained_unit` is asserted on the healthy ok path (the C1
+   section's 3-record report, check "states it is a GAUGE"); and
+   `records_pruned_known` carries FOUR assertions (post-prune ==3, the
+   add-back case, and regime accounting) -- both predate this cycle and are
+   re-run green today.
+
+**The product is load-bearing across the whole 2026-08-17 drain**: every
+evaluator ran `qa_wip.py --spawned-at` and quoted
+`records_retained=N (gauge, not counter)` + `attempt_number` +
+`records_pruned_known` in its own notes; the 86.21 cycle-8 PASS explicitly
+exercised the lower-bound cross-check ("attempt_number (4) is NOT greater
+than the ledger's 6 rows, so the staleness rule does not fire").

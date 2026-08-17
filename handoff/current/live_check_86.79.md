@@ -448,3 +448,27 @@ it was aimed at, so the matrix scored it `RED-WRONG-REASON` and exited 1:
 M9 was then repointed at the ABOVE-the-window assertion specifically, which
 M10's boundary mutation cannot break -- so the two cells stay distinguishable
 instead of both being scored by whichever assertion happens to fire first.
+
+
+---
+
+## Cycle-4 captures (2026-08-17; exits unpiped)
+
+```
+$ python3 scripts/qa/verify_counter_86_79.py > /tmp/vc79.txt 2>&1; echo GATE_EXIT=$?
+GATE_EXIT=0
+$ grep -E "4b APPLIED|4c APPLIED|historical record" /tmp/vc79.txt
+  [PASS] 4c APPLIED: qa.md carries the gauge correction
+  [PASS] 4c APPLIED: the old wrong wording is GONE from qa.md
+  [PASS] 4b APPLIED: qa-verdict.js states attempt_number/prior_attempts semantics
+  [PASS] 4b APPLIED: qa-verdict.js pins the null-is-never-0 rule
+  [PASS] 4b APPLIED: qa-verdict.js states the gauge distinction
+  [PASS] the applied correction's historical record exists -- handoff/current/qa_md_patch_86.79.md
+$ tail -2 /tmp/vc79.txt
+  ALL CHECKS PASS
+```
+
+Anchor pre-verification (before pinning, each content assertion's literal
+was confirmed present-exactly-once or absent-as-required in the live files):
+`null is NEVER 0` 1x, `a gauge, not` 1x, the qa.md gauge line 1x, the old
+wrong wording 0x, `prior_attempts` 1x.
