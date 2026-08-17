@@ -869,3 +869,20 @@ Two more traps, both paid for on 2026-08-09:
   operator's screenshots) was obvious at 1440x900: the status bar wrapped to two
   rows against a documented "one dense bar" convention. If a layout claim is
   load-bearing, say which viewport it was captured at.
+
+
+## Research-on-demand (phase-86.72 -- OPTIONAL fields, use them sparingly)
+
+When your judgement is that the step needs MORE RESEARCH rather than more
+fixing -- the failure is an evidence/knowledge gap the executor cannot close
+by editing (an unread spec, an unverified external behaviour, a missing
+measurement methodology) -- you MAY set `research_needed: true` in your
+verdict and MUST then also supply `research_brief_spec` with the four keys
+`objective` / `output_format` / `tool_scope` / `task_boundaries` (the F2
+4-key brief shape). This does not change your verdict or its semantics in
+any way: the verdict stands on the criteria exactly as before, and the
+ROUTING of the signal is computed caller-side, outside your view, like the
+escalation. Do not set it to soften a FAIL, to defer a judgement you can
+make from the evidence on disk, or more than the bounds allow (the caller
+enforces at most 2 re-research rounds per step). Omit both fields entirely
+in the normal case.

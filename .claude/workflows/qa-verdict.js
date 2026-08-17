@@ -463,6 +463,27 @@ const VERDICT_SCHEMA = {
     checks_run: { type: 'array', items: { type: 'string' } },
     harness_compliance_ok: { type: 'boolean' },
     notes: { type: 'string' },
+    // phase-86.72: OPTIONAL (not in `required`) -- the F2 research-on-demand
+    // leg run_harness.py has always had and the live rail never did. The
+    // judge may declare that the step needs MORE RESEARCH rather than more
+    // fixing; the ROUTING of that signal is computed by the CALLER-side
+    // enforceResearchRouting below, outside the judge's view of consequences,
+    // exactly as the escalation is. Absence of the field is a normal verdict.
+    // This does NOT contradict the phase-86.31 rejection note above: that
+    // weighed a write-first audit field nothing required; these fields are
+    // mandated by 86.72's immutable criterion 3.
+    research_needed: { type: 'boolean' },
+    research_brief_spec: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['objective', 'output_format', 'tool_scope', 'task_boundaries'],
+      properties: {
+        objective: { type: 'string' },
+        output_format: { type: 'string' },
+        tool_scope: { type: 'string' },
+        task_boundaries: { type: 'string' },
+      },
+    },
   },
 }
 
@@ -557,8 +578,22 @@ if (inputHealth.blind) {
  * `export {...}` line to a temp copy of this file and importing that, exactly as
  * `scripts/qa/verify_research_gate_workflow.mjs` does.
  */
+// phase-86.78 cycle-3: the POSITIONAL-claim detector. The judge may know the
+// standing RULE (qa.md is its instruction set); what biases is a CALLER claim
+// about THIS spawn's own position/consequence ("attempt 5 of 5", "the rail
+// binds this cycle", "the next launch will be denied"). Measured census
+// (live_check_86.78.md section 10): 8 of 413 historical spawn prompts carried
+// such claims in their caller-controlled sections -- four of them on
+// 2026-08-17, two of them Main's own -- while the recorder below sat
+// hardcoded false awaiting a self-declaration no caller ever made. Computed
+// here, at the seam, from the same caller-controlled strings the prompt
+// renders; qa.md's rule text never passes through this function.
+const POSITIONAL_CLAIM_RE = /attempt\s+\d+\s+of\s+\d|counted attempt|rail binds|next launch will be denied|if this cycle does not close|PASS-or-FAIL|you are the \d+(?:st|nd|rd|th)/i
+
 function enforceEscalation(verdict, sequence, opts = {}) {
   const maxAttempts = opts.max_attempts ?? 5
+  const posMatch = typeof opts.caller_text === 'string'
+    ? POSITIONAL_CLAIM_RE.exec(opts.caller_text) : null
   const out = {
     // What the caller was given, echoed back so the input is auditable.
     sequence_supplied: Array.isArray(sequence) ? sequence.slice() : null,
@@ -577,7 +612,10 @@ function enforceEscalation(verdict, sequence, opts = {}) {
     // The CALLER records it here and in the ledger row's free-text `note`.
     override: null,
     override_reason: null,
-    judge_was_told_consequence: false,
+    // COMPUTED from the caller-controlled prompt inputs, never self-declared
+    // (phase-86.78 cycle-3; was a hardcoded `false` no caller ever set).
+    judge_was_told_consequence: posMatch !== null,
+    judge_was_told_consequence_evidence: posMatch ? posMatch[0] : null,
   }
 
   if (!Array.isArray(sequence)) {
@@ -728,6 +766,37 @@ async function agentRetryingDrops(prompt, opts, maxAttempts = 2) {
   throw lastErr
 }
 
+// phase-86.72 -- THE RE-RESEARCH LEG, routed by the CALLER after the verdict
+// is in hand, exactly as the escalation is (score inside, routing outside).
+// Pure by necessity (no filesystem in the Workflow runtime) and by design:
+// a plain function the checker drives via temp re-export. It reads the
+// judge's OPTIONAL research_needed / research_brief_spec and emits
+// deterministic caller-facing guidance; it can neither author the signal nor
+// alter the verdict. Bounds are stated in the guidance itself: at most 2
+// re-research rounds per step (Tmax=2), and a round adding no new
+// read-in-full sources is STAGNATION and ends the loop -- floors are never
+// lowered (research-gate.js recomputes gate_passed regardless).
+function enforceResearchRouting(verdict) {
+  const wanted = verdict.research_needed === true
+  const spec = (wanted && verdict.research_brief_spec
+    && typeof verdict.research_brief_spec === 'object')
+    ? verdict.research_brief_spec : null
+  return {
+    research_needed: verdict.research_needed === undefined ? null : verdict.research_needed,
+    research_brief_spec: spec,
+    next_action_on_research_needed: wanted
+      ? ('Spawn the research gate BEFORE the next GENERATE: '
+        + 'Workflow({scriptPath: ".claude/workflows/research-gate.js", args: {step_id, '
+        + 'topic: <from research_brief_spec.objective>, tier, internal_scope: '
+        + '<from tool_scope + task_boundaries>, brief_path}}). Bounds: at most 2 '
+        + 're-research rounds per step; a round adding no new read-in-full sources '
+        + 'is stagnation and ends the loop. Floors are unchanged: >=5 sources read '
+        + 'in full, >=10 URLs, recency scan -- enforceGate recomputes gate_passed '
+        + 'from the brief on disk regardless of anything here.')
+      : null,
+  }
+}
+
 const verdict = await agentRetryingDrops(PROMPT, {
   label: 'qa-verdict:' + stepId,
   phase: 'QA',
@@ -755,8 +824,15 @@ if (verdict == null || typeof verdict !== 'object') {
 const escalation = enforceEscalation(verdict, args?.verdict_sequence, {
   attempt_number: args?.attempt_number,
   max_attempts: args?.max_attempts,
+  // phase-86.78 cycle-3: the SAME caller-controlled strings the prompt
+  // rendered -- evidence and extra -- so judge_was_told_consequence is a
+  // measurement of what this launch actually told the judge, not an honor box.
+  caller_text: [typeof args?.evidence === 'string' ? args.evidence : '',
+                JSON.stringify(args?.extra ?? null)].join(' '),
 })
-const merged = { ...verdict, escalation }
+// phase-86.72: the re-research routing, beside the verdict like escalation.
+const research_routing = enforceResearchRouting(verdict)
+const merged = { ...verdict, escalation, research_routing }
 // Exactly ONE returned key may come from the escalation object, and it must be the
 // nested one. If a future edit spreads it, this throws rather than silently shipping
 // caller fields as judge fields.
@@ -764,6 +840,17 @@ const leaked = Object.keys(escalation).filter(k => k !== 'escalation' && k in me
 if (leaked.length > 0) {
   throw new Error('phase-86.78 invariant violated: escalation fields leaked into the '
     + 'verdict object as top-level siblings: ' + leaked.join(', '))
+}
+// phase-86.72: same never-merged invariant for the routing object. NOTE
+// research_needed/research_brief_spec legitimately exist INSIDE the verdict
+// (the judge authored them there); the guard forbids the ROUTING object's
+// derived fields from surfacing as judge output.
+const leakedR = Object.keys(research_routing)
+  .filter(k => k !== 'research_routing' && k !== 'research_needed'
+    && k !== 'research_brief_spec' && k in merged)
+if (leakedR.length > 0) {
+  throw new Error('phase-86.72 invariant violated: research_routing fields leaked '
+    + 'into the verdict object as top-level siblings: ' + leakedR.join(', '))
 }
 // Computed, not attested. The cycle-1 Q/A noted that a hardcoded `true` would still
 // read true if the verdict HAD been modified, which is an attestation, not a check.

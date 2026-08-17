@@ -104,6 +104,14 @@ export const meta = {
 // array's first element, no synthesising a step id from a brief path. Throwing
 // costs the run at this line, before a single token is spent; silently
 // defaulting costs a full max-effort session AND deposits a misfiled artifact.
+// phase-86.96 R3-tail (the twin gets the same contract note as qa-verdict.js,
+// which the 86.96 evaluator found missing here despite this rail carrying 2
+// of the 4 historical string-args dispatch kills): launch with args as a REAL
+// JSON OBJECT (object-first). The string path stays supported and
+// byte-verbatim for valid JSON; an invalid string fails FAST here at dispatch
+// (0 tokens) -- never "repair" it, a repaired guess can research the wrong
+// step. The two classifyArgs copies are deliberately behaviourally identical
+// (no-import runtime); keep them so.
 function classifyArgs(bound, raw) {
   const describe = (v) => {
     let preview

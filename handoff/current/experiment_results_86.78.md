@@ -273,3 +273,63 @@ left alone. None names a threshold value, unit or outcome.
 **The new checks are DRIVEN** — they execute the tool and assert on its real stdout,
 because a source scan cannot prove a tool's output. **51 checks (floor 49), 13/13
 cells.**
+
+
+---
+
+## Cycle 3 GENERATE (2026-08-17): the recorder computed, the census two-level, the leaks owned
+
+Cycle 2's rail drop established (write-first) that criterion 3's
+architecture was complete but NOT IN FORCE -- its own evaluator ran on the
+pre-scrub qa.md snapshot. THIS session is post-restart: every evaluator
+today demonstrably runs the post-fix architecture (each verdict's notes
+carry the "gathered, not applied; the caller computes anything that
+follows" discipline, and each escalation envelope computes
+n/would_auto_fail from args.verdict_sequence alone). The cycle-3 work:
+
+1. **Criterion 1 -- the exposure census, two-level, commands stated**
+   (live_check §10): 413/413 qa spawn prompts contain the RULE text
+   (qa.md embedded -- design, not exposure; the first census version that
+   counted it is disclosed as an overcount); slicing to CALLER-controlled
+   sections, **8/413 carry POSITIONAL claims** -- four pre-fix
+   (2026-08-11, "Attempt N of 5" era) and four on 2026-08-17, TWO OF THEM
+   MAIN'S OWN (wf_4e01adc8 "FIFTH counted attempt...", wf_6821f477). The
+   party that relocated the counter still leaked position in its
+   extra.note. Current qa.md text quoted: the post-scrub architecture
+   note at :808 ("alongside -- never inside").
+2. **Criterion 3 -- driven on live spawns**: the 86.84 cycle-10 and
+   cycle-11 evaluations received NO attempt number and no positional
+   framing; their envelopes computed consecutive_conditionals from the
+   supplied sequence alone (cycle-11's notes explicitly gather-not-apply).
+3. **Criterion 4 -- the rule TERMINATED a loop today**: 86.85 cycle 11 was
+   bound PASS-or-FAIL by three consecutive CONDITIONALs and returned FAIL;
+   the F1 arc completed end-to-end on a live step.
+4. **Criterion 5 -- the recorder is now a MEASUREMENT** (the fix):
+   `judge_was_told_consequence` was hardcoded `false` at qa-verdict.js
+   with a comment delegating to caller self-declaration -- and no caller
+   ever declared it (all 8 leaky spawns recorded nothing). It is now
+   COMPUTED at the seam from the same caller-controlled strings the
+   prompt renders (`caller_text` = evidence + JSON(extra)), via
+   `POSITIONAL_CLAIM_RE` -- the census's own pattern -- with the matched
+   substring recorded as `judge_was_told_consequence_evidence`. qa.md's
+   rule text never passes through the function, preserving the
+   rule-vs-position distinction (pinned by a dedicated check).
+5. **Criterion 2 -- leniency direction + already-collected verdicts**:
+   direction per arXiv 2604.15224 (leniency, invisible in CoT). Of the 8
+   framed spawns: 2 PASS, 1 FAIL, 4 CONDITIONAL, 1 no-result. The FAIL and
+   CONDITIONALs argue against a captured judge (framing pushed toward
+   leniency and they graded hard anyway); both PASSes (wf_20a27baa
+   2026-08-11; wf_4e01adc8 = 86.71's close, framed by Main the same day
+   this step's census ran) are QUEUED FOR A RE-GRADE DECISION in step
+   86.93 rather than quietly kept -- with the mitigation stated: the 86.71
+   PASS's substance was independently executed by its evaluator
+   (12-process drive, 4,368-cell sweep, its own mutants).
+6. **Criterion 6 -- mutation-tested with control green first**:
+   checker section [8]: 8-recorder-neutered (regex -> never-match) and
+   8-recorder-hardcoded-false (revert to the hardcode) both KILLED; the
+   positive/negative/rule-text/absent drives are the control set. Family
+   126/124/96 green.
+
+Caller discipline forward: sequence-as-data only; no positional prose in
+evidence/extra (the 86.21 cycle-7 spawn, launched after the census, is the
+first under the discipline and carries none).

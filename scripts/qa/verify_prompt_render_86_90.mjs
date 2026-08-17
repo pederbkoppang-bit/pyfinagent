@@ -535,6 +535,111 @@ for (const m of MUTANTS7) {
   check(`[7] ${m.id}: KILLED (${m.why})`, outcome === 'DETECTED', outcome)
 }
 
+// ── [8] CALLER-SIDE ROUTING FUNCTIONS (phase-86.72 + 86.78 cycle-3) ─────────
+// Drives the REAL enforceEscalation caller_text computation and the REAL
+// enforceResearchRouting, brace-extracted from qa-verdict.js with loud
+// anchors (never a copy typed here), then kills one mutant per guard.
+console.log('\n[8] CALLER-SIDE ROUTING -- consequence recorder + re-research leg\n')
+{
+  const qsrc = fs.readFileSync(SCRIPTS['qa-verdict.js'], 'utf8')
+  const sliceFn = (src, marker) => {
+    const i = src.indexOf(marker)
+    if (i === -1) throw new Error('slice anchor missing: ' + marker)
+    // Paren-match the SIGNATURE first: the naive first-'{' grab hits the
+    // param list's `opts = {}` (the exact trap the 86.85 cycle-10 evaluator
+    // documented), and the loud content assertion below caught this slicer
+    // doing exactly that on its first run.
+    let p0 = src.indexOf('(', i), pd = 0, q = p0
+    for (; q < src.length; q++) {
+      if (src[q] === '(') pd++
+      else if (src[q] === ')') { pd--; if (pd === 0) { q++; break } }
+    }
+    let j = src.indexOf('{', q), depth = 0, k = j
+    for (; k < src.length; k++) {
+      if (src[k] === '{') depth++
+      else if (src[k] === '}') { depth--; if (depth === 0) { k++; break } }
+    }
+    return src.slice(i, k)
+  }
+  const buildMod = async (src) => {
+    const reLine = src.split('\n').find(l => l.startsWith('const POSITIONAL_CLAIM_RE'))
+    if (!reLine) throw new Error('POSITIONAL_CLAIM_RE line missing')
+    const fnE = sliceFn(src, 'function enforceEscalation(')
+    const fnR = sliceFn(src, 'function enforceResearchRouting(')
+    if (!fnE.includes('judge_was_told_consequence')) throw new Error('enforceEscalation slice lost the recorder')
+    if (!fnR.includes('next_action_on_research_needed')) throw new Error('routing slice lost the guidance')
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'routing-'))
+    const tmp = path.join(dir, 'r.mjs')
+    fs.writeFileSync(tmp, reLine + '\n' + fnE + '\n' + fnR
+      + '\nexport { enforceEscalation, enforceResearchRouting }\n')
+    return await import(pathToFileURL(tmp).href)
+  }
+  const V = { ok: false, verdict: 'CONDITIONAL' }
+  const SEQ = ['CONDITIONAL', 'CONDITIONAL']
+  const m = await buildMod(qsrc)
+
+  const posi = m.enforceEscalation(V, SEQ, { caller_text: 'this launch is attempt 5 of 5 at the ceiling' })
+  check('[8] positional caller text -> judge_was_told_consequence === true',
+        posi.judge_was_told_consequence === true, JSON.stringify(posi.judge_was_told_consequence))
+  check('[8] the matched evidence substring is recorded',
+        typeof posi.judge_was_told_consequence_evidence === 'string'
+        && posi.judge_was_told_consequence_evidence.length > 0,
+        String(posi.judge_was_told_consequence_evidence))
+  const clean = m.enforceEscalation(V, SEQ, { caller_text: 'grade the step against the criteria; artifacts under handoff/current/' })
+  check('[8] clean caller text -> false', clean.judge_was_told_consequence === false)
+  const rule = m.enforceEscalation(V, SEQ, { caller_text: 'the 3rd-CONDITIONAL auto-FAIL rule exists and qa.md describes it' })
+  check('[8] RULE mention without positional claim -> false (rule vs position distinction)',
+        rule.judge_was_told_consequence === false, String(rule.judge_was_told_consequence_evidence))
+  const absent = m.enforceEscalation(V, SEQ, {})
+  check('[8] absent caller_text -> false, never a throw', absent.judge_was_told_consequence === false)
+
+  const on = m.enforceResearchRouting({ verdict: 'FAIL', research_needed: true,
+    research_brief_spec: { objective: 'o', output_format: 'f', tool_scope: 't', task_boundaries: 'b' } })
+  check('[8] research_needed=true -> surfaced with the spec echoed',
+        on.research_needed === true && on.research_brief_spec && on.research_brief_spec.objective === 'o')
+  check('[8] guidance present and carries the Tmax=2 bound',
+        typeof on.next_action_on_research_needed === 'string'
+        && on.next_action_on_research_needed.includes('at most 2'))
+  const off = m.enforceResearchRouting({ verdict: 'PASS' })
+  check('[8] absent fields -> research_needed null, guidance null',
+        off.research_needed === null && off.next_action_on_research_needed === null)
+  const no = m.enforceResearchRouting({ verdict: 'CONDITIONAL', research_needed: false })
+  check('[8] research_needed=false -> false, guidance null',
+        no.research_needed === false && no.next_action_on_research_needed === null)
+
+  // mutation cells -- control above is the green; each mutant must go red on
+  // exactly the guard named. Temp copies only; the repo source is never written.
+  const CELLS8 = [
+    ['8-recorder-neutered', 'const POSITIONAL_CLAIM_RE = /attempt\\s+\\d+\\s+of\\s+\\d|counted attempt|rail binds|next launch will be denied|if this cycle does not close|PASS-or-FAIL|you are the \\d+(?:st|nd|rd|th)/i',
+     'const POSITIONAL_CLAIM_RE = /$^/i',
+     async (mod) => (await mod.enforceEscalation(V, SEQ, { caller_text: 'attempt 5 of 5' })).judge_was_told_consequence !== true],
+    ['8-recorder-hardcoded-false', 'judge_was_told_consequence: posMatch !== null,',
+     'judge_was_told_consequence: false,',
+     async (mod) => (await mod.enforceEscalation(V, SEQ, { caller_text: 'attempt 5 of 5' })).judge_was_told_consequence !== true],
+    ['8-routing-signal-dropped', "const wanted = verdict.research_needed === true",
+     'const wanted = false',
+     async (mod) => (await mod.enforceResearchRouting({ research_needed: true,
+       research_brief_spec: { objective: 'o', output_format: 'f', tool_scope: 't', task_boundaries: 'b' } })).next_action_on_research_needed === null],
+    ['8-tmax-bound-removed', "task_boundaries>, brief_path}}). Bounds: at most 2 '",
+     "task_boundaries>, brief_path}}). Bounds: '",
+     async (mod) => {
+       const g = (await mod.enforceResearchRouting({ research_needed: true,
+         research_brief_spec: { objective: 'o', output_format: 'f', tool_scope: 't', task_boundaries: 'b' } })).next_action_on_research_needed
+       return !(typeof g === 'string' && g.includes('at most 2') && g.includes('stagnation'))
+     }],
+  ]
+  for (const [id, from, to, red] of CELLS8) {
+    const n = qsrc.split(from).length - 1
+    if (n !== 1) { check(`[8] ${id}: anchor unique`, false, `found ${n}`); continue }
+    let mod2, outcome
+    try {
+      mod2 = await buildMod(qsrc.replace(from, to))
+      outcome = (await red(mod2)) ? 'DETECTED' : 'SURVIVED'
+    } catch (e) { outcome = 'DETECTED (mutant broke the build: ' + String((e && e.message) || e).slice(0, 60) + ')' }
+    check(`[8] ${id}: KILLED`, outcome.startsWith('DETECTED'), outcome)
+  }
+}
+
 console.log('')
 if (failures.length) {
   console.log(`FAILED: ${pass} passed, ${failures.length} failed`)
