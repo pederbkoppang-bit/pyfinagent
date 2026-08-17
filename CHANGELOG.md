@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-17 | `250c9741` | phase-86.21: the in-flight 3rd-CONDITIONAL counter -- PASS on cycle 8 |
 | 2026-08-17 | `54c6ec51` | phase-86.78: family-count bound + the recorder's first live measurement noted |
 | 2026-08-17 | `1777cc8d` | phase-86.72: cycle 2 -- consumer, round counter, corrected census, end-to-end drive |
 | 2026-08-17 | `ba74813b` | phase-86.79/86.72: gate pins the APPLIED doc state; 86.72 cycle-1 FAIL transcribed |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-17 | `214673b1` | phase-86.71: wire the cumulative attempt budget at the Workflow origin -- PASS on cycle 5/5 |
 | 2026-08-17 | `c90910ef` | phase-86.84: cycle 11 GENERATE -- non-comment-line pin + rendered/cross-checked unclassified aggrega |
 | 2026-08-17 | `2a6cd4b6` | phase-86.85/86.71: cycle 12/5 GENERATE -- prefix-related filter fixtures + the except branch driven |
-| 2026-08-17 | `cbbd1566` | phase-86.84/86.85/86.71: cycle 10/11/4 GENERATE -- coupling pin + prose-rot replacements + loud fail |
 
 ---
 
+### v6.93.229 — phase-86.21: the in-flight 3rd-CONDITIONAL counter -- PASS on cycle 8 (2026-08-17)
+
+- **phase-86.21: the in-flight 3rd-CONDITIONAL counter -- PASS on cycle 8**
 ### v6.93.228 — phase-86.96: string-args dispatch-kill class -- PASS on first evaluation (2026-08-17)
 
 - **phase-86.96: string-args dispatch-kill class -- PASS on first evaluation**
