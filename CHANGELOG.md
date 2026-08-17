@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-17 | `6f8d29e3` | phase-86.97: replace a false claim, cover the phase-emptied branch, un-truncate the end-to-end drive |
 | 2026-08-17 | `fee1c51d` | phase-86.97: pin the bump magnitude; correct a figure that did not reproduce |
 | 2026-08-17 | `2d861f5f` | phase-86.97: assert the DECISION, not the existence of a log line; bound the last carrier |
 | 2026-08-17 | `d84a41b2` | phase-86.94: PARK at the 3-attempt rail -- criteria 1,2,3,4,6,7 MET, criterion 5 not |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-16 | `a8c71ab7` | phase-86.97: PARK at the 3-attempt cap -- FAIL on two claims that did not reproduce |
 | 2026-08-16 | `64ca8160` | phase-86.97: cycle-3 -- a measured figure that expired, and guards with no cells |
 | 2026-08-16 | `6c801544` | phase-86.97: cycle-2 -- my buildability oracle had the step's own defect |
-| 2026-08-16 | `3894ac71` | phase-86.97: guard the decision log against a call the 86.91 checker cannot see |
 
 ---
 
