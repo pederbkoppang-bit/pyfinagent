@@ -528,9 +528,21 @@ class Guards:
 # ---------------------------------------------------------------------------
 
 
+# A guard named `f"window_len_{date}"` has a different name on every iteration,
+# so no exact match can cover it. Its LITERAL PREFIX still identifies it, and a
+# matrix can name that prefix -- which is what the 86.59 matrix already does.
+# The prefix must be at least this long: a one- or two-character prefix would
+# match half the cell strings in a file and turn coverage into a coincidence.
+# Every prefix match is recorded in `prefix_matches` so a reader can audit which
+# cell string was accepted, rather than taking the census's word for it.
+MIN_CENSUS_PREFIX = 3
+
+
 @dataclass
 class CensusResult:
     guards: dict[str, list[str]] = field(default_factory=dict)
+    prefix_guards: dict[str, list[str]] = field(default_factory=dict)
+    prefix_matches: dict[str, str] = field(default_factory=dict)
     cell_strings: set[str] = field(default_factory=set)
     uncelled: list[str] = field(default_factory=list)
     dynamic_names: list[str] = field(default_factory=list)
@@ -544,8 +556,11 @@ class CensusResult:
     def report(self) -> str:
         lines = [
             f"guards registered : {len(self.guards)}",
+            f"parameterised     : {len(self.prefix_guards)}",
             f"cell strings found: {len(self.cell_strings)}",
         ]
+        for prefix, matched in sorted(self.prefix_matches.items()):
+            lines.append(f"  prefix {prefix!r} covered by cell string {matched!r}")
         for label, items in (
             ("UNCELLED (no mutation cell names this guard)", self.uncelled),
             ("DYNAMIC NAME (census cannot see this guard)", self.dynamic_names),
@@ -587,6 +602,26 @@ def _data_strings(tree: ast.AST) -> set[str]:
             for kw in node.keywords:
                 add(kw.value)
     return found
+
+
+def _literal_prefix(node: ast.expr) -> str:
+    """The constant text an f-string starts with, before any interpolation.
+
+    ``f"window_len_{d}"`` -> ``"window_len_"``. A name that STARTS with an
+    interpolation (``f"{d}_window"``) yields ``""`` and stays unattributable,
+    which is the honest answer rather than a guess.
+    """
+    if isinstance(node, ast.Constant) and isinstance(node.value, str):
+        return node.value
+    if isinstance(node, ast.JoinedStr):
+        parts: list[str] = []
+        for value in node.values:
+            if isinstance(value, ast.Constant) and isinstance(value.value, str):
+                parts.append(value.value)
+            else:
+                break
+        return "".join(parts)
+    return ""
 
 
 def census(
@@ -633,10 +668,15 @@ def census(
             where = f"{path}:{node.lineno}"
             if isinstance(first, ast.Constant) and isinstance(first.value, str):
                 result.guards.setdefault(first.value, []).append(where)
+                continue
+            prefix = _literal_prefix(first)
+            if len(prefix) >= MIN_CENSUS_PREFIX:
+                result.prefix_guards.setdefault(prefix, []).append(where)
             else:
                 result.dynamic_names.append(
-                    f"{where} -- first argument is {type(first).__name__}, not a "
-                    f"string literal, so no census can see this guard's name"
+                    f"{where} -- first argument is {type(first).__name__} with "
+                    f"literal prefix {prefix!r} (under {MIN_CENSUS_PREFIX} chars), "
+                    f"so no census can attribute a cell to this guard"
                 )
 
     for src in cell_sources:
@@ -651,7 +691,7 @@ def census(
     # Positive control. A census that matched nothing must not report success:
     # an empty result is what a mis-pointed path looks like, and it is
     # indistinguishable from full coverage unless it is called out.
-    if not result.guards:
+    if not result.guards and not result.prefix_guards:
         result.problems.append(
             "no guards found in guard_sources -- an empty census is not "
             "evidence of coverage, it is evidence the paths are wrong"
@@ -668,6 +708,20 @@ def census(
             continue
         if name not in result.cell_strings:
             result.uncelled.append(f"{name} (registered at {', '.join(sites)})")
+
+    for prefix, sites in result.prefix_guards.items():
+        if prefix in exempt_set:
+            continue
+        matched = next(
+            (s for s in sorted(result.cell_strings) if s.startswith(prefix)), None
+        )
+        if matched is None:
+            result.uncelled.append(
+                f"{prefix}* (parameterised guard registered at {', '.join(sites)} "
+                f"-- no cell string starts with this prefix)"
+            )
+        else:
+            result.prefix_matches[prefix] = matched
 
     if runtime_names is not None:
         live = set(runtime_names)

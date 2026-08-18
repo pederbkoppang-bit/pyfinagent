@@ -390,6 +390,58 @@ def part2_census(tmp: Path) -> None:
     else:
         _fail("V-non-literal-guard-name-is-flagged", f"dynamic_names={dyn.dynamic_names}")
 
+    # -- parameterised guard names -----------------------------------------
+    # A guard named f"window_len_{d}" has a different name every iteration, so
+    # no exact match can cover it. Real evidence scripts do this (86.59 has
+    # three), and a census that calls them all uncoverable is wrong about a
+    # matrix that DOES name their prefix.
+    param = tmp / "fixture_param.py"
+    param.write_text(
+        "from guardlib import Guards\n"
+        "g = Guards()\n"
+        "for d in ('a', 'b'):\n"
+        "    g.ok(f'window_len_{d}', lambda n: n > 0, 1, falsified_by=-1)\n"
+        "    g.ok(f'{d}_leading_interp', lambda n: n > 0, 1, falsified_by=-1)\n"
+    )
+    param_cells = tmp / "fixture_param_cells.py"
+    param_cells.write_text('CELLS = [("M1", "old", "new", "window_len_")]\n')
+
+    pres = census([param], [param_cells])
+    if pres.prefix_matches.get("window_len_") == "window_len_":
+        _pass(
+            "X1-parameterised-guard-covered-by-its-prefix",
+            "f'window_len_{d}' matched the cell string 'window_len_', and the "
+            "match is recorded so a reader can audit it",
+        )
+    else:
+        _fail("X1-parameterised-guard-covered-by-its-prefix", f"{pres.prefix_matches}")
+
+    # The fixture has exactly two f-string call sites: one with a usable literal
+    # prefix and one that starts with an interpolation. Exactly one must be
+    # reported unattributable, and it must say the prefix was empty.
+    if len(pres.dynamic_names) == 1 and "prefix ''" in pres.dynamic_names[0]:
+        _pass(
+            "X2-name-starting-with-an-interpolation-stays-unattributable",
+            "f'{d}_leading_interp' yields an empty literal prefix, so the census "
+            "reports it rather than guessing: " + pres.dynamic_names[0][-70:],
+        )
+    else:
+        _fail(
+            "X2-name-starting-with-an-interpolation-stays-unattributable",
+            f"dynamic_names={pres.dynamic_names}",
+        )
+
+    no_prefix_cell = tmp / "fixture_param_nocell.py"
+    no_prefix_cell.write_text('CELLS = [("M1", "old", "new", "something_else")]\n')
+    miss = census([param], [no_prefix_cell])
+    if any(u.startswith("window_len_*") for u in miss.uncelled):
+        _pass(
+            "X3-parameterised-guard-with-no-matching-cell-is-uncelled",
+            "prefix coverage is a match, not a free pass",
+        )
+    else:
+        _fail("X3-parameterised-guard-with-no-matching-cell-is-uncelled", f"{miss.uncelled}")
+
     never = census([guard_file], [full], runtime_names=["alpha_is_positive"])
     expect_value(
         "W-guard-in-source-but-never-executed",
@@ -793,7 +845,7 @@ SELF_CELLS: list[tuple[str, str, str, str]] = [
     ),
     (
         "G9 the empty-census positive control is removed",
-        "    if not result.guards:",
+        "    if not result.guards and not result.prefix_guards:",
         "    if False:  # MUTANT",
         "[FAIL] T-empty-census-is-not-a-pass",
     ),
@@ -838,6 +890,24 @@ SELF_CELLS: list[tuple[str, str, str, str]] = [
         "            if MUTANT_MARKER not in cell.new:",
         "            if False:  # MUTANT",
         "[FAIL] AI-unmarked-mutation-is-refused",
+    ),
+    (
+        "G21 a name starting with an interpolation is silently given a prefix",
+        "        for value in node.values:\n            if isinstance(value, ast.Constant) and isinstance(value.value, str):\n                parts.append(value.value)\n            else:\n                break",
+        "        for value in node.values:  # MUTANT\n            if isinstance(value, ast.Constant) and isinstance(value.value, str):\n                parts.append(value.value)",
+        "[FAIL] X2-name-starting-with-an-interpolation-stays-unattributable",
+    ),
+    (
+        "G19 parameterised guards lose their prefix coverage",
+        "            if len(prefix) >= MIN_CENSUS_PREFIX:",
+        "            if False:  # MUTANT",
+        "[FAIL] X1-parameterised-guard-covered-by-its-prefix",
+    ),
+    (
+        "G20 any cell string covers any prefix -- coverage becomes a coincidence",
+        "        matched = next(\n            (s for s in sorted(result.cell_strings) if s.startswith(prefix)), None\n        )",
+        "        matched = next(iter(sorted(result.cell_strings)), None)  # MUTANT",
+        "[FAIL] X3-parameterised-guard-with-no-matching-cell-is-uncelled",
     ),
     (
         "G17 the exact stranded-replacement check is disarmed",
