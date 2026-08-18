@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-18 | `be444466` | chore: goal updated -- 86.118 gate PASSED and contract written |
 | 2026-08-18 | `731860e5` | phase-86.118: research gate PASSED, contract written |
 | 2026-08-18 | `f68e0bed` | chore: goal at 3972 chars |
 | 2026-08-18 | `6c256c36` | chore: trim goal under 4000 chars |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-18 | `099414fe` | phase-86.59: PARK on the 3rd-CONDITIONAL rule -- blocker fixed, unevaluated |
 | 2026-08-18 | `a4a5765c` | phase-86.59: correct my own statement of the 3rd-CONDITIONAL rule |
 | 2026-08-18 | `fb6f8a67` | phase-86.59 cycle 3: a definition is not behaviour |
-| 2026-08-18 | `3e75c2d6` | phase-86.59 cycle 2: close the CONDITIONAL -- guard vacuity, all four findings |
 
 ---
 
