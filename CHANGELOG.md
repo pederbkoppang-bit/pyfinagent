@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-18 | `f68e0bed` | chore: goal at 3972 chars |
 | 2026-08-18 | `6c256c36` | chore: trim goal under 4000 chars |
 | 2026-08-18 | `325ebd4b` | chore: goal rewritten around Main behaviour, not tooling |
 | 2026-08-18 | `750ebe0b` | chore: next-session goal -- un-park everything, with the blocking arithmetic |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-18 | `fb6f8a67` | phase-86.59 cycle 3: a definition is not behaviour |
 | 2026-08-18 | `3e75c2d6` | phase-86.59 cycle 2: close the CONDITIONAL -- guard vacuity, all four findings |
 | 2026-08-18 | `15a817cc` | phase-86.59: measure the picker rank stability; file 86.116 + 86.117 |
-| 2026-08-18 | `bb572f1f` | phase-86.47: PARK -- attempt budget exhausted 5/5, two-gates correction unevaluated |
 
 ---
 
