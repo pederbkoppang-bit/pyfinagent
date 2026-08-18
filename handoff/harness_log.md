@@ -36291,3 +36291,39 @@ first). In both, every cycle closed real findings and the evaluator confirmed
 each closure by execution -- the rule cannot currently distinguish a step that
 is stuck from one that is converging. Raised as its own question in the
 escalation. No flag promoted, no `.env` written, no restart pending.
+
+## Cycle 1250 -- 2026-08-18 -- phase=86.47 result=PARKED (attempt budget exhausted 5/5)
+
+**Not a PASS and not a FAIL.** The cumulative attempt gate denied the
+sixth launch BEFORE any tokens were spent. Sequence `[FAIL, CONDITIONAL,
+CONDITIONAL, FAIL]` over 5 recorded launches -- one produced no verdict
+(rail drop), which is why the gate counts ATTEMPTS and not outcomes.
+
+**Main declined to request the extension.** The cycle-4 FAIL found an
+analytical error, not a clerical one, so I cannot argue the remaining work
+is "bounded and known" -- which is the extension's own test.
+
+**The best result this step produced, and it survives the park:** section
+6b had collapsed TWO INDEPENDENT GATES into one. The single post-break BUY
+that reached the risk gate was refused for `projected_dd_over_cap`
+(projected_dd 22.5% vs a 10% cap), NOT for the sector concentration of
+section 4 -- the judge files concentration separately as "CORROBORATING
+DOWNSIDE (independent of the gate)". Two gates bind, and the drawdown one
+is the more general at ~0.5x annualized vol ("trips for ANY realized vol
+above ~20%"). Corrected in the tree; **UNEVALUATED** -- no Q/A has seen it.
+
+**A five-file breach of mine, now closed:** cycles 2 and 3 returned
+verdicts I ledgered but never transcribed. All four are now transcribed
+verbatim into `evaluator_critique_86.47.md` with the gap disclosed rather
+than quietly filled.
+
+**Nothing shipped.** One new read-only census script; no production file
+modified, no gate loosened, no flag promoted, no restart pending. A park
+costs the answer, not the engine.
+
+**Money-path handoff to 86.74, independent of this step's disposition:**
+four BUY trades executed with a REJECT verdict on record (2026-06-02 HPE,
+2026-06-03 DELL, 2026-06-09 066570.KS, 2026-08-13 DELL). No mechanism
+asserted, nothing changed.
+
+Escalation: `handoff/current/escalation_attempt_budget_86.47.md`.
