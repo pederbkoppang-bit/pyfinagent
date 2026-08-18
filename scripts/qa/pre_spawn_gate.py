@@ -115,8 +115,10 @@ def capture_blocks(text: str) -> list[dict]:
         controls = re.findall(r"^control\s+\S+.*rc=\d+.*collected=", body, re.M)
         restores = re.findall(r"^restore verified: \S+", body, re.M)
         summary = re.search(r"KILLED (\d+) / (\d+)\s+SURVIVED (\d+)\s+UNSCORABLE (\d+)", body)
-        if controls or restores or summary:
+        suite = re.search(r"^(\d+) failed, (\d+) passed,", body, re.M)
+        if controls or restores or summary or suite:
             out.append({
+                "suite_failed": int(suite.group(1)) if suite else -1,
                 "controls": len(controls),
                 "restores": len(restores),
                 "killed": int(summary.group(1)) if summary else -1,
@@ -158,6 +160,66 @@ def constant_truth_guards(path: Path) -> list[str]:
     return bad
 
 
+
+_WORDS = {"one":1,"two":2,"three":3,"four":4,"five":5,"six":6,"seven":7,
+          "eight":8,"nine":9,"ten":10,"eleven":11,"twelve":12,"thirteen":13,
+          "fourteen":14,"fifteen":15,"sixteen":16,"seventeen":17,"eighteen":18,
+          "nineteen":19,"twenty":20}
+
+
+def _num(tok: str):
+    tok = tok.lower()
+    if tok.isdigit():
+        return int(tok)
+    return _WORDS.get(tok)
+
+
+def prose_vs_captures(text: str, blocks: list[dict]) -> list[str]:
+    """Numeric prose claims that CONTRADICT the artifact's own capture blocks.
+
+    The largest recurring class in the ledger (12 of the counted findings) is
+    "stale / contradictory artifact", and its shape is always the same: a
+    command capture is regenerated and an authored sentence beside it is left
+    at the old number. It cost 86.118 five separate instances across four
+    cycles.
+
+    Two properties matter, both learned the hard way:
+
+    * the text is WHITESPACE-NORMALISED first. `**A smaller honest red count
+      ...** Eight\nfailures remain` straddles a line break, so a flat grep for
+      the phrase returned CLEAN twice while the defect sat there.
+    * a claim inside a context that marks itself historical ("earlier
+      revision") is a deliberate record, not a live claim. Without that, this
+      check flags correct prose and gets ignored.
+    """
+    flat = re.sub(r"\s+", " ", text)
+    truth: dict[str, int] = {}
+    for b in blocks:
+        if b.get("suite_failed", -1) >= 0:
+            truth["failures remain"] = b["suite_failed"]
+        if b.get("scored", -1) >= 0:
+            truth["cells"] = b["scored"]
+    # `cells` alone is too generic: "Three cells UNSCORABLE on a red control" is
+    # a TRUE narrative sentence about one historical run, not a claim about how
+    # big the matrix is. Flagging it made an earlier checker refuse correct
+    # prose -- and a checker that flags a correct line trains its reader to
+    # ignore it. So the cell count is matched only in the SIZE IDIOM.
+    patterns = {
+        "failures remain": r"(\w+)\s+failures remain",
+        "cells": r"(\w+)\s+cells?\s+over\s+\w+\s+targets?",
+    }
+    bad: list[str] = []
+    for noun, want in truth.items():
+        for m in re.finditer(patterns.get(noun, r"(\w+)\s+" + noun), flat, re.I):
+            ctx = flat[max(0, m.start() - 130):m.end()]
+            if "earlier revision" in ctx or "An earlier" in ctx:
+                continue
+            got = _num(m.group(1))
+            if got is not None and got != want:
+                bad.append(f"prose says {got} {noun!r} but the capture says {want}")
+    return bad
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("step_id")
@@ -170,6 +232,16 @@ def main() -> int:
     scripts = step_scripts(sid)
     present = {k: p for k, p in arts.items() if p.is_file()}
     text = "\n".join(p.read_text() for p in present.values())
+
+    # AUTHORED prose only. `evaluator_critique` is a VERBATIM TRANSCRIPT of the
+    # Q/A's returns, and Main must never edit it -- that is what keeps the
+    # no-self-evaluation guarantee intact. It therefore quotes the very defects
+    # it reported, so checking it for stale claims demands editing a transcript
+    # to silence a checker, which is strictly worse than the defect. Measured:
+    # after live_check was correctly repaired to "Seven failures remain", all
+    # five surviving "Eight failures remain" were the judge's own quotations.
+    authored = {k: p for k, p in present.items() if k != "evaluator_critique"}
+    authored_text = "\n".join(p.read_text() for p in authored.values())
 
     g = Guards(label=f"pre-spawn gate {sid}")
     problems: list[str] = []
@@ -234,6 +306,17 @@ def main() -> int:
         detail="the artifact reports a SURVIVED or UNSCORABLE cell; a survivor "
                "is a guard shown not to fire and an unscorable cell is one that "
                "was never really scored",
+    )
+
+    # ---- C3b: prose must agree with the artifact's OWN captures ---------
+    contradictions = prose_vs_captures(authored_text, capture_blocks(text))
+    g.ok(
+        "prose_agrees_with_its_own_capture_blocks",
+        lambda cs: not cs,
+        contradictions,
+        falsified_by=["prose says 8 'failures remain' but the capture says 7"],
+        detail=f"an authored sentence contradicts a command capture in the same "
+               f"artifact: {contradictions[:4]}",
     )
 
     # ---- C4: no guard asserts a literal ---------------------------------
