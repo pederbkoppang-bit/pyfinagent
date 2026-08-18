@@ -226,6 +226,18 @@ def test_recent_only_duplication_corrupts_momentum_but_not_vol():
 # --------------------------------------------------------------------------
 
 def _fake_rows(tickers, n=6, duplicate=True):
+    """Rows in the shape the REAL table has -- duplicates that differ by noise.
+
+    The first version of this fixture duplicated each row byte-identically, and
+    the cycle-1 Q/A showed that made both read-path tests blind to the METHOD:
+    swapping `~index.duplicated()` for a value-keyed `drop_duplicates()` left
+    them green, because byte-identical rows ARE value-duplicates. Only the
+    helper-level test caught it.
+
+    394,719 of the 706,875 real duplicated keys carry a differing `close`, so
+    the duplicate here differs by 1e-9 -- enough that `drop_duplicates()` keeps
+    both, which is exactly the failure the read paths must be able to see.
+    """
     rows = []
     for tk in tickers:
         for i in range(n):
@@ -236,8 +248,32 @@ def _fake_rows(tickers, n=6, duplicate=True):
             }
             rows.append(r)
             if duplicate:
-                rows.append(dict(r))
+                twin = dict(r)
+                twin["close"] = r["close"] + 1e-9
+                rows.append(twin)
     return rows
+
+
+def test_the_read_path_fixture_would_defeat_a_value_keyed_dedup():
+    """The fixture must be capable of exposing the method swap.
+
+    A fixture that cannot represent the failure cannot test for it. This asserts
+    the precondition directly, so a future edit that quietly restores
+    byte-identical twins fails HERE rather than silently disarming the two
+    read-path tests below.
+    """
+    import pandas as pd
+
+    rows = _fake_rows(["ZZZ"])
+    df = pd.DataFrame([{k: v for k, v in r.items() if k != "ticker"} for r in rows])
+    df["date"] = pd.to_datetime(df["date"])
+    df = df.set_index("date").sort_index()
+
+    assert not df.index.is_unique
+    assert len(df.drop_duplicates()) == len(df), (
+        "the fixture's duplicate rows must NOT be value-duplicates, or a "
+        "value-keyed dedup would pass the read-path tests vacuously"
+    )
 
 
 class _FakeJob:

@@ -16,9 +16,9 @@ parses
 | file | change |
 |---|---|
 | `backend/backtest/cache.py` | **NEW** `_dedupe_index()`; called from **both** read paths -- `preload_prices` and `cached_prices` |
-| `backend/tests/test_phase_86_116_price_dedup.py` | **NEW** -- 12 tests |
-| `scripts/qa/verify_86_116.py` | **NEW** -- criteria 1, 2, 3, 5, 6; 27 invariants |
-| `scripts/qa/mutation_86_116.py` | **NEW** -- criterion 7; 6 cells + 1 declared equivalent |
+| `backend/tests/test_phase_86_116_price_dedup.py` | **NEW** -- **13 tests** |
+| `scripts/qa/verify_86_116.py` | **NEW** -- criteria 1, 2, 3, 5, 6; **31 invariants** |
+| `scripts/qa/mutation_86_116.py` | **NEW** -- criterion 7; **8 cells** + 1 declared equivalent |
 | `backend/tests/test_phase_82_12_string_column_guards.py` | line pins re-derived (658->700, 718->760) -- my insertion moved them |
 
 **Both read paths, deliberately.** Step 86.59 spent three evaluation cycles
@@ -81,26 +81,51 @@ duplicated frame it returns exactly `index.nunique()` rows. The oracle asserts
 **both branches were exercised**, so a fix that never fires and a fix that
 always fires would each be caught.
 
-**Criterion 6 -- the gate path, with the mechanism CORRECTED.** The research
-gate refuted my own `audit_basis` here and the artifact says so: this is **not**
-a Sharpe-formula bug, because the engine's NAV is a per-day dict and duplication
-does not double-count NAV points. The path is **indirect**:
+**Criterion 6 -- the gate path, corrected TWICE.** This section has now been
+wrong twice and the artifact records both, because the second error is one I
+have on file as a recurring habit of mine.
 
-1. corrupted momentum/RSI features feed candidate selection;
-2. `quant_optimizer.py` sets `barriers = daily_vol × vol_barrier_multiplier`,
-   so a depressed `daily_vol` scales **every** triple-barrier proportionally,
-   changing which labels touch.
+*First correction (research gate):* this is **not** a Sharpe-formula bug -- the
+engine's NAV is a per-day dict, so duplication does not double-count NAV points.
 
-Measured barrier-width scale (pre/post) on AKAM: **0.7995**. Closed form under
-*full* duplication: **0.7071** (`1/√2`, since returns become `[r, 0, r, 0, ...]`
-and the std falls by `√2`). A partially-duplicated ticker correctly sits *above*
-that floor. **No threshold is adjusted**: `min_dsr=0.95` / `max_pbo=0.20` are
-untouched.
+*Second correction (cycle-1 Q/A):* my replacement mechanism was **not wired**. I
+credited `barriers = daily_vol × vol_barrier_multiplier`. That key has **zero
+readers**: it is written into `engine._strategy_params` and read by nothing, and
+`rotation_runner.py::_DEAD_KEYS` lists it by name under *"NO engine reader
+(reverted in 9fbd9cd6)"*. The formula I quoted exists only as a **comment**, and
+`_compute_triple_barrier_label` sets `tp_price`/`sl_price` from fixed
+`tp_pct`/`sl_pct` plus a cost term -- **no volatility term at all**.
 
-**Criterion 7 -- 6 cells, 6 KILLED, 0 SURVIVED, 0 UNSCORABLE**, control GREEN
-first, run against the **real file and the real suite**. Scoring is strict by
+**The mechanism that IS wired** is inverse-volatility **position sizing**:
+
+```
+historical_data   features["annualized_volatility"]
+  -> backtest_engine   volatility = fv.get("annualized_volatility")
+  -> signal dict
+  -> backtest_trader   size_position(probability, volatility, nav)
+  -> backtest_trader   vol_scale = min(target_vol / stock_vol, 3.0)
+```
+
+Measured volatility ratio (pre/post) on AKAM **0.7995**, giving **position-size
+inflation 1.2508×** against a 3.0 cap; the bound under *full* duplication is
+`√2` = **1.4142×** (since returns become `[r, 0, r, 0, ...]` and the std falls by
+`1/√2` = 0.7071).
+
+**The direction is counter-intuitive and the artifact says so explicitly:**
+`stock_vol` is in the **denominator**, so an *understated* volatility makes
+positions **larger**, not smaller. The backtest was taking more risk than its own
+vol-targeting believed. So the original conclusion was right *and understated*.
+
+Two tripwires keep this honest: one asserts `vol_barrier_multiplier` is still in
+`_DEAD_KEYS`, the other that the barrier label still has no volatility term. If
+either changes, the section must be re-derived rather than trusted.
+
+**No threshold is adjusted**: `min_dsr=0.95` / `max_pbo=0.20` untouched.
+
+**Criterion 7 -- 8 cells, 8 KILLED, 0 SURVIVED, 0 UNSCORABLE**, control GREEN
+first at 13 collected, run against the **real file and the real suite**. Scoring is strict by
 design: a non-zero exit is not a kill (pytest exits **5** on "no tests
-collected"), the mutant must exit **1**, must **collect the same 12 tests** as
+collected"), the mutant must exit **1**, must **collect the same 13 tests** as
 the control, and the **named** test must be among the failures. Restore verified
 by SHA-256; SIGTERM/SIGINT/SIGHUP restore the file and the matrix refuses to
 start from a target already containing a `MUTANT` marker.
@@ -168,3 +193,46 @@ cannot produce agreement will always report total disagreement.
 - **No flag promoted, no `.env` written, no restart pending** (the change is in
   the backtest read path, not in a running process's hot loop; the backtest
   loads it per run).
+
+---
+
+## Cycle 2 -- response to the CONDITIONAL (`wf_6c5d3dfc-43a`)
+
+**All three findings accepted. None disputed. No production code changed** --
+every fix was to evidence, exactly as the evaluator characterised them.
+
+**1. I credited a dead key.** Detailed above. This is a repeat of a failure I
+have on record: *a correct observation can credit the wrong mechanism*. The
+evaluator did not merely doubt the mechanism -- it enumerated all seven non-86.116
+references to `vol_barrier_multiplier` and showed not one is a read, found the
+`_DEAD_KEYS` entry naming it, and noted that a comment in the same file points at
+`_compute_vol_target_scale`, **a function that does not exist in the repo**. Then
+it supplied the mechanism that IS wired.
+
+**2. My first re-runnable command aborted.** `--base-rev` defaulted to `HEAD`,
+which was the pre-fix tree only while the fix was uncommitted. The moment
+`539f16eb` landed, `HEAD` became the post-fix tree, the criterion-3 probe found
+this step's own `_dedupe_index`, and the script died before printing anything --
+so the *first* command the live_check advertises produced no evidence at all. Now
+pinned to `539f16eb~1`. **A default that silently expires the moment the work is
+committed is a defect, not a convenience.**
+
+**3. The read-path fixtures could not see the method swap.** `_fake_rows`
+duplicated each row byte-identically, and byte-identical rows *are* value
+duplicates -- so replacing `~index.duplicated()` with `drop_duplicates()` left
+both read-path tests green. The step's own headline calls the method choice "THE
+METHOD IS THE FINDING", and it was pinned only at helper level. The fixture now
+differs by `1e-9` (the shape 394,719 real duplicated keys have), cells **M3b**
+and **M3c** confirm the mutant now dies on **both** read paths, and a new test
+asserts the fixture precondition directly so a future edit restoring identical
+twins fails loudly instead of silently disarming two tests.
+
+**A brittle first attempt, recorded.** My initial dead-key tripwire was a
+grep-with-filters and it fired on `quant_optimizer.py:715` -- `if
+"vol_barrier_multiplier" in params:`, the *setter's* own guard, not a reader. A
+probe that cannot tell a write from a read is not a probe, so it was replaced
+with the repo's authoritative statement (`_DEAD_KEYS` membership) plus a direct
+check that the barrier label has no volatility term.
+
+**Evidence after cycle 2:** 31 invariants, 13 tests, mutation **8/8 KILLED**
+with control GREEN first, collected-count parity and SHA-256 restore.

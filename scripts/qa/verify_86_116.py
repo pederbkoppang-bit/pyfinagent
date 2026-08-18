@@ -27,6 +27,16 @@ sys.path.insert(0, str(REPO))
 PROJECT = "sunny-might-477607-p8"
 TABLE = f"{PROJECT}.financial_reports.historical_prices"
 
+# The commit that introduced `_dedupe_index`. Criterion 3 asks whether anything
+# de-duplicated BEFORE this step, so the probe must run against this commit's
+# PARENT. It used to default to HEAD, which was the pre-fix tree only while the
+# fix was uncommitted -- the moment the fix landed, HEAD became the POST-fix
+# tree, the probe found this step's own code and the whole script aborted before
+# printing any evidence. A default that silently expires is a defect, so the
+# revision is pinned.
+FIX_COMMIT = "539f16eb"
+PRE_FIX_REV = f"{FIX_COMMIT}~1"
+
 _RAN: list[str] = []
 
 
@@ -243,27 +253,85 @@ def parity_oracle() -> dict:
 # --------------------------------------------------------------------------
 
 def gate_effect(harm: dict) -> dict:
-    """What the duplication does to the DSR/PBO inputs -- NOT to the Sharpe formula.
+    """What the duplication does to the DSR/PBO inputs -- via the LIVE path.
 
-    The research gate refuted the direct reading: the engine's NAV is a per-day
-    dict, so duplication does not double-count NAV points and this is not a
-    Sharpe-formula bug. The path is INDIRECT, through
-    (a) corrupted momentum/RSI features, and
-    (b) triple-barrier widths, which `quant_optimizer.py` sets as
-        `barriers = daily_vol * vol_barrier_multiplier` -- so a depressed
-        daily_vol scales every barrier proportionally.
+    Two corrections are baked in here, both from evaluators rather than from me.
+
+    **The research gate** refuted the direct reading: the engine's NAV is a
+    per-day dict, so duplication does not double-count NAV points and this is
+    NOT a Sharpe-formula bug.
+
+    **The cycle-1 Q/A** then refuted my replacement mechanism. I had credited
+    `barriers = daily_vol * vol_barrier_multiplier` from `quant_optimizer.py`.
+    That key is **DEAD**: it is written into `engine._strategy_params` and read
+    by nothing, and `backend/autoresearch/rotation_runner.py::_DEAD_KEYS` lists
+    it by name under the comment "NO engine reader (reverted in 9fbd9cd6)". The
+    formula I quoted exists only as a COMMENT, and
+    `backtest_engine._compute_triple_barrier_label` sets `tp_price`/`sl_price`
+    from fixed `tp_pct`/`sl_pct` plus a cost term -- **no volatility term at
+    all**. The conclusion was right and the mechanism was not wired.
+
+    **The mechanism that IS wired** is inverse-volatility POSITION SIZING:
+
+        historical_data.py      features["annualized_volatility"]
+          -> backtest_engine.py  volatility = fv.get("annualized_volatility")
+          -> signal dict
+          -> backtest_trader.py  size_position(probability, volatility, nav)
+          -> backtest_trader.py  vol_scale = min(target_vol / stock_vol, 3.0)
+
+    `stock_vol` is in the DENOMINATOR, so a depressed volatility makes positions
+    LARGER. That is the opposite direction a reader would guess from "volatility
+    is understated", and it is why the sign matters.
     """
     a, b = harm["raw"], harm["fixed"]
-    vol_ratio = a["vol_daily"] / b["vol_daily"] if b["vol_daily"] else None
-    _ok("barrier_scale_is_derived_from_the_measured_vol", vol_ratio is not None,
-        "no volatility measured, so the barrier claim would be unfounded")
-    _ok("barrier_scale_is_below_one", vol_ratio < 1.0,
-        f"barrier width scales with daily_vol, and the pre-fix vol must be "
-        f"LOWER (ratio {vol_ratio}); above 1.0 would invert the claim")
+    vol_ratio = a["vol_ann"] / b["vol_ann"] if b["vol_ann"] else None
+    _ok("vol_ratio_is_derivable", vol_ratio is not None,
+        "no volatility measured, so the sizing claim would be unfounded")
+    _ok("pre_fix_volatility_is_the_lower_one", vol_ratio < 1.0,
+        f"duplication must DEPRESS volatility; ratio {vol_ratio}")
+
+    # vol_scale = target_vol / stock_vol, capped at 3.0. With stock_vol scaled
+    # by `vol_ratio`, the scale factor is 1/vol_ratio -- until the cap binds.
+    size_inflation = 1.0 / vol_ratio
+    _ok("size_inflation_is_above_one", size_inflation > 1.0,
+        "a DEPRESSED volatility must INFLATE an inverse-vol position size; "
+        "if this is below 1.0 the direction of the claim is wrong")
+    _ok("cap_is_accounted_for", size_inflation < 3.0,
+        f"the measured inflation {size_inflation:.4f} must be read against the "
+        f"3.0 cap at backtest_trader.py `min(self.target_vol / stock_vol, 3.0)`; "
+        f"at or above the cap the inflation saturates and this arithmetic no "
+        f"longer describes the outcome")
+
+    # The dead key must STAY dead. A grep-and-filter tripwire was tried first
+    # and was too brittle -- it fired on `if "vol_barrier_multiplier" in params:`
+    # at quant_optimizer.py:715, which is the SETTER's guard, not a reader. So
+    # the tripwire now checks the repo's own authoritative statement instead of
+    # trying to re-derive readership from text.
+    dead_src = (REPO / "backend" / "autoresearch" / "rotation_runner.py").read_text()
+    _ok("vol_barrier_multiplier_is_declared_dead_by_the_repo",
+        '"vol_barrier_multiplier",' in dead_src and "_DEAD_KEYS" in dead_src,
+        "vol_barrier_multiplier is no longer listed in rotation_runner's "
+        "_DEAD_KEYS, so the barrier mechanism may have been re-wired and this "
+        "whole section must be re-derived rather than trusted")
+
+    # And the barrier label itself must stay volatility-free. This is the claim
+    # that actually matters: even if the key came back, the barrier is only
+    # vol-sensitive if the LABEL reads a volatility.
+    eng = (REPO / "backend" / "backtest" / "backtest_engine.py").read_text()
+    i = eng.index("def _compute_triple_barrier_label")
+    label_src = eng[i:i + 2600]
+    _ok("triple_barrier_label_has_no_volatility_term",
+        "vol" not in label_src.split("tp_price")[0].split("def ")[-1].lower()
+        or "self.tp_pct" in label_src,
+        "the triple-barrier label now appears to reference a volatility; the "
+        "cycle-1 correction (fixed tp_pct/sl_pct, no vol term) must be redone")
+
     return {
         "vol_ratio_pre_over_post": vol_ratio,
-        "barrier_width_scale": vol_ratio,
+        "position_size_inflation": size_inflation,
+        "vol_scale_cap": 3.0,
         "full_duplication_closed_form": 2 ** -0.5,
+        "max_inflation_under_full_duplication": 2 ** 0.5,
     }
 
 
@@ -278,7 +346,7 @@ def main() -> int:
     ap.add_argument("--ticker", default="AKAM")
     ap.add_argument("--start", default="2025-01-01")
     ap.add_argument("--end", default="2025-12-31")
-    ap.add_argument("--base-rev", default="HEAD",
+    ap.add_argument("--base-rev", default=PRE_FIX_REV,
                     help="revision representing the PRE-FIX tree")
     a = ap.parse_args()
     q = a.verify
@@ -371,18 +439,37 @@ def main() -> int:
     print()
     print("-- criterion 6: how this reaches the DSR/PBO gates --")
     print("  NOT a Sharpe-formula bug. The engine's NAV is a per-day dict, so")
-    print("  duplication does not double-count NAV points. The path is INDIRECT:")
-    print("   (a) corrupted momentum/RSI features feed candidate selection;")
-    print("   (b) triple-barrier widths are set as")
-    print("       `barriers = daily_vol * vol_barrier_multiplier`")
-    print("       (quant_optimizer.py), so a depressed daily_vol scales EVERY")
-    print("       barrier proportionally, changing which labels touch.")
-    print(f"  measured barrier-width scale (pre/post): "
-          f"{gate['barrier_width_scale']:.4f}")
-    print(f"  closed form under FULL duplication      : "
-          f"{gate['full_duplication_closed_form']:.4f}  (1/sqrt(2))")
-    print("  A partially-duplicated ticker sits above that floor, which is why")
-    print("  the measured scale is higher than 0.7071 rather than equal to it.")
+    print("  duplication does not double-count NAV points. (Research gate.)")
+    print()
+    print("  NOT the triple-barrier width either -- I credited that in cycle 1")
+    print("  and it was wrong. `vol_barrier_multiplier` is a DEAD KEY: written")
+    print("  into engine._strategy_params, read by nothing, and named in")
+    print("  rotation_runner._DEAD_KEYS as 'NO engine reader (reverted in")
+    print("  9fbd9cd6)'. _compute_triple_barrier_label uses fixed tp_pct/sl_pct")
+    print("  with NO volatility term. (Cycle-1 Q/A.)")
+    print()
+    print("  THE WIRED PATH is inverse-volatility POSITION SIZING:")
+    print("    historical_data  features['annualized_volatility']")
+    print("      -> backtest_engine  volatility = fv.get('annualized_volatility')")
+    print("      -> signal dict")
+    print("      -> backtest_trader  size_position(probability, volatility, nav)")
+    print("      -> backtest_trader  vol_scale = min(target_vol / stock_vol, 3.0)")
+    print()
+    print(f"  measured volatility ratio (pre/post)   : "
+          f"{gate['vol_ratio_pre_over_post']:.4f}")
+    print(f"  => position-size inflation (1/ratio)   : "
+          f"{gate['position_size_inflation']:.4f}x")
+    print(f"  cap at backtest_trader.py              : "
+          f"{gate['vol_scale_cap']:.1f}x")
+    print(f"  closed form under FULL duplication     : "
+          f"{gate['full_duplication_closed_form']:.4f} (1/sqrt(2)), giving at")
+    print(f"                                           most "
+          f"{gate['max_inflation_under_full_duplication']:.4f}x inflation")
+    print()
+    print("  DIRECTION MATTERS AND IS COUNTER-INTUITIVE: stock_vol is in the")
+    print("  DENOMINATOR, so an UNDERSTATED volatility makes positions LARGER,")
+    print("  not smaller. The backtest was taking bigger risk than its own")
+    print("  vol-targeting believed.")
     print()
     print("  NO THRESHOLD IS ADJUSTED by this step. min_dsr=0.95 / max_pbo=0.20")
     print("  are untouched; if a re-run moves them, that is a finding to report.")

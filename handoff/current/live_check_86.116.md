@@ -21,13 +21,20 @@ All output below is verbatim from one `verify_86_116.py` run and one
 
 ## 1-3, 5, 6 -- the evidence script, verbatim
 
+**Re-captured in cycle 2.** Cycle 1 shipped a `--base-rev` default of `HEAD`,
+which was the pre-fix tree only while the fix was uncommitted; the moment commit
+`539f16eb` landed, `HEAD` became the POST-fix tree, the criterion-3 probe found
+this step's own code and the script **aborted before printing any evidence**.
+The default is now pinned to `539f16eb~1`, so the first advertised re-runnable
+command works from any checkout.
+
 ```
 ==============================================================================
 phase-86.116 -- DUPLICATE PRICE ROWS: EVIDENCE
 ==============================================================================
 
 -- criterion 3: did anything de-duplicate BEFORE this step? --
-pre-fix revision under test: HEAD
+pre-fix revision under test: 539f16eb~1
   files containing `drop_duplicates` under backend/ : 0
   files containing `index\.duplicated` under backend/ : 0
   files containing `is_unique` under backend/ : 0
@@ -89,21 +96,37 @@ table: sunny-might-477607-p8.financial_reports.historical_prices
 
 -- criterion 6: how this reaches the DSR/PBO gates --
   NOT a Sharpe-formula bug. The engine's NAV is a per-day dict, so
-  duplication does not double-count NAV points. The path is INDIRECT:
-   (a) corrupted momentum/RSI features feed candidate selection;
-   (b) triple-barrier widths are set as
-       `barriers = daily_vol * vol_barrier_multiplier`
-       (quant_optimizer.py), so a depressed daily_vol scales EVERY
-       barrier proportionally, changing which labels touch.
-  measured barrier-width scale (pre/post): 0.7995
-  closed form under FULL duplication      : 0.7071  (1/sqrt(2))
-  A partially-duplicated ticker sits above that floor, which is why
-  the measured scale is higher than 0.7071 rather than equal to it.
+  duplication does not double-count NAV points. (Research gate.)
+
+  NOT the triple-barrier width either -- I credited that in cycle 1
+  and it was wrong. `vol_barrier_multiplier` is a DEAD KEY: written
+  into engine._strategy_params, read by nothing, and named in
+  rotation_runner._DEAD_KEYS as 'NO engine reader (reverted in
+  9fbd9cd6)'. _compute_triple_barrier_label uses fixed tp_pct/sl_pct
+  with NO volatility term. (Cycle-1 Q/A.)
+
+  THE WIRED PATH is inverse-volatility POSITION SIZING:
+    historical_data  features['annualized_volatility']
+      -> backtest_engine  volatility = fv.get('annualized_volatility')
+      -> signal dict
+      -> backtest_trader  size_position(probability, volatility, nav)
+      -> backtest_trader  vol_scale = min(target_vol / stock_vol, 3.0)
+
+  measured volatility ratio (pre/post)   : 0.7995
+  => position-size inflation (1/ratio)   : 1.2508x
+  cap at backtest_trader.py              : 3.0x
+  closed form under FULL duplication     : 0.7071 (1/sqrt(2)), giving at
+                                           most 1.4142x inflation
+
+  DIRECTION MATTERS AND IS COUNTER-INTUITIVE: stock_vol is in the
+  DENOMINATOR, so an UNDERSTATED volatility makes positions LARGER,
+  not smaller. The backtest was taking bigger risk than its own
+  vol-targeting believed.
 
   NO THRESHOLD IS ADJUSTED by this step. min_dsr=0.95 / max_pbo=0.20
   are untouched; if a re-run moves them, that is a finding to report.
 
-OK: all 27 invariants hold
+OK: all 31 invariants hold
 ```
 
 ## 7 -- mutation matrix, verbatim
@@ -116,20 +139,24 @@ target : backend/backtest/cache.py
 suite  : backend/tests/test_phase_86_116_price_dedup.py
 sha256 : 9f5f1d6798833281...
 
-control -> rc=0  collected=12  GREEN
+control -> rc=0  collected=13  GREEN
 
 [KILLED] M1 preload_prices stops de-duplicating -> the bulk path hands out a doubled index
-           `test_preload_prices_returns_a_unique_index` failed (rc=1, collected=12)
+           `test_preload_prices_returns_a_unique_index` failed (rc=1, collected=13)
 [KILLED] M2 cached_prices stops de-duplicating -> the per-ticker fallback path leaks
-           `test_cached_prices_returns_a_unique_index` failed (rc=1, collected=12)
+           `test_cached_prices_returns_a_unique_index` failed (rc=1, collected=13)
 [KILLED] M3 index-keyed dedup swapped for VALUE-keyed drop_duplicates()
-           `test_value_keyed_dedup_is_insufficient` failed (rc=1, collected=12)
+           `test_value_keyed_dedup_is_insufficient` failed (rc=1, collected=13)
+[KILLED] M3b value-keyed swap must be caught by the READ PATHS, not only the helper
+           `test_preload_prices_returns_a_unique_index` failed (rc=1, collected=13)
+[KILLED] M3c ... and by the OTHER read path too
+           `test_cached_prices_returns_a_unique_index` failed (rc=1, collected=13)
 [KILLED] M4 _dedupe_index made a pass-through -> the fix is present but inert
-           `test_dedupe_removes_duplicate_index_entries` failed (rc=1, collected=12)
+           `test_dedupe_removes_duplicate_index_entries` failed (rc=1, collected=13)
 [KILLED] M5 inertness guard inverted -> the fix fires only when there is nothing to do
-           `test_dedupe_removes_duplicate_index_entries` failed (rc=1, collected=12)
+           `test_dedupe_removes_duplicate_index_entries` failed (rc=1, collected=13)
 [KILLED] M6 empty/None guard dropped -> the loader crashes on an empty result set
-           `test_dedupe_handles_empty_and_none` failed (rc=1, collected=12)
+           `test_dedupe_handles_empty_and_none` failed (rc=1, collected=13)
 
 [EQUIVALENT-BY-DESIGN] E1 keep='first' -> keep='last'
            EQUIVALENT BY DESIGN: which of two same-date rows survives is immaterial
@@ -140,7 +167,7 @@ control -> rc=0  collected=12  GREEN
             neither a kill nor a survivor.
 
 ------------------------------------------------------------------------------
-KILLED 6 / 6   SURVIVED 0   UNSCORABLE 0   EQUIVALENT-BY-DESIGN 1 (not scored)
+KILLED 8 / 8   SURVIVED 0   UNSCORABLE 0   EQUIVALENT-BY-DESIGN 1 (not scored)
 restore verified: sha256 unchanged (9f5f1d6798833281...)
 ```
 

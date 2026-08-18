@@ -61,6 +61,18 @@ CELLS: list[tuple[str, str, str, str]] = [
         "test_value_keyed_dedup_is_insufficient",
     ),
     (
+        "M3b value-keyed swap must be caught by the READ PATHS, not only the helper",
+        "    out = df[~df.index.duplicated(keep=\"first\")]",
+        "    out = df.drop_duplicates()  # MUTANT",
+        "test_preload_prices_returns_a_unique_index",
+    ),
+    (
+        "M3c ... and by the OTHER read path too",
+        "    out = df[~df.index.duplicated(keep=\"first\")]",
+        "    out = df.drop_duplicates()  # MUTANT",
+        "test_cached_prices_returns_a_unique_index",
+    ),
+    (
         "M4 _dedupe_index made a pass-through -> the fix is present but inert",
         "    if df is None or df.empty or df.index.is_unique:\n        return df",
         "    if True:\n        return df  # MUTANT",
