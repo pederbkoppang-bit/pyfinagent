@@ -98,25 +98,49 @@ CELLS: list[tuple[str, list[str], str, str, str]] = [
         "M9 sector coverage collapsed -> a mostly-UNKNOWN map would pass",
         ["--verify"],
         '    known = sum(1 for v in sectors.values() if v)\n'
-        '    # CYCLE-4 FINDING 2.',
+        '    cov = known / len(tickers) if tickers else 0.0',
         '    known = 1  # MUTANT\n'
-        '    # CYCLE-4 FINDING 2.',
+        '    cov = known / len(tickers) if tickers else 0.0',
         "sector_map_covers_the_panel_at_the_published_operating_point",
     ),
     (
         # CYCLE-4 FINDING 2. M9 collapses coverage to 1/513, which the OLD 50%
-        # floor also caught. This cell is the one that discriminates: 401/513 =
-        # 78.2% is the level the Q/A used to SWAP soft_diversity's and min_k's
-        # turnover cost, and it is 28pp ABOVE the old floor -- so it SURVIVED
-        # before this fix and must be KILLED after it. A cell that only
-        # reproduces M9's collapse would prove nothing about the change.
+        # floor also caught. This is the discriminating level: 401/513 = 78.2%
+        # is where the published ASK-1/ASK-2 ordering INVERTS, and it is 28pp
+        # ABOVE the old floor, so it survived before the floor was raised.
         "M9b coverage degraded to the level that INVERTS the published ordering "
-        "(78.2%, above the old 50% floor)",
+        "(78.2%, above the old 50% floor) -- on the --verify path",
         ["--verify"],
         '    known = sum(1 for v in sectors.values() if v)\n'
-        '    # CYCLE-4 FINDING 2.',
+        '    cov = known / len(tickers) if tickers else 0.0',
         '    known = int(0.782 * len(tickers))  # MUTANT\n'
-        '    # CYCLE-4 FINDING 2.',
+        '    cov = known / len(tickers) if tickers else 0.0',
+        "sector_map_covers_the_panel_at_the_published_operating_point",
+    ),
+    (
+        # CYCLE-5 FINDING 2. M9b alone was a MIS-ATTRIBUTED KILL: the guard used
+        # to live only in measure(), which --verify runs, while measure_flags()
+        # -- the function that actually PUBLISHES the criterion-4 table -- calls
+        # load_sectors() directly and never calls measure(). The identical
+        # injection on --flags ran GREEN and moved every delta. These two cells
+        # differ from M9b ONLY in the mode, which is the whole point: they prove
+        # the guard is present on the paths that publish numbers.
+        "M9c the same 78.2% degradation, scored on the --flags path that "
+        "publishes the criterion-4 table",
+        ["--flags"],
+        '    known = sum(1 for v in sectors.values() if v)\n'
+        '    cov = known / len(tickers) if tickers else 0.0',
+        '    known = int(0.782 * len(tickers))  # MUTANT\n'
+        '    cov = known / len(tickers) if tickers else 0.0',
+        "sector_map_covers_the_panel_at_the_published_operating_point",
+    ),
+    (
+        "M9d ... and on the --dispersion path, which also builds from the map",
+        ["--dispersion"],
+        '    known = sum(1 for v in sectors.values() if v)\n'
+        '    cov = known / len(tickers) if tickers else 0.0',
+        '    known = int(0.782 * len(tickers))  # MUTANT\n'
+        '    cov = known / len(tickers) if tickers else 0.0',
         "sector_map_covers_the_panel_at_the_published_operating_point",
     ),
     (
@@ -153,10 +177,11 @@ CELLS: list[tuple[str, list[str], str, str, str]] = [
         # before the fix, reporting +6.3pp under a row still labelled
         # `min_k_sectors=3` -- tying ASK-2 and inverting the ordering ASK-1's
         # promotion recommendation rests on.
-        "M23 min_k call site passes a k the row label does not claim",
+        "M23 min_k call site passes a k the row label does not claim -- the "
+        "ARGUMENT itself, which is the seam cycle 4 left open",
         ["--flags"],
-        "        _k = MIN_K_SECTORS\n",
-        "        _k = 4  # MUTANT\n",
+        "picked = _slice_min_k(base, ANALYZE_TOP_N, MIN_K_SECTORS, min_k_passed)",
+        "picked = _slice_min_k(base, ANALYZE_TOP_N, 4, min_k_passed)  # MUTANT",
         "min_k_arm_used_the_labelled_k",
     ),
     (
@@ -169,6 +194,18 @@ CELLS: list[tuple[str, list[str], str, str, str]] = [
         'MIN_K_ARM = f"min_k_sectors={MIN_K_SECTORS}"',
         'MIN_K_ARM = "min_k_sectors=9"  # MUTANT',
         "min_k_arm_used_the_labelled_k",
+    ),
+    (
+        # CYCLE-5 FINDING 1, behavioural angle. M23/M24 compare a recorded
+        # number to a label -- bookkeeping. This cell makes the min-K slice
+        # INERT (it returns the plain top-N, ignoring k entirely) so the
+        # argument and the record still agree; only the OUTPUT betrays it.
+        "M25 min-K slice made inert -> the arm reports a turnover cost for a "
+        "flag that never took effect",
+        ["--flags"],
+        "    seen.append(k)\n    return _min_k_sector_slice(candidates, n, k)",
+        "    seen.append(k)\n    return candidates[:n]  # MUTANT",
+        "min_k_slate_spans_the_labelled_number_of_sectors",
     ),
     (
         "M15 every arm made identical to baseline -> deltas degenerate silently",

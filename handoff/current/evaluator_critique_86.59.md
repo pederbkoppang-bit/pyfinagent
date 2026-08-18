@@ -536,3 +536,203 @@ by the literal prefixes the matrix declares.
 changes do not buy an evaluation cycle) these fixes are recorded here rather
 than spent on a re-grade; whether to spend 86.59's one remaining attempt is the
 operator's call.
+
+---
+
+## Cycle 5 -- **CONDITIONAL** (NOT converted) -- `wf_cd243ccd-37c`
+
+*Transcribed verbatim from the captured Workflow return in the same turn it
+landed. Main records the verdict and never authors it.*
+
+**verdict:** `CONDITIONAL` -- `enforceEscalation` computed
+`consecutive_conditionals: 0` (the cycle-4 FAIL reset the run), so
+`would_auto_fail: false` and the verdict stands unmodified.
+**ok:** `false`  **certified_fallback:** `false`  **harness_compliance_ok:** `true`
+**attempt_number:** `5` of `5`; **budget_exhausted:** `true` -- **no attempt remains without a further operator extension.**
+**judge_was_told_consequence:** `false`
+
+**reason:**
+
+> MEASUREMENT SOUND AND FULLY REPRODUCED; BOTH CYCLE-4 GUARD FIXES STOP ONE SEAM SHORT, DEMONSTRATED BY EXECUTION. Every published number reproduced EXACTLY under my own independent drive of the real module: rho 0.9622 mean / 0.9319 min, top-10 AND top-5 turnover 15.8%/day, 3-of-19 zero-turnover, 12 distinct tickers with the exact list, IT 72.0% at counts {Industrials 20, IT 72, Health Care 8}, fidelity 80%, 513 tickers, and the whole criterion-4 table 15.8/28.4/22.1/17.9 with deltas +12.6/+6.3/+2.1pp and distinct 12/22/17/14. Deterministic: immutable command exit=0 "parses"; ruff F821/F401/F811 clean over the git-DERIVED .py scope (2 files, non-empty set asserted); ZERO files under backend/ or frontend/ across ALL SIX commits matching phase-86.59 (derived by me, not taken from the artifact), and zero .env/settings; `--verify` -> "sector map coverage: 502/513 = 97.9%" + "OK: all 42 invariants hold"; full matrix re-run BY ME reproduces control-GREEN-first on all three modes, coverage 25/25, KILLED 26/26, SURVIVED 0, UNSCORABLE 0, restore verified (md5 back to a2312e95, sha256 39fc81f531c91cce... unchanged); my own AST census independently confirms 25 guards (22 literal + 3 f-string); 86.116 and 86.117 both exist and are pending. Harness compliance clean (gate COMPLETE/gate_passed true; mtime order brief<contract<scripts<results; criteria byte-identical masterplan-vs-contract AND HEAD-vs-worktree; status still pending; evidence CHANGED via 497ae3ac so this is a legitimate fresh respawn). CAP -- I executed TWO surviving mutants, control observed GREEN first, sha256 unchanged throughout, on the two guards this cycle exists to add. (1) `min_k_arm_used_the_labelled_k` records the local `_k` one statement BEFORE the call, not the argument `_min_k_sector_slice` received, though the comment at :831-833 claims the stronger property. Forcing the ARGUMENT to k=4 while leaving the adjacent record line untouched SURVIVES green with the guard running and passing, and the row still labelled 'min_k_sectors=3' reports 22.1% / +6.3pp / distinct 15 / IT 49.0% at --cycles 20 -- byte-identical to the numbers the cycle-4 Q/A published for the ORIGINAL defect, so ASK-1's "smallest turnover cost of the three arms (+2.1pp/day)" ties ASK-2 again. (2) `sector_map_covers_the_panel_at_the_published_operating_point` and its new coverage print both live in `measure()`; `measure_flags()` -- which PRODUCES the criterion-4 table -- calls `load_sectors()` directly, never calls `measure()`, and carries 6 `_ok` guards, none of them the coverage guard. Cell M9b is scored under ["--verify"], so its KILL is on the wrong path (vacuity shape #11, mis-attributed kill mechanism). Injecting the EXACT 78.2% degradation on the --flags path SURVIVES green: min_k +2.1 -> +6.3pp, sector_neutral +12.6 -> +18.9pp, soft_diversity +6.3 -> +8.4pp. I also tested 95.5%, just above the new floor: the ASK-1/ASK-2 ordering HOLDS there, so the 0.95 value itself is adequate -- verified rather than accepted. Honest mitigation stated: a full matrix run does `control --verify` before `control --flags`, so a degraded cache is caught there, but not when --flags is run directly, which is how the table is published. (3) experiment_results_86.59.md:24 still says "23 cells + an AST coverage gate" in the present-tense "What this step SHIPS" table while :99-100 of the SAME file says "26 cells ... coverage 25/25"; the sweep correctly annotated the cycle-record instances (:372-378, escalation:47-49) and missed the un-annotated one -- the same class the step was capped for at cycle 3 item 10 and cycle 4 finding 3. All 7 criteria are MET (2 and 6 vacuously, with the P3/P4/P6 deviation disclosed and its reason MEASURED at 38% duplicate keys, filed as 86.117); criterion 7 is met on its literal wording -- both new guards were mutation-tested with control GREEN first and a byte-identical restore I verified. Nothing ships to production, so all three findings are precisely fixable evidence-layer gaps, not a wrong result. I retired one plausible finding by execution rather than reporting it: the min_k guard being a restatement of its own derivation is NOT the defect -- M23/M24 do kill divergent edits at both sites; the defect is one seam further in, at the argument.
+
+**violated_criteria:**
+`criterion_4_min_k_guard_records_the_variable_not_the_argument_passed`, `criterion_4_coverage_guard_absent_from_the_flags_path_that_publishes_the_table`, `illusory-guard`, `experiment_results_86.59_cell_count_contradicts_itself`
+
+### violation_details
+
+**1. Missing_Assumption**
+
+- *action:* SEVERITY WARN. In-process at the published --cycles 20, control observed GREEN first: replace the third positional argument of _min_k_sector_slice(base, ANALYZE_TOP_N, _k) with 4 (equivalent to a one-token source edit at scripts/qa/rank_stability_86_59.py:895) while leaving the adjacent min_k_passed.append(_k) at :894 untouched. Signature verified positional: _min_k_sector_slice(candidates, n, k).
+- *state:* SURVIVED -- run green, 8 guards ran INCLUDING min_k_arm_used_the_labelled_k which passed. The row still labelled 'min_k_sectors=3' reports turnover 22.1% / delta +6.3pp / distinct 15 / IT 49.0% against the published 17.9% / +2.1pp / 14 / 60.0%. These are byte-identical to the figures the cycle-4 Q/A reported for the original two-literal defect. Control at 20 cycles reproduced 17.9%/+2.1pp exactly. Target sha256 39fc81f531c91cce... unchanged before and after.
+- *constraint:* criterion 4 -- 'measure what ... paper_min_k_sectors_analyzed ... do to candidate turnover'. ASK-1 recommends promoting the flag explicitly 'at the smallest turnover cost of the three arms (+2.1pp/day)'; under this one-token drift it ties ASK-2 and no guard can fail. The guard's own comment at :831-833 claims it records 'what the CALL SITE actually received', but it records the value of a separate preceding statement, so record and argument can still diverge. M23/M24 close the label-vs-record directions only. Named fix: read k exactly once -- e.g. wrap as def _slice(b, n, k): min_k_passed.append(k); return _min_k_sector_slice(b, n, k) -- or assert behaviourally that the returned slate spans >= labelled_k distinct sectors when available. WARN not BLOCK because criterion 4 carries genuine behavioural guards that I verified do kill (M14/M20/M22) and nothing reaches production.
+
+**2. Threshold_Not_Met**
+
+- *action:* SEVERITY WARN. Static: measure_flags() at scripts/qa/rank_stability_86_59.py:809-1041 contains exactly 6 _ok guards (flag_arms_all_ran, min_k_arm_used_the_labelled_k, baseline_arm_applies_no_flags, baseline_ROW_matches_an_unflagged_direct_call, baseline_slate_matches_an_unflagged_direct_call, flag_arms_are_distinguishable_from_baseline), calls load_sectors() at :814, and never calls measure(); the coverage guard and its new coverage print live at :511/:517 inside measure(). Cell M9b's mode list is ["--verify"], and main() shows --verify runs measure() only. Executed: patch load_sectors on the --flags path at --cycles 20 to a map degraded to 401/513 = 78.2% and to 490/513 = 95.5%, control observed GREEN first.
+- *state:* 78.2% SURVIVED -- run green, the same 8 guards ran and the coverage guard was not among them. min_k_sectors=3 moved 17.9% -> 22.1% (delta +2.1pp -> +6.3pp, tying ASK-2), sector_neutral 28.4% -> 34.7% (+12.6 -> +18.9pp), soft_diversity 22.1% -> 24.2% (+6.3 -> +8.4pp). 95.5% also SURVIVED (expected, above the floor): the ASK-1/ASK-2 ordering HOLDS, so the 0.95 value is adequate for that ordering, but sector_neutral drifted +12.6 -> +9.5pp with distinct 22 -> 20 and every top-sector share identical to control, so nothing printed signals it. live_check §5's criterion-4 block carries no coverage line. Target sha256 unchanged throughout.
+- *constraint:* The guard's own failure message asserts 'the criterion-4 turnover ordering is not stable across coverage this degraded, so the table must not be published from it', and the cycle-4 Follow-up presents M9b as 'the discriminating cell'. The guard is not evaluated on the path that publishes that table, so M9b's KILL is scored against measure(), not against the number the finding was about -- vacuity shape #11, mis-attributed kill mechanism, and the criterion-4 path has zero coverage protection rather than weak protection. Honest mitigation: a full matrix run executes control --verify before control --flags, so a degraded cache would be caught inside the matrix; it is not caught when --flags is run directly, which is how the published table is produced. Named fix: evaluate the coverage guard and the disclosure print inside measure_flags, and score a cell for it under --flags. WARN not BLOCK because the published figures are correct for the actual 97.9% input, that input is disclosed, and nothing reaches production.
+
+**3. Contradiction**
+
+- *action:* SEVERITY WARN. Read handoff/current/experiment_results_86.59.md:24 against :99-100 in the same file, then swept every cell/coverage count across the three artifacts.
+- *state:* Line 24, in the present-tense 'What this step SHIPS' table with no cycle marker: 'criterion 7 -- **23 cells + an AST coverage gate**'. Lines 99-100 of the same file: '**Criterion 7 -- 26 cells, 26 KILLED, 0 SURVIVED, 0 UNSCORABLE**, coverage 25/25'. I re-derived 26 cells and 25 guards by running the matrix and by my own AST census. The sweep DID correctly annotate the cycle-record instances -- experiment_results:372-378 carries the '(Those two figures are the CYCLE-3 state ... The current matrix is 26/26 at coverage 25/25)' pointer and escalation_86.59_third_conditional.md:47-49 carries the same -- and live_check §8 is now internally consistent. Only the un-annotated present-tense row was missed.
+- *constraint:* qa.md 4b -- every numeric claim in the handoff must reproduce, and an artifact must not contradict itself. This is the third consecutive cycle capped on this exact class (cycle-3 item 10 'the §8 block was spliced from two runs'; cycle-4 finding 3 'block regenerated, authored prose beside it left stale'), now recurring one line over inside the file the sweep was supposed to cover. WARN not FAIL because the stale figure is in a summary table rather than inside a block labelled verbatim, the correct value is present in the same document, and no conclusion moves.
+
+**checks_run:**
+
+- harness_compliance_audit_5_item
+- research_gate_envelope
+- criteria_verbatim_vs_masterplan
+- criteria_immutability_head_vs_worktree
+- immutable_verification_command
+- git_derived_change_scope_all_step_commits
+- production_and_env_file_scan
+- ruff_F821_F401_F811_derived_scope
+- rank_stability_verify_rerun
+- rank_stability_full_report_rerun_cycles_20
+- mutation_matrix_full_rerun
+- mutation_matrix_control_green_first
+- sha256_restore_verification
+- ast_guard_census_independent
+- independent_rederivation_criterion_1
+- independent_rederivation_criterion_3
+- independent_rederivation_criterion_4_table
+- adversarial_mutation_min_k_argument_seam
+- adversarial_mutation_sector_map_degradation_on_flags_path
+- adversarial_mutation_sector_map_at_95_5_pct_floor_boundary
+- static_guard_reachability_measure_flags
+- guard_vacuity_check_4c
+- claim_audit_4b
+- artifact_count_sweep_three_files
+- masterplan_86_116_86_117_filed
+- worst_of_n_lenses
+- code_review_heuristics
+- evaluator_critique
+- verdict_ledger_and_qa_wip_evidence
+
+**notes:**
+
+> SEQUENCE EVIDENCE (gathered, not applied). `python scripts/qa/verdict_history_86_21.py --step 86.59 --evidence-only` -> status "ok", "4 verdict(s) from the ledger", verdicts CONDITIONAL -> CONDITIONAL -> CONDITIONAL -> FAIL; aggregates suppressed by --evidence-only as required. `python scripts/qa/qa_wip.py 86.59 --spawned-at 2026-08-18T08:07:14Z` -> source_present TRUE, attempt_number 5 (attempt_number_status "ok", attempt_number_is_lower_bound true), prior_attempts 4, records_retained 5 (a GAUGE per records_retained_unit, not used as a counter), records_pruned_known null. CROSS-CHECK: prior_attempts (4) == ledger rows (4), so the ledger is NOT stale for this step. Any threshold or escalation that follows is the caller's to compute; I neither applied one nor compensated for one.
+>
+> CONSEQUENCE LEAK, SECOND CYCLE RUNNING. The cycle-4 Q/A already reported this and it is unchanged: my spawn prompt honours the phase-86.78 scrub, but artifacts I was INSTRUCTED to read re-deliver the payload -- experiment_results_86.59.md:385-389 ("CLAUDE.md F1 forces the next verdict to FAIL regardless of evidence ... A fourth spawn cannot return PASS"), escalation_86.59_third_conditional.md, and now harness_log.md's newest 86.59 entry ("86.59 stays pending with one attempt remaining"). The leak is in the evidence layer, where prose scrubbing of the instruction layer cannot reach it. I recorded it and discounted it in BOTH directions; ERRJ=0.000 means I cannot certify that from introspection, which is exactly why the channel is worth closing. Note also that the harness_log entry contains a measured correction stating the rule converts a would-be CONDITIONAL and never converts a PASS -- that is consequence information too.
+>
+> METHOD DISCLOSURE. The write guard permits only .claude/agent-memory/qa/, so every adversarial mutation ran through `python3 - <<'PY'` heredocs that patch module attributes IN PROCESS -- no repo file was written. I confirmed there is no multiprocessing on the exercised paths before running from stdin (only an unrelated concurrent.futures comment at autonomous_loop.py:3442). The target's sha256 was 39fc81f531c91cce... before and after every attack, asserted in-run. I ran the author's mutation matrix to completion FIRST and confirmed md5 restored to a2312e95 before importing the module, so I never imported a mutated target. The wrapper used for the min_k attack changes only the third positional argument of a positional-only-by-convention signature, so it is equivalent to a one-token source edit rather than a `*args` artefact.
+>
+> ONE PLAUSIBLE FINDING RETIRED BY EXECUTION, recorded so a later cycle does not re-raise it. "min_k_arm_used_the_labelled_k is a restatement of its own derivation, since MIN_K_ARM is derived from MIN_K_SECTORS and _k = MIN_K_SECTORS, so it compares a value to itself" -- that reading is WRONG as a finding: M23 (call site drifts to _k = 4) and M24 (label drifts to min_k_sectors=9) both genuinely kill, which I reproduced, and a two-site consistency property legitimately needs both directions. The defect is one seam further in, at the argument, which is what I report.
+>
+> NOTE-LEVEL ITEMS THAT DO NOT DEGRADE THE VERDICT. (1) experiment_results_86.59.md:26 backs "No production file is modified" with `git show --name-only 15a817cc` -- a SINGLE commit, while the step has six. The claim is TRUE on the full derived scope (I verified zero backend/frontend files across all six `phase-86.59` commits) but the cited command is narrower than the claim it supports; the cycle-2 section adopted this citation specifically to fix a scope complaint, so it is worth widening rather than re-narrowing. (2) "86.117 explicitly BLOCKED-BY 86.116" is recorded as PROSE inside 86.117's audit_basis; the structured field reads `blocked_by: null`, and 0 of 1310 masterplan steps use `blocked_by` at all, while `depends_on` / `depends_on_step` are live conventions in the same file. Nothing mechanical enforces the ordering criterion 2's acceptance rests on. (3) Inside the permitted coverage band (95.5%, above the new floor) sector_neutral drifts +12.6 -> +9.5pp with distinct 22 -> 20, which touches ASK-3's cited "distinct +10"; ASK-3 is explicitly not recommended, so no operator decision moves.
+>
+> SCOPE NOTE ON --verify, confirming and extending the cycle-4 observation. main() shows --verify runs measure() only -- no measure_flags, no measure_dispersion -- so its 42 invariants contain ZERO criterion-4 guards. The new coverage guard AND the new coverage print both sit on that path, which is the whole of finding 2 above. Main's re-run claim reproduces exactly as stated and no artifact overclaims --verify itself.
+>
+> WORKING TREE. Uncommitted changes are a peer session's 86.120 work (backend/agents/claude_code_client.py, backend/api/charts.py, backend/config/settings.py, a masterplan insert, new tests and handoff files); none belongs to 86.59, whose criteria are byte-identical HEAD-vs-worktree and whose status is still pending. This step makes no UI claim, so the 1c live-capture gate does not apply. No backend module is changed by any step commit, so 1d is satisfied vacuously -- I did not run a backend smoke because the step touches nothing under backend/.
+>
+> WRITE-FIRST RECORD: /Users/ford/.openclaw/workspace/pyfinagent/.claude/agent-memory/qa/verdicts/verdict_wip_86.59__20260818T080714Z.md (STATUS COMPLETE; a crash-survival record, not a verdict).
+
+
+---
+
+## Cycle-5 Follow-up -- what Main changed in response
+
+All three cycle-5 findings were WARN-severity and evidence-layer; the Q/A
+reproduced every published number and confirmed zero files under `backend/` or
+`frontend/` across all six commits matching phase-86.59. **All three said the
+same thing about my cycle-4 work: the fix stopped one seam short.**
+
+### Finding 1 -- the guard recorded a value NEAR the call, not the argument
+
+Cycle 4 wrote `_k = MIN_K_SECTORS` one statement above the call and recorded
+`_k`. Forcing the ARGUMENT alone left the record untouched and the run went
+green -- the row still labelled `min_k_sectors=3` reported +6.3pp, byte-identical
+to the original defect. My own comment claimed the guard recorded "what the CALL
+SITE actually received"; it recorded a separate preceding statement. That was an
+overclaim, and it is the third time in this step that a fix relocated the seam
+instead of closing the class.
+
+**Fixed by reading k exactly once.** `_slice_min_k(candidates, n, k, seen)` does
+`seen.append(k)` and forwards the *same parameter binding*, so no edit can change
+the argument without changing the record.
+
+**And a second, independent angle** so the property does not rest on plumbing at
+all: `min_k_slate_spans_the_labelled_number_of_sectors` asks the SLATE how many
+sectors it spans, versus how many were available. A k that never takes effect is
+caught by its output.
+
+- **M23** re-aimed at the ARGUMENT (the seam cycle 4 left open) -> KILLED.
+- **M24** label drift -> KILLED (see the ordering note below).
+- **M25** min-K slice made inert (`return candidates[:n]`), so argument and
+  record still agree and only the output betrays it -> KILLED.
+
+RED observed before shipping:
+
+```
+INVARIANT FAILED: min_k_arm_used_the_labelled_k -- the row is labelled
+'min_k_sectors=3' but _min_k_sector_slice received [4]
+
+INVARIANT FAILED: min_k_slate_spans_the_labelled_number_of_sectors -- the
+'min_k_sectors=3' arm produced slates spanning [3, 2, 2, 2] sectors against
+[5, 4, 4, 5] available
+```
+
+**Guard ORDER turned out to be load-bearing.** With the behavioural guard first,
+M24 went red on the SPAN guard and the matrix scored it UNSCORABLE -- "rc=1 but
+`min_k_arm_used_the_labelled_k` never appeared". That is the matrix refusing a
+mis-attributed kill, and it was right to. The plumbing guard now runs first,
+because a wrong label makes the span expectation meaningless.
+
+### Finding 2 -- the guard was absent from the path that publishes the table
+
+Cycle 4 put the coverage check inside `measure()`. `measure_flags()` -- which
+PRODUCES the criterion-4 table -- calls `load_sectors()` directly and never calls
+`measure()`. Cell M9b was scored under `--verify`, so its kill was on a path that
+publishes nothing; the identical 78.2% injection on `--flags` ran green and moved
+every delta.
+
+**Fixed for the CLASS, not the named instance.** The check is now
+`_assert_sector_coverage()`, called from **all three** entry points that build
+numbers from the sector map -- `measure()`, `measure_flags()` AND
+`measure_dispersion()`, the third of which the Q/A did not name but which has the
+same shape.
+
+- **M9** total collapse (`--verify`) -> KILLED.
+- **M9b** 78.2% on `--verify` -> KILLED.
+- **M9c** the same injection on `--flags` -> KILLED.
+- **M9d** the same injection on `--dispersion` -> KILLED.
+
+M9c and M9d differ from M9b **only in the mode**. That is the point: cycle 5
+proved a cell can be green on the wrong path.
+
+The 0.95 floor is retained and is now independently corroborated -- the cycle-5
+Q/A drove 95.5% and found the ASK-1/ASK-2 ordering HOLDS there, so the floor sits
+above the demonstrated inversion band and below the operating point.
+
+### Finding 3 -- a stale count my own sweep missed
+
+`experiment_results_86.59.md:24` still read "**23 cells** + an AST coverage gate"
+in the present-tense "What this step SHIPS" table while :99 of the same file said
+26. My cycle-4 sweep grepped for the FORMATS I had just written (`23/23`,
+`24 guards`, the old sha) and never matched `23 cells`.
+
+**The sweep is now by CLASS**, not by format:
+`grep -rnE "[0-9]+ ?(cells?|guards?)|coverage [0-9]+/[0-9]+|KILLED [0-9]+"` over
+every 86.59 artifact, with cycle-record instances excluded explicitly rather
+than by accident. Every live figure was regenerated from the captured run by
+script, not retyped.
+
+### Post-fix state, re-measured
+
+```
+sha256 : 349ea82f74680a15...
+control --verify       -> rc=0 GREEN
+control --dispersion   -> rc=0 GREEN
+control --flags        -> rc=0 GREEN
+coverage: 26 guards in target, 26 covered by a cell or an explicit transitive entry
+KILLED 29 / 29   SURVIVED 0   UNSCORABLE 0
+restore verified: sha256 unchanged (349ea82f74680a15...)
+```
+
+`--verify` 42 invariants, `--flags` 10 (was 8), `--dispersion` 7 (was 6) -- the
+coverage gate now runs on every path that publishes.
+
+**BUDGET EXHAUSTED.** This was attempt 5 of 5. The fixes above are UNEVALUATED;
+grading them needs a further operator extension. No production file was touched
+at any point in this step.

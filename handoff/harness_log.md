@@ -36540,3 +36540,48 @@ a cell; a multi-target signal-safe mutation runner. 42/42 selftest cases and
 21/21 self-mutation cells KILLED. Red-first found three defects in it that
 review had not, and its own matrix found a fourth (a non-discriminating census
 fixture).
+
+## Cycle 6 -- 2026-08-18 -- phase=86.59 result=CONDITIONAL
+
+Attempt 5 of 5, run `wf_cd243ccd-37c`, 216,704 tokens. **NOT converted**:
+`consecutive_conditionals: 0` (the supplied sequence ends in the cycle-4 FAIL,
+which breaks the backward scan), so `would_auto_fail: false` and the judge's
+verdict stands. `budget_exhausted: true` -- **86.59 is now at its ceiling.**
+
+**All three findings said the same thing: my cycle-4 fixes stopped one seam
+short.** That is now four appearances of one class in one step.
+
+1. The cycle-4 guard recorded a local `_k` assigned one statement ABOVE the
+   call, not the argument the call received. Forcing the ARGUMENT alone ran
+   green and reproduced the original defect's numbers exactly. Fixed by reading
+   k exactly once inside `_slice_min_k`, so record and argument are one binding,
+   plus an independent BEHAVIOURAL guard that asks the slate how many sectors it
+   spans -- a k that never takes effect is now caught by its output.
+2. The cycle-4 coverage guard lived in `measure()`, but `measure_flags()` --
+   which publishes the criterion-4 table -- never calls it. Cell M9b's kill was
+   on the wrong path. Fixed for the CLASS: `_assert_sector_coverage()` is called
+   from `measure()`, `measure_flags()` AND `measure_dispersion()` (the third the
+   Q/A did not name), with M9c/M9d repeating the identical injection per mode.
+3. A stale "23 cells" my own cycle-4 sweep missed because I grepped for the
+   FORMATS I had just edited (`23/23`, `24 guards`) and never matched
+   `23 cells`. The sweep is now by CLASS and every live figure is regenerated
+   from the captured run by script rather than retyped.
+
+**Guard ORDER proved load-bearing**, and the matrix caught it rather than me:
+with the behavioural guard first, the label-drift cell went red on the WRONG
+guard and scored UNSCORABLE -- "rc=1 but `min_k_arm_used_the_labelled_k` never
+appeared". The plumbing guard now runs first. A matrix that credits any red as a
+kill would have shipped that.
+
+Post-fix, control GREEN on all three modes: **KILLED 29/29**, coverage **26/26**,
+restore verified `349ea82f74680a15...`; `--verify` 42, `--flags` 10 (was 8),
+`--dispersion` 7 (was 6). All three new/changed guards were watched going RED
+first, two of them on the exact mutants that SURVIVED cycle 5.
+
+**These fixes are UNEVALUATED and 86.59 cannot be re-graded without a further
+operator extension.** Nothing shipped to production at any point in this step.
+
+Operator extensions granted in-session (both +1, recorded in
+`handoff/audit/attempt_budget_audit.jsonl`): **86.47** (was 5/5) and **75.11.4**
+(was 6/6). Measured headroom now: 86.59 0, and 86.108 / 86.110 / 86.116 / 86.47 /
+75.11.4 one attempt each.

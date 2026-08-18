@@ -206,29 +206,33 @@ another; the evaluator caught it, and it was the second non-reproducing number
 in this step. Nothing here is assembled from more than one execution.
 
 ```
-sha256 : 39fc81f531c91cce...
+sha256 : 349ea82f74680a15...
 control --verify       -> rc=0 GREEN
 control --dispersion   -> rc=0 GREEN
 control --flags        -> rc=0 GREEN
-coverage: 25 guards in target, 25 covered by a cell or an explicit transitive entry
-KILLED 26 / 26   SURVIVED 0   UNSCORABLE 0
-restore verified: sha256 unchanged (39fc81f531c91cce...)
+coverage: 26 guards in target, 26 covered by a cell or an explicit transitive entry
+KILLED 29 / 29   SURVIVED 0   UNSCORABLE 0
+restore verified: sha256 unchanged (349ea82f74680a15...)
 ```
 
 Control observed GREEN on all three modes **first**; a non-zero exit alone is
 not scored as a kill (the named guard must appear in the output); a
 non-applying anchor is UNSCORABLE, never a kill; restore verified by SHA-256.
 
-**26 cells against 25 guards.** The counts differ in BOTH directions and the
+**29 cells against 26 guards.** The counts differ in BOTH directions and the
 reasons are different, so neither is a rounding note:
 
-- some guards carry **more than one cell**, because a two-site consistency
-  property has two independent failure directions and a cell for one licenses
-  nothing about the other -- `min_k_arm_used_the_labelled_k` has M23 (the call
-  site drifts) and M24 (the label drifts), and
-  `sector_map_covers_the_panel_at_the_published_operating_point` has M9 (total
-  collapse) and M9b (degradation to the level that actually inverts the
-  published ordering, which the previous 50% floor did NOT catch);
+- some guards carry **more than one cell**, because one cell licenses nothing
+  about a direction or a code path it never exercised.
+  `min_k_arm_used_the_labelled_k` has M23 (the ARGUMENT drifts) and M24 (the
+  label drifts). `sector_map_covers_the_panel_at_the_published_operating_point`
+  has FOUR: M9 (total collapse), M9b (degradation to 78.2%, the level that
+  actually inverts the published ordering and which the previous 50% floor did
+  NOT catch), and M9c/M9d, which repeat that identical injection on the
+  `--flags` and `--dispersion` paths. M9c and M9d differ from M9b **only in the
+  mode**, and that is the point: cycle 5 proved the guard was absent from the
+  path that publishes the criterion-4 table, so M9b's kill had been on the
+  wrong path;
 - some guards are covered **transitively** through the predicate they consume,
   each recorded in `COVERED_TRANSITIVELY` with a reason.
 

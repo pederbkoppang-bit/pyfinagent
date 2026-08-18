@@ -88,6 +88,50 @@ ANALYZE_TOP_N = 5   # settings.paper_analyze_top_n
 MIN_K_SECTORS = 3
 MIN_K_ARM = f"min_k_sectors={MIN_K_SECTORS}"
 
+
+def _slice_min_k(candidates, n, k, seen):
+    """Call `_min_k_sector_slice` and record the k IT RECEIVED, once.
+
+    `seen.append(k)` and the forwarded `k` are the SAME parameter binding, so
+    no edit can change the argument without changing the record. Cycle 5
+    demonstrated why that matters: the previous shape assigned a local one
+    statement above the call, and forcing the argument alone ran green.
+    """
+    from backend.services.autonomous_loop import _min_k_sector_slice
+
+    seen.append(k)
+    return _min_k_sector_slice(candidates, n, k)
+
+
+def _assert_sector_coverage(sectors: dict, tickers) -> float:
+    """The coverage gate, callable from EVERY path that publishes a number.
+
+    CYCLE-5 FINDING 2: cycle 4 put this check inside `measure()` only, while
+    `measure_flags()` -- the function that produces the criterion-4 table --
+    calls `load_sectors()` directly and never calls `measure()`. The cell that
+    "killed" it was scored under `--verify`, so the kill was on a path that does
+    not publish the table; injecting the same degradation on `--flags` ran green
+    and moved every delta. A guard that is absent from the path it is supposed
+    to protect is not a guard, however green its cell.
+
+    The floor of 0.95 is chosen, not inherited: the published ordering was
+    measured at 502/513 = 97.9%; the cycle-4 Q/A showed it INVERTS by 78.2%; the
+    cycle-5 Q/A additionally drove 95.5% and confirmed the ASK-1/ASK-2 ordering
+    HOLDS there, so the floor sits above the demonstrated inversion band and
+    below the operating point, with ~15 tickers of headroom for lookup churn.
+    """
+    known = sum(1 for v in sectors.values() if v)
+    cov = known / len(tickers) if tickers else 0.0
+    _ok("sector_map_covers_the_panel_at_the_published_operating_point",
+        cov >= 0.95,
+        f"sector coverage is {known}/{len(tickers)} = {cov:.1%}, below the 95% "
+        f"floor -- the criterion-4 turnover ordering is not stable across "
+        f"coverage this degraded, so the table must not be published from it")
+    # DISCLOSE the coverage every published table was computed at, so a reader
+    # never has to infer it from a guard that only reports pass/fail.
+    print(f"sector map coverage: {known}/{len(tickers)} = {cov:.1%}")
+    return cov
+
 # Trailing sessions fed to each replayed cycle. 126 ~= the "6mo" the live call
 # requests. See WINDOW SEMANTICS above -- this is a factor definition, not a
 # display knob.
@@ -491,31 +535,7 @@ def measure(n_cycles: int, window: int, quiet: bool = False) -> dict:
     _ok("sector_map_present", bool(sectors),
         "no sector map cached -- criterion 3 would report UNKNOWN for every slot, "
         "which measures the harness rather than the book (run --fetch)")
-    known = sum(1 for v in sectors.values() if v)
-    # CYCLE-4 FINDING 2. This floor was `>= 0.5 * len(tickers)` while the
-    # operating point is 502/513 = 97.9%. The Q/A degraded the cached map to
-    # 401/513 = 78.2% -- a realistic yfinance-lookup failure, and still 28pp
-    # ABOVE the old floor -- and every criterion-4 guard stayed green while
-    # soft_diversity and min_k SWAPPED their turnover cost (+6.3pp <-> +2.1pp),
-    # with baseline and every top-sector share unmoved so nothing in the report
-    # signalled it. A guard whose threshold sits 20pp below the level at which
-    # the published number inverts nominally covers the input but cannot
-    # protect the figure derived from it.
-    #
-    # The floor is now pinned NEAR the operating point. 0.95 is chosen, not
-    # inherited: the published ordering was measured at 97.9%, and was shown to
-    # invert by 78.2%, so the floor must sit between the two -- and 0.95
-    # leaves ~15 tickers of headroom for ordinary lookup churn (delistings,
-    # renames) without reaching anywhere near the inversion band.
-    _cov = known / len(tickers) if tickers else 0.0
-    _ok("sector_map_covers_the_panel_at_the_published_operating_point",
-        _cov >= 0.95,
-        f"sector coverage is {known}/{len(tickers)} = {_cov:.1%}, below the 95% "
-        f"floor -- the criterion-4 turnover ordering is not stable across "
-        f"coverage this degraded, so the table must not be published from it")
-    # DISCLOSE the coverage the table was actually computed at, so a reader
-    # never has to infer it from a guard that only reports pass/fail.
-    print(f"sector map coverage: {known}/{len(tickers)} = {_cov:.1%}")
+    _assert_sector_coverage(sectors, tickers)
 
     results = []
     full_ranks = []
@@ -812,6 +832,13 @@ def measure_flags(n_cycles: int, window: int) -> dict:
     all_sessions = sorted(df["date"].unique().tolist())
     tickers = sorted(df["ticker"].unique().tolist())
     sectors = load_sectors()
+    # CYCLE-5 FINDING 2, applied to the CLASS rather than the one
+    # instance the Q/A named: EVERY entry point that publishes numbers
+    # derived from the sector map gates on coverage. measure_flags and
+    # measure_dispersion each call load_sectors() directly and neither
+    # calls measure(), so a check living only in measure() protects
+    # neither of them.
+    _assert_sector_coverage(sectors, tickers)
     replay_dates = all_sessions[window - 1:][-n_cycles:]
 
     _check_predicate_fixture()
@@ -827,10 +854,15 @@ def measure_flags(n_cycles: int, window: int) -> dict:
     # the three arms (+2.1pp/day)". k=5 reported +7.4pp and exceeded it. The
     # ordering the operator ask rests on inverted with no guard able to fail.
     arms[MIN_K_ARM] = []
-    # What the CALL SITE actually received, recorded there rather than assumed
-    # here. This is what makes `min_k_arm_used_the_labelled_k` falsifiable:
-    # editing either site alone makes the two disagree.
+    # What `_min_k_sector_slice` ACTUALLY RECEIVED -- appended inside
+    # `_slice_min_k` from the same parameter it forwards, so the record and the
+    # argument are one binding. Cycle 5 proved the weaker version (a local
+    # assigned one line above the call) leaves the argument free to drift.
     min_k_passed: list[int] = []
+    # Behavioural companion: how many distinct sectors the min_k slate actually
+    # spans, and how many were available to span, per cycle.
+    min_k_span: list[int] = []
+    min_k_sectors_available: list[int] = []
     baseline_agrees: list[bool] = []
     baseline_row_agrees: list[bool] = []
 
@@ -890,10 +922,25 @@ def measure_flags(n_cycles: int, window: int) -> dict:
         baseline_agrees.append(
             [c["ticker"] for c in base[:SCREEN_TOP_N]] == _direct_tk
         )
-        _k = MIN_K_SECTORS
-        min_k_passed.append(_k)
-        picked = _min_k_sector_slice(base, ANALYZE_TOP_N, _k)
+        # CYCLE-5 FINDING 1. Cycle 4 recorded a LOCAL `_k` one statement before
+        # the call, so forcing the ARGUMENT alone left the record untouched and
+        # the guard passed green -- the row still labelled `min_k_sectors=3`
+        # reported +6.3pp, byte-identical to the original defect. Recording a
+        # value NEAR the call is not recording the value the call received.
+        # `_slice_min_k` reads k exactly ONCE, so the recorded value and the
+        # argument are the same binding and cannot diverge.
+        picked = _slice_min_k(base, ANALYZE_TOP_N, MIN_K_SECTORS, min_k_passed)
         arms[MIN_K_ARM].append([c["ticker"] for c in picked])
+        # Independent BEHAVIOURAL angle on the same property: the plumbing guard
+        # above compares a recorded number to a label, which is still bookkeeping.
+        # This one asks the slate itself how many sectors it spans, so a k that
+        # silently fails to take effect is caught by its OUTPUT rather than by
+        # its argument.
+        min_k_span.append(len({sectors.get(c["ticker"], "") or "UNKNOWN"
+                               for c in picked}))
+        min_k_sectors_available.append(
+            len({sectors.get(c["ticker"], "") or "UNKNOWN"
+                 for c in base[:SCREEN_TOP_N]}))
 
     out = {}
     for name, slates in arms.items():
@@ -931,6 +978,21 @@ def measure_flags(n_cycles: int, window: int) -> dict:
         f"{sorted(set(min_k_passed))} -- a criterion-4 row that reports a "
         f"turnover cost under the wrong k silently inverts the ASK-1/ASK-2 "
         f"ordering")
+    # CYCLE-5 FINDING 1, the behavioural angle. The guard below compares a
+    # recorded number to a label, which is still bookkeeping however tightly the
+    # record is bound to the argument. This one interrogates the SLATE: a min_k
+    # arm must span at least the labelled k distinct sectors whenever that many
+    # were available to span. A k that never takes effect is caught by its
+    # output, independently of how the argument was plumbed.
+    _spans_ok = [
+        span >= min(_labelled_k, avail)
+        for span, avail in zip(min_k_span, min_k_sectors_available)
+    ]
+    _ok("min_k_slate_spans_the_labelled_number_of_sectors",
+        bool(_spans_ok) and all(_spans_ok),
+        f"the {MIN_K_ARM!r} arm produced slates spanning {min_k_span} sectors "
+        f"against {min_k_sectors_available} available -- a min-K slice that does "
+        f"not reach k has not applied the flag it is labelled with")
     # This guard used to assert `n_distinct == len(set(distinct))` on a list
     # built as `sorted({...})` -- true for EVERY possible input. The Q/A proved
     # it vacuous by EXECUTION: poisoning FLAG_ARMS[0] with sector_neutral=True
@@ -1062,6 +1124,13 @@ def measure_dispersion(n_cycles: int, window: int) -> dict:
     all_sessions = sorted(df["date"].unique().tolist())
     tickers = sorted(df["ticker"].unique().tolist())
     sectors = load_sectors()
+    # CYCLE-5 FINDING 2, applied to the CLASS rather than the one
+    # instance the Q/A named: EVERY entry point that publishes numbers
+    # derived from the sector map gates on coverage. measure_flags and
+    # measure_dispersion each call load_sectors() directly and neither
+    # calls measure(), so a check living only in measure() protects
+    # neither of them.
+    _assert_sector_coverage(sectors, tickers)
     replay_dates = all_sessions[window - 1:][-n_cycles:]
 
     _check_predicate_fixture()

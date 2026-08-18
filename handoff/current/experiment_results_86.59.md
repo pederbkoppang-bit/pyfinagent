@@ -21,7 +21,7 @@ written*, and criterion 5 forbids promoting a flag. Two new files, both under
 | file | what it is |
 |---|---|
 | `scripts/qa/rank_stability_86_59.py` | the measurement -- drives the REAL `screen_universe` + `rank_candidates` with stored BigQuery prices swapped in for the yfinance network call |
-| `scripts/qa/mutation_86_59.py` | criterion 7 -- **23 cells + an AST coverage gate**, control-green-first, SHA-256-verified restore |
+| `scripts/qa/mutation_86_59.py` | criterion 7 -- **29 cells + an AST coverage gate**, control-green-first, SHA-256-verified restore |
 
 **No production file is modified.** `git show --name-only 15a817cc | grep -E
 '^(backend|frontend)/'` returns nothing; no `.env` write, no flag promotion, no
@@ -96,15 +96,17 @@ production file, so the live candidate list is unchanged by construction, and
 the measurement additionally shows `rank_candidates(top_n=10)` agreeing with a
 slice of the full ranking on every cycle (an independent call, cell M3).
 
-**Criterion 7 -- 26 cells, 26 KILLED, 0 SURVIVED, 0 UNSCORABLE**, coverage
-25/25, control GREEN first on all three modes, SHA-256-verified restore
-(`39fc81f531c91cce...`), plus an **AST coverage gate** that fails the matrix if
+**Criterion 7 -- 29 cells, 29 KILLED, 0 SURVIVED, 0 UNSCORABLE**, coverage
+26/26, control GREEN first on all three modes, SHA-256-verified restore
+(`349ea82f74680a15...`), plus an **AST coverage gate** that fails the matrix if
 any `_ok` guard has no cell. Criterion-4 cells run at the published
 `--cycles 20`. Cycle 1 shipped 14 cells and the evaluator proved two guards
 unkillable; cycle 2 shipped 20 and it proved a third attack; cycle 3 shipped 23
-(see that section); **cycle 4 shipped 26** -- M9b, M23 and M24, for the two
-threshold/consistency gaps the cycle-4 Q/A demonstrated by execution (see the
-cycle-4 section).
+(see that section); cycle 4 shipped 26; **cycle 5 shipped 29** -- M9c and M9d
+(the same coverage injection re-scored on the `--flags` and `--dispersion`
+paths, because cycle 5 proved the guard was absent from the path that publishes
+the table) and M25 (the min-K slice made inert, so the behavioural guard is
+exercised independently of how the argument was plumbed).
 
 ## Finding (a): the declared weights are not the effective weights
 
