@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-18 | `77546b68` | phase-86.118: cycle-3 CONDITIONAL recorded; three defects in my own correction fixed |
 | 2026-08-18 | `b22b4dbe` | phase-86.118: cycle-2 FAIL recorded; my criterion-5 answer was wrong and is REPLACED |
 | 2026-08-18 | `2e0728ae` | phase-86.118: cycle-1 CONDITIONAL recorded; criteria 2 and 5 discharged by measurement |
 | 2026-08-18 | `1bf26bf8` | phase-86.118: 19 red tests -> 8, none weakened; the suite was not hermetic |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-18 | `58ee7ede` | chore: goal file -- restart DONE, and record the .env write authority |
 | 2026-08-18 | `4f0fc00c` | chore: operator-authorised backend restart + file 86.119 (pytest-randomly absent) |
 | 2026-08-18 | `064f5396` | phase-86.116: PARK on the 3rd-CONDITIONAL rule -- and a FALSE restart claim, corrected |
-| 2026-08-18 | `92caebab` | phase-75.11.4: Audit75 S11 follow-up -- backfill_handoff_archive.py archives by filename pattern,... |
 
 ---
 
