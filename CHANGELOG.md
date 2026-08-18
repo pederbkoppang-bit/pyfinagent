@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-18 | `67070b79` | phase-86.59: cycle-5 CONDITIONAL recorded; all three "one seam short" gaps closed |
 | 2026-08-18 | `497ae3ac` | phase-86.59: cycle-4 verdict FAIL recorded; both capping guards fixed red-first |
 | 2026-08-18 | `ff3ed8c7` | feat(qa): guardlib census attributes parameterised guard names by prefix |
 | 2026-08-18 | `3e532fe4` | feat(qa): guardlib -- make red-first and self-adversarial mechanical |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-18 | `75c19c2b` | chore: drop emoji from the goal file (project bans emojis in files) |
 | 2026-08-18 | `63773c31` | chore: next-session goal -- 114 pending, harness loop is the bottleneck |
 | 2026-08-18 | `53fc2106` | phase-86.116 cycle 3: the remedy for brittleness introduced the vacuity |
-| 2026-08-18 | `aec5d815` | phase-86.116 cycle 2: the mechanism I credited was not wired |
 
 ---
 
