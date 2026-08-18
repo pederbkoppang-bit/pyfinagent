@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-18 | `53287125` | chore: goal under 4000 chars |
 | 2026-08-18 | `e52ac101` | chore: goal at final size, under the 4000-char limit |
 | 2026-08-18 | `be444466` | chore: goal updated -- 86.118 gate PASSED and contract written |
 | 2026-08-18 | `731860e5` | phase-86.118: research gate PASSED, contract written |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-18 | `539f16eb` | phase-86.116: de-duplicate price frames on read, keyed on the index |
 | 2026-08-18 | `34a56b03` | chore: next-session goal -- 86.116 is the money-path priority |
 | 2026-08-18 | `099414fe` | phase-86.59: PARK on the 3rd-CONDITIONAL rule -- blocker fixed, unevaluated |
-| 2026-08-18 | `a4a5765c` | phase-86.59: correct my own statement of the 3rd-CONDITIONAL rule |
 
 ---
 
