@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-18 | `58ee7ede` | chore: goal file -- restart DONE, and record the .env write authority |
 | 2026-08-18 | `4f0fc00c` | chore: operator-authorised backend restart + file 86.119 (pytest-randomly absent) |
 | 2026-08-18 | `064f5396` | phase-86.116: PARK on the 3rd-CONDITIONAL rule -- and a FALSE restart claim, corrected |
 | 2026-08-18 | `92caebab` | phase-75.11.4: Audit75 S11 follow-up -- backfill_handoff_archive.py archives by filename pattern,... |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-18 | `5ffca35a` | phase-86.110: stop tests writing the real heartbeat; PARKED on the 3rd-CONDITIONAL rule |
 | 2026-08-18 | `085a7f2e` | phase-86.109: stop the freshness alarm paging from a dashboard poll; gate the notifier on the tradin |
 | 2026-08-17 | `8200283c` | phase-86.108: parse-failure ledger + derived dark-flag route; PARKED on the 3rd-CONDITIONAL rule |
-| 2026-08-17 | `9ec0de11` | chore: record 86.108's landed criterion 1 in the next-session goal |
 
 ---
 
