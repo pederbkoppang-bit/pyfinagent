@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-18 | `a4a5765c` | phase-86.59: correct my own statement of the 3rd-CONDITIONAL rule |
 | 2026-08-18 | `fb6f8a67` | phase-86.59 cycle 3: a definition is not behaviour |
 | 2026-08-18 | `3e75c2d6` | phase-86.59 cycle 2: close the CONDITIONAL -- guard vacuity, all four findings |
 | 2026-08-18 | `15a817cc` | phase-86.59: measure the picker rank stability; file 86.116 + 86.117 |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-17 | `be4b3151` | chore: overnight drain goal for the Opus 5 session |
 | 2026-08-17 | `2506ca65` | phase-86.28: tier-honest research gate -- PASS on cycle 7; THE HARNESS-REPAIR CORE IS CLOSED |
 | 2026-08-17 | `3315546c` | phase-86.28: ledger backfilled from the critique's own table; closing re-capture at 124 |
-| 2026-08-17 | `4bac49ff` | phase-86.78: consequence blinding -- PASS on cycle 7, the last budgeted attempt |
 
 ---
 
