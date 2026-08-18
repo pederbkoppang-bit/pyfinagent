@@ -1,0 +1,31 @@
+---
+name: a-mutant-that-cannot-build-scores-as-a-kill
+description: Mutation harnesses that wrap expect() in try/catch score a mutant that fails to PARSE as KILLED -- instrument every cell with an unmutated control AND a threw/returned distinction
+metadata:
+  type: feedback
+---
+
+A mutation cell proves nothing unless the mutant BUILDS, RUNS, and the guard then
+goes red. Harnesses written as
+`try { survived = !(await m.expect(mutated)) } catch (_e) { survived = false }`
+score a mutant that throws -- including one that never parsed -- as **KILLED**.
+
+**Why:** measured on `scripts/qa/verify_prompt_render_86_90.mjs` cell M3. Its
+replacement text ended `void ('` followed by a newline, i.e. an unterminated
+single-quoted string, so importing the mutant raised `SyntaxError: Invalid or
+unexpected token`; the catch converted the crash into a kill. Doubly inert: even
+had it parsed, the injected `return '(unrenderable)'` sat AFTER the `throw` it
+was meant to replace -- dead code. The matrix advertised "5 cells, all KILLED";
+4 were genuine. Same family as [[pytest-exit-5-scores-as-a-kill]], different
+mechanism: there the SUBJECT was empty, here the MUTANT was broken.
+
+**How to apply:** re-run each cell yourself and record three states, never two --
+`expect()` RETURNED false / RETURNED true / THREW. Run the cell's own `expect()`
+against the UNMUTATED source first: it must return false, or the cell was never
+discriminating. A THREW is an ARTIFACT-KILL: report it and name the fix. Then
+build a second, differently-constructed mutant of the same guard
+([[two-mutant-forms-separate-artifact-from-kill]]) to decide whether the GUARD is
+vacuous or only the CELL is -- in 86.90 a valid-syntax reachable substitution did
+turn the section red, so the guard was sound and only the cell was WARN-level.
+Anchor-uniqueness checks do NOT cover this: the anchor was unique and the
+replacement still could not run.

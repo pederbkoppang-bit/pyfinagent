@@ -13,6 +13,14 @@
  * transaction_cost, reason, analysis_id, risk_judge_decision -- those
  * are full-page detail columns visible at /paper-trading.
  *
+ * `table-fixed` + explicit column widths (2026-08-14): with only 5 rows
+ * this table never grew wider than its card, but fetching 20 rows for
+ * the home page (see page.tsx) surfaced long values -- Korean Won prices
+ * ("W2,425,000") and long tickers ("000660.KS") -- that pushed the
+ * table-auto layout to 407px inside a 354px card, clipping the right
+ * edge. table-fixed + truncate caps every column to the card's actual
+ * width regardless of content, matching RecentReportsTable.tsx.
+ *
  * Strict no-hardcoded-data: every value comes from props -- no sample
  * tickers, no sample quantities, no sample prices baked in.
  */
@@ -51,7 +59,17 @@ function fmtPrice(p: number | null | undefined, ticker?: string): string {
 
 function fmtQty(q: number | null | undefined): string {
   if (q == null || !Number.isFinite(q)) return "—";
-  // Show fractional shares with up to 4 decimals; integer shares without.
+  // 2 decimals (was 4) -- this compact card's Qty column has ~40px of
+  // usable width after table-fixed column sizing; 4 decimals ("4.8064")
+  // regularly overflowed it. Full precision remains on /paper-trading
+  // and in the title tooltip on this cell.
+  return Number.isInteger(q)
+    ? q.toString()
+    : q.toLocaleString(undefined, { maximumFractionDigits: 2 });
+}
+
+function fmtQtyFull(q: number | null | undefined): string {
+  if (q == null || !Number.isFinite(q)) return "—";
   return Number.isInteger(q)
     ? q.toString()
     : q.toLocaleString(undefined, { maximumFractionDigits: 4 });
@@ -62,7 +80,7 @@ export function LatestTransactionsBox({ trades, loaded, loadError }: Props) {
   const goto = () => router.push("/paper-trading");
 
   return (
-    <div className="h-full flex flex-col rounded-xl border border-navy-700 bg-navy-800/40">
+    <div className="flex h-[420px] flex-col rounded-xl border border-navy-700 bg-navy-800/40">
       <div className="flex items-center justify-between border-b border-navy-700 px-4 py-3">
         <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400">
           Latest Transactions
@@ -72,15 +90,15 @@ export function LatestTransactionsBox({ trades, loaded, loadError }: Props) {
         </Link>
       </div>
 
-      <div className="flex-1 overflow-x-auto">
-        <table className="w-full text-left text-sm" aria-label="Latest transactions">
+      <div className="flex-1 overflow-y-auto overflow-x-auto scrollbar-thin">
+        <table className="w-full table-fixed text-left text-sm" aria-label="Latest transactions">
           <thead className="border-b border-navy-700 bg-navy-800/60">
             <tr>
-              <th className="px-3 py-2.5 text-[10px] font-medium uppercase tracking-wider text-slate-500">Ticker</th>
-              <th className="px-3 py-2.5 text-[10px] font-medium uppercase tracking-wider text-slate-500">Side</th>
-              <th className="px-3 py-2.5 text-right text-[10px] font-medium uppercase tracking-wider text-slate-500">Qty</th>
-              <th className="px-3 py-2.5 text-right text-[10px] font-medium uppercase tracking-wider text-slate-500">Price</th>
-              <th className="px-3 py-2.5 text-right text-[10px] font-medium uppercase tracking-wider text-slate-500">Time</th>
+              <th className="w-[22%] truncate px-3 py-2.5 text-[10px] font-medium uppercase tracking-wider text-slate-500">Ticker</th>
+              <th className="w-[18%] truncate px-3 py-2.5 text-[10px] font-medium uppercase tracking-wider text-slate-500">Side</th>
+              <th className="w-[18%] truncate px-3 py-2.5 text-right text-[10px] font-medium uppercase tracking-wider text-slate-500">Qty</th>
+              <th className="w-[28%] truncate px-3 py-2.5 text-right text-[10px] font-medium uppercase tracking-wider text-slate-500">Price</th>
+              <th className="w-[14%] truncate px-3 py-2.5 text-right text-[10px] font-medium uppercase tracking-wider text-slate-500">Time</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-navy-700/50">
@@ -131,22 +149,29 @@ export function LatestTransactionsBox({ trades, loaded, loadError }: Props) {
                 }}
                 className="cursor-pointer transition-colors hover:bg-navy-700/40 focus:bg-navy-700/40 focus:outline-none focus:ring-1 focus:ring-sky-500/40"
               >
-                <td className="px-3 py-3 font-mono text-sm font-bold text-slate-100">
-                  <span className="inline-flex items-center gap-1.5">
+                <td className="truncate px-3 py-3 font-mono text-sm font-bold text-slate-100" title={t.ticker}>
+                  <span className="inline-flex max-w-full items-center gap-1.5">
                     <span
-                      className={`h-1.5 w-1.5 rounded-full ${MARKET_DOT_CLASS[resolveMarket({ ticker: t.ticker })] ?? "bg-slate-400"}`}
+                      className={`h-1.5 w-1.5 shrink-0 rounded-full ${MARKET_DOT_CLASS[resolveMarket({ ticker: t.ticker })] ?? "bg-slate-400"}`}
                       aria-hidden="true"
                     />
-                    {t.ticker}
+                    <span className="truncate">{t.ticker}</span>
                   </span>
                 </td>
-                <td className="px-3 py-3">
-                  <span className={`inline-block rounded-full px-2 py-0.5 text-[10px] font-medium ${sideColor(t.action)}`}>
+                <td className="truncate px-3 py-3">
+                  <span className={`inline-block max-w-full truncate rounded-full px-1.5 py-0.5 text-[10px] font-medium ${sideColor(t.action)}`}>
                     {t.action}
                   </span>
                 </td>
-                <td className="px-3 py-3 text-right font-mono text-sm text-slate-300">{fmtQty(t.quantity)}</td>
-                <td className="px-3 py-3 text-right font-mono text-sm text-slate-300">{fmtPrice(t.price, t.ticker)}</td>
+                <td
+                  className="truncate px-3 py-3 text-right font-mono text-sm text-slate-300"
+                  title={fmtQtyFull(t.quantity)}
+                >
+                  {fmtQty(t.quantity)}
+                </td>
+                <td className="truncate px-3 py-3 text-right font-mono text-sm text-slate-300" title={fmtPrice(t.price, t.ticker)}>
+                  {fmtPrice(t.price, t.ticker)}
+                </td>
                 <td className="px-3 py-3 text-right text-xs text-slate-500" suppressHydrationWarning>
                   {formatRelativeTime(t.created_at)}
                 </td>

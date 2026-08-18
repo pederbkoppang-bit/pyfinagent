@@ -70,3 +70,7 @@
 {"ts": "2026-08-12T18:23:01.623744+00:00", "event": "sod_snapshot", "nav": 23900.66, "date": "2026-08-12", "provisional": false}
 {"ts": "2026-08-13T18:00:03.230491+00:00", "event": "sod_snapshot", "nav": 23900.18, "date": "2026-08-13", "provisional": true}
 {"ts": "2026-08-13T19:31:11.872075+00:00", "event": "sod_snapshot", "nav": 23922.61, "date": "2026-08-13", "provisional": false}
+{"ts": "2026-08-14T18:00:03.197996+00:00", "event": "sod_snapshot", "nav": 23920.63, "date": "2026-08-14", "provisional": true}
+{"ts": "2026-08-14T19:32:44.675351+00:00", "event": "sod_snapshot", "nav": 23875.96, "date": "2026-08-14", "provisional": false}
+{"ts": "2026-08-17T18:00:02.080068+00:00", "event": "sod_snapshot", "nav": 23828.3, "date": "2026-08-17", "provisional": true}
+{"ts": "2026-08-17T19:46:47.445470+00:00", "event": "sod_snapshot", "nav": 23844.72, "date": "2026-08-17", "provisional": false}

@@ -2,7 +2,7 @@
 
 import { BentoCard } from "@/components/BentoCard";
 import type { CostSummary, AgentCostEntry } from "@/lib/types";
-import { IconDeepThink } from "@/lib/icons";
+import { IconDeepThink, CurrencyDollar, IconChartBarHorizontal, Robot, Table } from "@/lib/icons";
 
 function formatTokens(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
@@ -50,11 +50,9 @@ function AgentRow({ entry }: { entry: AgentCostEntry }) {
 export function CostDashboard({ costSummary }: { costSummary: CostSummary | undefined }) {
   if (!costSummary || !costSummary.agents?.length) {
     return (
-      <BentoCard>
-        <p className="text-sm text-slate-500">
-          No cost data available. Cost tracking is recorded after the analysis completes.
-        </p>
-      </BentoCard>
+      <div className="rounded-xl border border-navy-700 bg-navy-800/60 p-6 text-center text-sm text-slate-500">
+        No cost data available. Cost tracking is recorded after the analysis completes.
+      </div>
     );
   }
 
@@ -68,48 +66,56 @@ export function CostDashboard({ costSummary }: { costSummary: CostSummary | unde
 
   return (
     <div className="space-y-6">
+      {/* Header -- matches the intro-card pattern every other tab opens with
+          (Risk Dashboard, Agent Debate Consensus, Signal Consensus, LLM Bias
+          Audit). Cost previously launched straight into stat tiles with no
+          section title, the most visible inconsistency the operator flagged. */}
+      <div className="rounded-2xl border border-navy-700 bg-navy-800/70 p-6 backdrop-blur-lg">
+        <h3 className="flex items-center gap-2 text-lg font-semibold text-slate-200">
+          <CurrencyDollar size={20} weight="duotone" className="text-sky-400" />
+          Cost & Token Usage
+        </h3>
+        <p className="mt-1 text-sm text-slate-500">
+          Per-agent LLM spend across the full analysis pipeline
+        </p>
+      </div>
+
       {/* Summary cards */}
-      <div className="grid grid-cols-12 gap-4">
-        <div className="col-span-6 md:col-span-3">
-          <BentoCard glow>
-            <p className="text-xs text-slate-400">Total Cost</p>
-            <p className="mt-1 font-mono text-3xl font-bold text-emerald-400">
-              {formatCost(total_cost_usd)}
-            </p>
-          </BentoCard>
-        </div>
-        <div className="col-span-6 md:col-span-3">
-          <BentoCard>
-            <p className="text-xs text-slate-400">Total Tokens</p>
-            <p className="mt-1 font-mono text-3xl font-bold text-sky-400">
-              {formatTokens(total_tokens)}
-            </p>
-          </BentoCard>
-        </div>
-        <div className="col-span-6 md:col-span-3">
-          <BentoCard>
-            <p className="text-xs text-slate-400">LLM Calls</p>
-            <p className="mt-1 font-mono text-3xl font-bold text-slate-200">
-              {total_calls}
-            </p>
-          </BentoCard>
-        </div>
-        <div className="col-span-6 md:col-span-3">
-          <BentoCard>
-            <p className="text-xs text-slate-400">Deep Think Calls</p>
-            <p className="mt-1 font-mono text-3xl font-bold text-violet-400">
-              {deep_think_calls}
-            </p>
-            <p className="mt-0.5 flex items-center gap-1 text-xs text-slate-500">
-              <IconDeepThink size={12} weight="fill" /> Moderator, Risk Judge, Synthesis, Critic
-            </p>
-          </BentoCard>
-        </div>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <BentoCard glow>
+          <p className="text-xs text-slate-400">Total Cost</p>
+          <p className="mt-1 font-mono text-3xl font-bold text-emerald-400">
+            {formatCost(total_cost_usd)}
+          </p>
+        </BentoCard>
+        <BentoCard>
+          <p className="text-xs text-slate-400">Total Tokens</p>
+          <p className="mt-1 font-mono text-3xl font-bold text-sky-400">
+            {formatTokens(total_tokens)}
+          </p>
+        </BentoCard>
+        <BentoCard>
+          <p className="text-xs text-slate-400">LLM Calls</p>
+          <p className="mt-1 font-mono text-3xl font-bold text-slate-200">
+            {total_calls}
+          </p>
+        </BentoCard>
+        <BentoCard>
+          <p className="text-xs text-slate-400">Deep Think Calls</p>
+          <p className="mt-1 font-mono text-3xl font-bold text-violet-400">
+            {deep_think_calls}
+          </p>
+          <p className="mt-0.5 flex items-center gap-1 text-xs text-slate-500">
+            <IconDeepThink size={12} weight="fill" /> Moderator, Risk Judge, Synthesis, Critic
+          </p>
+        </BentoCard>
       </div>
 
       {/* Token split bar */}
       <BentoCard>
-        <h3 className="mb-3 text-sm font-semibold text-slate-300">Token Distribution</h3>
+        <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold text-slate-400">
+          <IconChartBarHorizontal size={20} weight="duotone" className="text-slate-400" /> Token Distribution
+        </h3>
         <div className="flex h-4 overflow-hidden rounded-full bg-slate-800">
           <div
             className="bg-sky-500 transition-all"
@@ -137,7 +143,9 @@ export function CostDashboard({ costSummary }: { costSummary: CostSummary | unde
       {/* Model breakdown */}
       {Object.keys(model_breakdown).length > 0 && (
         <BentoCard>
-          <h3 className="mb-3 text-sm font-semibold text-slate-300">Cost by Model</h3>
+          <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold text-slate-400">
+            <Robot size={20} weight="duotone" className="text-slate-400" /> Cost by Model
+          </h3>
           <div className="space-y-3">
             {Object.entries(model_breakdown)
               .sort(([, a], [, b]) => b.cost_usd - a.cost_usd)
@@ -166,8 +174,9 @@ export function CostDashboard({ costSummary }: { costSummary: CostSummary | unde
 
       {/* Per-agent breakdown table */}
       <BentoCard>
-        <h3 className="mb-3 text-sm font-semibold text-slate-300">
-          Per-Agent Breakdown ({sortedAgents.length} agents)
+        <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold text-slate-400">
+          <Table size={20} weight="duotone" className="text-slate-400" /> Per-Agent Breakdown
+          <span className="text-sm font-normal text-slate-500">({sortedAgents.length} agents)</span>
         </h3>
         <div className="overflow-x-auto">
           <table className="w-full text-left">

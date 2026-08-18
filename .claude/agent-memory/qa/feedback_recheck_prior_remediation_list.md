@@ -50,6 +50,26 @@ appears, recover the PRIOR total's itemisation from git (`git show <wip-commit>:
 and set-difference it against the new rows before accepting the sum** — re-running a
 mutation is re-verification, not a new mutation.
 
+**Fifth instance — the NOTE TIER VANISHES (phase-75.11.4 cycle 4, 2026-08-17).** Cycle 2's
+critique carried a 5-item fix list: (1)(2) BLOCKING guard defects on criteria 5/7/9, (3) a
+WARN, and (4)(5) NOTEs. Cycle 3 closed (1)(2)(3) beautifully — I re-ran all four cycle-2
+survivors in my own harness and every one was KILLED — and (4)(5) simply **disappeared**:
+not fixed, not annotated, not queued as residuals, not mentioned. They were the cheapest
+items on the list. `_move` still `mkdir`s before its `if dry_run:` return, and the three
+empty dirs that dry run created (`handoff/archive/phase-80.5`, `-81.1`, `-82.23`, mtime
+18:42:23Z) are STILL on the live tree — and I classified them: all three score
+`no_contract`, so the step's own dry run added 3 to the 845-dir denominator the step
+reports. Likewise "19 files are held back" still reads 19 in two artifacts; re-derived
+read-only with the script's own `_masterplan_referenced_names` + `_is_rolling_keep`, the
+live answer is **20**. **A tier is not a disposition.** When you grade a finding WARN or
+NOTE, the next cycle reads that as "optional" unless the artifact says fixed-or-queued —
+so enumerate the prior critique's items by TIER and check the low tiers first, because the
+blocking ones always get done. Corollary: the "SURVIVORS: none" line cycle 2 asked to be
+scoped is still unscoped, and my own battery found two more (an emptied
+`ROLLING_KEEP_PREFIXES` archives a done step's `evaluator_critique_<sid>.json`, restoring
+the 81.0 verdict-gate-dark defect; `_safe_target` returning `dest` clobbers prior archived
+evidence) — which is exactly what an unscoped global claim under an N-cell matrix hides.
+
 **How to apply:** before grading a cycle-N≥2 handoff, grep the critique for the prior
 cycle's numbered remediation section, list every item AND every file:line it names, and
 mark each closed/open by execution. State the open ones by number in your verdict so the

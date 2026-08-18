@@ -1,7 +1,7 @@
 """phase-10.5.0 Sovereign UI backend read endpoints.
 
 Three endpoints feeding the planned `/sovereign` route:
-- `GET /api/sovereign/red-line?window=1d|7d|30d|90d`  -- NAV time-series
+- `GET /api/sovereign/red-line?window=1d|7d|30d|90d|1y`  -- NAV time-series
 - `GET /api/sovereign/leaderboard`                  -- per-strategy summary
 - `GET /api/sovereign/compute-cost?window=7d|30d|90d` -- daily provider breakdown
 
@@ -34,7 +34,7 @@ router = APIRouter(prefix="/api/sovereign", tags=["sovereign"])
 _GCP_PROJECT = os.getenv("GCP_PROJECT_ID", "sunny-might-477607-p8")
 _RESULTS_TSV = Path("backend/autoresearch/results.tsv")
 _CACHE_TTL = 60.0
-_WINDOW_DAYS = {"7d": 7, "30d": 30, "90d": 90}
+_WINDOW_DAYS = {"7d": 7, "30d": 30, "90d": 90, "1y": 365}
 _PROVIDER_KEYS = ("anthropic", "vertex", "openai", "bigquery", "altdata")
 
 
@@ -363,7 +363,7 @@ def _fetch_bq_daily_bytes(window_days: int) -> list[dict]:
 
 @router.get("/red-line", response_model=RedLineResponse)
 def get_red_line(
-    window: Literal["1d", "7d", "30d", "90d"] = Query("30d"),
+    window: Literal["1d", "7d", "30d", "90d", "1y"] = Query("30d"),
 ) -> RedLineResponse:
     start = time.perf_counter()
     cache = get_api_cache()

@@ -1,0 +1,15 @@
+# Archive provenance -- phase-86.92
+
+Written by `.claude/hooks/archive-handoff.sh` (phase-86.29 revision).
+Masterplan step id as recorded: `86.92` -> archive dir `phase-86.92`.
+Archived at: 2026-08-16T19:38:36Z
+
+| archived as | source | how |
+|---|---|---|
+| `contract.md` | `handoff/current/contract_86.92.md` | derived from step id |
+| `experiment_results.md` | `handoff/current/experiment_results_86.92.md` | derived from step id |
+| `research_brief.md` | `handoff/current/research_brief_86.92.md` | derived from step id |
+| `live_check.md` | `handoff/current/live_check_86.92.md` | derived from step id |
+| -- | `handoff/current/evaluator_critique.md` | SKIPPED: does not declare phase-86.92 |
+
+## RESULT: ok -- derived=4 rolling_copied=0 legacy_moved=0 rolling_skipped=1

@@ -67,3 +67,47 @@ census beside it, per the corrections-replace discipline).
 traps, ParallelChange, Anthropic harness-design, the scratch/audit-tree
 patterns); step 75.11.4 (the owning regex fix); phase-36.8 merge precedent;
 the 86.43 write-first collision record.
+
+---
+
+## OPERATOR DECISION RECORDED -- 2026-08-18 -- "which rule wins" (log placement)
+
+Operator granted general permission to proceed on parked decisions
+("you have my promission", 2026-08-18, verbatim). This addresses the
+specific sub-question `goal_next_2026-08-18.md` raised about
+`handoff/autoresearch.log` vs the layout invariant -- **not** a decision to
+execute this step's full GENERATE tonight (still correctly sequenced behind
+75.11.4 per this contract's own "Sequencing decision" above; the 667-finding
+archival sweep has real data-loss traps -- see the merge/backfill/regex
+hazards in `research_brief_86.105.md` -- and is not attempted at 1am
+unattended).
+
+**Read from source** (`backend/api/cron_dashboard_api.py:139-160`,
+`_log_paths()`, phase-23.3.5): six files are written to `handoff/` root
+because macOS **launchd** plists set `StandardOutPath`/`StandardErrorPath`
+directly at those paths -- `mas-harness.log`, `autoresearch.log`,
+`mas-harness.launchd.log`, `autoresearch.launchd.log`, `ablation.log`,
+`ablation.launchd.log`. This is not a repo-code choice the layout invariant
+can override by moving files: launchd will recreate the file at its
+configured path on the service's next write regardless of any `git mv`
+tonight (the exact "move without repointing regresses on the writer's next
+fire" trap this contract already names for `autoresearch.launchd.log`
+specifically -- it applies identically to all six). Repointing requires
+editing each plist and a `launchctl bootout`+`bootstrap` cycle per service,
+which CLAUDE.md reserves to the operator (away-ops rail 9) and which this
+step's own criterion 3 already requires be recorded as a numbered ask
+rather than edited unilaterally for the launchd-owned case.
+
+**Ruling**: the general rule (no `*.log` at `handoff/` root) is correct for
+repo-controlled writers and should not be weakened globally. For the SIX
+specifically-named, launchd-plist-controlled paths above, `verify_handoff_
+layout.py` should carry a narrow, named exemption (matching `_log_paths()`'s
+own allowlist) rather than flagging them as violations it cannot actually
+fix without an operator-gated plist change. This does not resolve on its
+own -- it is scope for 86.105's eventual GENERATE, recorded now so the
+next session does not re-derive it. The `backend.log` root-placement case
+("repo-root for legacy reasons", `cron_dashboard_api.py:146`) is NOT covered
+by this ruling -- its writer justification was not verified this session and
+should be checked separately before assuming the same exemption applies.
+
+No file was moved and no plist was touched by this ruling.

@@ -106,3 +106,30 @@ the funnel produces a gated buy").
 **The drought itself is step 86.47's subject, not this step's.** Two prior
 steps were filed on drought theories that their own research gates refuted, so
 no cause is asserted here.
+
+---
+
+## OPERATOR DECISION RECORDED -- 2026-08-18
+
+Operator granted general permission to proceed on parked decisions
+("you have my promission", 2026-08-18, verbatim).
+
+**Decision: PARK AS-IS (option 1, Main's original recommendation).**
+Criteria 1-5 and 7-10 are MET on the last evaluator's own re-derivation;
+criterion 6 has a structurally empty population (no gated buy has occurred
+in four consecutive sessions) and no amount of authorization can manufacture
+one. Attempt budget is already exhausted (8 attempts, ledger
+`["NO_VERDICT","NO_VERDICT","CONDITIONAL","CONDITIONAL","PASS","CONDITIONAL",
+"CONDITIONAL","CONDITIONAL"]`) and extending it would spend tokens against
+the same empty population -- not requested.
+
+The step stays `status: pending` in `.claude/masterplan.json`. No status
+flip. No file under `backend/` (trading/risk logic) is touched by this
+ruling or by any action taken tonight -- that remains categorically out of
+scope regardless of the permission grant, per phase-85's own written
+non-scope constraint. Criterion 6 becomes satisfiable automatically on the
+first gated buy; no further work closes it early.
+
+Cross-reference: `experiment_results_86.69.md`'s residual note ("86.74's C6
+row becomes satisfiable as soon as the funnel produces a gated buy") and
+step 86.47 (the drought itself, a separate step, not re-theorised here).

@@ -213,11 +213,16 @@ export default function HomePage() {
   useEffect(() => {
     let cancelled = false;
     async function load() {
+      // phase-16.45 follow-up (2026-08-14): the Latest Transactions card is a
+      // fixed h-[420px] with internal scroll (see RecentReportsTable.tsx
+      // comment); 5 trades left ~90px of visible empty space at the bottom.
+      // Fetching more history fills the card and scrolls for the rest,
+      // instead of a card that's mostly blank below the 5th row.
       const [reps, status, portfolio, tradesResp] = await Promise.allSettled([
         listReports(5),
         getPaperTradingStatus(),
         getPaperPortfolio(),
-        getPaperTrades(5),
+        getPaperTrades(20),
       ]);
       if (cancelled) return;
       if (reps.status === "fulfilled") setReports(reps.value);
@@ -456,15 +461,15 @@ export default function HomePage() {
             />
           </div>
 
-          {/* phase-44.6 fix: removed `lg:items-stretch` + per-child `h-full`.
-              That was the documented anti-pattern named in
-              `.claude/rules/frontend.md:23` (mixing short + tall widgets
-              with equal-height grid). Per `frontend-layout.md` Section 4.5
-              option 2 (researcher source #1 + #6): use items-start +
-              accept visible asymmetry instead of forcing a short card to
-              stretch to a tall neighbor's height. Each child sizes by
-              content; layout reads as 3 distinct cards instead of 3 cards
-              with hidden dead whitespace. */}
+          {/* Operator instruction (2026-08-14): the 3 cards below were sized
+              by content (phase-44.6 items-start), which reads as uneven at
+              narrow/stacked widths since grid item-stretch only equalizes
+              siblings within the same row -- with grid-cols-1 each card is
+              its own row, so items-start/items-stretch has no effect below
+              `lg`. Fixed instead by giving each card its own h-[420px] +
+              internal scroll (RecentReportsTable.tsx, LatestTransactionsBox.tsx,
+              HomeQuickActionsPanel.tsx), so all 3 are equal-height at every
+              viewport width, not just at `lg`+. */}
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-6 lg:items-start">
             <div className="lg:col-span-2">
               <RecentReportsTable

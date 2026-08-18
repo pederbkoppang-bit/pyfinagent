@@ -3638,10 +3638,26 @@ async def _persist_analysis(analysis: dict, bq: BigQueryClient) -> None:
             ),
             final_score=None if _degraded else float(analysis.get("final_score") or 0.0),
             recommendation=None if _degraded else (analysis.get("recommendation") or "Hold"),
+            # phase-86 UI bugfix: on the full-analysis path, `analysis["risk_assessment"]`
+            # is empty at this top level (the real verdict lives nested at
+            # $.final_synthesis.risk_assessment.judge, read into `_judge` above) --
+            # `.get("reason", "")` silently returned "" for every full-path row,
+            # which is why /reports showed an empty report for 4/4 full-path NTAP
+            # rows while full_report_json.final_synthesis.final_summary carried the
+            # real multi-paragraph writeup the whole time (measured via BQ,
+            # 2026-08-17). final_summary is the actual report text on the full
+            # path; risk_assessment.reason is the lite-path's own (much shorter)
+            # sizing rationale and remains the fallback for that path.
             summary=(
                 ("DEGRADED: " + str(analysis.get("_degraded_reason") or "")[:400])
                 if _degraded
-                else (analysis.get("risk_assessment") or {}).get("reason", "") or ""
+                else (
+                    (full_report.get("final_synthesis") or {}).get("final_summary", "")
+                    if isinstance(full_report.get("final_synthesis"), dict)
+                    else ""
+                )
+                or (analysis.get("risk_assessment") or {}).get("reason", "")
+                or ""
             ),
             full_report=full_report,
             price_at_analysis=analysis.get("price_at_analysis"),

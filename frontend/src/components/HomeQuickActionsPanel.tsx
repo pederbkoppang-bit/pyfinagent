@@ -154,7 +154,7 @@ export function HomeQuickActionsPanel({ ticker, onTickerChange, onAnalyze }: Pro
   ];
 
   return (
-    <div className="h-full flex flex-col rounded-xl border border-navy-700 bg-navy-800/40">
+    <div className="flex h-[420px] flex-col overflow-y-auto scrollbar-thin rounded-xl border border-navy-700 bg-navy-800/40">
       <div className="border-b border-navy-700 px-4 py-3">
         <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400">Quick Actions</h3>
       </div>

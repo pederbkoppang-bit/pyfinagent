@@ -15,15 +15,9 @@ import {
 } from "recharts";
 import { BentoCard } from "./BentoCard";
 import { IconChart } from "@/lib/icons";
+import { getChartData, type ChartPricePoint } from "@/lib/api";
 
-interface OHLCVRow {
-  Date: string;
-  Open: number;
-  High: number;
-  Low: number;
-  Close: number;
-  Volume: number;
-}
+type OHLCVRow = ChartPricePoint;
 
 interface StockChartProps {
   ticker: string;
@@ -76,8 +70,6 @@ function formatVol(v: number): string {
   return String(v);
 }
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-
 export function StockChart({ ticker, currentPrice, analysisDate }: StockChartProps) {
   const [raw, setRaw] = useState<OHLCVRow[]>([]);
   const [period, setPeriod] = useState<Period>("1y");
@@ -89,19 +81,22 @@ export function StockChart({ ticker, currentPrice, analysisDate }: StockChartPro
 
   useEffect(() => {
     if (!ticker) return;
+    let ignore = false;
     setLoading(true);
     setError(null);
-    fetch(`${API_BASE}/api/charts/${encodeURIComponent(ticker)}?period=${period}`)
-      .then(async (res) => {
-        if (!res.ok) {
-          const body = await res.text();
-          throw new Error(`${res.status}: ${body}`);
-        }
-        return res.json();
+    getChartData(ticker, period)
+      .then((rows) => {
+        if (!ignore) setRaw(rows);
       })
-      .then((rows: OHLCVRow[]) => setRaw(rows))
-      .catch((e) => setError(e.message))
-      .finally(() => setLoading(false));
+      .catch((e: unknown) => {
+        if (!ignore) setError(e instanceof Error ? e.message : "Failed to load chart data");
+      })
+      .finally(() => {
+        if (!ignore) setLoading(false);
+      });
+    return () => {
+      ignore = true;
+    };
   }, [ticker, period]);
 
   const chartData = useMemo(() => {

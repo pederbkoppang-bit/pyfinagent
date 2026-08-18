@@ -647,9 +647,19 @@ export function getPaperLivePrices(
 // both non-ok responses and thrown errors ("ignore chart failures"),
 // producing a silently empty chart. No wrapper existed for this endpoint
 // before this step.
+// phase-86 UI restore: backend/api/charts.py::get_price_history always
+// returns the full OHLCV row (yfinance_tool.get_price_history) -- these
+// fields were previously narrowed to {Date, Close} for the reports-page
+// compare chart, the only consumer at the time. StockChart.tsx needs the
+// full row (volume bars, SMA/RSI computed from Close) and now also comes
+// through this wrapper instead of its own raw fetch.
 export interface ChartPricePoint {
   Date: string;
+  Open: number;
+  High: number;
+  Low: number;
   Close: number;
+  Volume: number;
 }
 
 export function getChartData(
@@ -659,6 +669,15 @@ export function getChartData(
   return apiFetch(
     `/api/charts/${encodeURIComponent(ticker)}?period=${encodeURIComponent(period)}`,
   );
+}
+
+// phase-86 UI restore: typed wrapper for GET /api/charts/{ticker}/financials
+// (yfinance valuation/health/institutional snapshot), used by the revived
+// /reports/[ticker] detail page. Routed through apiFetch for the same reason
+// getChartData was -- see the comment above it -- a raw unauthenticated
+// fetch to this same host previously produced silent failures.
+export function getChartFinancials(ticker: string): Promise<Record<string, unknown>> {
+  return apiFetch(`/api/charts/${encodeURIComponent(ticker)}/financials`);
 }
 
 // ── Backtest ────────────────────────────────────────────────────

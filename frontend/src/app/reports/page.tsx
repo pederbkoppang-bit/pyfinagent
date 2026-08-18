@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, Suspense } from "react";
+import { useRouter } from "next/navigation";
 import {
   LineChart,
   Line,
@@ -112,8 +113,10 @@ function ReportsContent() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // History state
-  const [expanded, setExpanded] = useState<string | null>(null);
+  // phase-86 UI restore: report detail is a full page at /reports/[ticker]
+  // (sidebar stays fixed on the left; the report gets the whole content
+  // width for the six-tab dashboard), not an inline panel or drawer.
+  const router = useRouter();
 
   // Compare state
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -356,37 +359,11 @@ function ReportsContent() {
                   columns={historyColumns}
                   ariaLabel="Reports history"
                   onRowClick={(r) => {
-                    const key = `${r.ticker}|${r.analysis_date}`;
-                    setExpanded((cur) => (cur === key ? null : key));
+                    const qs = new URLSearchParams({ date: r.analysis_date });
+                    router.push(`/reports/${encodeURIComponent(r.ticker)}?${qs.toString()}`);
                   }}
                   emptyState={null}
                 />
-                {expanded && (() => {
-                  const [exTicker, exDate] = expanded.split("|");
-                  const exReport = filtered.find(
-                    (r) => r.ticker === exTicker && r.analysis_date === exDate,
-                  );
-                  if (!exReport) return null;
-                  return (
-                    <div className="mt-4 rounded-lg border border-sky-500/20 bg-sky-950/20 p-4">
-                      <div className="mb-2 flex items-center justify-between">
-                        <span className="font-mono font-semibold text-slate-200">
-                          {exReport.ticker} -- {new Date(exReport.analysis_date).toLocaleDateString()}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => setExpanded(null)}
-                          className="text-xs text-slate-400 hover:text-slate-200"
-                        >
-                          Close
-                        </button>
-                      </div>
-                      <p className="text-sm leading-relaxed text-slate-400">
-                        {exReport.summary}
-                      </p>
-                    </div>
-                  );
-                })()}
               </div>
             )}
           </div>

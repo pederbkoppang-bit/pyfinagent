@@ -5,8 +5,21 @@
  *
  * Wired to the existing GET /api/reports/?limit=5 endpoint via the
  * `reports` prop (parent fetches in useEffect to keep the home page's
- * Promise.allSettled batch intact). Renders TICKER / COMPANY / ALPHA /
- * RECOMMENDATION / UPDATED columns with loading + empty + error states.
+ * Promise.allSettled batch intact). Renders TICKER (+ company name
+ * stacked underneath) / ALPHA / RECOMMENDATION / UPDATED columns with
+ * loading + empty + error states.
+ *
+ * Company name is stacked as a second line under the ticker (both
+ * single-line truncated) rather than given its own column -- a
+ * free-text column of unbounded length doesn't fit alongside 3 short
+ * columns at the card's ~350px width in the 3-across desktop layout
+ * (a separate Company column previously crushed Ticker down to a
+ * single character; operator wants the company name kept, so it's
+ * co-located with the ticker instead of dropped). Stacking + truncating
+ * both lines keeps every row a fixed 2-line height regardless of how
+ * long the company name is -- the wrapped-text version of this column
+ * produced 1-, 2-, and 3-line rows in the same table (operator-flagged
+ * 2026-08-14, "different types of squares for those different reports").
  *
  * "ALPHA" column displays `final_score` (0-10 composite quality score).
  * The pipeline does not currently emit a separate alpha field; this is
@@ -50,7 +63,7 @@ export function RecentReportsTable({ reports, loaded, loadError }: Props) {
   const router = useRouter();
 
   return (
-    <div className="h-full flex flex-col rounded-xl border border-navy-700 bg-navy-800/40">
+    <div className="flex h-[420px] flex-col rounded-xl border border-navy-700 bg-navy-800/40">
       <div className="flex items-center justify-between border-b border-navy-700 px-4 py-3">
         <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400">
           Recent Reports
@@ -60,31 +73,32 @@ export function RecentReportsTable({ reports, loaded, loadError }: Props) {
         </Link>
       </div>
 
-      <div className="flex-1 overflow-x-auto">
-        <table className="w-full text-left text-sm" aria-label="Recent reports">
+      <div className="flex-1 overflow-y-auto overflow-x-auto scrollbar-thin">
+        <table className="w-full table-fixed text-left text-sm" aria-label="Recent reports">
           <thead className="border-b border-navy-700 bg-navy-800/60">
             <tr>
-              <th className="px-4 py-2.5 text-[10px] font-medium uppercase tracking-wider text-slate-500">Ticker</th>
-              <th className="px-4 py-2.5 text-[10px] font-medium uppercase tracking-wider text-slate-500">Company</th>
-              <th className="px-4 py-2.5 text-right text-[10px] font-medium uppercase tracking-wider text-slate-500">Alpha</th>
-              <th className="px-4 py-2.5 text-[10px] font-medium uppercase tracking-wider text-slate-500">Recommendation</th>
-              <th className="px-4 py-2.5 text-right text-[10px] font-medium uppercase tracking-wider text-slate-500">Updated</th>
+              <th className="w-[38%] truncate px-3 py-2.5 text-[10px] font-medium uppercase tracking-wider text-slate-500">Ticker</th>
+              <th className="w-[20%] truncate px-3 py-2.5 text-right text-[10px] font-medium uppercase tracking-wider text-slate-500">Alpha</th>
+              <th className="w-[24%] truncate px-3 py-2.5 text-[10px] font-medium uppercase tracking-wider text-slate-500">Recommendation</th>
+              <th className="w-[18%] truncate px-3 py-2.5 text-right text-[10px] font-medium uppercase tracking-wider text-slate-500">Updated</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-navy-700/50">
             {!loaded && [0, 1, 2, 3, 4].map((i) => (
               <tr key={`skel-${i}`} className="animate-pulse">
-                <td className="px-4 py-3"><div className="h-4 w-12 rounded bg-navy-700/60" /></td>
-                <td className="px-4 py-3"><div className="h-4 w-40 rounded bg-navy-700/60" /></td>
-                <td className="px-4 py-3 text-right"><div className="ml-auto h-4 w-12 rounded bg-navy-700/60" /></td>
-                <td className="px-4 py-3"><div className="h-5 w-20 rounded-full bg-navy-700/60" /></td>
-                <td className="px-4 py-3 text-right"><div className="ml-auto h-4 w-16 rounded bg-navy-700/60" /></td>
+                <td className="px-3 py-3">
+                  <div className="h-4 w-16 rounded bg-navy-700/60" />
+                  <div className="mt-1.5 h-3 w-24 rounded bg-navy-700/40" />
+                </td>
+                <td className="px-3 py-3 text-right"><div className="ml-auto h-4 w-12 rounded bg-navy-700/60" /></td>
+                <td className="px-3 py-3"><div className="h-5 w-20 rounded-full bg-navy-700/60" /></td>
+                <td className="px-3 py-3 text-right"><div className="ml-auto h-4 w-16 rounded bg-navy-700/60" /></td>
               </tr>
             ))}
 
             {loaded && loadError && reports.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-4 py-12">
+                <td colSpan={4} className="px-3 py-12">
                   <div className="rounded-lg border border-rose-500/30 bg-rose-950/30 p-3 text-center">
                     <p className="text-sm text-rose-300">{loadError}</p>
                   </div>
@@ -94,7 +108,7 @@ export function RecentReportsTable({ reports, loaded, loadError }: Props) {
 
             {loaded && !loadError && reports.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-4 py-12">
+                <td colSpan={4} className="px-3 py-12">
                   <div className="flex flex-col items-center justify-center text-center">
                     <Files size={36} weight="duotone" className="text-slate-600" />
                     <p className="mt-3 text-sm text-slate-400">No reports yet</p>
@@ -106,12 +120,15 @@ export function RecentReportsTable({ reports, loaded, loadError }: Props) {
 
             {loaded && reports.map((r) => {
               const goto = () => router.push(`/reports?ticker=${encodeURIComponent(r.ticker)}`);
+              const company = r.company_name && r.company_name.trim() && r.company_name.trim().toUpperCase() !== r.ticker.toUpperCase()
+                ? r.company_name
+                : null;
               return (
                 <tr
                   key={`${r.ticker}-${r.analysis_date}`}
                   tabIndex={0}
                   role="button"
-                  aria-label={`Open ${r.ticker} report`}
+                  aria-label={`Open ${r.ticker} report${company ? ` (${company})` : ""}`}
                   onClick={goto}
                   onKeyDown={(e) => {
                     if (e.key === "Enter" || e.key === " ") {
@@ -121,19 +138,19 @@ export function RecentReportsTable({ reports, loaded, loadError }: Props) {
                   }}
                   className="cursor-pointer transition-colors hover:bg-navy-700/40 focus:bg-navy-700/40 focus:outline-none focus:ring-1 focus:ring-sky-500/40"
                 >
-                  <td className="px-4 py-3 font-mono text-sm font-bold text-slate-100">{r.ticker}</td>
-                  <td className="px-4 py-3 text-sm text-slate-300">
-                    {r.company_name && r.company_name.trim() && r.company_name.trim().toUpperCase() !== r.ticker.toUpperCase() ? r.company_name : "—"}
+                  <td className="px-3 py-3" title={company ?? undefined}>
+                    <div className="truncate font-mono text-sm font-bold text-slate-100">{r.ticker}</div>
+                    <div className="mt-0.5 truncate text-xs text-slate-500">{company ?? "—"}</div>
                   </td>
-                  <td className={`px-4 py-3 text-right font-mono text-sm font-semibold ${alphaColor(r.final_score)}`}>
+                  <td className={`truncate px-3 py-3 text-right font-mono text-sm font-semibold ${alphaColor(r.final_score)}`}>
                     {r.final_score != null ? r.final_score.toFixed(2) : "—"}
                   </td>
-                  <td className="px-4 py-3">
-                    <span className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-medium ${recColor(r.recommendation)}`}>
+                  <td className="truncate px-3 py-3">
+                    <span className={`inline-block max-w-full truncate rounded-full px-2.5 py-0.5 text-xs font-medium ${recColor(r.recommendation)}`}>
                       {formatRecommendation(r.recommendation)}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-right text-xs text-slate-500" suppressHydrationWarning>
+                  <td className="px-3 py-3 text-right text-xs text-slate-500" suppressHydrationWarning>
                     {formatRelativeTime(r.analysis_date)}
                   </td>
                 </tr>

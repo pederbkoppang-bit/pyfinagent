@@ -13,7 +13,7 @@
 "use client";
 
 import { BentoCard } from "@/components/BentoCard";
-import { TrendDown } from "@/lib/icons";
+import { TrendDown, TrendUp } from "@/lib/icons";
 import {
   CartesianGrid,
   ComposedChart,
@@ -26,7 +26,7 @@ import {
   YAxis,
 } from "recharts";
 
-export type RedLineWindow = "1d" | "7d" | "30d" | "90d";
+export type RedLineWindow = "1d" | "7d" | "30d" | "90d" | "1y";
 
 export interface RedLinePoint {
   date: string;
@@ -60,7 +60,7 @@ export interface RedLineMonitorProps {
   liveBand?: "green" | "amber" | "red" | "unknown";
 }
 
-const WINDOW_OPTIONS: RedLineWindow[] = ["1d", "7d", "30d", "90d"];
+const WINDOW_OPTIONS: RedLineWindow[] = ["1d", "7d", "30d", "90d", "1y"];
 
 // phase-73: per-band color tokens for the live-now marker. Static literals
 // so Tailwind JIT and Recharts both pick them up (cycle-68 JIT-safe lesson).
@@ -116,37 +116,61 @@ export function RedLineMonitor({
   for (const p of overlaySeries) navByDate.set(p.date, p.nav);
   const fallbackNav = overlaySeries.length > 0 ? overlaySeries[0].nav : 0;
 
+  // Operator feedback (2026-08-14): the header icon was a hardcoded red
+  // down-arrow regardless of actual performance, which reads as "losing
+  // money" even during a winning window. Derive the real direction from
+  // the selected window's first vs. last NAV (overlaySeries spans exactly
+  // the window, backfilled to a flat pre-inception baseline when trading
+  // started partway through it, so point[0] is always a fair "start of
+  // window" reference) and swap icon + color + a signed percentage to
+  // match.
+  const windowStartNav = overlaySeries.length > 0 ? overlaySeries[0].nav : null;
+  const windowEndNav =
+    overlaySeries.length > 0 ? overlaySeries[overlaySeries.length - 1].nav : null;
+  const navChangePct =
+    windowStartNav != null && windowEndNav != null && windowStartNav !== 0
+      ? ((windowEndNav - windowStartNav) / windowStartNav) * 100
+      : null;
+  const isUp = navChangePct != null && navChangePct >= 0;
+
   return (
     <BentoCard>
       <div className="mb-3 flex flex-wrap items-center gap-2">
-        <TrendDown size={18} className="text-rose-400" weight="fill" />
+        {isUp ? (
+          <TrendUp size={18} className="text-emerald-400" weight="fill" />
+        ) : (
+          <TrendDown size={18} className="text-rose-400" weight="fill" />
+        )}
         <h3 className="text-sm font-semibold text-slate-300">Red Line Monitor</h3>
-        {!compact && (
-          <div
-            data-testid="window-selector"
-            className="ml-auto inline-flex items-center gap-1 rounded-md bg-navy-900/60 p-1"
+        {navChangePct != null && (
+          <span
+            className={`font-mono text-xs font-semibold ${isUp ? "text-emerald-400" : "text-rose-400"}`}
           >
-            {WINDOW_OPTIONS.map((w) => (
-              <button
-                key={w}
-                type="button"
-                data-window={w}
-                aria-pressed={w === window}
-                onClick={() => onWindowChange(w)}
-                className={`rounded px-2.5 py-1 text-xs font-medium transition-colors ${
-                  w === window
-                    ? "bg-sky-500/15 text-sky-400"
-                    : "text-slate-500 hover:text-slate-300"
-                }`}
-              >
-                {w}
-              </button>
-            ))}
-          </div>
+            {isUp ? "+" : ""}
+            {navChangePct.toFixed(2)}% <span className="text-slate-500">({window})</span>
+          </span>
         )}
-        {compact && (
-          <span className="ml-auto font-mono text-xs text-slate-500">{window}</span>
-        )}
+        <div
+          data-testid="window-selector"
+          className="ml-auto inline-flex items-center gap-1 rounded-md bg-navy-900/60 p-1"
+        >
+          {WINDOW_OPTIONS.map((w) => (
+            <button
+              key={w}
+              type="button"
+              data-window={w}
+              aria-pressed={w === window}
+              onClick={() => onWindowChange(w)}
+              className={`rounded px-2.5 py-1 text-xs font-medium transition-colors ${
+                w === window
+                  ? "bg-sky-500/15 text-sky-400"
+                  : "text-slate-500 hover:text-slate-300"
+              }`}
+            >
+              {w}
+            </button>
+          ))}
+        </div>
       </div>
 
       <div
