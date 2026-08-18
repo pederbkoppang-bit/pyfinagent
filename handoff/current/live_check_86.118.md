@@ -380,7 +380,7 @@ not been re-measured since the repairs, and the test itself is now filed as
 
 ## 7. Criterion 7 -- mutation matrix over every guard this step added
 
-`python scripts/qa/mutation_86_118.py`, built on `scripts/qa/guardlib.py`. **14 cells over 8 targets.** Cell **M8** covers the criterion-5 polluter fix: its target's control runs the polluter AND the victim together, because the defect is only observable in the pair -- the polluter passes either way, and the victim passes either way ALONE. That cell takes ~2 minutes to score, which IS the defect it proves.
+`python scripts/qa/mutation_86_118.py`, built on `scripts/qa/guardlib.py`. **14 cells over 8 targets** (both re-derivable: `grep -c 'Cell(' scripts/qa/mutation_86_118.py` and the `TARGETS` list). Cell **M8** covers the criterion-5 polluter fix: its target's control runs the polluter AND the victim together, because the defect is only observable in the pair -- the polluter passes either way, and the victim passes either way ALONE. That cell takes ~2 minutes to score, which IS the defect it proves.
 
 ```
 control 75_17                        rc=0 collected=44 GREEN
@@ -400,7 +400,19 @@ restore verified: test_phase_57_1_reject_binding.py 9e47320b4fba3d99...
 restore verified: test_phase_60_3_data_integrity.py f59bba5162b07770...
 restore verified: test_phase_40_2_claude_code_v2_1_140_features.py c6da08ab7f89ba6e...
 restore verified: sweep_absent_verification_paths.py 3b764494dc2a92c4...
+restore verified: test_planner_agent.py 4b9d50c8f55e7950...
 ```
+
+*(This block was REGENERATED from a single `python scripts/qa/mutation_86_118.py`
+run and pasted whole. An earlier revision was **spliced**: when M8 and its target
+were added, two lines were hand-edited into a block captured from the previous
+13-cell/7-target run and the restore section was never regenerated -- so it
+carried SEVEN restore lines with the SHA-256 prefixes of the older run, and
+`test_planner_agent.py`, the target of the only cell covering the criterion-5
+fix, had no restore evidence at all. The cycle-4 Q/A proved that by diffing the
+block across commits against `guardlib.py`, which prints one restore line per
+target unconditionally. A capture that is edited is no longer a capture; the
+numbers happened to be right and the evidence was still false.)*
 
 Every control observed GREEN **first**; pytest exit 5 never scores as a kill;
 the mutant must collect the same test count as its control; the NAMED test must

@@ -31,7 +31,7 @@ individually with a disposition each. The suite also runs **116 seconds faster**
 | `backend/tests/test_phase_75_sre_ops.py` | archive-aware resolver + a rebuilt `launchctl bootstrap` oracle carrying its own known-bad fixtures |
 | `backend/tests/test_phase_75_17_verification_paths.py` | shape census git-pinned to `BASELINE_COMMIT` |
 | `scripts/qa/sweep_absent_verification_paths.py` | classifier learns that `\|\|`-joined arms are ALTERNATIVES |
-| `scripts/qa/mutation_86_118.py` | criterion 7 -- 13 cells over 7 targets, built on `guardlib` |
+| `scripts/qa/mutation_86_118.py` | criterion 7 -- 14 cells over 8 targets, built on `guardlib` |
 | `backend/tests/test_planner_agent.py` | the criterion-5 polluter: a module-level `os.environ` mutation scoped to an autouse fixture |
 
 ## The result that matters more than twelve repairs
@@ -126,7 +126,7 @@ correction.
 passed in 397.88s`. Each of the 7 is named with its disposition in
 `live_check_86.118.md` §5. **A smaller honest red count beats a green one that proves nothing.**
 
-**Criterion 7 -- 13 cells over 7 targets, 13 KILLED, 0 SURVIVED, 0 UNSCORABLE**,
+**Criterion 7 -- 14 cells over 8 targets, 14 KILLED, 0 SURVIVED, 0 UNSCORABLE**,
 every control observed GREEN first, SHA-256-verified restore per target,
 1 EQUIVALENT-BY-DESIGN declared up front with its measurement.
 
