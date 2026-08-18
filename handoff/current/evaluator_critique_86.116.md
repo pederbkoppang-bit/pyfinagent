@@ -299,3 +299,104 @@ and the false prose is replaced by an explicit correction.
 would miss a `sigma`-named term. It is not vacuous, but it is narrower than its
 name suggests, and that belongs in the escalation rather than in a fix made
 during EVALUATE.
+
+---
+
+## Cycle-3 Follow-up -- what Main changed in response
+
+All three cycle-3 violations are addressed. Each was verified by driving the
+system, and the capture below was regenerated from ONE run rather than edited.
+
+### V1 -- `cap_is_accounted_for` could not fire (the BLOCKING one)
+
+The cycle-3 Q/A was exactly right: the guard asserted `size_inflation < 3.0`
+while the 3.0 cap binds on `target_vol/stock_vol`, and with max multiplicity 2
+the inflation is bounded by sqrt(2)=1.4142 -- a bound the same function PRINTS.
+It could not fail on any input, and `--ticker` made the false negative
+reachable.
+
+**The replacement had TWO further problems, both found by driving it rather
+than by reading it, and both fixed:**
+
+1. **A DEAD CLAUSE.** `scale_pre < 3.0 and scale_post < 3.0` -- but
+   `scale = target_vol/vol` is decreasing in vol, and the guard two lines above
+   already establishes `a["vol_ann"] < b["vol_ann"]`, so `scale_pre > scale_post`
+   ALWAYS and the first clause IMPLIES the second. Measured: `a=0.04` fires the
+   guard; every attempt to saturate the POST side alone either saturates the pre
+   side too (`a=0.045 b=0.05`) or trips `pre_fix_volatility_is_the_lower_one`
+   first (`a=0.20 b=0.05`). **No fixture can falsify clause two**, so it was
+   decoration inside an `and`. Replaced with `max(scale_pre, scale_post) < 3.0`
+   -- identical semantics, one clause, no unfalsifiable half.
+
+2. **UNREACHABLE OFFLINE.** The guard lived inside `gate_effect()`, which needs
+   BigQuery-derived volatilities -- so `--offline` never reached it and the
+   matrix could not exercise it. **That is precisely how the vacuous version
+   shipped**, and `check_mechanism_tripwires()`'s own docstring already names the
+   failure: *"a guard that can only be reached through a network call is a guard
+   that will not be mutation-tested."*
+
+   `gate_effect()` takes a plain dict, so the tripwires now drive **the real
+   function** with synthetic volatilities -- not an extracted helper, because a
+   guard tested through a helper is not tested at the seam that uses it. That
+   needed a recursion break (`gate_effect` calls the tripwires, which now call
+   it), observed first as a `RecursionError` while writing it and recorded in
+   the code comment.
+
+**Paired negative AND positive**, because "it raised" is not "it
+discriminated":
+
+- `gate_guard_rejects_saturating_inputs` -- the cycle-3 Q/A's exact attack
+  (`a=0.04`, the input that made the script report 1.2500x while the TRUE
+  inflation was 1.0000x) must RAISE.
+- `gate_guard_accepts_unsaturated_inputs` -- an ordinary input (scales 0.75 /
+  0.60) must NOT raise, so a guard that fires on everything is caught too.
+
+Both red states watched before shipping, each on the correct named guard:
+
+```
+guard forced always-TRUE  -> INVARIANT FAILED: gate_guard_rejects_saturating_inputs
+guard forced always-FALSE -> INVARIANT FAILED: gate_guard_accepts_unsaturated_inputs
+```
+
+Offline invariants **19 -> 29**; full run **43 invariants hold**. Cells
+**T4/T5/T6** added (always-true, always-false, and the fixture neutered).
+
+### V2 -- the algebraic-identity overclaim
+
+Already corrected in the shipped code: the guard is renamed
+`census_sql_is_internally_consistent` and its comment states plainly that over
+the grouping `SUM(n-1) == total_rows - keys` is an ALGEBRAIC IDENTITY which
+**cannot** detect a normalisation error. It is kept only because it would catch a
+malformed edit to `CENSUS_SQL`, and the name no longer overclaims.
+
+### V3 -- "no restart pending" was false for the in-process API path
+
+**Now true, and measured rather than asserted.** `cache.py` landed
+2026-08-18T07:06:16+02:00; the running backend is **pid 89340, started
+08.26.53** -- after the fix -- so the module the live process imported carries
+`_dedupe_index`. Verified from the RUNNING process, not from the file:
+
+```
+$ pgrep -f "uvicorn backend.main:app"  -> 89340
+$ ps -o pid,lstart,etime -p 89340      -> 89340  tir. 18 aug. 08.26.53 2026  05:14:10
+$ git log -1 --format=%cI 539f16eb -- backend/backtest/cache.py
+                                       -> 2026-08-18T07:06:16+02:00
+```
+
+### Post-fix state, regenerated from one run
+
+```
+control -> rc=0  collected=13  GREEN
+tripwire control (verify_86_116.py --offline) -> rc=0 GREEN
+KILLED 14 / 14   SURVIVED 0   UNSCORABLE 0   EQUIVALENT-BY-DESIGN 1 (not scored)
+restore verified: cache.py 9f5f1d6798833281... verify_86_116.py 9fcf8806b56755ef...
+```
+
+`python scripts/qa/verify_86_116.py` -> **OK: all 43 invariants hold**, and the
+report now PRINTS the saturation state rather than leaving it to inference:
+`vol_scale pre / post: 0.4487 / 0.3587 (cap 3.0 -- UNSATURATED, so the inflation
+above is the real one)`.
+
+Pre-spawn class sweep (`scripts/qa/pre_spawn_gate.py 86.116`): **CLEAN** -- no
+spliced capture, no guard asserting a truthy literal, no prose contradicting its
+own captures, no SURVIVED or UNSCORABLE cell.
