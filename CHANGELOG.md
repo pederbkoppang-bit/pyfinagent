@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-18 | `eb6a77bd` | feat(qa): pre-spawn gate -- sweep the known defect CLASSES before buying a cycle |
 | 2026-08-18 | `69a956ea` | phase-86.116: the saturation guard had a DEAD clause and was unreachable offline |
 | 2026-08-18 | `97abc84b` | phase-86.118: harness log for the four-cycle drain; budget exhausted at 5/5 |
 | 2026-08-18 | `5dd79342` | phase-86.118: cycle-4 FAIL recorded; the section-7 capture was SPLICED and is regenerated |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-18 | `6c256c36` | chore: trim goal under 4000 chars |
 | 2026-08-18 | `325ebd4b` | chore: goal rewritten around Main behaviour, not tooling |
 | 2026-08-18 | `750ebe0b` | chore: next-session goal -- un-park everything, with the blocking arithmetic |
-| 2026-08-18 | `01c52563` | chore: trim goal file back under the 4000-char limit |
 
 ---
 
