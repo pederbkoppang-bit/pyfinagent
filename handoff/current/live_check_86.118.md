@@ -99,6 +99,24 @@ clobbered, and IDs are now computed from the live maximum.
 
 ## 3. Criterion 2 -- per-test classification, with the evidence for each
 
+**Every row maps to one of criterion 2's THREE named buckets.** The cycle-1 Q/A
+was right that the finer labels below were never mapped, so the mapping is made
+explicit here and the bucket is stated in its own column. The finer label is
+kept because it is what makes each row actionable; it is a SUB-CLASS, never a
+substitute.
+
+| finer label | criterion-2 bucket | why |
+|---|---|---|
+| ENV LEAKAGE | **STALE-EVIDENCE** | the assertion was true when written; its source (the declared default) did not change -- the *deployment* did, and the test read the deployment |
+| CLASSIFIER FALSE POSITIVE | **PRODUCT-DEFECT** | the code under test (`sweep_absent_verification_paths.py`) was genuinely wrong; it was FIXED, not the test |
+| CONSUMED EVIDENCE (archived) | **STALE-EVIDENCE** | the source was moved by the archive hook after the assertion was written |
+| census vs live artifact | **STALE-EVIDENCE** | the asserted figures were correct for their input; the input rotated |
+| SUPERSEDED POLICY | **STALE-EVIDENCE** | true when written; superseded by a documented operator decision |
+| PROXY ASSERTION | **PRODUCT-DEFECT** (in the test's own oracle) | the oracle was wrong on any input, not merely out of date -- so it is a defect in the checking code, and it was repaired rather than re-pointed |
+| LIFECYCLE META-TEST | **STALE-EVIDENCE** | the premise (a step is OPEN) was true when written and was invalidated by that step closing |
+| exit-code drift (row 7) | **STALE-EVIDENCE** -- see the measurement below | |
+
+
 | # | test | class | evidence | disposition |
 |---|---|---|---|---|
 | 1 | `test_phase_23_2_6_sector_cap_emit.py` log evidence | STALE-EVIDENCE (rotated log) | both scraped strings exist only in `backend.log.20260612T104931Z.gz`; the live log covers 2026-08-14..18 | **open** -- see §5 |
@@ -107,7 +125,7 @@ clobbered, and IDs are now computed from the live maximum.
 | 4 | `test_phase_57_1::reject_binding_swap_path_off_emits_on_blocks` | ENV LEAKAGE (§2) | same fixture | **FIXED** |
 | 5 | `test_phase_57_1::off_identity_prompts_are_verbatim_constants` | ENV LEAKAGE (§2) | same fixture; the `is` identity holds once the flag is genuinely off | **FIXED** -- the `is` comparison was NOT relaxed to `==` |
 | 6 | `test_phase_60_3::flag_defaults_off` | ENV LEAKAGE (§2) | `Settings()` read `.env:83` | **FIXED** -- asserts the declared default |
-| 7 | `test_phase_62_4_sentinel::infra_path_distinct_exit` | exit-code drift | `assert rc == 2`, got 1 | **open** -- see §5 |
+| 7 | `test_phase_62_4_sentinel::infra_path_distinct_exit` | **STALE-EVIDENCE** (env-dependent -- a third instance of the §2 class) | MEASURED, see §5a: the sentinel exits 2 only when `gates_failed` is a SUBSET of the infra set. Under the forced BQ failure it reports TWO gates -- `metered_source_unavailable` (injected) **and** `flags_match_tokens` (live `.env` state) -- so the subset test fails and it exits 1 | **open, filed 86.124** -- the repair is contested; see §5a |
 | 8 | `test_phase_75_17::masterplan_diff_touches_only_the_ten_sibling_insertions` | census vs live artifact | diffs the live masterplan against `BASELINE_COMMIT` | **open** -- see §5 |
 | 9 | `test_phase_75_17::sweep_over_live_masterplan_is_clean` | **CLASSIFIER FALSE POSITIVE** | see §4 | **FIXED** |
 | 10 | `test_phase_75_17::sweep_shape_census_matches_the_corrected_figures` | census vs live artifact | asserted an exact census against a file that took 319 commits/30d; `dict` grew 720 -> 1132 | **FIXED** -- git-pinned; see §4 |
@@ -221,18 +239,116 @@ failures remain and every one is either a genuine defect awaiting its own step o
 a repair whose correct form is contested; none is a test that would have been
 cheap to silence.
 
-## 6. Criterion 5 -- the ORDERING-ARTIFACT class
+## 5a. Row 7 classified by DRIVING the sentinel, not by reading it
+
+The cycle-1 Q/A was right that leaving this row "not yet classified" did not
+discharge criterion 2. Driven:
+
+```
+$ SENTINEL_TEST_BQ_FAIL=1 bash scripts/away_ops/sentinel.sh
+{"metered_llm_usd_today": null, ..., "ok": false,
+ "gates_failed": ["metered_source_unavailable", "flags_match_tokens"],
+ "warnings": ["forced by SENTINEL_TEST_BQ_FAIL",
+              "unauthorized true flags: PAPER_SYNTHESIS_INTEGRITY_ENABLED"]}
+```
+
+`scripts/away_ops/sentinel.sh:159-160` decides the exit code:
+
+```
+infra = {"metered_source_unavailable", "flags_reconciliation_unavailable"}
+sys.exit(2 if set(report["gates_failed"]) <= infra else 1)
+```
+
+Exit 2 requires `gates_failed` to be a **subset** of the infra set. The injection
+adds `metered_source_unavailable` as designed, but a **second, non-infra** gate
+is already failing, so the subset test fails and the sentinel exits 1. The test
+asserting `rc == 2` is therefore **STALE-EVIDENCE, and env-dependent** -- a third
+instance of the §2 class, and the reason it is env-dependent is measurable:
+
+```
+$ bash scripts/away_ops/sentinel.sh          # no injection at all
+exit=1
+gates_failed: ['flags_match_tokens']
+warnings: ['unauthorized true flags: PAPER_SYNTHESIS_INTEGRITY_ENABLED']
+ok: False
+```
+
+### An OPERATIONAL finding this surfaced, which is not a test problem
+
+**The away-ops sentinel is currently reporting a gate breach on the live
+deployment.** `backend/.env:88` sets `PAPER_SYNTHESIS_INTEGRITY_ENABLED=true`
+with no matching authorization token, which is exactly the condition the
+`flags_match_tokens` gate exists to catch. Run clean, the sentinel exits **1**
+with `ok: false`.
+
+This step does **not** touch it: flag promotion and de-promotion are
+operator-gated, and `backend/.env` is not written here. It is surfaced because
+the sentinel's own test being red is plausibly why an `ok: false` went unnoticed
+-- which is precisely the cost this step exists to measure. Raised for the
+operator; the repair belongs to **86.124** together with the exit-code question.
+
+## 6. Criterion 5 -- the ORDERING-ARTIFACT class, with its shared state IDENTIFIED
 
 Answered by per-test isolation rather than by run-to-run agreement, because
 `pytest-randomly` is absent and both runs share one collection order.
 
 **Measured: 18 FAILS_ALONE, 1 PASSES_ALONE.** The single order-dependent test is
 `test_phase_86_6_subprocess_channel::test_the_optin_IS_honoured_so_a_real_window_remains_possible`,
-which is the **19th** failure and lies **outside this step's named 12 files**.
+the **19th** failure, outside this step's named 12 files. So the
+ORDERING-ARTIFACT bucket is **empty inside this step's scope** -- a measured
+`n=1 outside scope`.
 
-So the ORDERING-ARTIFACT bucket is **empty inside this step's scope**, and that
-is a measured `n=1 outside scope` rather than a failure to find shared state
-among the 18 -- there is none to find.
+**The shared state, which the previous revision asserted was someone else's to
+find.** It is NOT in-process mutable state and there is no polluter test. From
+the full-run traceback:
+
+```
+self = <Popen: returncode: -9 args: [...smoke_cc_rail_e2e.py...]>
+endtime = 1788198.077028333, orig_timeout = 120
+stdout_seq = [b'{"event": "preflight", "health": "ok",
+   "binary": "/Users/ford/.local/bin/claude",
+   "paper_use_claude_code_route": true, "rail_state": "ON"}\n']
+subprocess.TimeoutExpired
+```
+
+The child reached a real preflight and was then **SIGKILLed at the 120s
+timeout**. Timed both ways:
+
+| context | result |
+|---|---|
+| alone | **`1 passed in 6.80s`** |
+| full suite | `TimeoutExpired` at **120s**, `returncode: -9` |
+
+**The shared resource is WALL-CLOCK on a real external dependency.** The test
+spawns `scripts/qa/smoke_cc_rail_e2e.py` with `--allow-live-backend` against
+`http://localhost:8000` -- the operator's RUNNING backend -- and that script
+invokes the real `claude` binary (`rail_state: ON`). Alone the machine is idle
+and the call returns in under 7 seconds; under whole-suite CPU contention the
+same call exceeds a 120s ceiling by more than 17x. Nothing another test *wrote*
+is responsible; what is shared is the machine, the live backend, and the CLI.
+
+Two consequences worth stating rather than leaving implicit:
+
+- **This is not repairable by cleaning shared state**, which is the usual
+  order-dependence remedy (Luo FSE'14 F.10: 74% of order-dependent tests are
+  fixed that way). A timeout racing a real external call needs either isolation
+  from the live backend or a bound that reflects loaded-machine latency.
+- **A unit-test run reaches the operator's live backend and spawns the real
+  `claude` CLI.** `--dry` limits what it mutates, but the dependency is real.
+  That belongs with **86.119**, which owns this test.
+
+### The opposite-direction anomaly, restored
+
+The contract recorded a masking dependency pointing the OTHER way and the
+previous revision of this artifact dropped it, which the cycle-1 Q/A caught:
+`test_portfolio_swap::test_swap_framework_fills_zero_buy_gap` was observed to
+**pass when the 19 were run together** while failing **alone** and in the full
+suite. Under the same wall-clock explanation this is consistent rather than
+contradictory -- a 19-test run is a lightly loaded machine, and both directions
+are timing, not state. It is recorded here as an **open observation, not a
+conclusion**: it was measured once during the contract's isolation sweep and has
+not been re-measured since the repairs, and the test itself is now filed as
+**86.126** on its own merits.
 
 ## 7. Criterion 7 -- mutation matrix over every guard this step added
 
