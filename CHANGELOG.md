@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-18 | `5250d5bf` | fix(ledger): backfill 75.11.4's missing PASS -- a CLOSED step read as parked all session |
 | 2026-08-18 | `5218aef2` | phase-86.108: cycle-4 FAIL; I committed the class I had gated an hour earlier |
 | 2026-08-18 | `f7685272` | phase-86.108: refresh the stale regression-sweep capture in BOTH artifacts |
 | 2026-08-18 | `a067e80b` | phase-86.116: cycle-4 FAIL recorded; the Q/A found a HOLE in my own pre-spawn gate |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-18 | `3e532fe4` | feat(qa): guardlib -- make red-first and self-adversarial mechanical |
 | 2026-08-18 | `53287125` | chore: goal under 4000 chars |
 | 2026-08-18 | `e52ac101` | chore: goal at final size, under the 4000-char limit |
-| 2026-08-18 | `be444466` | chore: goal updated -- 86.118 gate PASSED and contract written |
 
 ---
 
