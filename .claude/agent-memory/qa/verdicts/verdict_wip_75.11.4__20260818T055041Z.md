@@ -1,4 +1,4 @@
-STATUS: INCOMPLETE -- not a verdict
+STATUS: COMPLETE -- write-first record, still NOT a verdict
 STEP: 75.11.4
 WRITTEN: 2026-08-18T05:50:41Z
 
@@ -47,8 +47,13 @@ launch row at 05:50:37Z.
    original ordering. PASS with the limitation restated, not papered over.
 3. experiment_results_75.11.4.md (27,196 B) + live_check_75.11.4.md (22,678 B)
    present. PASS.
-4. log-last: `grep -F "phase=75.11.4" handoff/harness_log.md` -> 0 lines;
-   masterplan status for 75.11.4 = "pending". Nothing flipped. PASS.
+4. log-last: `grep -cF 'phase=75.11.4' handoff/harness_log.md` -> **1** line, and
+   it is `## Cycle 1244 -- 2026-08-17 -- phase=75.11.4 result=PARKED (budget
+   exhausted)`. That is a disposition written by the attempt gate at last
+   night's denial, NOT a Q/A verdict, and the escalation file itself says "THIS
+   IS NOT A PASS AND NOT A FAIL". No PASS/CONDITIONAL/FAIL row exists for this
+   step and masterplan status is still "pending". PASS -- recorded precisely
+   rather than as the "0 lines" I first expected.
 5. no-verdict-shopping: production + evidence changed AFTER the cycle-4
    critique (critique mtime 21:58:57 local; backfill 22:01:54, verifier
    22:01:57, test 22:01:12, experiment_results 22:02:54, live_check 22:03:18).
@@ -187,3 +192,97 @@ non-self-anchoring assertion whose property is guarded elsewhere.
    (tool neutered to a no-op that still prints DRY RUN) is KILLED.
 6. misc_moved tautology -> see section G. STEP_ID_RE comment -> NOT done
    (the "consider" half).
+
+
+## G. Findings (all EVIDENCE-class; none PRODUCT-class)
+
+W1. live_check_75.11.4.md:18 -- the file maintains an explicit supersession
+    chain (19 passed -> superseded; 22 passed -> superseded) and states in bold
+    "**The live reading is section 16's: 27 passed, with all ten mutation cells
+    killed (section 14).**" Cycle 5 added SS18c/18e reporting **31 passed** and did
+    NOT extend the chain, so the file's own navigational sentence points an
+    auditor at a superseded count.
+W2. experiment_results_75.11.4.md:16 -- the "What was built" table still reads
+    "**27** tests ... incl **8** mutation cells (cycle 2 added M-INV/M3/M4;
+    cycle 3 added N5a/N5b/N14/N15 ...)". Actual: 31 tests; cycle 5 added Q3/Q5/
+    DRYMK. Present-tense delivery summary that does not reproduce.
+    (The  figures INSIDE fenced blocks are correctly labelled
+    "cycle-3" captures -- those are legitimate dated records, not findings.)
+N1. "total=842 agree=440" re-derives today as total=843 agree=441 (one new
+     dir in ~10 h). Load-bearing figure (mismatch=156) is EXACT.
+    Present-tense census without a capture stamp.
+N2. "[protected] KEEP = 20" is a live-tree gauge; it re-derives to exactly 20
+    today but will drift as handoff/current/ grows.
+N3. Coverage residuals my matrix found: no test covers a masterplan reference
+    written WITHOUT  (X5), and none covers the
+     contradiction guard (Y11). Shipped code is correct in
+    both cases; these are hypothetical regressions, not live defects.
+N4. test_c9_the_verifier_is_actually_EXECUTED's negative assertion
+     is not
+    self-anchoring: it passes if the fixture file is absent (X12 SURVIVED). The
+    PROPERTY is guarded -- Y2 KILLED.
+N5. STEP_ID_RE is dead in BOTH housekeeping scripts. verify_handoff_layout.py:
+    60-66 documents it "RETIRED IN PLACE"; backfill:84 has no such comment --
+    the cycle-4 "consider" item, not done.
+N6. ROLLING_KEEP (the .md half) is now behaviourally inert; all 8 members
+    resolve to None and are kept by the no-step-id branch regardless.
+
+OPERATIONAL WARNING (not a criterion issue, but Main must not miss it):
+.claude/hooks/auto-commit-and-push.sh:360 stages with "git add -A" (its own
+comment at :351 says it "will also stage a PEER session's" work). If Main flips
+75.11.4 to done right now, **14 out-of-scope entries** -- backend/api/
+sovereign_api.py, backend/services/autonomous_loop.py, 10 frontend files,
+.archive-baseline.json -- ride into a commit subject-named for this step.
+live_check SS18f says "the commit uses an explicit pathspec and never git add -A";
+that was true of the hand-made 2e9597bd, and is NOT true of the hook.
+
+## H. Criterion-by-criterion (each with a guard I made fail MYSELF)
+
+ 1 MET  X1 X2 X7 X9 X13 Y6 Y7 all KILLED; live run prints 4 unknown-id WARNs
+ 2 MET  test_c2 both directions in one run; fixture cell X11 KILLED
+ 3 MET  M1 + test_c3_fixture_is_load_bearing; my X1 KILLED
+ 4 MET  test_c4 + LIVE double bare run 848->848, exit 0
+ 5 MET  test_c5 plants the reference; X4 + X8 KILLED
+ 6 MET  real subprocess drives __main__; M-INV + my Y9 KILLED; live tree unchanged
+ 7 MET  test_c7_m5/m6/m2; X4/X8 KILLED
+ 8 MET  real hook driven via CLAUDE_PROJECT_DIR (documented deviation from
+        "flip a scratch step", reason: a live flip fires git add -A); X10 hook
+        mutation KILLED and Y4 fixture cell KILLED, so the hook truly executes
+ 9 MET  X10 Y1 Y2 X14 all KILLED (verifier EXECUTED, not source-scanned)
+10 MET  whole-tree checker re-run by me; recall+precision controls True
+11 MET  content-equality asserts on contract.md + live_check.md; Y4 KILLED
+12 MET  156 markers == 156 mismatches, re-derived from classify() today; Y8 KILLED
+13 MET  test_c13 discriminates (foreign refused, declaring admitted); Y5 KILLED
+
+## I. Disposition of my policy uncertainty
+
+W1/W2 are the same CLASS the step's cycle 5 was remediating, reproduced by the
+act of remediating -- which argued for capping. Resolved against the operator's
+dated standing instruction (auto-memory product-fix-vs-evidence-churn,
+2026-08-17): classify PRODUCT vs EVIDENCE; "artifact prose staleness" is named
+there as EVIDENCE-class and does not buy a re-evaluation cycle; fix in place and
+queue as a residual. That doctrine is attempt-INDEPENDENT, so this reasoning
+would return the same verdict at attempt 1.  is
+explicitly preserved by that memo and was spent here: 26 cells, a behavioural
+differential for every survivor, and one probe of my own that I caught and
+corrected (the 24-vs-20 protected count).
+
+Process note for the operator, stated rather than buried: the same memo says
+"never seek extensions for evidence-only disputes", and this extension WAS
+sought after an evidence-only CONDITIONAL.
+
+## J. Safety of my own work
+HEAD moved 16b57f81 -> 6a65b5d6 mid-evaluation (86.116 cycle 3);  touches NOTHING in this step's scope. Post-run
+sha256 (unchanged, and matching the artifact's stated baselines):
+backfill=1b4f88f0df3495f7 verifier=f07a33170cfe717a naming=2f426db901fe5746
+quar=34ccb01ee6b26ff9 hook=2278ca9910b0bd15 suite=f1a7a683a118a758.
+grep MUTANT = 0 in all six. All mutation ran on a scratchpad copy; the real
+tree was never written. handoff/harness_log.md carries one prior row for this
+step --  --
+which is a disposition from the attempt gate, not a Q/A verdict; masterplan
+status is still , so log-last holds.
+
+VERDICT RETURNED: PASS (ok=true). Findings W1/W2/N1-N6 recorded as
+EVIDENCE-class residuals, not blockers.
+
+COMPLETED: 2026-08-18T06:31:44Z

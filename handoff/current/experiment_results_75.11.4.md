@@ -13,7 +13,7 @@ brief `research_brief_75.11.4.md`, 53,030 chars). Verbatim command evidence:
 | `scripts/housekeeping/backfill_handoff_archive.py` | MODIFIED | Status gate, referenced-path refusal, `git mv` preference, dry-run default, honest summary |
 | `scripts/housekeeping/verify_handoff_layout.py` | MODIFIED | Shares the resolver; no-step-id demoted from failure to info; unknown-step reported |
 | `scripts/housekeeping/quarantine_misattributed_archives.py` | NEW | Criterion 12 remediation: additive markers, reusing the 86.29 classifier |
-| `backend/tests/test_phase_75_11_4_backfill_status_aware.py` | NEW | **27** tests covering criteria 1-13 incl. **8** mutation cells (cycle 2 added M-INV/M3/M4; cycle 3 added N5a/N5b/N14/N15 and made H5 killable) |
+| `backend/tests/test_phase_75_11_4_backfill_status_aware.py` | NEW | **31** tests covering criteria 1-13 incl. **11** mutation cells (cycle 2 added M-INV/M3/M4; cycle 3 added N5a/N5b/N14/N15 and made H5 killable; cycle 5 added Q3/Q5/DRYMK) |
 | `handoff/archive/phase-*/MISATTRIBUTION_NOTICE.md` | NEW (156) | The remediation itself |
 
 No file under `.claude/hooks/**` was modified. The backfill was never run with

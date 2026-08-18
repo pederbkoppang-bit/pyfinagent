@@ -316,3 +316,107 @@ least one guard fail itself for every one of them; every finding is WARN-level.
   "verdict_unmodified": true
 }
 ```
+
+---
+
+# Cycle 5 -- Verdict: PASS
+
+Rail: Workflow structured-output (`qa-verdict.js`, launched via `scriptPath`
+from `/probe-qa-tool-surface`-style dispatch), run `wf_266d35a8-0c2`, agent
+`aa3e5d79413cf4e6e`, returned 2026-08-18. Launched under an OPERATOR-AUDITED
+attempt-budget extension (`handoff/audit/attempt_budget_audit.jsonl`,
+`2026-08-18T05:49:39Z`, `type: operator_extension`, `recorded_by: operator`,
+reason: "Operator granted permission 2026-08-18; attempt 4's own evaluator
+said all 13 criteria MET and every one of its 7 WARN findings has since been
+fixed (D1-D6 closed, guarded, mutation-tested); attempt 5 was NO_VERDICT
+(rail drop) so the fixes were never re-evaluated. One attempt to confirm on
+changed evidence, per Main's documented recommendation in
+escalation_attempt_budget_75.11.4.md."). This is a re-grade on evidence that
+changed materially after Cycle 4's CONDITIONAL (D1-D6 remediation, see
+`experiment_results_75.11.4.md`), not verdict-shopping on unchanged evidence.
+
+**Main records this verdict; Main did not author it.** The block below is the
+CAPTURED RETURN VALUE transcribed BYTE-VERBATIM -- no edits, no paraphrase, no
+reordering. `verdict_unmodified: true` and `harness_compliance_ok: true` are
+fields the Q/A itself set.
+
+```json
+{
+  "ok": true,
+  "verdict": "PASS",
+  "reason": "All 13 immutable criteria are MET and I made at least one guard FAIL myself for every one of them, using my own cells rather than re-running the author's. Immutable command: `.venv/bin/python -m pytest backend/tests/test_phase_75_11_4_backfill_status_aware.py -q` -> 31 passed, RAW_EXIT=0 (exit captured bare, not through a pipe). Lint gate exit=0 over a DERIVED, xargs-fed, non-empty-asserted 7-file scope (union of the step's commit 2e9597bd, `git diff HEAD`, and untracked). Harness compliance 5/5. Boundary clean: commit 2e9597bd touched ONLY scripts/housekeeping/** + its test + handoff artifacts, and .claude/hooks/**, .claude/masterplan.json and scripts/qa/** are all unmodified; all 13 criteria are byte-verbatim in the contract (programmatic containment, 0 missing). I ran 26 mutation cells of my own on a repo-shaped scratchpad copy (handoff/, scripts/qa and masterplan.json symlinked read-only), each with a green CONTROL first and a byte-identical sha256 restore after; my measured baselines match the artifact's EXACTLY (backfill=1b4f88f0df3495f7, verifier=f07a33170cfe717a, hook=2278ca9910b0bd15). 18 KILLED, incl. cells the author's harness does not contain: pending/deferred/blocked/merged added to ARCHIVABLE_STATUSES (X1, Y6), is_archivable -> `status is not None` (Y7), the c5 guard RELOCATED one seam upstream (X8), protection keyed on full path not basename (X4), unknown status defaulting to \"done\" (X13), the unknown-id WARN line deleted (X9), VARIANT_RE dropped (X7), VARIANT-before-SUFFIX order (Y1), the verifier's is_archivable SHADOWED rather than `elif False`'d (X14), the verifier treating an OPEN step as a violation (Y2), the hook's `${base}_${short_sid}.md` convention broken (X10), the quarantine tool neutered to a no-op that still prints DRY RUN (Y8), mkdir moved back INSIDE the dry-run branch (Y9), and three FIXTURE-side cells (X11, Y4, Y5) proving the pending/done fixtures are load-bearing. All 8 survivors got a behavioural differential: X3/X6/X15/Y3/Y10 are EQUIVALENT (every ROLLING_KEEP member resolves to None so the sweep-free code keeps it anyway; PREFIX_RE cannot match a suffix name so that order is unobservable; STEP_ID_RE is dead in both scripts; the only dotfile in current/ is .DS_Store), X5/Y11 are bounded coverage residuals with the SHIPPED code correct and zero live exposure (0 of the 80 lost basenames are present in handoff/current/), and X12 is a non-self-anchoring negative assertion whose property is genuinely guarded (Y2 KILLED). Independent live-tree verification, not just tmp: two consecutive bare runs left archive dirs 848 -> 848 and handoff/current 803 -> 803 at exit 0, so criterion 4 and the D1 dry-run-mkdir fix hold in production. Census re-derived from classify() today: 156 mismatches and exactly 156 MISATTRIBUTION_NOTICE.md markers, recall and precision controls both True, precision 0.9936. Every one of the cycle-4 CONDITIONAL's seven findings is CLOSED and I verified each by execution rather than by reading the closure text. NO PRODUCT DEFECT FOUND. The residual findings are all EVIDENCE-class artifact-prose staleness (W1: live_check:18's bolded \"the live reading is section 16's: 27 passed\" was never extended when cycle 5 added 31; W2: experiment_results:16's What-was-built table still says 27 tests / 8 cells) plus six NOTEs; under the operator's dated standing instruction of 2026-08-17 (PRODUCT defects re-evaluate, EVIDENCE defects are fixed in place and queued as residuals) these do not buy a re-evaluation cycle. That doctrine is attempt-independent, so this verdict would be the same at attempt 1.",
+  "violated_criteria": [],
+  "violation_details": [],
+  "certified_fallback": false,
+  "checks_run": [
+    "harness_compliance_audit_5_item",
+    "research_gate_envelope_verification",
+    "immutable_verification_command",
+    "raw_exit_code_captured_unpiped",
+    "python_lint_gate_derived_scope_union_untracked_xargs",
+    "syntax_and_import",
+    "git_scope_and_boundary_check_on_the_shipping_commit",
+    "criteria_verbatim_byte_containment_check",
+    "independent_mutation_matrix_26_cells_two_runs",
+    "fixture_side_mutation_cells",
+    "hook_mutation_cell",
+    "shared_module_mutation_cells",
+    "behavioural_differential_for_every_survivor",
+    "guard_vacuity_check_4c",
+    "claim_reproduction_audit",
+    "archive_census_re_derivation",
+    "census_recall_and_precision_controls",
+    "live_tree_idempotency_and_dry_run_safety",
+    "prior_cycle_remediation_list_enumeration_and_closure_check",
+    "attempt_budget_audit_stream_cross_check",
+    "verdict_ledger_and_qa_wip_evidence",
+    "repo_mutation_residue_and_sha256_check",
+    "head_rechecked_at_start_and_end",
+    "code_review_heuristics",
+    "evaluator_critique"
+  ],
+  "harness_compliance_ok": true,
+  "notes": "ATTEMPT / SEQUENCE EVIDENCE (gathered, not applied). `qa_wip.py 75.11.4 --spawned-at 2026-08-18T05:50:41Z`: source_present=TRUE, attempt_number=5, attempt_number_status=\"ok\", attempt_number_is_lower_bound=true, prior_attempts=4, records_retained=5 (GAUGE, includes my own write-first record), records_pruned_known=null, prior_records=[__20260817T194109Z, __20260817T193444Z, __20260817T191121Z, __20260817T185113Z]. `verdict_history_86_21.py --step 75.11.4 --evidence-only`: status=\"ok\", \"4 verdict(s) from the ledger\", sequence = FAIL -> FAIL -> NO_VERDICT -> CONDITIONAL (the NO_VERDICT row carried through as-is, not collapsed). CROSS-CHECK: prior_attempts (4) is NOT greater than the ledger's verdict count (4), so the ledger is NOT stale for this step-id.\n\nA DISCREPANCY I MEASURED MYSELF, differing in MECHANISM from the one Main disclosed. handoff/audit/attempt_budget_audit.jsonl holds five pre-extension `attempt` rows for 75.11.4: 18:21:03Z is workflow=research-gate.js, and only 18:51:08Z / 19:11:16Z / 19:34:39Z / 19:41:05Z are workflow=qa-verdict.js. So there were FOUR Q/A spawns, not five; all four left a WIP record and a ledger row. The escalation file's \"attempt 5: NO_VERDICT\" is an off-by-one -- the gate consumed slot 1 on the research-gate launch. This MATTERS for grading and not merely for bookkeeping: it means the CONDITIONAL (19:41:05Z) was the MOST RECENT Q/A verdict and the D1-D6 fixes (20:01-20:03Z) landed after it, so this spawn is a re-grade on CHANGED evidence rather than a re-run on the same evidence. Operator extension row at 05:49:39Z; my launch row at 05:50:37Z.\n\nHARNESS COMPLIANCE 5/5, with one limitation restated rather than papered over. (1) research_brief_75.11.4.md precedes the contract; envelope brief_status=COMPLETE, gate_passed=true, sources_read_in_full=18 (floor 5), urls_collected=72 (floor 10), recency_scan_performed=true, coverage.audit_class=true with dry_rounds=2/K=2. (2) contract-before-generate: brief 20:35:04 < contract 21:05:54 < scripts 22:01:5x < experiment_results 22:02:54 < live_check 22:03:18 (local/CEST). The contract's mtime post-dates handoff_naming.py because cycles 2/3 edited numbers inside it; the contract is untracked so git cannot arbitrate the original ordering -- I could not re-derive it and say so, exactly as the cycle-4 evaluator did. (3) both artifacts present and non-empty. (4) LOG-LAST -- corrected against my own first expectation: `grep -cF 'phase=75.11.4' handoff/harness_log.md` returns 1, not 0, and the row is `## Cycle 1244 -- 2026-08-17 -- phase=75.11.4 result=PARKED (budget exhausted)`. That is a disposition written by the attempt gate at last night's denial, not a Q/A verdict (the escalation file itself says \"THIS IS NOT A PASS AND NOT A FAIL\"); no PASS/CONDITIONAL/FAIL row exists for this step and masterplan status is still `pending`. (5) evidence changed materially after the cycle-4 critique (critique 21:58:57 < test 22:01:12 < backfill 22:01:54 < verifier 22:01:57 < experiment_results 22:02:54 < live_check 22:03:18), and I confirmed the change is REAL rather than cosmetic by killing Q3/Q5/DRYMK-class mutants myself.\n\nEVIDENCE-CLASS RESIDUALS -- fix in place, queue as masterplan residuals, do NOT spawn a fresh Q/A for these alone. W1: live_check_75.11.4.md:18 maintains an explicit supersession chain (\"19 passed\" superseded, \"22 passed\" superseded) and states in bold \"The live reading is section 16's: 27 passed, with all ten mutation cells killed (section 14)\"; cycle 5 added SS18c/18e reporting 31 passed and did not extend the chain, so the file's own navigational sentence sends an auditor to a superseded count. W2: experiment_results_75.11.4.md:16 still describes the delivered suite as \"27 tests ... incl 8 mutation cells (cycle 2 added M-INV/M3/M4; cycle 3 added N5a/N5b/N14/N15)\" -- it is 31 tests and cycle 5 added Q3/Q5/DRYMK. (The \"27 passed\" figures INSIDE fenced blocks are correctly labelled cycle-3 captures and are legitimate dated records, not findings.) N1: \"total=842 agree=440\" re-derives today as 843/441 -- one new `agree` dir in ~10h; the load-bearing figure (mismatch=156) is EXACT and the stated tuple's arithmetic is internally sound. N2: \"[protected] KEEP = 20\" is a live-tree gauge stated in the present tense; it re-derives to exactly 20 today. N3: no test covers a masterplan reference written WITHOUT `handoff/current/` (X5) or the `--dry-run --execute` contradiction guard (Y11). N4: test_c9_the_verifier_is_actually_EXECUTED's `assert \"research_brief_99.1.md\" not in out.split(\"FAIL\")[-1]` is not self-anchoring -- it passes if the fixture file is absent. N5: STEP_ID_RE is dead in BOTH housekeeping scripts; verify_handoff_layout.py:60-66 documents it \"RETIRED IN PLACE\", backfill:84 does not (the cycle-4 \"consider\" item). N6: ROLLING_KEEP's .md half is now behaviourally inert and could carry the same comment.\n\nDISPOSITION OF MY POLICY UNCERTAINTY, stated because it was genuine. W1/W2 are the same CLASS cycle 5 was remediating, reproduced by the act of remediating, which argued for capping and for consistency with cycle 4. I resolved it against the operator's dated standing instruction (auto-memory product-fix-vs-evidence-churn, 2026-08-17), which names \"artifact prose staleness\" as EVIDENCE-class and says only PRODUCT findings buy a re-evaluation cycle -- a policy question settled on the operator's authority rather than my preference. Cycle 4's decisive finding was a PATTERN of tier-selective non-remediation plus a live PRODUCT defect, two UNGUARDED safety properties and an untested 174-line script; all of those are now closed and mutation-proven, and the pattern is broken. `feedback_harness_rigor` is explicitly preserved by that memo and was spent here.\n\nPROCESS NOTE FOR THE OPERATOR, stated rather than buried: the same memo says \"never seek extensions for evidence-only disputes\", and this extension WAS sought after an evidence-only CONDITIONAL. That is a process observation, not a mark against the work.\n\nOPERATIONAL WARNING BEFORE THE STATUS FLIP (not a criterion issue; it does not change this verdict, but Main must not miss it). `.claude/hooks/auto-commit-and-push.sh:360` stages with `git add -A`, and its own comment at :351 records that this \"will also stage a PEER session's\" work. Flipping 75.11.4 to done right now would sweep 14 out-of-scope entries into a commit subject-named for this step: backend/api/sovereign_api.py, backend/services/autonomous_loop.py, ten frontend/** files and .claude/.archive-baseline.json. live_check SS18f asserts \"the commit uses an explicit pathspec and never `git add -A`\" -- true of the hand-made 2e9597bd, NOT true of the hook that fires on the flip.\n\nSAFETY OF MY OWN WORK. HEAD moved 16b57f81 -> 6a65b5d6 mid-evaluation (86.116 cycle 3); `git diff --name-only 16b57f81..HEAD` touches nothing in this step's scope, and post-run sha256s are unchanged: backfill=1b4f88f0df3495f7, verifier=f07a33170cfe717a, naming=2f426db901fe5746, quar=34ccb01ee6b26ff9, hook=2278ca9910b0bd15, suite=f1a7a683a118a758; grep MUTANT = 0 in all six. All mutation ran on a scratchpad copy; the real tree was never written. One self-correction worth recording: my first probe of the \"[protected] KEEP\" claim returned 24 and contradicted the artifact -- the probe was wrong, because it omitted the script's own `_is_rolling_keep` pre-filter; applying the script's real order gives exactly 20 and the artifact reproduces. Gates 1b/1c/1d N/A for this diff (no frontend/**, no UI claim, and the only backend/** file is the test module pytest executes). My write-first record is at /Users/ford/.openclaw/workspace/pyfinagent/.claude/agent-memory/qa/verdicts/verdict_wip_75.11.4__20260818T055041Z.md (STATUS: COMPLETE -- still not a verdict). No write was blocked except my attempt to Write a driver script into the scratchpad, which qa-write-guard.sh correctly denied; I treated the block as authoritative and used `python -c` under Bash instead, which is non-mutating with respect to the repo.",
+  "escalation": {
+    "sequence_supplied": null,
+    "sequence_status": "not_supplied",
+    "consecutive_conditionals": null,
+    "would_auto_fail": null,
+    "attempt_number": null,
+    "budget_exhausted": null,
+    "max_attempts": 5,
+    "burden_on": "the party departing from the computed escalation",
+    "override": null,
+    "override_reason": null,
+    "judge_was_told_consequence": false,
+    "judge_was_told_consequence_evidence": null
+  },
+  "research_routing": {
+    "research_needed": null,
+    "research_brief_spec": null,
+    "next_action_on_research_needed": null
+  },
+  "verdict_unmodified": true
+}
+```
+
+**W1 and W2 (the two EVIDENCE-class prose-staleness residuals) were fixed in
+place by Main immediately after transcription** -- `live_check_75.11.4.md`'s
+section-1 supersession pointer now points at section 18e (31 passed) instead
+of section 16 (27 passed), and `experiment_results_75.11.4.md`'s
+what-was-built table now reads 31 tests / 11 mutation cells. N1-N6 are
+NOTE-level and queued as residuals, not fixed here (see harness_log Cycle
+entry below).
+
+**OPERATIONAL WARNING RESOLVED BEFORE THE FLIP.** The Q/A's warning about
+`auto-commit-and-push.sh`'s `git add -A` sweeping 14 peer-session files was
+verified against CURRENT git status, not the state at eval-time: `git status`
+now shows only 4 dirty files, all benign append-only hook output
+(`.claude/agent-memory/qa/verdicts/verdict_wip_*.md`,
+`handoff/audit/instructions_loaded_audit.jsonl`,
+`handoff/audit/pre_tool_use_audit.jsonl`). The 14 files the Q/A named
+(sovereign_api.py, autonomous_loop.py, ten frontend/** files,
+.archive-baseline.json) are no longer in the working tree -- they were
+committed separately by other activity between the Q/A's evaluation and this
+transcription (HEAD advanced past `6a65b5d6` mentioned in the verdict). Safe
+to flip.

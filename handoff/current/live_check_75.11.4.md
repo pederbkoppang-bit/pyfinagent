@@ -14,10 +14,11 @@ EXIT=0
 ```
 
 **This 19-test green is exactly what the cycle-1 FAIL was about**: three
-mutants passed it. Kept as the record of what was claimed. **The live reading
-is section 16's: 27 passed, with all ten mutation cells killed (section 14).**
-Cycle 2's "22 passed" was itself superseded for the same reason -- four more
-mutants survived it.
+mutants passed it. Kept as the record of what was claimed. Cycle 2's "22
+passed" was itself superseded for the same reason -- four more mutants
+survived it. Section 16's "27 passed" was in turn superseded by cycle 5:
+**the live reading is section 18e's: 31 passed, with the cycle-5 mutation
+matrix (Q3/Q5/DRYMK, section 18c) also KILLED.**
 
 ## 2. Adjacent suites -- the two that PIN these scripts (regression check)
 

@@ -36364,3 +36364,55 @@ the latter BLOCKED-BY the former.
 
 Nothing shipped: zero production files across all four step commits. Escalation:
 `handoff/current/escalation_86.59_third_conditional.md`.
+
+## Cycle 1252 -- 2026-08-18 -- phase=75.11.4 result=PASS
+
+Cycle 5 Q/A (`wf_266d35a8-0c2`, Workflow structured-output rail) returned
+**PASS** on an operator-audited attempt-budget extension
+(`attempt_budget_audit.jsonl`, `2026-08-18T05:49:39Z`, `type:
+operator_extension`, `recorded_by: operator`) after last night's exhaustion
+escalation (`escalation_attempt_budget_75.11.4.md`) parked the step at
+5/5 attempts with sequence `[FAIL, FAIL, NO_VERDICT, CONDITIONAL,
+NO_VERDICT]`. This is a re-grade on CHANGED evidence: Cycle 4's CONDITIONAL
+(19:41Z) raised 7 WARN-severity findings (D1-D6), all of which were fixed,
+guarded, and mutation-tested (2001-2003Z) AFTER that verdict, so the fixes
+were never evaluated before the budget denial. All 13 immutable criteria are
+independently re-derived MET. Verification command re-run live by Main:
+`31 passed in 1.05s`, exit 0.
+
+The Q/A ran 26 mutation cells of its own on a scratchpad copy (not the
+author's harness) -- 18 KILLED including 8 cells the shipped test suite does
+not itself contain, all 8 survivors given a behavioural differential
+(5 equivalent, 2 bounded-coverage residuals with zero live exposure, 1
+non-self-anchoring negative whose property is guarded elsewhere). Census
+re-derived: 156 mismatches / 156 MISATTRIBUTION_NOTICE.md markers, recall +
+precision controls both True, precision 0.9936. Live-tree idempotency
+verified: two consecutive bare runs left archive dirs and handoff/current
+counts unchanged at exit 0.
+
+**Two EVIDENCE-class residuals (W1, W2) the Q/A flagged were fixed in place
+by Main immediately after transcription**, per the operator's dated standing
+instruction (2026-08-17, product-fix-vs-evidence-churn) that evidence-only
+prose staleness is fixed and queued, not a re-evaluation trigger: (1)
+`live_check_75.11.4.md` section 1's stale supersession pointer ("27 passed",
+section 16) now points at section 18e (31 passed); (2)
+`experiment_results_75.11.4.md`'s what-was-built table now reads 31 tests /
+11 mutation cells instead of 27/8. Four NOTE-level items (N1-N6: two
+re-derivable live-tree gauges, one coverage gap on an unreferenced-path
+guard, one non-self-anchoring test assertion, dead-code comment parity)
+are queued as residuals, not fixed here -- none are blocking.
+
+**Operational warning resolved before the flip.** The Q/A's verdict carried
+a warning that `auto-commit-and-push.sh`'s `git add -A` would, AT EVAL TIME,
+have swept 14 out-of-scope peer-session files (sovereign_api.py,
+autonomous_loop.py, ten frontend/** files, .archive-baseline.json) into a
+commit subject-named for this step. Main re-checked `git status` before
+acting: those 14 files are no longer dirty (committed separately by other
+activity between the Q/A's evaluation and this transcription, HEAD advanced
+past `6a65b5d6`) -- only 4 benign append-only audit/verdict files remain
+dirty. Safe to flip.
+
+Full verdict transcribed verbatim in
+`handoff/current/evaluator_critique_75.11.4.md` (Cycle 5 section). Residual
+NOTE items (N1-N6) should be filed as their own defect steps per
+`feedback_queue_discovered_defects_in_masterplan` if not already tracked.
