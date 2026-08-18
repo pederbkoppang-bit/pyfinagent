@@ -34,7 +34,7 @@ individually with a disposition each. The suite also runs **116 seconds faster**
 | `scripts/qa/mutation_86_118.py` | criterion 7 -- 13 cells over 7 targets, built on `guardlib` |
 | `backend/tests/test_planner_agent.py` | the criterion-5 polluter: a module-level `os.environ` mutation scoped to an autouse fixture |
 
-## The result that matters more than eleven repairs
+## The result that matters more than twelve repairs
 
 **The suite is not hermetic: it inherits the operator's `backend/.env`.**
 
@@ -169,8 +169,14 @@ unmeasured classification would have shipped.
 - It did **not** enable `xfail_strict`. The silent `1 xpassed` is a real
   finding, but flipping that flag changes the outcome of every xfail in the repo
   and is its own operator-gated change (**86.124**).
-- It did **not** fix the 19th test (`test_phase_86_6_subprocess_channel`); it is
-  outside the named 12 files, is classified, and is handed to **86.119**.
+- It **did** fix the 19th test (`test_phase_86_6_subprocess_channel`), which was
+  outside the named 12 files and therefore optional. An earlier revision of this
+  line said it did not, and left that standing after the fix landed. Criterion 5
+  only requires the shared state be IDENTIFIED -- but once the cause was known
+  and the repair was a three-line fixture, leaving it red would have been
+  scope-hiding rather than scope-honesty. It is absent from the post-work run,
+  so **86.119 inherits a GREEN test**, not a red one; what 86.119 still owns is
+  installing `pytest-randomly`, which is untouched here.
 - It did **not** touch production behaviour. The only non-test file changed is
   `scripts/qa/sweep_absent_verification_paths.py`, an evidence classifier.
 - It did **not** promote or un-promote any flag, and `backend/.env` was not

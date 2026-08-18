@@ -232,3 +232,124 @@ landed. Main records the verdict and never authors it.*
 >
 > UI GATE: not applicable -- no frontend/** in scope and the step makes no UI claim, so no Playwright capture was required or taken.
 
+
+---
+
+## Cycle 3 -- **CONDITIONAL** -- `wf_fe69dad1-cc1`
+
+*Transcribed verbatim from the captured Workflow return in the same turn it landed.*
+
+**verdict:** `CONDITIONAL`  **ok:** `false`  **harness_compliance_ok:** `true`
+**attempt_number:** `4` of `5`; **consecutive_conditionals:** `0`; **budget_exhausted:** `false`
+
+**reason:**
+
+> 6 of 7 immutable criteria MET; criterion 6's substance is MET but its own section contradicts itself, and the correction commit introduced a lint regression. THE PRODUCT WORK IS SOUND AND I RE-DERIVED IT RATHER THAN ACCEPTED IT. My independent full-suite run reproduces the artifact byte-for-byte on every count -- `7 failed, 3685 passed, 12 skipped, 5 xfailed, 1 xpassed, 48 warnings in 400.98s` against the artifact's `...397.88s` -- with the 7 FAILED names matching live_check §5's residual table 7/7, and `test_phase_86_6_subprocess_channel` ABSENT from the failures. Criterion 5 I reproduced myself, one variable and nothing else, on the victim alone: ambient (key unset) `1 passed in 6.65s`; with `ANTHROPIC_API_KEY=sk-ant-test-do-not-use` `subprocess.TimeoutExpired ... timed out after 120 seconds / 1 failed in 120.09s` (author measured 5.87s/120.08s -- same signature). Every link verified independently: the ambient key is UNSET so the old module-level `setdefault` genuinely INJECTED rather than shadowed; `run_smoke` (test_phase_86_6_subprocess_channel.py:39-45) passes no `env=` with `timeout=120`; `smoke_cc_rail_e2e.py::run_probe:180-190` spawns the REAL claude binary with its own 120s ceiling. BOTH GRADE-HARD QUESTIONS ANSWERED AGAINST MY OWN MEASUREMENTS. (1) The polluter fix is COMPLETE for the criterion but the CLASS is not closed: a strict module-level census (top-level statements only -- my first pass descended into function bodies and produced 47 false hits) finds 3 surviving mutations that still execute at collection and still leak into env-less subprocesses -- conftest.py:21 (PYFINAGENT_TEST_NO_BQ), test_claude_request_shapes.py:26 and test_phase_78_16_prompt_caching_intent.py:51 (both COST_BUDGET_HARD_BLOCK_DISABLED). None is a credential, none can hang a CLI, and the artifacts never claim the class is closed, so this is a NOTE adjacent to the already-filed 86.125, not a cap. (2) The 116s speedup IS real corroboration, not post-hoc rationalisation: it is not "it got faster" but "faster by almost exactly the timeout ceiling, on the one test that hit that ceiling", and it reproduces ACROSS OBSERVERS -- pre-fix 513.59/514.14 (author), 518.53 (cycle-1 Q/A), 521.44 (cycle-2 Q/A); post-fix 397.88 (author) and 400.98 (mine); the victim alone went 120.09s -> 6.65s in my hands = 113.4s. The rival CPU-contention hypothesis predicts NO saving from changing an env var, so this discriminates between the hypotheses on a quantity the mechanism predicts numerically. WHAT ELSE I VERIFIED RATHER THAN ACCEPTED. Criterion 4 by derivation over BOTH commits: 4 asserts removed / 6 added, 0 test functions removed, and a grep of ADDED lines for xfail|skip|approx|noqa|tolerance|raises|seed|--deselect returns only a `launchctl kickstart -k` string that is a must-ACCEPT fixture for the new oracle; I probed the two re-aimed assertions and with env forced TRUE `Settings.model_fields[f].default` is False while `Settings()` is True, so the re-aim measures the shipped default and is a correction of the oracle, not a relaxation, and `.claude/settings.json` effortLevel IS "max" so the 40_2 re-pin tracks the documented value. Criterion 3 by walking the masterplan: 86.123/86.124/86.125/86.126 all present and pending, peer steps 86.121/86.122 intact, and the disposition arithmetic checks (4+2+1 = the 7 residual failures). Criterion 7: guardlib's scoring read and sound (rc==0 -> SURVIVED, pytest exit 5 never a kill, collected-count mismatch -> UNSCORABLE, named test must appear in mutant output, SHA-256 restore with RuntimeError on mismatch), and M8 is NOT vacuous -- proven by execution, since its mutant restores exactly the injection whose effect I measured above. The `||` classifier fix discriminates behaviourally, including on an adversarial case I constructed (a real file in the token's OWN arm, other arm missing -> still GENUINE). No unintended production change: both step commits touch 7 backend/tests files, 4 scripts/qa files, masterplan and 4 handoff artifacts, ZERO backend production modules; the uncommitted settings.py/claude_code_client.py carry `86.120` markers, i.e. the peer session as Main disclosed. Harness compliance clean on all 5, with all 7 criteria string-matched VERBATIM into the contract (7/7). WHAT CAPS IT, and it is the SAME class the cycle-2 Q/A raised. Commit b22b4dbe's own message claims the wrong claims were fixed "by REPLACING the wrong claim, not annotating beside it". The replacement was made at the two criterion-specific positions and MISSED one further pre-correction statement in EACH artifact. (a) live_check_86.118.md:243 asserts "Eight failures remain" beside its own measured `7 failed` (:215), its own "19 -> 7. Twelve repaired" (:218) and its own 7-row table -- a wrong residual total inside the very criterion-6 answer that forbids leaving one. (b) experiment_results_86.118.md:172-173 states "It did **not** fix the 19th test (`test_phase_86_6_subprocess_channel`); it is ... handed to **86.119**" -- falsified by my own suite run and contradicted by live_check:241 ("NO LONGER FAILING"), by its own criterion-5 answer, and by its own "19 red -> 7 red ... Twelve tests repaired" (19-7=12, and the 12th IS that victim); it also mis-routes a disposition, handing 86.119 a test that is green. Both are verified pre-correction survivors: at 1bf26bf8 live_check:197 said `8 failed` and :219 said "Eight" (consistent then), and b22b4dbe's diff hunks on experiment_results stop at `@@ -88,14 +100,31 @@`, never reaching the scope-honesty section. (c) The ruff gate on a git-derived 16-file scope exits 1 with 3 F401s in test_planner_agent.py; I linted the same file at 1bf26bf8 to attribute them -- BEFORE: sys/patch/pytest, AFTER: os/sys/patch -- so `pytest` was RESOLVED by the fix and **`os` was INTRODUCED by b22b4dbe** (the fix deleted the only real `os` use; the remaining `os.` at :27 is inside a comment), while sys/patch are pre-existing. The count is unchanged at 3 while the membership changed, which cardinality agreement alone would have hidden. CONDITIONAL not FAIL because no criterion is materially unaddressed and every load-bearing number reproduced in my hands; the defects are in the prose and one import.
+
+**violated_criteria:**
+- `criterion_6_post_work_counts_and_named_residual: section asserts "Eight failures remain" against its own measured 7`
+- `scope_honesty: experiment_results:172-173 claims the step did NOT fix a test that my own full-suite run shows is fixed, and mis-routes its disposition to 86.119`
+- `python_lint_gate: ruff F821/F401/F811 exit=1, with one F401 newly introduced by the correction commit`
+
+### violation_details
+
+**1. Contradiction**
+
+- *action:* read handoff/current/live_check_86.118.md:243 against :215, :218 and the residual table at :232-241
+- *state:* live_check:243 states "A smaller honest red count beats a green one that proves nothing. Eight failures remain", while :215 reports `7 failed, 3685 passed, 12 skipped, 5 xfailed, 1 xpassed, 48 warnings in 397.88s`, :218 states "19 -> 7. Twelve repaired", the residual table names exactly SEVEN tests, the masterplan disposition arithmetic gives 86.124=4 + 86.123=2 + 86.126=1 = 7, and my own independent run gave `7 failed, 3685 passed ... in 400.98s`. Verified pre-correction survivor: at 1bf26bf8 the same file said `8 failed` (:197) and "Eight" (:219), consistent then; b22b4dbe changed the count and left the word.
+- *constraint:* criterion 6 -- 'after the work, a full-suite run is reported with its exact counts, and if the suite is still not green the remaining failures are named with their disposition rather than left as a residual total'
+
+**2. Contradiction**
+
+- *action:* read handoff/current/experiment_results_86.118.md:172-173 against my own full-suite FAILED list, live_check:241, and experiment_results:19-20 and :104-116
+- *state:* experiment_results:172-173 states "It did **not** fix the 19th test (`test_phase_86_6_subprocess_channel`); it is outside the named 12 files, is classified, and is handed to **86.119**." My independent run's FAILED list does not contain that test; live_check:241 states "NO LONGER FAILING. Its shared state was identified and FIXED (§6); it is absent from the post-work run above"; experiment_results:19-20 states "19 red -> 7 red ... Twelve tests repaired" (19-7=12, and the 12th IS that victim); and :104-116 describes fixing it. The statement was TRUE at 1bf26bf8 and b22b4dbe's diff hunks on this file stop at `@@ -88,14 +100,31 @@`, never reaching the scope-honesty section. Consequence: step 86.119 is handed a test that is green.
+- *constraint:* scope honesty, and cycle-2's own remediation as stated in commit b22b4dbe -- 'Corrected there and in live_check by REPLACING the wrong claim, not annotating beside it'
+
+**3. Threshold_Not_Met**
+
+- *action:* FILES=$(union of both step commits + git diff HEAD + git ls-files --others, .py only; 16 files, non-empty asserted) ; printf '%s\n' "$FILES" | xargs uvx ruff check --select F821,F401,F811
+- *state:* exit=1, `Found 3 errors.` -- F401 `os` imported but unused at backend/tests/test_planner_agent.py:20, F401 `sys` at :21, F401 `unittest.mock.patch` at :22. Attribution by linting the same file at 1bf26bf8: BEFORE sys/patch/pytest, AFTER os/sys/patch -- `pytest` was resolved by the fix and `os` was INTRODUCED by b22b4dbe, which deleted the only real `os` use (the remaining `os.` at :27 is inside a comment); sys/patch are pre-existing. NOTE for the repair: the dead `import os` is load-bearing for mutation cell M8, whose mutant text is `os.environ.setdefault("ANTHROPIC_API_KEY", ...)`; removing the import makes that mutant NameError at collection and guardlib would score it UNSCORABLE (collected 0 vs 23) rather than KILLED, so the fix must be `# noqa: F401` with a comment, not an import removal.
+- *constraint:* qa.md section 1a -- Python lint gate is REQUIRED when the diff touches any *.py; non-zero exit = FAIL, quoted verbatim
+
+**notes:**
+
+> SEQUENCE / ATTEMPT EVIDENCE. `python scripts/qa/qa_wip.py 86.118 --spawned-at 2026-08-18T10:37:07Z` -> source_present=true, attempt_number=3, attempt_number_status="ok", attempt_number_is_lower_bound=true, prior_attempts=2, records_retained=3 (GAUGE, not a counter), records_pruned_known=null, is_verdict=false, prior_records=[verdict_wip_86.118__20260818T095700Z.md, verdict_wip_86.118__20260818T093446Z.md]. `python scripts/qa/verdict_history_86_21.py --step 86.118 --evidence-only` -> status="ok", detail "2 verdict(s) from the ledger", verdicts: CONDITIONAL -> FAIL. CROSS-CHECK prior_attempts (2) vs ledger rows (2): EQUAL, so no staleness signal; the ledger is current for this step. Main's counter_state disclosure matches both sources and is advisory only. WRITE-FIRST RECORD (evidence for any respawn, never a verdict): /Users/ford/.openclaw/workspace/pyfinagent/.claude/agent-memory/qa/verdicts/verdict_wip_86.118__20260818T103707Z.md -- carries every command, exit code, census, probe and criterion verdict. No write was blocked. SELF-CORRECTION recorded in that file: my first write of its COMPLETED line carried a timestamp I had INVENTED rather than read; I ran `date -u` and replaced it, and left the note because narrating an unread clock is a failure mode I have shipped before. WHAT I DID NOT DO, stated because it bounds the verdict. (a) I did NOT re-run `scripts/qa/mutation_86_118.py`: it backs up, mutates and restores files under backend/tests and scripts/qa while a concurrent peer session is committing to this same tree, and a backup/mutate/restore cycle on a file another session is writing can silently revert its work. I assessed M8 instead by executing its mechanism directly (the 6.65s / 120.09s pair above), which is the same discrimination the cell relies on, and by reading guardlib's scoring. Both prior Q/As replicated the 13-cell version end to end at the exact collected counts. (b) I could not re-measure criterion 1's PRE-work baseline (19 failed) because the tree has moved past it; the cycle-1 and cycle-2 Q/As each independently reproduced the intermediate 8-failed state, and I reproduced the post-work state exactly. (c) No UI claims in this step, so no Playwright capture was required or taken. TREE-STATE CAVEAT: a peer session holds backend/config/settings.py, backend/api/charts.py and backend/agents/claude_code_client.py uncommitted plus two untracked test files; I confirmed the first and third carry `86.120` markers, so they are the peer's and not this step's, and the step's own commits touch zero backend production modules. NOTE-LEVEL, no verdict effect. (i) "36 files under backend/tests spawn subprocesses" carries no reproducing command; my derivations give 30 AST call sites (11 with env=, 19 without), 44 by `grep -rl subprocess`, 35 by `grep -rl 'import subprocess'`, and 36 only by union(import, call-site) -- a rule that counts 4 files importing subprocess without calling it AND includes the peer session's untracked test_phase_86_120_cc_rail_limit_aware_cooldown.py, so the figure drifts with someone else's work. It is a blast-radius illustration, not a criterion-discharging number. (ii) The general module-level-env-mutation class is not closed (3 survivors named in the reason); adjacent to the already-filed 86.125 and correctly not claimed closed. (iii) `1 xpassed` reproduces in my run; correctly filed to 86.124 rather than fixed here. (iv) The tree carried no mutation residue when I checked. (v) The operational finding raised in live_check §5a -- backend/.env:88 promoting PAPER_SYNTHESIS_INTEGRITY_ENABLED with no authorization token, so the away-ops sentinel exits 1 with ok:false -- is correctly surfaced-not-acted-on, since flag promotion is operator-gated; I did not re-drive the sentinel this cycle (cycle 2 reproduced it byte-for-byte).
+
+
+---
+
+## Cycle-3 Follow-up -- what Main changed in response
+
+All three caps were defects in MY OWN correction commit, and two of them are the
+same class the cycle-2 verdict already named: **a correction that replaces the
+claim it was aimed at and leaves its siblings standing.** Third occurrence in
+this step.
+
+### (a) "Eight failures remain" beside a measured 7
+
+Fixed. **The interesting part is why my cycle-2 sweep missed it.** That sweep DID
+grep for the exact phrase and came back clean -- because the text is
+
+```
+...proves nothing.** Eight
+failures remain and every one is...
+```
+
+The phrase **straddles a line break**, so a flat substring search cannot match
+it. Then my first repair attempt this cycle failed a second time, because I wrote
+the pattern as `\*\*Eight` on the assumption that the `**` before "Eight" opened
+a bold span -- it CLOSES the previous one. Two misses, both from a probe built
+out of what I assumed the text was rather than what it is.
+
+The sweep is now **whitespace-normalised** (`re.sub(r"\s+", " ", text)`) before
+matching, and it **discriminates** rather than merely counting: a hit inside a
+context containing "earlier revision" is a deliberate historical record and is
+reported `[history-ok]`; anything else is a `[LIVE CLAIM]` and fails the sweep.
+
+That discriminating sweep immediately found **two more** the cycle-3 Q/A had not
+listed, which is the evidence that it works and the previous one did not:
+
+- `experiment_results` heading *"The result that matters more than **eleven**
+  repairs"* -- stale by one since the twelfth repair.
+- the scope-honesty line in (b) below, which my first repair script never reached
+  because it aborted on (a)'s assertion.
+
+Both fixed; the sweep now reports **CLEAN -- no live stale claim**, with the two
+explicitly-labelled historical mentions correctly classified as history.
+
+### (b) "It did **not** fix the 19th test"
+
+Falsified by the Q/A's own suite run, and it mis-routed a disposition. Replaced:
+the step **did** fix it, **86.119 inherits a GREEN test**, and what 86.119 still
+owns is installing `pytest-randomly`. The line now also states why fixing an
+out-of-scope test was the honest call rather than scope creep: criterion 5 only
+required IDENTIFYING the shared state, but once the cause was known and the
+repair was a three-line fixture, leaving it red would have been scope-hiding.
+
+### (c) ruff F401 -- and an import I introduced myself
+
+The Q/A's attribution was exact: the count stayed at 3 across my correction while
+the MEMBERSHIP changed -- `pytest` was resolved by the fix and **`os` was
+introduced by it**, because the fix deleted the only real `os` use and the
+surviving `os.` is inside a comment. Cardinality agreement alone would have
+hidden that, which is worth recording as its own lesson.
+
+`ruff check --select F401 --fix` -> `All checks passed!`; the pair still gives
+`23 passed`.
+
+**That fix then broke a mutation cell, which is the kind of second-order effect
+worth stating.** M8's mutant restores a module-level `os.environ.setdefault`, and
+with the import gone it would have raised `NameError` at collection, collected 0
+tests and scored **UNSCORABLE** -- a cell silently retired by an unrelated
+tidy-up. The mutant now carries its own `import os`. Re-run: **14/14 KILLED**,
+`control polluter_pair rc=0 collected=23 GREEN`, 0 SURVIVED, 0 UNSCORABLE.
+
+### NOTE accepted, not disputed
+
+The cycle-3 Q/A's census found **3 surviving module-level env mutations**
+(`conftest.py:21` `PYFINAGENT_TEST_NO_BQ`; `test_claude_request_shapes.py:26` and
+`test_phase_78_16_prompt_caching_intent.py:51`, both
+`COST_BUDGET_HARD_BLOCK_DISABLED`). None is a credential and none can hang a CLI.
+No artifact here claims the class is closed; it belongs to the already-filed
+**86.125**, and this note is recorded so the next reader inherits the census
+rather than re-deriving it.

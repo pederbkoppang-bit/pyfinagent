@@ -217,6 +217,12 @@ Same command, same flags, after the work:
 
 **19 -> 7.** Twelve repaired; **none by weakening**.
 
+**The post-work counts reproduce across three independent runs**, two of them
+mine and one the cycle-3 evaluator's, on a tree that a peer session is still
+committing to: `7 failed, 3685 passed` at 397.88s, 400.29s and 400.98s. The
+second of mine was run AFTER the `ruff --fix` import removal, so that tidy-up is
+measured not to have moved anything.
+
 *(An earlier revision reported `8 failed, 3684 passed ... 514.34s`. That was
 correct before the criterion-5 polluter fix. Fixing the module-level
 `os.environ` mutation removed the twelfth failure AND **116 seconds of wall
@@ -240,7 +246,7 @@ argued in §2/§4 with the measurement that justifies it; the `is` identity in r
 | `test_portfolio_swap::swap_framework_fills_zero_buy_gap` | **OPEN, candidate PRODUCT-DEFECT.** "Expected 2 swap SELLs, got 1" from the real swap engine. Measured NOT to be env leakage (§3). Filed as **86.126**. |
 | ~~`test_phase_86_6_subprocess_channel::the_optin_IS_honoured...`~~ | **NO LONGER FAILING.** Its shared state was identified and FIXED (§6); it is absent from the post-work run above. It was the 19th failure and outside this step's named 12 files, so fixing it was not required -- but leaving a defect unfixed once its cause is known and the fix is three lines would have been scope-hiding, not scope-honesty. |
 
-**A smaller honest red count beats a green one that proves nothing.** Eight
+**A smaller honest red count beats a green one that proves nothing.** Seven
 failures remain and every one is either a genuine defect awaiting its own step or
 a repair whose correct form is contested; none is a test that would have been
 cheap to silence.

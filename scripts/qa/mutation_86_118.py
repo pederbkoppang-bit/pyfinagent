@@ -92,6 +92,10 @@ CELLS = [
         # every module at collection, so the bogus key reaches the victim's
         # env-less subprocess and the real claude CLI hangs to the 120s ceiling.
         # This cell takes ~2 minutes to score, which IS the defect.
+        # The mutant carries its own `import os`: removing the module-level
+        # mutation made that import unused and ruff dropped it, so without
+        # this the mutant would NameError at collection, collect 0 tests and
+        # score UNSCORABLE -- a cell silently retired by an unrelated tidy-up.
         "M8 the ANTHROPIC_API_KEY fixture reverts to a module-level "
         "os.environ mutation -> it leaks into every subprocess-spawning test "
         "again and the victim times out",
@@ -100,7 +104,8 @@ CELLS = [
         "def _dummy_anthropic_key(monkeypatch):\n"
         '    """Give `Anthropic()` a key for this module\'s tests ONLY."""\n'
         '    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-test-do-not-use")',
-        'os.environ.setdefault("ANTHROPIC_API_KEY", "sk-ant-test-do-not-use")  # MUTANT',
+        'import os  # MUTANT\n'
+        'os.environ.setdefault("ANTHROPIC_API_KEY", "sk-ant-test-do-not-use")',
         "test_the_optin_IS_honoured_so_a_real_window_remains_possible",
     ),
     # ── the classifier repair (rows 9 + 11) ────────────────────────────────
