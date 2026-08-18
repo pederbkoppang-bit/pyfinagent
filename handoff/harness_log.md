@@ -36585,3 +36585,116 @@ Operator extensions granted in-session (both +1, recorded in
 `handoff/audit/attempt_budget_audit.jsonl`): **86.47** (was 5/5) and **75.11.4**
 (was 6/6). Measured headroom now: 86.59 0, and 86.108 / 86.110 / 86.116 / 86.47 /
 75.11.4 one attempt each.
+
+## Cycle 1254 -- 2026-08-18 -- phase=86.120 result=PARKED (3rd-CONDITIONAL rule)
+
+Sequence `[CONDITIONAL, CONDITIONAL, CONDITIONAL]` (`wf_a285260f-0dd`,
+`wf_e985d5f3-94f`, `wf_ea3f6587-cc2`). Attempts 3 of 5 -- **the budget was not
+the constraint**; CLAUDE.md F1 forces the next verdict to FAIL, so a fourth
+spawn could not return PASS and the step parked rather than iterating.
+
+**This step parked with EVERY criterion MET and zero product defects found**
+-- the 86.108/86.110 shape, not the 86.59 shape (which found real defects on
+every cycle). Three independent evaluators, three progressively deeper
+in-memory mutation matrices (11 -> 15 -> 13 NEW cells each time), never
+repeated a finding and never found a bug in the shipped code. The production
+file's sha256 (`76b47a217489eb5be665db2d6eb354181bde5d2746c515c8da63c6f8dde5dcb1`)
+is byte-identical across all three cycles -- zero lines of production code
+changed since Cycle 1; every fix was an additive test closing a genuinely new
+mutation-coverage gap (Cycle 1: `cooldown_record_hit`/`cooldown_clear_on_success`
+wiring + a tz-fallback regression pin; Cycle 2: the corrupt-cooldown-record
+fail-safe branch; Cycle 3: `classify_limit_failure`'s result-field extraction,
+which also surfaced a real false-positive risk the new test now guards).
+
+**The Cycle-3 blocker IS fixed and is UNEVALUATED.** New test
+`test_classify_extracts_the_result_field_not_the_raw_envelope` mutation-
+verified against the real file: control 32/32 green, the exact deletion Q/A
+specified applied, the one intended test going red (1 failed/31 passed, its
+own failure output reproducing the false positive), byte-identical sha256
+restore confirmed.
+
+**The measurement survives the park.** The cooldown mechanism's core claims
+were independently re-derived by three separate evaluators: correct
+classification of all three documented CLI limit messages from the
+untruncated envelope; disk persistence surviving both a per-cycle
+`rail_guard_reset()` and a simulated restart; zero subprocess spawns while
+cooling down; self-clearing on a real success; the existing phase-66.1
+generic breaker unchanged for non-limit failures; and `make_client()`'s
+$0-metered routing-breach guard independently re-verified intact by driving
+the real `llm_client.py:2198` fallthrough.
+
+**Filed rather than absorbed, discovered while investigating this step's
+neighborhood:** 86.121 (P2 -- the nightly autoresearch's Semantic Scholar
+retriever is rate-limited every night, invisible to 86.80's arXiv-scoped
+health check) and 86.122 (P1 -- `debate.py`/`risk_debate.py`'s
+Moderator/Risk-Judge calls lack the phase-61.2 retry-on-empty-cc-rail-response
+guard `orchestrator.py`'s Critic path already has, confirmed live-firing on a
+real DELL report).
+
+Nothing shipped: zero production files changed across all three Q/A cycles,
+only tests and prose. Escalation:
+`handoff/current/escalation_86.120_third_conditional.md`.
+
+## Cycle 7 -- 2026-08-18 -- phase=86.118 result=FAIL (budget exhausted 5/5)
+
+Four Q/A cycles: CONDITIONAL, FAIL, CONDITIONAL, FAIL. Attempts 2-5 of 5.
+**The PRODUCT work passed every cycle and was reproduced by every evaluator**;
+all four caps were on my evidence.
+
+**GENERATE delivered 19 red tests -> 7, none weakened.** No bulk xfail, no skip,
+no deleted assertion, no widened tolerance, no pinned seed. The headline was not
+staleness: **the suite is not hermetic -- it inherits the operator's
+`backend/.env`**, so four failures were tests whose comments said "flag-OFF"
+running flag-ON. One line in the absent-path classifier (no notion of `||`) held
+two more red. Four defects filed: 86.123, 86.124, 86.125, 86.126.
+
+**What each cycle cost me, because the pattern is the lesson:**
+
+1. **Cycle 1** -- criterion 2 left one row unclassified and six labels unmapped;
+   criterion 5's third clause unanswered. Both discharged by DRIVING the system:
+   the sentinel exits 2 only when `gates_failed` is a subset of the infra set,
+   and a second non-infra gate was already failing. That drive surfaced an
+   OPERATIONAL finding raised for the operator -- `backend/.env:88` promotes
+   `PAPER_SYNTHESIS_INTEGRITY_ENABLED` with no authorization token, so the
+   away-ops sentinel exits 1 with `ok:false`, plausibly unnoticed because the
+   sentinel's own test was red.
+2. **Cycle 2 -- FAIL, and the most useful verdict of the session.** My criterion-5
+   answer ("wall-clock contention on a real external dependency; no polluter
+   test; not the Luo 74% case") was FALSIFIED by a 120-second experiment. Real
+   cause: `test_planner_agent.py:27` ran a module-level
+   `os.environ.setdefault("ANTHROPIC_API_KEY", ...)`; pytest imports every module
+   at collection, and `run_smoke` spawns with no `env=`, so the child inherited a
+   bogus key and the real `claude` CLI hung. Reproduced on an IDLE machine:
+   `1 passed in 5.87s` alone vs `1 failed in 120.08s` with that one variable. I
+   had inferred a mechanism from a correlation and never run the control that
+   would refute it. FIXED -- and the suite got **116 seconds faster**, which a
+   contention story predicts nothing of.
+3. **Cycle 3** -- three defects in my own correction, two of them the same
+   "correction leaves its siblings stale" class. One had survived because the
+   phrase **straddles a line break**, so a flat grep could not see it; my first
+   repair then failed again on a pattern built from what I assumed the markup
+   was. Also a ruff F401 where the count stayed 3 while the MEMBERSHIP changed --
+   `os` was introduced by my own fix.
+4. **Cycle 4 -- FAIL. The §7 capture was SPLICED.** Adding an 8th target, I
+   hand-edited two lines into a block pasted from the previous 7-target run
+   instead of re-running it. The block then carried the PRIOR run's seven restore
+   lines and SHA-256 prefixes, so `test_planner_agent.py` -- target of the only
+   cell covering the criterion-5 fix -- had no restore evidence at all. **The two
+   numbers I typed were correct and the evidence was still false.** Verified
+   (14 cells, 7 restore lines, 0 hits for that target), regenerated from one
+   fresh run, and pasted whole.
+
+**The durable output beyond the step:** `scripts/qa/claim_consistency_86_118.py`,
+a DERIVED checker replacing four hand sweeps that each reported CLEAN and each
+missed something. It parses cells/targets from the matrix by AST and
+controls/restores/KILLED/suite counts from the artifacts' own capture blocks;
+every check is a `guardlib.ok()` carrying a known-bad fixture. Its first-class
+check is the **splice detector** (`restores == controls`, an invariant guardlib
+guarantees), which would have caught cycle 4's defect at the moment I made it.
+It found a **sixth** stale claim on its first run and a false positive on its
+first version, and was narrowed accordingly.
+
+**86.118 is at 5/5 and cannot be re-graded without an operator extension.**
+Also exhausted: **86.59** (5/5, its cycle-5 fixes likewise unevaluated).
+Extensions granted in-session earlier: 86.47 and 75.11.4 (+1 each, unused).
+Un-parkable with no extension: **86.108 / 86.110 / 86.116** (one attempt each).
