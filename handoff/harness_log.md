@@ -36475,3 +36475,68 @@ Also filed on operator instruction: **86.119** -- `pytest-randomly` is NOT
 installed, so `-p no:randomly` has been a NO-OP in every run that passed it, and
 the suite's fixed order makes test-order dependence invisible (86.118 has a live
 example that passes alone and fails in the full suite).
+
+## Cycle 5 -- 2026-08-18 -- phase=86.59 result=FAIL
+
+Judge returned **CONDITIONAL**; the CALLER applied CLAUDE.md F1 and the recorded
+verdict is **FAIL** (`enforceEscalation`: `consecutive_conditionals: 3`,
+`would_auto_fail: true`, attempt 4 of 5, `budget_exhausted: false`,
+`judge_was_told_consequence: false`). Run `wf_a1e6c7bd-10c`, 251,158 tokens.
+The FAIL resets the consecutive-CONDITIONAL counter to zero.
+
+**A measured correction to the un-parking arithmetic, which was wrong in the
+direction that costs attempts.** The 3rd-CONDITIONAL rule does NOT force a FAIL
+on the next spawn -- it converts a would-be CONDITIONAL into one.
+`would_auto_fail = n >= 2 && verdict?.verdict === 'CONDITIONAL'`, so a **PASS is
+never converted**. Driven on the function extracted from the live
+`qa-verdict.js` (the `.export.mjs` copy has DRIFTED -- it predates phase-86.78's
+`judge_was_told_consequence` change -- so driving it would have measured the
+wrong function): `[C,C,C]`+PASS -> false, `[C,C,C]`+CONDITIONAL -> true, with
+`[C]`+CONDITIONAL -> false and `[C,C]`+CONDITIONAL -> true as a discriminating
+positive control. Corroborated twice: `masterplan.json:25355` records
+`would_auto_fail` as "computed but not enforced by anything", and `qa.md` tells
+the judge outright that any threshold "is computed by the CALLER, AFTER you
+return. It is not yours to apply." Consequence: a real PASS costs ONE attempt,
+not two, and since the gate denies only at `attempts_used >= max` (checked
+BEFORE recording the new row), **86.108 / 86.110 / 86.116 each have one usable
+attempt and need no extension at all**; only 86.47 and 75.11.4 do, at +1 each
+rather than +2. Seven extensions were budgeted; two are needed.
+
+**Three WARN findings, all evidence-layer, zero production files.** The Q/A
+independently reproduced every published number (rho 0.9622/0.9319, 15.8%/day,
+12 distinct + IT 72.0%, the whole criterion-4 table with deltas
++12.6/+6.3/+2.1pp, sigmas 10.646/19.850/30.441) and re-ran the matrix itself.
+
+1. The min_k row LABEL and the k passed to `_min_k_sector_slice` were two
+   independent literals: k=4 SURVIVED and still reported under a row labelled
+   `min_k_sectors=3`, inverting the ordering ASK-1's promotion recommendation
+   rests on. Fixed STRUCTURALLY (`MIN_K_ARM` derived from `MIN_K_SECTORS`) plus
+   `min_k_arm_used_the_labelled_k` with a cell for EACH drift direction.
+2. `sector_map_covers_most_of_the_panel` floored coverage at 50% while the
+   operating point is 97.9%; 78.2% -- 28pp above the floor -- left every guard
+   green while soft_diversity and min_k SWAPPED turnover cost. Floor pinned at
+   95%, coverage now printed, and cell **M9b** added at exactly 78.2% because
+   M9's total collapse would have proven nothing about the change.
+3. `live_check` prose contradicted its own verbatim block nine lines above.
+   Block and prose regenerated from one run; the stale siblings in
+   `experiment_results` and the escalation doc swept in the same pass.
+
+Both new guards were **watched going RED before shipping** (verbatim assertions
+in the critique's cycle-4 Follow-up), on the exact defects that previously
+survived. Post-fix: control GREEN on all three modes, **KILLED 26/26**, coverage
+**25/25**, restore verified `39fc81f531c91cce...`, `--verify` 42 invariants
+green at 502/513 = 97.9% coverage.
+
+**Not re-spawned.** The fixes touch `scripts/qa/` only, so under this session's
+R2 they are recorded in the Follow-up rather than spent on a re-grade. 86.59
+stays `pending` with one attempt remaining; spending it is the operator's call.
+
+**Tooling shipped this cycle:** `scripts/qa/guardlib.py` + `guardlib_selftest.py`
+-- `ok()` cannot be called without a known-bad fixture and re-proves the red
+state every run; compound predicates need one counterexample per `and`-clause,
+checked by isolating each clause from the AST with its closure rebound; an AST
+census over DATA positions only, so a guard name in a docstring never counts as
+a cell; a multi-target signal-safe mutation runner. 42/42 selftest cases and
+21/21 self-mutation cells KILLED. Red-first found three defects in it that
+review had not, and its own matrix found a fourth (a non-discriminating census
+fixture).

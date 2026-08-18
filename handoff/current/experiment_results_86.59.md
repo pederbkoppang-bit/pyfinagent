@@ -96,12 +96,15 @@ production file, so the live candidate list is unchanged by construction, and
 the measurement additionally shows `rank_candidates(top_n=10)` agreeing with a
 slice of the full ranking on every cycle (an independent call, cell M3).
 
-**Criterion 7 -- 23 cells, 23 KILLED, 0 SURVIVED, 0 UNSCORABLE**, coverage
-24/24, control GREEN first on all three modes, SHA-256-verified restore, plus an
-**AST coverage gate** that fails the matrix if any `_ok` guard has no cell.
-Criterion-4 cells now run at the published `--cycles 20`. Cycle 1 shipped 14
-cells and the evaluator proved two guards unkillable; cycle 2 shipped 20 and it
-proved a third attack; see the cycle-3 section.
+**Criterion 7 -- 26 cells, 26 KILLED, 0 SURVIVED, 0 UNSCORABLE**, coverage
+25/25, control GREEN first on all three modes, SHA-256-verified restore
+(`39fc81f531c91cce...`), plus an **AST coverage gate** that fails the matrix if
+any `_ok` guard has no cell. Criterion-4 cells run at the published
+`--cycles 20`. Cycle 1 shipped 14 cells and the evaluator proved two guards
+unkillable; cycle 2 shipped 20 and it proved a third attack; cycle 3 shipped 23
+(see that section); **cycle 4 shipped 26** -- M9b, M23 and M24, for the two
+threshold/consistency gaps the cycle-4 Q/A demonstrated by execution (see the
+cycle-4 section).
 
 ## Finding (a): the declared weights are not the effective weights
 
@@ -369,6 +372,10 @@ KILL at the published `--cycles 20`, control GREEN first and reproducing
 15.8%/12 with min_k at +2.1pp, disk md5 unchanged. Matrix **23/23**, coverage
 **24/24**, new cell M22. The false claim -- *"an injection anywhere in the replay
 path makes these diverge"* -- is narrowed in the code comment and both artifacts.
+
+*(Those two figures are the CYCLE-3 state and are left as written, because this
+section is that cycle's record. The current matrix is **26/26** at coverage
+**25/25** -- see the cycle-4 section and `live_check_86.59.md`.)*
 
 **Four appearances of one lesson, in one step.** A value check, a definition
 check, a behavioural check on the wrong variable, and an overclaim about what

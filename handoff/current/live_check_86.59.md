@@ -206,23 +206,40 @@ another; the evaluator caught it, and it was the second non-reproducing number
 in this step. Nothing here is assembled from more than one execution.
 
 ```
-sha256 : 16164dcb7e04f039...
+sha256 : 39fc81f531c91cce...
 control --verify       -> rc=0 GREEN
 control --dispersion   -> rc=0 GREEN
 control --flags        -> rc=0 GREEN
-coverage: 24 guards in target, 24 covered by a cell or an explicit transitive entry
-KILLED 23 / 23   SURVIVED 0   UNSCORABLE 0
-restore verified: sha256 unchanged (16164dcb7e04f039...)
+coverage: 25 guards in target, 25 covered by a cell or an explicit transitive entry
+KILLED 26 / 26   SURVIVED 0   UNSCORABLE 0
+restore verified: sha256 unchanged (39fc81f531c91cce...)
 ```
 
 Control observed GREEN on all three modes **first**; a non-zero exit alone is
 not scored as a kill (the named guard must appear in the output); a
 non-applying anchor is UNSCORABLE, never a kill; restore verified by SHA-256.
 
-The cell count (22) is lower than the guard count (23) because some guards are
-covered **transitively** through the predicate they consume, each recorded in
-`COVERED_TRANSITIVELY` with a reason. The coverage gate fails the matrix if any
-guard is covered by neither.
+**26 cells against 25 guards.** The counts differ in BOTH directions and the
+reasons are different, so neither is a rounding note:
+
+- some guards carry **more than one cell**, because a two-site consistency
+  property has two independent failure directions and a cell for one licenses
+  nothing about the other -- `min_k_arm_used_the_labelled_k` has M23 (the call
+  site drifts) and M24 (the label drifts), and
+  `sector_map_covers_the_panel_at_the_published_operating_point` has M9 (total
+  collapse) and M9b (degradation to the level that actually inverts the
+  published ordering, which the previous 50% floor did NOT catch);
+- some guards are covered **transitively** through the predicate they consume,
+  each recorded in `COVERED_TRANSITIVELY` with a reason.
+
+The coverage gate fails the matrix if any guard is covered by neither.
+
+*(This paragraph was regenerated from the run captured immediately above. The
+cycle-4 Q/A found the previous version asserting "the cell count (22) is lower
+than the guard count (23)" nine lines below its own verbatim block reading
+"24 guards in target, 24 covered" -- the block had been regenerated and the
+authored prose beside it left stale, the same class as this step's own cycle-3
+item 10. Both are now produced from one run, and the block is the authority.)*
 
 **Criterion-4 cells now run at the PUBLISHED `--cycles 20`, not 4.** The cycle-2
 evaluator showed kill/survive can be cycle-count dependent -- a `w=0.15`

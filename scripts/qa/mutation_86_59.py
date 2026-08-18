@@ -98,10 +98,26 @@ CELLS: list[tuple[str, list[str], str, str, str]] = [
         "M9 sector coverage collapsed -> a mostly-UNKNOWN map would pass",
         ["--verify"],
         '    known = sum(1 for v in sectors.values() if v)\n'
-        '    _ok("sector_map_covers_most_of_the_panel"',
-        '    known = 1\n'
-        '    _ok("sector_map_covers_most_of_the_panel"',
-        "sector_map_covers_most_of_the_panel",
+        '    # CYCLE-4 FINDING 2.',
+        '    known = 1  # MUTANT\n'
+        '    # CYCLE-4 FINDING 2.',
+        "sector_map_covers_the_panel_at_the_published_operating_point",
+    ),
+    (
+        # CYCLE-4 FINDING 2. M9 collapses coverage to 1/513, which the OLD 50%
+        # floor also caught. This cell is the one that discriminates: 401/513 =
+        # 78.2% is the level the Q/A used to SWAP soft_diversity's and min_k's
+        # turnover cost, and it is 28pp ABOVE the old floor -- so it SURVIVED
+        # before this fix and must be KILLED after it. A cell that only
+        # reproduces M9's collapse would prove nothing about the change.
+        "M9b coverage degraded to the level that INVERTS the published ordering "
+        "(78.2%, above the old 50% floor)",
+        ["--verify"],
+        '    known = sum(1 for v in sectors.values() if v)\n'
+        '    # CYCLE-4 FINDING 2.',
+        '    known = int(0.782 * len(tickers))  # MUTANT\n'
+        '    # CYCLE-4 FINDING 2.',
+        "sector_map_covers_the_panel_at_the_published_operating_point",
     ),
     (
         "M10 fidelity comparison emptied -> the replay becomes unfalsifiable",
@@ -130,6 +146,29 @@ CELLS: list[tuple[str, list[str], str, str, str]] = [
         '    ("baseline",              {}),',
         '    ("baseline",              {"sector_neutral": True}),  # MUTANT',
         "baseline_arm_applies_no_flags",
+    ),
+    (
+        # CYCLE-4 FINDING 1, half one: the CALL SITE drifts from the label.
+        # This is the exact edit the Q/A executed (k=4) and which SURVIVED
+        # before the fix, reporting +6.3pp under a row still labelled
+        # `min_k_sectors=3` -- tying ASK-2 and inverting the ordering ASK-1's
+        # promotion recommendation rests on.
+        "M23 min_k call site passes a k the row label does not claim",
+        ["--flags"],
+        "        _k = MIN_K_SECTORS\n",
+        "        _k = 4  # MUTANT\n",
+        "min_k_arm_used_the_labelled_k",
+    ),
+    (
+        # CYCLE-4 FINDING 1, half two: the LABEL drifts from the call site.
+        # Mutating only one side would leave the other direction unfalsified --
+        # a compound property licenses nothing about the clause it did not
+        # exercise -- so both directions get their own cell.
+        "M24 min_k row label claims a k the call site did not pass",
+        ["--flags"],
+        'MIN_K_ARM = f"min_k_sectors={MIN_K_SECTORS}"',
+        'MIN_K_ARM = "min_k_sectors=9"  # MUTANT',
+        "min_k_arm_used_the_labelled_k",
     ),
     (
         "M15 every arm made identical to baseline -> deltas degenerate silently",

@@ -82,6 +82,12 @@ OBSERVED = REPO / "handoff" / "logs" / "rank_stability_86_59_observed.json"
 SCREEN_TOP_N = 10   # settings.paper_screen_top_n
 ANALYZE_TOP_N = 5   # settings.paper_analyze_top_n
 
+# The k used for the paper_min_k_sectors_analyzed arm, declared ONCE. The row
+# label in the criterion-4 table is derived from it (`MIN_K_ARM`) so the two
+# cannot drift apart -- see the cycle-4 finding recorded at the `arms` dict.
+MIN_K_SECTORS = 3
+MIN_K_ARM = f"min_k_sectors={MIN_K_SECTORS}"
+
 # Trailing sessions fed to each replayed cycle. 126 ~= the "6mo" the live call
 # requests. See WINDOW SEMANTICS above -- this is a factor definition, not a
 # display knob.
@@ -486,8 +492,30 @@ def measure(n_cycles: int, window: int, quiet: bool = False) -> dict:
         "no sector map cached -- criterion 3 would report UNKNOWN for every slot, "
         "which measures the harness rather than the book (run --fetch)")
     known = sum(1 for v in sectors.values() if v)
-    _ok("sector_map_covers_most_of_the_panel", known >= 0.5 * len(tickers),
-        f"only {known}/{len(tickers)} tickers carry a sector")
+    # CYCLE-4 FINDING 2. This floor was `>= 0.5 * len(tickers)` while the
+    # operating point is 502/513 = 97.9%. The Q/A degraded the cached map to
+    # 401/513 = 78.2% -- a realistic yfinance-lookup failure, and still 28pp
+    # ABOVE the old floor -- and every criterion-4 guard stayed green while
+    # soft_diversity and min_k SWAPPED their turnover cost (+6.3pp <-> +2.1pp),
+    # with baseline and every top-sector share unmoved so nothing in the report
+    # signalled it. A guard whose threshold sits 20pp below the level at which
+    # the published number inverts nominally covers the input but cannot
+    # protect the figure derived from it.
+    #
+    # The floor is now pinned NEAR the operating point. 0.95 is chosen, not
+    # inherited: the published ordering was measured at 97.9%, and was shown to
+    # invert by 78.2%, so the floor must sit between the two -- and 0.95
+    # leaves ~15 tickers of headroom for ordinary lookup churn (delistings,
+    # renames) without reaching anywhere near the inversion band.
+    _cov = known / len(tickers) if tickers else 0.0
+    _ok("sector_map_covers_the_panel_at_the_published_operating_point",
+        _cov >= 0.95,
+        f"sector coverage is {known}/{len(tickers)} = {_cov:.1%}, below the 95% "
+        f"floor -- the criterion-4 turnover ordering is not stable across "
+        f"coverage this degraded, so the table must not be published from it")
+    # DISCLOSE the coverage the table was actually computed at, so a reader
+    # never has to infer it from a guard that only reports pass/fail.
+    print(f"sector map coverage: {known}/{len(tickers)} = {_cov:.1%}")
 
     results = []
     full_ranks = []
@@ -790,7 +818,19 @@ def measure_flags(n_cycles: int, window: int) -> dict:
     from backend.services.autonomous_loop import _min_k_sector_slice
 
     arms: dict[str, list[list[str]]] = {name: [] for name, _ in FLAG_ARMS}
-    arms["min_k_sectors=3"] = []
+    # The ROW LABEL is DERIVED from the k that is passed, never written twice.
+    # Cycle 4 measured the defect: `arms["min_k_sectors=3"]` and
+    # `_min_k_sector_slice(base, ANALYZE_TOP_N, 3)` were two independent
+    # literals with nothing tying them, so forcing k=4 SURVIVED -- the row was
+    # still labelled `min_k_sectors=3` and reported +6.3pp, tying ASK-2, while
+    # ASK-1 recommends promoting this flag "at the smallest turnover cost of
+    # the three arms (+2.1pp/day)". k=5 reported +7.4pp and exceeded it. The
+    # ordering the operator ask rests on inverted with no guard able to fail.
+    arms[MIN_K_ARM] = []
+    # What the CALL SITE actually received, recorded there rather than assumed
+    # here. This is what makes `min_k_arm_used_the_labelled_k` falsifiable:
+    # editing either site alone makes the two disagree.
+    min_k_passed: list[int] = []
     baseline_agrees: list[bool] = []
     baseline_row_agrees: list[bool] = []
 
@@ -850,8 +890,10 @@ def measure_flags(n_cycles: int, window: int) -> dict:
         baseline_agrees.append(
             [c["ticker"] for c in base[:SCREEN_TOP_N]] == _direct_tk
         )
-        picked = _min_k_sector_slice(base, ANALYZE_TOP_N, 3)
-        arms["min_k_sectors=3"].append([c["ticker"] for c in picked])
+        _k = MIN_K_SECTORS
+        min_k_passed.append(_k)
+        picked = _min_k_sector_slice(base, ANALYZE_TOP_N, _k)
+        arms[MIN_K_ARM].append([c["ticker"] for c in picked])
 
     out = {}
     for name, slates in arms.items():
@@ -872,6 +914,23 @@ def measure_flags(n_cycles: int, window: int) -> dict:
 
     _ok("flag_arms_all_ran", all(v["mean_turnover"] is not None for v in out.values()),
         "an arm produced no turnover series")
+    # CYCLE-4 FINDING 1. The min_k row's LABEL and the k actually passed to
+    # `_min_k_sector_slice` were two independent literals. k=4 SURVIVED at
+    # +6.3pp under a row still labelled `min_k_sectors=3`, which ties ASK-2 and
+    # inverts the ordering ASK-1's promotion recommendation rests on; k=5 gave
+    # +7.4pp. (k=2 WAS killed, but by `flag_arms_are_distinguishable_from_baseline`
+    # firing on degeneracy-to-baseline -- a mis-attributed kill, not this
+    # property.) The label is now DERIVED from `MIN_K_SECTORS`, so the two
+    # cannot drift; this guard is what makes that structural fix falsifiable
+    # rather than merely asserted. Its counterexample is a divergent edit to
+    # EITHER site, demonstrated by cells M23 and M24.
+    _labelled_k = int(MIN_K_ARM.split("=")[1])
+    _ok("min_k_arm_used_the_labelled_k",
+        bool(min_k_passed) and all(k == _labelled_k for k in min_k_passed),
+        f"the row is labelled {MIN_K_ARM!r} but _min_k_sector_slice received "
+        f"{sorted(set(min_k_passed))} -- a criterion-4 row that reports a "
+        f"turnover cost under the wrong k silently inverts the ASK-1/ASK-2 "
+        f"ordering")
     # This guard used to assert `n_distinct == len(set(distinct))` on a list
     # built as `sorted({...})` -- true for EVERY possible input. The Q/A proved
     # it vacuous by EXECUTION: poisoning FLAG_ARMS[0] with sector_neutral=True

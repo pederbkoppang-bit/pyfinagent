@@ -45,6 +45,9 @@ The cycle-3 blocker is closed and verified by execution:
   `--cycles 20`, control GREEN first and reproducing 15.8%/12 with min_k at
   +2.1pp, disk md5 unchanged;
 - matrix **23/23 KILLED**, coverage **24/24**, 0 SURVIVED, 0 UNSCORABLE;
+  *(cycle-3 figures, left as the record of THIS park decision. Cycle 4 ran and
+  the matrix is now **26/26** at coverage **25/25**; see the cycle-4 section of
+  `evaluator_critique_86.59.md`.)*
 - the false claim (*"an injection anywhere in the replay path makes these
   diverge"*) is narrowed in the shipped code comment and in both artifacts;
 - the contract's abandoned P3/P4/P6 is now disclosed as a **deviation**.
