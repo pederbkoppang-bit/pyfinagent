@@ -406,9 +406,50 @@ def check_mechanism_tripwires() -> None:
         f"barrier may be volatility-scaled after all and criterion 6's "
         f"mechanism must be re-derived rather than trusted")
 
+    # PAIRED NEGATIVE for the saturation guard, and the reason it is HERE.
+    # `vol_scale_is_unsaturated_at_the_binding_side` lives inside gate_effect(),
+    # which needs BigQuery-derived volatilities -- so it is unreachable under
+    # --offline and the matrix could not exercise it. That is exactly the
+    # failure this function's own docstring names: "a guard that can only be
+    # reached through a network call is a guard that will not be
+    # mutation-tested, which is how the previous version shipped vacuous."
+    #
+    # gate_effect() takes a plain dict, so it can be driven with synthetic
+    # volatilities and no network at all. The cycle-3 Q/A's exact attack --
+    # saturating inputs that made the script report 1.2500x while the TRUE
+    # inflation was 1.0000x -- must now RAISE.
+    saturating = {"raw": {"vol_ann": 0.04}, "fixed": {"vol_ann": 0.25}}
+    fired = False
+    try:
+        gate_effect(saturating, _run_tripwires=False)
+    except AssertionError as exc:
+        fired = "vol_scale_is_unsaturated_at_the_binding_side" in str(exc)
+    _ok("gate_guard_rejects_saturating_inputs", fired,
+        "gate_effect() accepted a saturating input (target_vol/0.04 = 3.75, "
+        "beyond the 3.0 cap) without raising the saturation guard -- so the "
+        "reported inflation would again not be the outcome the trader gets, "
+        "which is precisely the false negative cycle 3 demonstrated")
+
+    # ... and the POSITIVE half: the same guard must ACCEPT an unsaturated
+    # input. Without this, deleting the guard's condition entirely would still
+    # leave the check above green only if it raised for some other reason, and
+    # a check that only ever demands a raise cannot tell a working guard from a
+    # broken function.
+    healthy = {"raw": {"vol_ann": 0.20}, "fixed": {"vol_ann": 0.25}}
+    accepted = False
+    try:
+        gate_effect(healthy, _run_tripwires=False)
+        accepted = True
+    except AssertionError:
+        accepted = False
+    _ok("gate_guard_accepts_unsaturated_inputs", accepted,
+        "gate_effect() rejected an ordinary unsaturated input (scales 0.75 and "
+        "0.60, both well under the 3.0 cap), so the saturation guard fires on "
+        "everything and would mask a real measurement")
 
 
-def gate_effect(harm: dict) -> dict:
+
+def gate_effect(harm: dict, _run_tripwires: bool = True) -> dict:
     """What the duplication does to the DSR/PBO inputs -- via the LIVE path.
 
     Two corrections are baked in here, both from evaluators rather than from me.
@@ -465,14 +506,34 @@ def gate_effect(harm: dict) -> dict:
     target_vol = 0.15  # backtest_trader.py TARGET_VOL default
     scale_pre = target_vol / a["vol_ann"]
     scale_post = target_vol / b["vol_ann"]
-    _ok("vol_scale_is_unsaturated_on_both_sides",
-        scale_pre < 3.0 and scale_post < 3.0,
+    # ONE clause, not `scale_pre < 3.0 and scale_post < 3.0`. Measured: that
+    # compound had a DEAD second clause. `scale = target_vol / vol` is
+    # decreasing in vol, and the guard two lines above already establishes
+    # `a["vol_ann"] < b["vol_ann"]`, so scale_pre > scale_post ALWAYS and
+    # `scale_pre < 3.0` IMPLIES `scale_post < 3.0`. Driven: a=0.04 fires the
+    # guard; every attempt to saturate the POST side alone either saturates the
+    # pre side too (a=0.045 b=0.05) or trips
+    # `pre_fix_volatility_is_the_lower_one` first (a=0.20 b=0.05). No fixture
+    # can falsify the second clause, so it was decoration inside an `and`.
+    #
+    # `max(...)` is equivalent, has no unfalsifiable sub-clause, and stays
+    # correct if the ordering guard above is ever removed.
+    _ok("vol_scale_is_unsaturated_at_the_binding_side",
+        max(scale_pre, scale_post) < 3.0,
         f"vol_scale saturates at the 3.0 cap (pre {scale_pre:.4f}, post "
         f"{scale_post:.4f}); at or beyond the cap the reported inflation "
         f"{size_inflation:.4f}x is NOT the outcome -- min() clips it and the "
         f"ratio arithmetic stops describing what the trader does")
 
-    check_mechanism_tripwires()
+    # `_run_tripwires=False` exists ONLY to break a recursion: the tripwires
+    # drive THIS function with known-bad inputs, and this call would otherwise
+    # re-enter them forever (observed as a RecursionError while writing it).
+    # It is not a way to skip the tripwires in normal use -- every real caller
+    # leaves it True -- and driving the real gate_effect rather than an
+    # extracted helper is deliberate: a guard tested through a helper is not
+    # tested at the seam that uses it.
+    if _run_tripwires:
+        check_mechanism_tripwires()
 
     return {
         "vol_ratio_pre_over_post": vol_ratio,

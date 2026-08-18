@@ -114,6 +114,36 @@ TRIPWIRE_CELLS: list[tuple[str, str, str, str]] = [
         "tripwire_predicates_reject_known_bad_inputs",
     ),
     (
+        # CYCLE-3 FOLLOW-UP. The saturation guard replaced a vacuous
+        # `size_inflation < 3.0` (bounded by sqrt(2), so it could never fire).
+        # Its replacement lived inside gate_effect(), which needs BigQuery --
+        # unreachable under --offline and therefore never mutation-tested, which
+        # is exactly how the vacuous version shipped. gate_effect() now takes a
+        # plain dict and is driven synthetically by the tripwires.
+        "T4 the saturation guard is made ALWAYS TRUE -- the precise cycle-3 "
+        "vacuity, where the script reported 1.2500x while the TRUE inflation "
+        "was 1.0000x",
+        "        max(scale_pre, scale_post) < 3.0,",
+        "        True,  # MUTANT",
+        "gate_guard_rejects_saturating_inputs",
+    ),
+    (
+        # The OPPOSITE direction. Without this, a guard that fires on every
+        # input would satisfy T4 -- "it raised" is not "it discriminated".
+        "T5 the saturation guard is made ALWAYS FALSE -> it fires on everything "
+        "and masks the real measurement",
+        "        max(scale_pre, scale_post) < 3.0,",
+        "        False,  # MUTANT",
+        "gate_guard_accepts_unsaturated_inputs",
+    ),
+    (
+        "T6 the known-bad fixture is replaced by a healthy one -> the "
+        "paired negative goes unfalsifiable",
+        '    saturating = {"raw": {"vol_ann": 0.04}, "fixed": {"vol_ann": 0.25}}',
+        '    saturating = {"raw": {"vol_ann": 0.20}, "fixed": {"vol_ann": 0.25}}  # MUTANT',
+        "gate_guard_rejects_saturating_inputs",
+    ),
+    (
         "T3 the tripwire FIXTURE is emptied -> both predicates go unfalsifiable",
         "_TRIPWIRE_FIXTURE_SRC = {",
         "_TRIPWIRE_FIXTURE_SRC = {}\n_UNUSED_FIXTURE = {  # MUTANT",
