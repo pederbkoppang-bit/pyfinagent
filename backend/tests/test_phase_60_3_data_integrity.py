@@ -217,4 +217,11 @@ def test_60_3_provenance_fields_ungated(monkeypatch):
 
 
 def test_60_3_flag_defaults_off():
-    assert Settings().paper_data_integrity_enabled is False
+    # phase-86.118: this used to read `Settings().paper_data_integrity_enabled`,
+    # which is NOT the shipped default -- `Settings` loads `backend/.env`, so it
+    # reports whatever the OPERATOR has deployed. Measured 2026-08-18: the
+    # declared default is False while `backend/.env:83` sets it true, so the
+    # assertion was red because of a legitimate operator promotion rather than
+    # any code change. Asserting the DECLARED field default measures the
+    # property the test name claims, and is immune to deployment state.
+    assert Settings.model_fields["paper_data_integrity_enabled"].default is False

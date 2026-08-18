@@ -76,8 +76,29 @@ def test_c1_logrotate_plist_template_exists_and_points_at_script():
     assert "StartInterval" in plist
 
 
+def _read_handoff_artifact(name: str) -> str:
+    """Read a handoff artifact from `current/` OR wherever it was archived.
+
+    phase-86.118: same defect as `test_phase_75_prompt_contracts.py` -- the
+    `archive-handoff` hook MOVES a step's artifacts out of `handoff/current/`
+    when the step closes, so a test pinned there breaks on success. Measured
+    2026-08-18: absent from `handoff/current/`, present at
+    `handoff/archive/misc/ops_rotate_runbook_75.11.md`. A genuinely missing
+    artifact still fails.
+    """
+    candidates = [REPO_ROOT / "handoff" / "current" / name,
+                  *sorted((REPO_ROOT / "handoff" / "archive").rglob(name))]
+    for path in candidates:
+        if path.is_file():
+            return path.read_text(encoding="utf-8")
+    raise AssertionError(
+        f"{name} is in neither handoff/current/ nor handoff/archive/** -- "
+        f"the artifact is genuinely gone, not merely archived"
+    )
+
+
 def test_c1_runbook_and_operator_token_drafted():
-    runbook = _read("handoff/current/ops_rotate_runbook_75.11.md")
+    runbook = _read_handoff_artifact("ops_rotate_runbook_75.11.md")
     assert "OPS-ROTATE-BOOTSTRAP" in runbook
 
 
@@ -357,12 +378,68 @@ def test_c6_no_plaintext_secrets_in_templates():
             )
 
 
+_QUOTED = re.compile(r"'[^']*'|\"[^\"]*\"")
+
+
+def _bootstrap_executions(text: str) -> list[str]:
+    """Lines that EXECUTE `launchctl bootstrap`, as opposed to naming it.
+
+    phase-86.118. The previous oracle was `not a comment => executed`, which is
+    false: `scripts/ops/reissue_cc_oauth_token.sh:17` assigns the verb to
+    `RELOAD_HINT_2='launchctl bootstrap ...'` as a hint PRINTED for the
+    operator, and the test fired on it. CLAUDE.md reserves `bootstrap` for the
+    operator, so the INTENT was right and only the oracle was wrong -- which is
+    why this is repaired rather than deleted.
+
+    This works on the WHOLE FILE, not a line at a time, because the real
+    hazard is not a bare command -- it is a hint variable later handed to
+    `eval`. `eval "$RELOAD_HINT_2"` contains neither `launchctl` nor
+    `bootstrap`, so no line-local check can see it; the assignment has to be
+    remembered. (That case was caught by this test's own known-bad fixture
+    before it shipped, which is the point of carrying one.)
+    """
+    hint_vars: set[str] = set()
+    offenders: list[str] = []
+    for line in text.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("#"):
+            continue
+        assign = re.match(r"^([A-Za-z_][A-Za-z0-9_]*)=(.*)$", stripped)
+        if assign and "launchctl bootstrap" in assign.group(2):
+            hint_vars.add(assign.group(1))   # storing it is not running it
+            continue
+        if "launchctl bootstrap" in _QUOTED.sub("", stripped):
+            offenders.append(stripped)
+            continue
+        if re.search(r"\b(eval|bash\s+-c|sh\s+-c)\b", stripped) and (
+            "launchctl bootstrap" in stripped
+            or any(v in stripped for v in hint_vars)
+        ):
+            offenders.append(stripped)
+    return offenders
+
+
 def test_c6_no_launchctl_bootstrap_executed_in_ops_scripts():
-    # 'launchctl bootstrap' may appear in prose (runbook / plist-template
-    # XML comments) but must never appear as an executed line in a .sh file.
+    # The oracle carries its own known-bad and known-good fixtures, so a green
+    # run is evidence it can still say NO. An oracle that cannot reject
+    # anything is exactly what made the previous version of this test red.
+    must_reject = [
+        "launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/x.plist",
+        "  launchctl bootstrap gui/501 foo.plist   # trailing text",
+        "HINT='launchctl bootstrap gui/501 x.plist'\neval \"$HINT\"",
+        "bash -c 'launchctl bootstrap gui/501 x.plist'",
+    ]
+    must_accept = [
+        "RELOAD_HINT_2='launchctl bootstrap gui/$(id -u) ~/x.plist'",
+        "# launchctl bootstrap gui/501 foo.plist",
+        'echo "run: launchctl bootstrap gui/501 foo.plist"',
+        "launchctl kickstart -k gui/501/com.pyfinagent.backend",
+    ]
+    for bad in must_reject:
+        assert _bootstrap_executions(bad), f"oracle failed to REJECT: {bad!r}"
+    for good in must_accept:
+        assert not _bootstrap_executions(good), f"oracle wrongly rejected: {good!r}"
+
     for f in sorted(OPS_DIR.glob("*.sh")):
-        for line in f.read_text(encoding="utf-8").splitlines():
-            stripped = line.strip()
-            if stripped.startswith("#"):
-                continue
-            assert "launchctl bootstrap" not in stripped, f"{f.name}: {stripped!r}"
+        hits = _bootstrap_executions(f.read_text(encoding="utf-8"))
+        assert not hits, f"{f.name} executes the operator-reserved verb: {hits!r}"

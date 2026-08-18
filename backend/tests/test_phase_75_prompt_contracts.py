@@ -285,9 +285,35 @@ def test_legacy_fallback_dict_byte_identical_in_source():
 # Criterion 3 -- operator decision note exists
 # --------------------------------------------------------------------------
 
+def _read_handoff_artifact(name: str) -> str:
+    """Read a handoff artifact from `current/` OR wherever it was archived.
+
+    phase-86.118: this test pinned `handoff/current/`, but the
+    `archive-handoff` PostToolUse hook MOVES a step's artifacts into
+    `handoff/archive/` when the step closes -- so the assertion was guaranteed
+    to break on success. Measured 2026-08-18: the file is absent from
+    `handoff/current/` and present at
+    `handoff/archive/misc/operator_decision_75.14_schema_extension.md`.
+    Searching both preserves the property being asserted (the note exists and
+    carries its token) instead of asserting where the archiver happened to
+    leave it. A genuinely missing artifact still fails, loudly.
+    """
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[2]
+    candidates = [root / "handoff" / "current" / name,
+                  *sorted((root / "handoff" / "archive").rglob(name))]
+    for path in candidates:
+        if path.is_file():
+            return path.read_text(encoding="utf-8")
+    raise AssertionError(
+        f"{name} is in neither handoff/current/ nor handoff/archive/** -- "
+        f"the artifact is genuinely gone, not merely archived"
+    )
+
+
 def test_operator_decision_note_exists_with_token():
-    text = open("handoff/current/operator_decision_75.14_schema_extension.md",
-                encoding="utf-8").read()
+    text = _read_handoff_artifact("operator_decision_75.14_schema_extension.md")
     assert "SCHEMA-EXTEND-75.14" in text
     assert "RiskAnalystArgument" in text and "RiskJudgeVerdict" in text
     assert "frontend" in text.lower()

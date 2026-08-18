@@ -65,9 +65,18 @@ def test_phase_40_2_settings_json_still_valid_json_after_edit():
     Catches the failure mode where a string escape break the parse."""
     text = SETTINGS.read_text(encoding="utf-8")
     parsed = json.loads(text)
-    # Effort level must still be xhigh (the per-29.2 operator override)
-    assert parsed.get("effortLevel") == "xhigh", (
-        "phase-29.2 effortLevel=xhigh invariant must survive phase-40.2 edit"
+    # phase-86.118: this pinned "xhigh" (the phase-29.2 override). The operator
+    # RAISED it to "max" on 2026-08-04 by direct instruction, documented in
+    # CLAUDE.md's effort-policy section, so the pin was red because of a
+    # deliberate decision -- not because a phase-40.2 edit clobbered anything.
+    # The guard's PURPOSE is to catch an accidental clobber of the effort
+    # setting, so it is re-pinned to the currently documented value rather than
+    # relaxed: dropping the value check entirely would retire a live guard, and
+    # criterion 4 of 86.118 forbids making a test pass by weakening it.
+    assert parsed.get("effortLevel") == "max", (
+        "effortLevel must remain the operator-set tier documented in CLAUDE.md "
+        "(raised xhigh -> max 2026-08-04); an edit that drops or changes it is "
+        "the clobber this guard exists to catch"
     )
     # Hooks dict must still be present + non-empty
     assert "hooks" in parsed and parsed["hooks"], (

@@ -789,10 +789,26 @@ class CellResult:
     detail: str
 
 
-def pytest_runner(suite: str, cwd: Path, extra: Sequence[str] = ()) -> Callable[[], RunResult]:
+def pytest_runner(
+    suite: str | Sequence[str], cwd: Path, extra: Sequence[str] = ()
+) -> Callable[[], RunResult]:
+    """Run one suite (a string) or several (a list/tuple of strings).
+
+    A string is NEVER split on whitespace. Passing `"a.py b.py"` used to arrive
+    as a single argv element -- one nonexistent path -- so pytest errored and
+    the target's control read as legitimately RED, silently making every cell on
+    it UNSCORABLE. Measured on step 86.118, where the control was green when the
+    same command was typed by hand. Splitting the string would have "fixed" it
+    while quietly breaking any path containing a space, so multiplicity is
+    expressed by TYPE instead: one target, or a sequence of them.
+    """
+    targets = [suite] if isinstance(suite, str) else list(suite)
+    if not targets:
+        raise ValueError("pytest_runner needs at least one suite path")
+
     def run() -> RunResult:
         proc = subprocess.run(
-            [sys.executable, "-m", "pytest", suite, "-q", "--no-header", *extra],
+            [sys.executable, "-m", "pytest", *targets, "-q", "--no-header", *extra],
             capture_output=True,
             text=True,
             cwd=str(cwd),

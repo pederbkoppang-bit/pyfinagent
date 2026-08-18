@@ -222,8 +222,20 @@ def test_sweep_over_baseline_masterplan_finds_exactly_the_ten():
 
 
 def test_sweep_shape_census_matches_the_corrected_figures():
-    live = _masterplan_at(None)
-    census = classify(live, REPO_ROOT)["shape_census"]
+    # phase-86.118: this read the LIVE masterplan and asserted an exact census
+    # against a file that took 319 commits in 30 days -- `dict` has since grown
+    # 720 -> 1132, so the assertion was guaranteed to rot. The test's value is
+    # "the classifier produces THESE shapes on THIS input", which needs a FIXED
+    # input, so it is pinned with the `_masterplan_at(ref)` helper this file
+    # already provides. Measured 2026-08-18: the census at BASELINE_COMMIT is
+    # exactly the tuple below, so the figures were right and only the input was
+    # wrong -- nothing is relaxed here.
+    #
+    # The LIVE masterplan is still swept, by
+    # `test_sweep_over_live_masterplan_is_clean` above; that is a different
+    # assertion and pinning here does not weaken it.
+    pinned = _masterplan_at(BASELINE_COMMIT)
+    census = classify(pinned, REPO_ROOT)["shape_census"]
     assert census == {"dict": 720, "str": 126, "list": 13, "none": 24}
 
 

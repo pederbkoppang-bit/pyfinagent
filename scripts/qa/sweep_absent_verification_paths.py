@@ -270,6 +270,32 @@ def fp_reason(
     if "%s" in token or re.search(r"%s\." + re.escape(t.rsplit(".", 1)[-1]), cmd):
         return "printf-template"
 
+    # `A || B`: the arms are ALTERNATIVES, not requirements. `test -f A ||
+    # test -f B` succeeds whenever EITHER exists, so a missing arm beside a
+    # present one is not a command-breaking absent path.
+    #
+    # phase-86.118. Every extractor above pulls path-shaped tokens out of the
+    # command text with no notion of shell control flow, so step 86.31's
+    # `test -f .claude/hooks/qa-write-guard.sh || test -f
+    # .claude/hooks/lib/qa_write_guard.py` reported the second arm as a genuine
+    # defect. Measured 2026-08-18: the first arm EXISTS (10,435 bytes) and the
+    # command prints `guard-present=0` and exits 0. That single false positive
+    # was the entire residue keeping
+    # `test_sweep_over_live_masterplan_is_clean` and
+    # `test_phase_75_19_preflight_calibration::test_live_masterplan_is_currently_clean`
+    # red -- two tests failing on a satisfied command.
+    if "||" in cmd:
+        arms = cmd.split("||")
+        mine = [i for i, arm in enumerate(arms) if re.search(escaped, arm)]
+        if mine:
+            for i, arm in enumerate(arms):
+                if i in mine:
+                    continue
+                for other in _extract_candidates(arm):
+                    o = _clean(other)
+                    if o and o != t and _resolves_on_disk(repo_root, o):
+                        return "alternative-arm-satisfied"
+
     return None  # GENUINE absent path
 
 

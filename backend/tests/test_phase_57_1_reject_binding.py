@@ -37,6 +37,14 @@ def _make_settings(**overrides) -> Settings:
         "paper_swap_enabled": True,
         "paper_swap_min_delta_pct": 25.0,
         "paper_swap_max_per_cycle": 2,
+        # phase-86.118: PIN the flag under test. Every field this fixture does
+        # not name falls through to `backend/.env`, so the "flag-OFF" tests below
+        # were running flag-ON. Measured 2026-08-18: the declared default is
+        # False, `backend/.env:84` sets it true, and neutralising that single
+        # override turns all three of this file's failures green. A test that
+        # says OFF must SET off; inheriting the operator's deployment makes the
+        # suite's result a function of what is deployed rather than of the code.
+        "paper_risk_judge_reject_binding": False,
     }
     base.update(overrides)
     return Settings(**base)
@@ -97,7 +105,12 @@ def test_reject_binding_main_path_off_emits_on_blocks():
 
     # default flag (OFF) -- advisory: BUY emitted
     s_off = _make_settings()
-    assert s_off.paper_risk_judge_reject_binding is False  # ships default-OFF
+    # phase-86.118: the fixture now PINS this flag off, so asserting it off on
+    # the fixture instance would restate the fixture and could not fail. The
+    # claim worth making is about the SHIPPED code, so it is made against the
+    # declared field default -- which a promotion in `backend/.env` cannot move
+    # and a change to `settings.py` would flip.
+    assert Settings.model_fields["paper_risk_judge_reject_binding"].default is False
     orders_off = decide_trades(positions, cand, [], state, s_off)
     assert any(o.ticker == "REJ1" and o.action == "BUY" for o in orders_off), (
         f"flag-OFF must preserve the advisory BUY; orders={orders_off}"

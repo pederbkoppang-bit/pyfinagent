@@ -42,6 +42,7 @@ from guardlib import (  # noqa: E402
     Target,
     VacuousGuard,
     census,
+    pytest_runner,
     script_runner,
 )
 
@@ -649,6 +650,44 @@ def part3_matrix(tmp: Path) -> None:
     )
     expect_value("AF-empty-matrix-returns-nonzero", mempty.run(), 1)
 
+    # -- pytest_runner multiplicity ----------------------------------------
+    # A space-joined string arrives as ONE argv element -- one nonexistent path
+    # -- so pytest errors and the control reads as legitimately RED, silently
+    # making every cell on that target UNSCORABLE. Found on step 86.118, where
+    # the same command was green when typed by hand. Multiplicity is expressed
+    # by TYPE, never by splitting, so a path containing a space still works.
+    (tmp / "test_alpha_gl.py").write_text("def test_a1(): pass\ndef test_a2(): pass\n")
+    (tmp / "test_beta_gl.py").write_text("def test_b1(): pass\n")
+    one = pytest_runner("test_alpha_gl.py", tmp)()
+    both = pytest_runner(["test_alpha_gl.py", "test_beta_gl.py"], tmp)()
+    joined = pytest_runner("test_alpha_gl.py test_beta_gl.py", tmp)()
+    if (one.rc, one.collected) == (0, 2) and (both.rc, both.collected) == (0, 3):
+        _pass(
+            "AK-pytest_runner-accepts-one-suite-or-many",
+            f"one suite -> collected {one.collected}; two suites -> collected "
+            f"{both.collected}, so the second path really ran",
+        )
+    else:
+        _fail("AK-pytest_runner-accepts-one-suite-or-many", f"one={one} both={both}")
+
+    if joined.rc != 0 and joined.collected != both.collected:
+        _pass(
+            "AL-a-space-joined-string-is-NOT-silently-split",
+            f"the joined string stays one argv element and pytest fails "
+            f"(rc={joined.rc}) rather than quietly behaving like the list -- so "
+            f"the two forms are distinguishable, which is what makes the "
+            f"list form's success meaningful",
+        )
+    else:
+        _fail("AL-a-space-joined-string-is-NOT-silently-split", f"joined={joined}")
+
+    expect_raises(
+        "AM-empty-suite-list-is-refused",
+        ValueError,
+        lambda: pytest_runner([], tmp),
+        containing="at least one suite",
+    )
+
     # -- a cell whose target was never declared ----------------------------
     # Everything else about X8 is well-formed (it carries the marker) so the
     # case isolates the property it claims to test rather than tripping on a
@@ -890,6 +929,19 @@ SELF_CELLS: list[tuple[str, str, str, str]] = [
         "            if MUTANT_MARKER not in cell.new:",
         "            if False:  # MUTANT",
         "[FAIL] AI-unmarked-mutation-is-refused",
+    ),
+    (
+        "G22 pytest_runner splits a string on whitespace -> a path containing a "
+        "space silently becomes two nonexistent targets",
+        "    targets = [suite] if isinstance(suite, str) else list(suite)",
+        "    targets = suite.split() if isinstance(suite, str) else list(suite)  # MUTANT",
+        "[FAIL] AL-a-space-joined-string-is-NOT-silently-split",
+    ),
+    (
+        "G23 the empty-suite-list refusal is removed",
+        "    if not targets:\n        raise ValueError(\"pytest_runner needs at least one suite path\")",
+        "    if False:  # MUTANT\n        raise ValueError(\"pytest_runner needs at least one suite path\")",
+        "[FAIL] AM-empty-suite-list-is-refused",
     ),
     (
         "G21 a name starting with an interpolation is silently given a prefix",
