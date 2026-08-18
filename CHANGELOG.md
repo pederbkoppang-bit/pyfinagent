@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-18 | `bb572f1f` | phase-86.47: PARK -- attempt budget exhausted 5/5, two-gates correction unevaluated |
 | 2026-08-18 | `45404c70` | chore: next-session goal -- 86.109 closed, 86.108 and 86.110 parked on the 3rd-CONDITIONAL rule |
 | 2026-08-18 | `5ffca35a` | phase-86.110: stop tests writing the real heartbeat; PARKED on the 3rd-CONDITIONAL rule |
 | 2026-08-18 | `085a7f2e` | phase-86.109: stop the freshness alarm paging from a dashboard poll; gate the notifier on the tradin |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-17 | `0ccb75b0` | phase-86.79: the attempt-counter gauge semantics -- PASS on cycle 6 |
 | 2026-08-17 | `1a2e0504` | phase-86.78: cycle 7 -- the locator class closed by a DRIVEN Object.keys assertion |
 | 2026-08-17 | `0c8613e0` | phase-86.78/86.79: cycle 6 -- span-strip before split, STEP-0 content pin, quote-aware trailing stri |
-| 2026-08-17 | `b9be4bdf` | phase-86.37: dropped-gate survival -- PASS on cycle 6 |
 
 ---
 
