@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-18 | `a9ed613` | docs: re-assess Ollama local-LLM feasibility (updates 2026-07-18 verdict) |
 | 2026-08-18 | `e1d3c27c` | feat(masterplan): file 87.6-87.11 from the harness self-audit research gate |
 | 2026-08-18 | `28182547` | chore: split pipeline-report-integrity findings into phase-88 |
 | 2026-08-18 | `4f90a2fe` | ops: WEEKLY MAX BUDGET EXHAUSTED -- resets Aug 20 19:00 Europe/Oslo |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-18 | `5dd79342` | phase-86.118: cycle-4 FAIL recorded; the section-7 capture was SPLICED and is regenerated |
 | 2026-08-18 | `77546b68` | phase-86.118: cycle-3 CONDITIONAL recorded; three defects in my own correction fixed |
 | 2026-08-18 | `b22b4dbe` | phase-86.118: cycle-2 FAIL recorded; my criterion-5 answer was wrong and is REPLACED |
-| 2026-08-18 | `2e0728ae` | phase-86.118: cycle-1 CONDITIONAL recorded; criteria 2 and 5 discharged by measurement |
 
 ---
 
