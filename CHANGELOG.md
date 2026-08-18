@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-18 | `750ebe0b` | chore: next-session goal -- un-park everything, with the blocking arithmetic |
 | 2026-08-18 | `01c52563` | chore: trim goal file back under the 4000-char limit |
 | 2026-08-18 | `58ee7ede` | chore: goal file -- restart DONE, and record the .env write authority |
 | 2026-08-18 | `4f0fc00c` | chore: operator-authorised backend restart + file 86.119 (pytest-randomly absent) |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-18 | `bb572f1f` | phase-86.47: PARK -- attempt budget exhausted 5/5, two-gates correction unevaluated |
 | 2026-08-18 | `45404c70` | chore: next-session goal -- 86.109 closed, 86.108 and 86.110 parked on the 3rd-CONDITIONAL rule |
 | 2026-08-18 | `5ffca35a` | phase-86.110: stop tests writing the real heartbeat; PARKED on the 3rd-CONDITIONAL rule |
-| 2026-08-18 | `085a7f2e` | phase-86.109: stop the freshness alarm paging from a dashboard poll; gate the notifier on the tradin |
 
 ---
 
