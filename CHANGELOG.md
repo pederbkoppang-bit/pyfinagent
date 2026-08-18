@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-18 | `099414fe` | phase-86.59: PARK on the 3rd-CONDITIONAL rule -- blocker fixed, unevaluated |
 | 2026-08-18 | `a4a5765c` | phase-86.59: correct my own statement of the 3rd-CONDITIONAL rule |
 | 2026-08-18 | `fb6f8a67` | phase-86.59 cycle 3: a definition is not behaviour |
 | 2026-08-18 | `3e75c2d6` | phase-86.59 cycle 2: close the CONDITIONAL -- guard vacuity, all four findings |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-17 | `2e9597bd` | phase-75.11.4: status-aware handoff backfill + 86.69/86.74 parked with escalations |
 | 2026-08-17 | `be4b3151` | chore: overnight drain goal for the Opus 5 session |
 | 2026-08-17 | `2506ca65` | phase-86.28: tier-honest research gate -- PASS on cycle 7; THE HARNESS-REPAIR CORE IS CLOSED |
-| 2026-08-17 | `3315546c` | phase-86.28: ledger backfilled from the critique's own table; closing re-capture at 124 |
 
 ---
 
