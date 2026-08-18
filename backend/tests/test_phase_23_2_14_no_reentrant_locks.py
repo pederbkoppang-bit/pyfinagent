@@ -19,7 +19,20 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 BACKEND_DIR = REPO_ROOT / "backend"
-EXPECTED_LOCK_COUNT = 20  # phase-83.0/83.0.1 re-audit 2026-08-07: +2 counter
+EXPECTED_LOCK_COUNT = 21  # phase-86.110 RE-AUDIT (2026-08-18). One new lock:
+# backend/agents/parse_failure_ledger.py:110 `_Ledger._lock`, added by
+# phase-86.108. Plain threading.Lock, NOT an RLock. Re-entrancy surface audited
+# per this file's own rule: under the lock it appends to a bounded deque and
+# increments three Counters, and calls NO function that could re-acquire it --
+# `resolve_rail()` runs BEFORE the lock is taken and `logger.warning` AFTER it
+# is released, both deliberately. No `_*_locked` helper was introduced, so
+# rules 2 and 3 are vacuously satisfied for it.
+#   HOW THIS WAS FOUND, recorded because the miss is the lesson: phase-86.108
+#   shipped that lock and its regression sweep used a `-k` selection that did
+#   not include this file, so the roster guard was never run and main carried a
+#   red test. The guard did exactly what it exists for; the SCOPE of the sweep
+#   was the defect. A `-k` selection is not a regression suite.
+# phase-83.0/83.0.1 re-audit 2026-08-07: +2 counter
 # locks (news/bq_writer.py `_write_lock`, news/fetcher.py `_quarantine_lock`).
 # Both guard plain dict counters, acquire nothing while held, and call no
 # function under the lock -- no re-entrancy surface.

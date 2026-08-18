@@ -36251,3 +36251,43 @@ non-capping: a token-list guard a `time.localtime()` calendar evades, an
 unguarded deferral hold-back, and an unguarded ET-vs-UTC claim). **Not in
 force:** pid 41635 predates these edits, so the read paths still page on the
 live process until the session-end restart. No flag promoted, no `.env` written.
+
+## Cycle 1249 -- 2026-08-18 -- phase=86.110 result=PARKED (3rd-CONDITIONAL rule)
+
+**Step:** 86.110 -- a passing unit test wrote a synthetic `cycle_id` into the
+real, git-tracked `handoff/.cycle_heartbeat.json` the dashboard reads as a
+liveness signal. **All six criteria MET** and re-derived by execution across
+three cycles; the cycle-3 evaluator's words: *"No product defect remains: the
+fix, the sweep and the guard are all correct and mutation-proven."* Parked
+because the sequence reached `[C, C, C]`, so the next verdict is FAIL by rule.
+`escalation_86.110_third_conditional.md` carries the decision. Attempts 4 of 5.
+
+**Shipped.** Both leaking sites isolate `_HEARTBEAT_PATH` -- proven per-site,
+the evaluator reverted each individually and each was caught by its own test.
+A reachability-keyed sweep replaces the filing's patch-table framing, which was
+wrong in both directions; the evaluator reproduced the sweep's result from the
+criterion's own literal rule and got an exact match. A third pollution guard
+joins conftest's BQ and Slack-egress ones. The heartbeat was regenerated
+field-for-field from the ledger (`updated_at` == the last completed row's
+`completed_at` to the microsecond; the fake `c2` had 0 of 174 rows).
+
+**The three cycles found no product defect -- they found two real defects in
+guards this step wrote.** Cycle 1: the guard restored its snapshot
+unconditionally, so a real append by the LIVE loop landing mid-suite would have
+been reverted -- a deleted production cycle row, blamed on an innocent test.
+Cycle 2: only the *redundant* half of the replacement rule was tested; dropping
+`startswith` survived 13/13 because every fixture was length-only
+discriminable. Cycle 3: a stale figure in the block sibling to the one cycle 1
+made me regenerate -- **a corrected capture leaves its sibling stale**, which is
+the lesson worth keeping.
+
+**It also caught a REGRESSION 86.108 had already pushed**: the `threading.Lock`
+roster guard was red on main, because 86.108's regression sweep used a `-k`
+selection that never selected that file. Re-audited and bumped 20 -> 21 with the
+justification the guard demands. *A `-k` selection is not a regression suite.*
+
+**SECOND step parked on the 3rd-CONDITIONAL rule tonight** (86.108 was the
+first). In both, every cycle closed real findings and the evaluator confirmed
+each closure by execution -- the rule cannot currently distinguish a step that
+is stuck from one that is converging. Raised as its own question in the
+escalation. No flag promoted, no `.env` written, no restart pending.

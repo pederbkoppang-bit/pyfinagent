@@ -192,6 +192,14 @@ def test_rail_guard_cycle_history_row_carries_flags(tmp_path, monkeypatch):
     import backend.services.cycle_health as ch
 
     monkeypatch.setattr(ch, "_HISTORY_PATH", tmp_path / "cycle_history.jsonl")
+    # phase-86.110: _HEARTBEAT_PATH too. `record_cycle_end` writes BOTH files
+    # (cycle_health.py:492 -> _write_heartbeat -> _HEARTBEAT_PATH), so isolating
+    # only the history path let this passing test write a synthetic cycle_id
+    # into the real, git-tracked handoff/.cycle_heartbeat.json that the
+    # dashboard reads. Same idiom as test_phase_86_38_degradation_visibility's
+    # `health` fixture -- deliberately not a third one. NOTE a get_log() patch
+    # would NOT work here: this test constructs CycleHealthLog() directly.
+    monkeypatch.setattr(ch, "_HEARTBEAT_PATH", tmp_path / ".cycle_heartbeat.json")
     log = ch.CycleHealthLog()
     log.record_cycle_end(
         cycle_id="c1", started_at="2026-07-06T18:00:00+00:00",
@@ -209,6 +217,9 @@ def test_cycle_history_row_carries_funnel_counts(tmp_path, monkeypatch):
     import backend.services.cycle_health as ch
 
     monkeypatch.setattr(ch, "_HISTORY_PATH", tmp_path / "cycle_history.jsonl")
+    # phase-86.110: see the sibling test above -- record_cycle_end writes the
+    # heartbeat too, so both constants must be isolated.
+    monkeypatch.setattr(ch, "_HEARTBEAT_PATH", tmp_path / ".cycle_heartbeat.json")
     ch.CycleHealthLog().record_cycle_end(
         cycle_id="c2", started_at="2026-07-07T18:00:00+00:00", status="completed",
         funnel={"universe_size": 550, "screened": 41, "candidates": 10,
