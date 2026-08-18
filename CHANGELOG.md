@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-18 | `63773c31` | chore: next-session goal -- 114 pending, harness loop is the bottleneck |
 | 2026-08-18 | `53fc2106` | phase-86.116 cycle 3: the remedy for brittleness introduced the vacuity |
 | 2026-08-18 | `aec5d815` | phase-86.116 cycle 2: the mechanism I credited was not wired |
 | 2026-08-18 | `539f16eb` | phase-86.116: de-duplicate price frames on read, keyed on the index |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-17 | `471f6e26` | phase-86.108: land criterion 1's census as a committed, mutation-tested tool |
 | 2026-08-17 | `9e4b7324` | phase-86.69: replace the superseded baseline claim, correct n=6 to 7, derive the NULL-consumer set |
 | 2026-08-17 | `6d5d6c31` | chore: correct the day report's frontend-pid claim and note the peer's 86.111 |
-| 2026-08-17 | `9971a0b0` | chore: day report + next-session goal for the 2026-08-17 overnight drain |
 
 ---
 
