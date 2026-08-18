@@ -156,3 +156,79 @@ re-measured since the repairs.
 
 No production file was touched by this follow-up; no test was weakened; the
 post-work suite counts are unchanged at `8 failed, 3684 passed`.
+
+---
+
+## Cycle 2 -- **FAIL** -- `wf_c8760ace-10e`
+
+*Transcribed verbatim from the captured Workflow return in the same turn it
+landed. Main records the verdict and never authors it.*
+
+**verdict:** `FAIL`  **ok:** `false`  **harness_compliance_ok:** `true`  **certified_fallback:** `false`
+**attempt_number:** `3` of `5`; **consecutive_conditionals:** `1`; **budget_exhausted:** `false`
+
+**reason:**
+
+> 6 of 7 immutable criteria MET, criterion 5 NOT MET -- its third clause is now answered, and the answer is falsified by a 120-second experiment I ran on an idle machine. THE FINDING: live_check §6 states "The shared resource is WALL-CLOCK on a real external dependency ... under whole-suite CPU contention", "Nothing another test *wrote* is responsible", "there is no polluter test", and "This is not repairable by cleaning shared state (Luo FSE'14 F.10: 74%)". All four are false. Running the victim ALONE with ONE env var set to the exact literal `backend/tests/test_planner_agent.py:27` injects reproduces the failure signature exactly: `ANTHROPIC_API_KEY=sk-ant-test-do-not-use python -m pytest <victim>` -> `subprocess.TimeoutExpired ... timed out after 120 seconds / 1 failed in 120.08s`. Every link measured: (1) test_planner_agent.py:27 runs `os.environ.setdefault("ANTHROPIC_API_KEY","sk-ant-test-do-not-use")` at MODULE level; (2) that var is ABSENT ambiently so the setdefault APPLIES; (3) pytest imports every module during collection before any test runs and test_planner_agent.py IS collected (5 tests), so it is DETERMINISTIC in any full run; (4) `run_smoke` at test_phase_86_6_subprocess_channel.py:42-45 calls subprocess.run with NO `env=`, so the child INHERITS os.environ; (5) run_dry:439 calls run_probe -> the REAL claude CLI with a bogus key -> never returns -> the 120s ceiling fires. Component pinned: bogus key + `--no-probe` exits 0 in seconds, so BQ and backend HTTP are fine and the hang is in run_probe. I tested and DISCARDED my own second hypothesis (`GCP_PROJECT_ID=test-proj`, test_regime_detector.py:150, same shape -> `1 passed in 7.74s`). The CPU-contention mechanism is falsified three independent ways: no pytest-xdist and no addopts, so the runner is SEQUENTIAL and nothing competes at that instant; measured load during MY OWN full-suite run that REPRODUCED the failure was 1.61-2.64 on 10 cores across 5 samples; and 20 spinning burners (2x oversubscription) left the victim passing in 5.17s, FASTER than idle. Arithmetically only ~2.3s of the ~7.0s run is CPU (`1,78s user 0,55s system 33% cpu 7,042 total`), so 120s would need a ~50x CPU slowdown. This is exactly the Luo 74% "clean the shared state" case the artifact says does not apply -- the fix is scoping the env var or passing explicit `env=` -- and the error propagates: it misdirects 86.119 toward "isolation from the live backend or a bound that reflects loaded-machine latency" and exonerates a live polluter that 36 subprocess-spawning test files inherit. WHAT IS SOUND, and I re-derived rather than accepted all of it. Criterion 2 is MET and the bucket mapping is a GENUINE classification, not relabelling: it applies a stated discriminator ("was the assertion ever true?") that separates PROXY ASSERTION (never true -> PRODUCT-DEFECT) from ENV LEAKAGE (true when written -> STALE-EVIDENCE), it assigns two labels to PRODUCT-DEFECT at COST to the author (triggering criterion 3's filing duty and the "never close a defect by editing the test" tension, both named rather than hidden), and every one of the 19 rows now carries a bucket. Row 7 reproduces byte-for-byte under my own drive: clean `bash scripts/away_ops/sentinel.sh` -> exit=1, gates_failed ["flags_match_tokens"], warning "unauthorized true flags: PAPER_SYNTHESIS_INTEGRITY_ENABLED"; with SENTINEL_TEST_BQ_FAIL=1 -> exit=1, gates_failed ["metered_source_unavailable","flags_match_tokens"]; and sentinel.sh:159-160 is verbatim as quoted at those exact lines. Criterion 6 MET by my own full-suite run: `8 failed, 3684 passed, 12 skipped, 5 xfailed, 1 xpassed, 48 warnings in 521.44s` against the artifact's `...514.34s`, with all 8 FAILED names matching §5 8/8. Criterion 3 MET: 86.119/86.123/86.124/86.125/86.126 all exist, pending, harness_required. Criterion 4 MET by derivation not claim: zero xfail/skip/approx/tolerance/raises/noqa tokens added anywhere in the test diff, 4 asserts removed / 6 added with a replacement for each, 0 test functions removed, the `is` identity preserved. Criterion 7 MET as run (13/13 KILLED, 7/7 controls GREEN first, SHA-256 restores; tree carries no mutation residue). Criterion 1 MET. Immutable command reproduced: stdout `parses`, exit 0. Harness compliance clean on all 5: research 08:49:27 < contract 08:53:31 < experiment_results 11:33:35; no `phase=86.118 result=` row in harness_log and masterplan still `pending`; evidence genuinely CHANGED since cycle 1 (2e0728ae is artifacts-only and adds the mapping table, the §5a drive and a rewritten §6), so this is the documented fresh-respawn, not verdict-shopping. No unintended production change: 1bf26bf8 touches 6 test files, 4 scripts/qa files, masterplan and 2 handoff artifacts, zero backend production modules. SECOND, LESSER FINDING: experiment_results_86.118.md -- the GENERATE artifact of the five-file protocol -- was not updated and still carries the pre-correction position on BOTH repaired criteria, listing "1 exit-code drift" among the criterion-2 buckets and stating criterion 5 as "a measured `n=1 outside scope` rather than a failure to find shared state among the 18". The correction accompanied the evidence instead of replacing it.
+
+**violated_criteria:**
+`criterion_5_shared_state_identification_falsified_by_measurement`, `experiment_results_stale_on_both_repaired_criteria`
+
+### violation_details
+
+**1. Contradiction**
+
+- *action:* ran the victim test ALONE on an idle machine with ANTHROPIC_API_KEY=sk-ant-test-do-not-use (the exact literal backend/tests/test_planner_agent.py:27 injects at module level); separately sampled machine load 5x during my own full-suite run that reproduced the failure; separately ran the victim under 20 CPU burners on 10 cores; separately ran the smoke script with --no-probe to pin the failing component; separately tested and discarded GCP_PROJECT_ID=test-proj
+- *state:* Victim alone + that one env var -> `subprocess.TimeoutExpired ... timed out after 120 seconds / 1 failed in 120.08s`, the same signature as the full run, at load ~1.6. Load during my full-suite run that reproduced the failure: 2.64/2.08/2.05/1.93/1.61 on 10 cores. Under 20 spinning burners the victim passed in 5.17s, FASTER than the 6.66s idle run. Only ~2.3s of the ~7.0s is CPU (`1,78s user 0,55s system 33% cpu 7,042 total`). With --no-probe the bogus key run exits 0 in seconds, so the hang is in run_probe (the real claude CLI). GCP_PROJECT_ID=test-proj -> `1 passed in 7.74s`, not a contributor. Chain: test_planner_agent.py:27 setdefault applies because the var is ABSENT ambiently; pytest imports every module at collection and that module IS collected (5 tests), so it is deterministic in any full run; run_smoke at test_phase_86_6_subprocess_channel.py:42-45 passes no env= so the child inherits os.environ; 36 backend/tests files spawn subprocesses and inherit the same. live_check_86.118.md §6 states the opposite: 'The shared resource is WALL-CLOCK on a real external dependency', 'under whole-suite CPU contention', 'Nothing another test *wrote* is responsible', 'there is no polluter test', and 'This is not repairable by cleaning shared state ... (Luo FSE'14 F.10: 74%)'. pytest-xdist is not installed and there are no addopts, so the runner is sequential and nothing competes at that instant.
+- *constraint:* criterion 5: 'the ORDERING-ARTIFACT class is proven rather than asserted -- show the test passing in isolation AND failing in the full run, and identify the shared state responsible'. Clauses 1 and 2 are discharged and I reproduced both. Clause 3 is answered INCORRECTLY: the shared state is process-global environment state written by another test at import time, not wall-clock or CPU contention, and it IS the Luo 74% clean-the-shared-state case the artifact rules out. The wrong identification propagates into a wrong remediation and a wrong hand-off to 86.119.
+
+**2. Contradiction**
+
+- *action:* read handoff/current/experiment_results_86.118.md (mtime 11:33:35) and diffed the cycle-2 commit `git show --name-only 2e0728ae`
+- *state:* 2e0728ae touches only evaluator_critique_86.118.md, live_check_86.118.md and handoff/verdict_ledger.jsonl. experiment_results_86.118.md is unchanged and still states, for criterion 2, only the finer labels including 'ryan1 exit-code drift' -- the exact row cycle 1 flagged as unclassified and which live_check now maps to STALE-EVIDENCE -- and, for criterion 5, 'the ORDERING-ARTIFACT class is EMPTY in scope, measured ... a measured `n=1 outside scope` rather than a failure to find shared state among the 18', the scope-substitution framing cycle 1 rejected, with no mention of any shared-state identification.
+- *constraint:* The five-file protocol names experiment_results.md as the GENERATE artifact, and the cycle-2 flow requires the handoff files to be updated alongside the fix. A reader of the designated GENERATE artifact comes away with the superseded position on both criteria under repair; the correction accompanied the evidence instead of replacing it. WARN severity -- it changes nothing that was measured, but it is stale on precisely the two criteria this cycle exists to discharge.
+
+**checks_run:**
+
+- harness_compliance_audit_5_item
+- immutable_verification_command_exit_0
+- commit_scope_derivation_git_show_name_only
+- cycle1_vs_cycle2_evidence_diff
+- independent_full_backend_suite_run
+- residual_failure_name_match_8_of_8
+- sentinel_driven_clean_and_forced_bq_fail
+- sentinel_exit_logic_line_verification
+- criterion2_bucket_mapping_audit
+- criterion4_weakening_token_and_assert_accounting
+- filed_defect_steps_existence_check
+- ordering_artifact_isolation_reproduction
+- cpu_contention_falsification_20_burners
+- machine_load_sampling_during_full_suite
+- wall_clock_component_breakdown_probe_vs_noprobe
+- polluter_identification_env_var_bisection
+- polluter_alternative_hypothesis_discarded_gcp_project_id
+- pytest_plugin_and_addopts_derivation
+- process_global_env_write_census_backend_tests
+- or_classifier_blast_radius_census_1153_commands
+- mutation_residue_tree_clean_check
+- code_review_heuristics
+- evaluator_critique
+
+**notes:**
+
+> SEQUENCE / ATTEMPT EVIDENCE. `python scripts/qa/qa_wip.py 86.118 --spawned-at 2026-08-18T09:57:00Z` -> source_present=true, attempt_number=2, attempt_number_status="ok", attempt_number_is_lower_bound=false, prior_attempts=1, records_retained=2 (gauge, not a counter), records_pruned_known=null, is_verdict=false, prior_records=[verdict_wip_86.118__20260818T093446Z.md]. `python scripts/qa/verdict_history_86_21.py --step 86.118 --evidence-only` -> status="ok", verdicts = CONDITIONAL (1 row). CROSS-CHECK prior_attempts (1) vs ledger rows (1): EQUAL, so no staleness signal; the ledger is current for this step. Main's disclosure is consistent with both sources and is advisory only.
+>
+> WRITE-FIRST RECORD (evidence for any respawn, never a verdict): /Users/ford/.openclaw/workspace/pyfinagent/.claude/agent-memory/qa/verdicts/verdict_wip_86.118__20260818T095700Z.md -- carries every command, exit code, load sample and criterion verdict. No write was blocked. One READ was blocked: the guard denied `sed -n '83,90p' backend/.env`, so the ":88" line cite is taken on the sentinel's own output, which names the flag directly. That is the better evidence anyway, not a gap.
+>
+> THE REPRODUCTION MAIN NEEDS, in one line: `ANTHROPIC_API_KEY=sk-ant-test-do-not-use python -m pytest backend/tests/test_phase_86_6_subprocess_channel.py::test_the_optin_IS_honoured_so_a_real_window_remains_possible -q` -> `1 failed in 120.08s`. Remove the env var -> `1 passed in 6.66s`. The fix is env hygiene (monkeypatch-scope the setdefault in test_planner_agent.py, or pass an explicit `env=` in run_smoke), not a bigger timeout.
+>
+> HONEST BOUND ON MY OWN FINDING: I proved that env var is SUFFICIENT to reproduce the failure and that it is deterministically present in any full-suite run. I did NOT prove it is the only contributor, and I did not run a full bisection. That is still strictly more than the artifact establishes, which is zero.
+>
+> ON THE OPERATOR QUESTION MAIN ASKED. Raising-not-fixing the `flags_match_tokens` breach is CORRECT and fixing it here would have been wrong. I reproduced the breach: a clean `bash scripts/away_ops/sentinel.sh` exits 1 with ok:false and "unauthorized true flags: PAPER_SYNTHESIS_INTEGRITY_ENABLED". There are exactly two ways to green that gate -- de-promote an operator-gated flag (a live behaviour change on the trading system) or write an authorization token (which would forge the operator's authorization and defeat the gate's whole purpose). Both are outside a step about test failures, and it is filed to 86.124 and stated in the commit body. ONE CAVEAT: an away-ops watchdog currently reporting ok:false is raised only in a handoff artifact and a commit message. That deserves a channel the operator actually reads, not just a queued step.
+>
+> CREDIT WHERE DUE, since it bears on anti-rubber-stamp. The cycle-2 work is not rewording: the row-7 classification is a real drive that reproduces byte-for-byte, the bucket mapping is a genuine classification with a stated discriminator that costs the author two PRODUCT-DEFECT assignments, and the criterion-2 cap is properly discharged. The step also discards a plausible-and-wrong consolidation with a measurement (row 18 fails identically with both promotions neutralised), reports four defects its own matrix caught in its own work, and leaves eight tests red with named dispositions rather than silencing them. Criterion 5 is the one place where the answer supplied is worse than the silence it replaced, because it is stated confidently and is measurably wrong.
+>
+> NOTE-LEVEL, no verdict effect. (a) I re-derived cycle 1's `||` census exactly: 1153 verification commands in the live masterplan, 14 contain `||`. Step 40.3.1 also carries path tokens in both arms but BOTH files are absent (docs/stress-tests/ holds only 2026-Q2-opus-4.7.md), so the stated "both arms missing -> still GENUINE" rule applies and nothing is wrongly excused. (b) The two untracked peer-session test files (test_charts_nan_serialisation.py, test_phase_86_120_cc_rail_limit_aware_cooldown.py) explain the collected-count drift cycle 1 reconciled. (c) `1 xpassed` reproduces in my run; correctly filed to 86.124 rather than fixed here. (d) The tree carries no mutation residue -- no modified files under backend/tests or scripts/qa.
+>
+> UI GATE: not applicable -- no frontend/** in scope and the step makes no UI claim, so no Playwright capture was required or taken.
+

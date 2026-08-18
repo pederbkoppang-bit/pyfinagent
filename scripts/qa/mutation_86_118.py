@@ -52,6 +52,16 @@ T_571 = REPO / "backend/tests/test_phase_57_1_reject_binding.py"
 T_603 = REPO / "backend/tests/test_phase_60_3_data_integrity.py"
 T_402 = REPO / "backend/tests/test_phase_40_2_claude_code_v2_1_140_features.py"
 SWEEP = REPO / "scripts/qa/sweep_absent_verification_paths.py"
+T_PLANNER = REPO / "backend/tests/test_planner_agent.py"
+T_VICTIM = REPO / "backend/tests/test_phase_86_6_subprocess_channel.py"
+
+# The criterion-5 polluter target. Its control must run BOTH the polluter and
+# the victim, because the defect is only observable in the pair: the polluter
+# passes either way, and the victim passes either way ALONE.
+POLLUTER_PAIR = [
+    "backend/tests/test_planner_agent.py",
+    "backend/tests/test_phase_86_6_subprocess_channel.py",
+]
 
 # The sweep classifier is not a test file, so its control is the pair of suites
 # that consume it -- the same two tests its defect had held red.
@@ -70,9 +80,29 @@ TARGETS = [
     Target(T_402, pytest_runner(str(T_402.relative_to(REPO)), REPO), name="40_2"),
     Target(SWEEP, pytest_runner(SWEEP_SUITE, REPO,
                                 DESELECT_KNOWN_RED), name="sweep_classifier"),
+    Target(T_PLANNER, pytest_runner(POLLUTER_PAIR, REPO), name="polluter_pair"),
 ]
 
 CELLS = [
+    # ── the criterion-5 polluter fix ───────────────────────────────────────
+    Cell(
+        # The shared state the cycle-2 Q/A identified after falsifying my
+        # wall-clock explanation by experiment. Reverting the autouse fixture to
+        # the module-level mutation restores the exact defect: pytest imports
+        # every module at collection, so the bogus key reaches the victim's
+        # env-less subprocess and the real claude CLI hangs to the 120s ceiling.
+        # This cell takes ~2 minutes to score, which IS the defect.
+        "M8 the ANTHROPIC_API_KEY fixture reverts to a module-level "
+        "os.environ mutation -> it leaks into every subprocess-spawning test "
+        "again and the victim times out",
+        T_PLANNER,
+        "@pytest.fixture(autouse=True)\n"
+        "def _dummy_anthropic_key(monkeypatch):\n"
+        '    """Give `Anthropic()` a key for this module\'s tests ONLY."""\n'
+        '    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-test-do-not-use")',
+        'os.environ.setdefault("ANTHROPIC_API_KEY", "sk-ant-test-do-not-use")  # MUTANT',
+        "test_the_optin_IS_honoured_so_a_real_window_remains_possible",
+    ),
     # ── the classifier repair (rows 9 + 11) ────────────────────────────────
     Cell(
         "M1 the `||`-alternative branch is removed -> a satisfied fallback arm "

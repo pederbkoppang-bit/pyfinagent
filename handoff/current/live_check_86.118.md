@@ -212,10 +212,16 @@ still say NO.
 Same command, same flags, after the work:
 
 ```
-8 failed, 3684 passed, 12 skipped, 5 xfailed, 1 xpassed, 48 warnings in 514.34s (0:08:34)
+7 failed, 3685 passed, 12 skipped, 5 xfailed, 1 xpassed, 48 warnings in 397.88s (0:06:37)
 ```
 
-**19 -> 8.** Eleven repaired; **none by weakening**. No test was xfailed,
+**19 -> 7.** Twelve repaired; **none by weakening**.
+
+*(An earlier revision reported `8 failed, 3684 passed ... 514.34s`. That was
+correct before the criterion-5 polluter fix. Fixing the module-level
+`os.environ` mutation removed the twelfth failure AND **116 seconds of wall
+clock** -- the 120s subprocess timeout no longer fires -- which is independent
+corroboration of the mechanism: a CPU-contention story predicts no such saving.)* No test was xfailed,
 skipped, deleted, seed-pinned or given a widened tolerance. Two assertions were
 re-aimed (rows 3-6 to the declared default; row 10 to a pinned input) and each is
 argued in §2/§4 with the measurement that justifies it; the `is` identity in row
@@ -232,7 +238,7 @@ argued in §2/§4 with the measurement that justifies it; the `is` identity in r
 | `test_phase_82_48::the_fetch_supplies_every_field_the_write_REQUIRES` | **OPEN, candidate PRODUCT-DEFECT.** Drives real `nightly_outcome_rebuild._compute_outcomes`: with no recommendation source the outcome must be skipped, and one IS produced. **Filed as 86.123** -- criterion 3 forbids closing a real defect by editing the test that found it. |
 | `test_phase_82_48::write_really_persists_into_bigquery` | **OPEN, candidate PRODUCT-DEFECT + Mystery Guest.** Asserts `'UNKNOWN' == 'BUY'` against **live BigQuery**, creating and deleting a temp table. Filed with **86.123**. |
 | `test_portfolio_swap::swap_framework_fills_zero_buy_gap` | **OPEN, candidate PRODUCT-DEFECT.** "Expected 2 swap SELLs, got 1" from the real swap engine. Measured NOT to be env leakage (§3). Filed as **86.126**. |
-| `test_phase_86_6_subprocess_channel::the_optin_IS_honoured...` | **OUT OF SCOPE, classified and handed on.** The only order-dependent test; the 19th failure, outside this step's named 12 files. Belongs with **86.119**. |
+| ~~`test_phase_86_6_subprocess_channel::the_optin_IS_honoured...`~~ | **NO LONGER FAILING.** Its shared state was identified and FIXED (§6); it is absent from the post-work run above. It was the 19th failure and outside this step's named 12 files, so fixing it was not required -- but leaving a defect unfixed once its cause is known and the fix is three lines would have been scope-hiding, not scope-honesty. |
 
 **A smaller honest red count beats a green one that proves nothing.** Eight
 failures remain and every one is either a genuine defect awaiting its own step or
@@ -294,48 +300,64 @@ Answered by per-test isolation rather than by run-to-run agreement, because
 
 **Measured: 18 FAILS_ALONE, 1 PASSES_ALONE.** The single order-dependent test is
 `test_phase_86_6_subprocess_channel::test_the_optin_IS_honoured_so_a_real_window_remains_possible`,
-the **19th** failure, outside this step's named 12 files. So the
-ORDERING-ARTIFACT bucket is **empty inside this step's scope** -- a measured
-`n=1 outside scope`.
+the **19th** failure, outside this step's named 12 files. The ORDERING-ARTIFACT
+bucket is therefore **empty inside this step's scope** -- a measured `n=1 outside
+scope` -- but scope is NOT offered as a substitute for identifying its shared
+state, which is below.
 
-**The shared state, which the previous revision asserted was someone else's to
-find.** It is NOT in-process mutable state and there is no polluter test. From
-the full-run traceback:
+**The shared state, IDENTIFIED. An earlier revision of this section answered
+this clause with "wall-clock contention on a real external dependency" and
+stated that no polluter test exists and that the Luo FSE'14 clean-the-shared-
+state remedy did not apply. That was WRONG in every part, it was built from a
+correlation without running the control that would have falsified it, and the
+cycle-2 Q/A falsified it with a 120-second experiment. The wrong answer is
+REPLACED here rather than annotated, because a correction that sits beside the
+claim it corrects leaves the wrong claim readable as current.**
 
+**The polluter is `backend/tests/test_planner_agent.py:27`**, which ran
+
+```python
+os.environ.setdefault("ANTHROPIC_API_KEY", "sk-ant-test-do-not-use")
 ```
-self = <Popen: returncode: -9 args: [...smoke_cc_rail_e2e.py...]>
-endtime = 1788198.077028333, orig_timeout = 120
-stdout_seq = [b'{"event": "preflight", "health": "ok",
-   "binary": "/Users/ford/.local/bin/claude",
-   "paper_use_claude_code_route": true, "rail_state": "ON"}\n']
-subprocess.TimeoutExpired
-```
 
-The child reached a real preflight and was then **SIGKILLed at the 120s
-timeout**. Timed both ways:
+at **module level**. pytest imports every module during collection, before any
+test runs, so this mutated process-global state for the whole session and was
+DETERMINISTIC in any full run. `run_smoke`
+(`test_phase_86_6_subprocess_channel.py:42-45`) calls `subprocess.run` with **no
+`env=`**, so the child inherits `os.environ`; the smoke script's probe then
+invokes the real `claude` CLI with a bogus key, never returns, and the 120s
+ceiling fires.
 
-| context | result |
+Reproduced independently on an **idle** machine, one variable, nothing else:
+
+| run | result |
 |---|---|
-| alone | **`1 passed in 6.80s`** |
-| full suite | `TimeoutExpired` at **120s**, `returncode: -9` |
+| victim alone | **`1 passed in 5.87s`** |
+| victim alone + `ANTHROPIC_API_KEY=sk-ant-test-do-not-use` | **`1 failed in 120.08s`**, `TimeoutExpired` |
 
-**The shared resource is WALL-CLOCK on a real external dependency.** The test
-spawns `scripts/qa/smoke_cc_rail_e2e.py` with `--allow-live-backend` against
-`http://localhost:8000` -- the operator's RUNNING backend -- and that script
-invokes the real `claude` binary (`rail_state: ON`). Alone the machine is idle
-and the call returns in under 7 seconds; under whole-suite CPU contention the
-same call exceeds a 120s ceiling by more than 17x. Nothing another test *wrote*
-is responsible; what is shared is the machine, the live backend, and the CLI.
+**How the earlier answer was falsified** (recorded because the error is more
+instructive than the fix): the runner is sequential -- `pytest-xdist` is not
+installed and there are no `addopts` -- so nothing competes at that instant;
+measured load during a full run that DID reproduce the failure was 1.61-2.64 on
+10 cores; and under 20 spinning burners the victim passed in 5.17s, *faster*
+than idle. Arithmetically only ~2.3s of the ~7.0s run is CPU, so the
+contention story required a ~50x CPU slowdown that never happened.
 
-Two consequences worth stating rather than leaving implicit:
+**FIXED, and it is exactly the Luo 74% case the earlier revision ruled out.**
+`PlannerAgent` is imported inside each test function in that module, never at
+module level, so the key is only needed while a test runs. The module-level
+mutation is replaced by an autouse `monkeypatch.setenv` fixture scoped to that
+module's tests, which pytest restores afterwards. Measured after the fix:
 
-- **This is not repairable by cleaning shared state**, which is the usual
-  order-dependence remedy (Luo FSE'14 F.10: 74% of order-dependent tests are
-  fixed that way). A timeout racing a real external call needs either isolation
-  from the live backend or a bound that reflects loaded-machine latency.
-- **A unit-test run reaches the operator's live backend and spawns the real
-  `claude` CLI.** `--dry` limits what it mutates, but the dependency is real.
-  That belongs with **86.119**, which owns this test.
+```
+backend/tests/test_planner_agent.py                     -> 5 passed in 0.26s
+test_planner_agent.py + test_phase_86_6_subprocess_channel.py -> 23 passed in 9.19s
+```
+
+**Blast radius, stated because the victim was only the visible casualty:** 36
+files under `backend/tests` spawn subprocesses, and every one of them inherited
+that bogus key. The victim is simply the one whose child made a real network
+call long enough to hit a timeout.
 
 ### The opposite-direction anomaly, restored
 
@@ -352,7 +374,7 @@ not been re-measured since the repairs, and the test itself is now filed as
 
 ## 7. Criterion 7 -- mutation matrix over every guard this step added
 
-`python scripts/qa/mutation_86_118.py`, built on `scripts/qa/guardlib.py`:
+`python scripts/qa/mutation_86_118.py`, built on `scripts/qa/guardlib.py`. **14 cells over 8 targets.** Cell **M8** covers the criterion-5 polluter fix: its target's control runs the polluter AND the victim together, because the defect is only observable in the pair -- the polluter passes either way, and the victim passes either way ALONE. That cell takes ~2 minutes to score, which IS the defect it proves.
 
 ```
 control 75_17                        rc=0 collected=44 GREEN
@@ -362,8 +384,9 @@ control 57_1                         rc=0 collected=7 GREEN
 control 60_3                         rc=0 collected=13 GREEN
 control 40_2                         rc=0 collected=8 GREEN
 control sweep_classifier             rc=0 collected=77 GREEN
+control polluter_pair                rc=0 collected=23 GREEN
 
-KILLED 13 / 13   SURVIVED 0   UNSCORABLE 0   EQUIVALENT-BY-DESIGN 1 (not scored)
+KILLED 14 / 14   SURVIVED 0   UNSCORABLE 0   EQUIVALENT-BY-DESIGN 1 (not scored)
 restore verified: test_phase_75_17_verification_paths.py 09eaebec101e50e0...
 restore verified: test_phase_75_prompt_contracts.py f6dd276deeea3690...
 restore verified: test_phase_75_sre_ops.py a15fce9540672ebc...

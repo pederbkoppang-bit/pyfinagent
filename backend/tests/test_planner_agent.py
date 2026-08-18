@@ -23,8 +23,29 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-# Pre-set a dummy key so `Anthropic()` in __init__ doesn't raise on import.
-os.environ.setdefault("ANTHROPIC_API_KEY", "sk-ant-test-do-not-use")
+# phase-86.118: this used to be a MODULE-LEVEL
+# `os.environ.setdefault("ANTHROPIC_API_KEY", "sk-ant-test-do-not-use")`.
+# pytest imports every module during collection, before any test runs, so that
+# line mutated process-global state for the WHOLE session -- and 36 test files
+# under backend/tests spawn subprocesses with no explicit `env=`, so every one
+# of them inherited the bogus key.
+#
+# MEASURED (2026-08-18): it is what makes
+# test_phase_86_6_subprocess_channel::test_the_optin_IS_honoured... order-
+# dependent. That test spawns scripts/qa/smoke_cc_rail_e2e.py, which invokes the
+# REAL `claude` CLI; with a bogus key the probe never returns and the 120s
+# ceiling fires. Alone: `1 passed in 5.87s`. Alone with ONLY this variable set:
+# `1 failed in 120.08s`, TimeoutExpired -- on an idle machine, which is how the
+# earlier "CPU contention" explanation was falsified.
+#
+# `PlannerAgent` is imported INSIDE each test function here (never at module
+# level), so the key is only needed while a test runs. An autouse fixture scopes
+# it to exactly that and `monkeypatch` restores the environment afterwards, so
+# nothing outside this module -- least of all a subprocess -- can inherit it.
+@pytest.fixture(autouse=True)
+def _dummy_anthropic_key(monkeypatch):
+    """Give `Anthropic()` a key for this module's tests ONLY."""
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-test-do-not-use")
 
 
 def _build_fake_response(text: str) -> MagicMock:

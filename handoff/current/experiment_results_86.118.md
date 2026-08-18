@@ -16,10 +16,11 @@ Full evidence with verbatim command output: **`live_check_86.118.md`**.
 
 ## What this step SHIPS
 
-**19 red -> 8 red, and not one test was weakened.** No bulk xfail, no skip, no
-deleted assertion, no widened tolerance, no pinned seed. Eleven tests repaired,
+**19 red -> 7 red, and not one test was weakened.** No bulk xfail, no skip, no
+deleted assertion, no widened tolerance, no pinned seed. Twelve tests repaired,
 four defects filed as their own numbered steps, and the residue named
-individually with a disposition each.
+individually with a disposition each. The suite also runs **116 seconds faster**
+(397.88s vs 514.34s) because the 120s subprocess timeout no longer fires.
 
 | file | what changed |
 |---|---|
@@ -31,6 +32,7 @@ individually with a disposition each.
 | `backend/tests/test_phase_75_17_verification_paths.py` | shape census git-pinned to `BASELINE_COMMIT` |
 | `scripts/qa/sweep_absent_verification_paths.py` | classifier learns that `\|\|`-joined arms are ALTERNATIVES |
 | `scripts/qa/mutation_86_118.py` | criterion 7 -- 13 cells over 7 targets, built on `guardlib` |
+| `backend/tests/test_planner_agent.py` | the criterion-5 polluter: a module-level `os.environ` mutation scoped to an autouse fixture |
 
 ## The result that matters more than eleven repairs
 
@@ -69,12 +71,22 @@ agreed" is a weaker claim than it looks when the tree is moving underneath them.
 `pytest-randomly` is absent (**86.119**), so both runs share one collection
 order and prove nothing about order-independence.
 
-**Criterion 2 -- every failing test classified with the evidence read or run to
-reach it.** Full table in `live_check_86.118.md` §3. Buckets: 4 env-leakage,
-2 classifier false-positive, 2 consumed-evidence, 2 census-vs-live-artifact,
-1 superseded policy, 1 proxy assertion, 1 exit-code drift, 1 lifecycle
-meta-test, 1 rotated log, 3 candidate PRODUCT-DEFECT, and 1 order-dependent
-(outside scope).
+**Criterion 2 -- every failing test classified into one of the THREE named
+buckets, with the evidence read or run to reach it.** Mapping table and full
+per-test table in `live_check_86.118.md` §3. The finer labels are sub-classes,
+never substitutes: ENV LEAKAGE / CONSUMED EVIDENCE / census-vs-live-artifact /
+SUPERSEDED POLICY / LIFECYCLE META-TEST / rotated log all map to
+**STALE-EVIDENCE**; CLASSIFIER FALSE POSITIVE and PROXY ASSERTION map to
+**PRODUCT-DEFECT** (both were defects in checking code, fixed rather than
+re-pointed); the single order-dependent test is the **ORDERING-ARTIFACT**.
+
+Row 7 (`test_phase_62_4_sentinel`) was left unclassified in an earlier revision
+and is now **STALE-EVIDENCE, env-dependent**, classified by DRIVING the sentinel
+(`live_check` §5a): it exits 2 only when `gates_failed` is a subset of the infra
+set, and a second non-infra gate is already failing on the live deployment. That
+drive surfaced an operational finding raised for the operator -- the away-ops
+sentinel currently exits 1 with `ok: false` because `backend/.env:88` promotes a
+flag with no matching authorization token.
 
 **Criterion 3 -- every PRODUCT-DEFECT candidate filed, none closed by editing
 the test that found it.** **86.126** (swap engine emits 1 swap SELL where 2 are
@@ -88,14 +100,31 @@ argued with the measurement that justifies it. The `is` identity comparison in
 `is`. The one deselect used anywhere is in the mutation matrix's control, names
 a single test explicitly, and is disclosed in the script and the live_check.
 
-**Criterion 5 -- the ORDERING-ARTIFACT class is EMPTY in scope, measured.**
-18 FAILS_ALONE / 1 PASSES_ALONE. The single order-dependent test is the 19th
-failure and lies outside the named 12 files, so this is a measured `n=1 outside
-scope` rather than a failure to find shared state among the 18.
+**Criterion 5 -- proven in isolation AND the shared state IDENTIFIED and
+FIXED.** 18 FAILS_ALONE / 1 PASSES_ALONE; the single order-dependent test is the
+19th failure, outside the named 12 files. Scope is NOT offered as a substitute
+for the third clause.
 
-**Criterion 6 -- post-work counts reported, residue named.** `8 failed, 3684
-passed`. Each of the 8 is named with its disposition in `live_check_86.118.md`
-§5. **A smaller honest red count beats a green one that proves nothing.**
+The polluter is `backend/tests/test_planner_agent.py:27`, a **module-level**
+`os.environ.setdefault("ANTHROPIC_API_KEY", ...)`. pytest imports every module at
+collection, so it mutated process-global state for the whole session, and
+`run_smoke` spawns its subprocess with no explicit `env=`, so the child inherited
+a bogus key and the real `claude` CLI never returned. Reproduced on an IDLE
+machine with that one variable and nothing else: `1 passed in 5.87s` alone
+versus `1 failed in 120.08s` TimeoutExpired. Fixed by scoping the variable to
+that module's own tests with an autouse `monkeypatch.setenv`; polluter+victim
+together now give `23 passed`.
+
+**An earlier revision answered this clause with "wall-clock contention on a real
+external dependency" and asserted there was no polluter.** That was wrong in
+every part and the cycle-2 Q/A falsified it by experiment; the mechanism had
+been inferred from a correlation without running the control that would have
+refuted it. The claim is REPLACED in `live_check` §6, not annotated beside the
+correction.
+
+**Criterion 6 -- post-work counts reported, residue named.** `7 failed, 3685
+passed in 397.88s`. Each of the 7 is named with its disposition in
+`live_check_86.118.md` §5. **A smaller honest red count beats a green one that proves nothing.**
 
 **Criterion 7 -- 13 cells over 7 targets, 13 KILLED, 0 SURVIVED, 0 UNSCORABLE**,
 every control observed GREEN first, SHA-256-verified restore per target,
