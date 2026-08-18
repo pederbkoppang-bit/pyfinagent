@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-18 | `92caebab` | phase-75.11.4: Audit75 S11 follow-up -- backfill_handoff_archive.py archives by filename pattern,... |
 | 2026-08-18 | `75c19c2b` | chore: drop emoji from the goal file (project bans emojis in files) |
 | 2026-08-18 | `63773c31` | chore: next-session goal -- 114 pending, harness loop is the bottleneck |
 | 2026-08-18 | `53fc2106` | phase-86.116 cycle 3: the remedy for brittleness introduced the vacuity |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-17 | `9ec0de11` | chore: record 86.108's landed criterion 1 in the next-session goal |
 | 2026-08-17 | `d081cd85` | chore: correct commit 471f6e26 -- its message was corrupted by shell backticks |
 | 2026-08-17 | `471f6e26` | phase-86.108: land criterion 1's census as a committed, mutation-tested tool |
-| 2026-08-17 | `9e4b7324` | phase-86.69: replace the superseded baseline claim, correct n=6 to 7, derive the NULL-consumer set |
 
 ---
 
+### v6.93.237 — phase-75.11.4: Audit75 S11 follow-up -- backfill_handoff_archive.py a... (2026-08-18)
+
+- **phase-75.11.4: Audit75 S11 follow-up -- backfill_handoff_archive.py archives by filename pattern,...**
 ### v6.93.236 — phase-86.109: stop the freshness alarm paging from a dashboard poll;... (2026-08-18)
 
 - **phase-86.109: stop the freshness alarm paging from a dashboard poll; gate the notifier on the tradin**
