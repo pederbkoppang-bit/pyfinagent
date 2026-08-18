@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-18 | `6c256c36` | chore: trim goal under 4000 chars |
 | 2026-08-18 | `325ebd4b` | chore: goal rewritten around Main behaviour, not tooling |
 | 2026-08-18 | `750ebe0b` | chore: next-session goal -- un-park everything, with the blocking arithmetic |
 | 2026-08-18 | `01c52563` | chore: trim goal file back under the 4000-char limit |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-18 | `3e75c2d6` | phase-86.59 cycle 2: close the CONDITIONAL -- guard vacuity, all four findings |
 | 2026-08-18 | `15a817cc` | phase-86.59: measure the picker rank stability; file 86.116 + 86.117 |
 | 2026-08-18 | `bb572f1f` | phase-86.47: PARK -- attempt budget exhausted 5/5, two-gates correction unevaluated |
-| 2026-08-18 | `45404c70` | chore: next-session goal -- 86.109 closed, 86.108 and 86.110 parked on the 3rd-CONDITIONAL rule |
 
 ---
 
