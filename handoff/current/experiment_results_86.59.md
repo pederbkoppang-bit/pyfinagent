@@ -21,11 +21,13 @@ written*, and criterion 5 forbids promoting a flag. Two new files, both under
 | file | what it is |
 |---|---|
 | `scripts/qa/rank_stability_86_59.py` | the measurement -- drives the REAL `screen_universe` + `rank_candidates` with stored BigQuery prices swapped in for the yfinance network call |
-| `scripts/qa/mutation_86_59.py` | criterion 7 -- 14 cells, control-green-first, SHA-256-verified restore |
+| `scripts/qa/mutation_86_59.py` | criterion 7 -- **20 cells + an AST coverage gate**, control-green-first, SHA-256-verified restore |
 
-**No production file is modified.** `git status --short -- backend/` shows
-nothing from this step; no `.env` write, no flag promotion, no gate touched,
-no restart pending.
+**No production file is modified.** `git show --name-only 15a817cc | grep -E
+'^(backend|frontend)/'` returns nothing; no `.env` write, no flag promotion, no
+gate touched, no restart pending. (Cycle 1 cited a tree-scoped `git status`,
+which cannot attribute a change to a step in a working tree shared with a peer
+session.)
 
 ## Why it measures the system rather than a reimplementation
 
@@ -94,15 +96,20 @@ production file, so the live candidate list is unchanged by construction, and
 the measurement additionally shows `rank_candidates(top_n=10)` agreeing with a
 slice of the full ranking on every cycle (an independent call, cell M3).
 
-**Criterion 7 -- 14 cells, 14 KILLED, 0 SURVIVED, 0 UNSCORABLE**, control
-GREEN first on all three modes, SHA-256-verified restore.
+**Criterion 7 -- 20 cells, 20 KILLED, 0 SURVIVED, 0 UNSCORABLE**, control
+GREEN first on all three modes, SHA-256-verified restore, plus an **AST
+coverage gate** that fails the matrix if any `_ok` guard has no cell. Cycle 1
+shipped 14 cells and the evaluator proved two guards unkillable; see the cycle-2
+section.
 
 ## Finding (a): the declared weights are not the effective weights
 
 Declared **40/35/25**; measured effective **22.6 / 37.0 / 40.4**. The term with
 the *smallest* declared weight has the *largest* effective influence, because
 influence scales with weight x cross-sectional sigma and the 6m horizon carries
-~3.0x the dispersion of the 1m.
+**2.86x** the dispersion of the 1m (mean sigmas 10.646 / 19.850 / 30.441, now
+PRINTED by the script rather than retyped -- cycle 1 quoted a triple that did
+not reproduce; see `live_check_86.59.md` § 6).
 
 **No existing flag fixes it, and the near-miss is worth naming**: reading the
 source suggests `multidim_momentum_enabled` does, because it calls `_zscore`.
@@ -110,10 +117,11 @@ It does not -- it z-scores the *finished composite* as one scalar, so it cannot
 reweight the horizons inside it. Measured: 50 of 10,139 ranked positions move
 (0.493%), and every displacement is a `round(..., 4)` tie. Filed as **86.117**.
 
-## Three defects this step found in ITS OWN deliverable
+## Defects this step found in ITS OWN deliverable
 
 Recorded because the last session's evaluations blocked on guard vacuity, and
-two of these are exactly that class.
+most of these are exactly that class. **Items 1-3 were found in cycle 1; the
+cycle-2 section below records the four the evaluator found that I missed.**
 
 1. **A tautological guard.** `slate_is_a_prefix_of_the_full_ranking` compared
    `ranked` to its own defining expression on the line above. It could not fail
@@ -179,3 +187,91 @@ hysteresis or an incumbent bonus, implement residual momentum, or claim the
 trade drought as its consequence (86.47 owns that and is PARKED). It does not
 claim 86.60's entry-path fix. Everything it discovered outside its own scope
 was filed as its own step rather than absorbed.
+
+---
+
+## Cycle 2 -- response to the CONDITIONAL (`wf_5a3bc88c-4e1`)
+
+**All four findings accepted; none disputed.** The evaluator did not argue that
+a guard looked weak -- it **poisoned the baseline arm and showed the run stayed
+green** while every criterion-4 delta collapsed to zero. That is sole-coverage
+vacuity on this step's most consequential table, the one the operator asks rest
+on.
+
+The irony is recorded rather than smoothed over: cycle 1's artifact claims
+credit for catching two vacuous guards, and shipped four more in the same file.
+Finding a tautology does not immunise you against writing another one.
+
+**1. `panel_is_us_only` was a literal `True`.** I wrote `_ok("panel_is_us_only",
+True, ...)` -- a constant, AST-provably unkillable. The fetch SQL does carry
+`WHERE market = 'US'`, but a comment about the query is not a check on the data.
+Replaced with `panel_carries_no_non_us_symbols`, which interrogates the panel
+itself (no ticker may carry an exchange suffix).
+
+**2. `baseline_arm_is_the_unflagged_ranking` asserted `len(x) == len(set(x))` on
+a list built as `sorted({...})`** -- true for every possible input, while its
+NAME claimed criterion 4's load-bearing property. Replaced with
+`baseline_arm_applies_no_flags`, which asserts against the arm **definition**
+(`FLAG_ARMS[0] == ("baseline", {})`) -- the thing a poisoning actually mutates
+-- plus `flag_arms_are_distinguishable_from_baseline`. The criterion-4 path went
+from **2 guards to 4**.
+
+**Both of the evaluator's exact mutations now KILL**, control observed GREEN
+first:
+
+```
+=== CONTROL first ===
+control GREEN, guards ran: ['predicates_reject_known_bad_inputs',
+  'flag_arms_all_ran', 'baseline_arm_applies_no_flags',
+  'flag_arms_are_distinguishable_from_baseline']
+
+=== FLAG_ARMS[0] poisoned with sector_neutral=True ===
+KILLED: INVARIANT FAILED: baseline_arm_applies_no_flags
+
+=== soft-diversity arm made inert (w=0.0) ===
+KILLED: INVARIANT FAILED: flag_arms_are_distinguishable_from_baseline
+```
+
+**3. The root cause, and the general fix.** Extending the matrix to cover the
+six uncovered guards produced **four more survivors**, all the same shape: *any*
+`_ok(name, EXPR)` can be defeated by mutating EXPR to always-true, and no
+assertion detects that from the inside. So the rules are no longer written
+inline. Each is now a **named predicate with a fixture of known-bad inputs it
+must reject** (`_us_only`, `_enough_sessions`, `_dedup_fired`,
+`_arms_distinguishable`, joined by the existing `_tie_explained`), asserted by
+`predicates_reject_known_bad_inputs`. Weaken a rule and the fixture fires,
+because the fixture does not depend on today's data being interesting. That
+turned all four survivors into kills. One was also a plain logic bug:
+`_arms_distinguishable` used `any` where it needed `all`, so emptying a single
+arm's kwargs left the guard satisfied.
+
+**4. Coverage is now itself checked.** A cell list proves things about its cells
+and nothing about the guards it forgot -- which is exactly finding 2. The matrix
+now runs an **AST census** of every `_ok(...)` in the target and fails if any
+guard lacks a cell or an explicit `COVERED_TRANSITIVELY` entry with a reason. It
+caught a real gap on its first run (`price_only_multidim_arm_ran`, now cell
+M19). Adding a guard without a cell fails the matrix.
+
+**5. The sigma triple did not reproduce, and it had reached durable storage.**
+Cycle 1 quoted "~10.2 / ~19.4 / ~31.0 ... ~3.0x". Re-derived: **10.646 / 19.850
+/ 30.441, ratio 2.86x**. The evaluator also caught that my own headline shares
+(22.6/37.0/40.4) reproduce from the *corrected* means, not from the triple I
+printed beside them -- so the artifact contradicted itself. Corrected in
+`live_check`, in `experiment_results`, and in **`.claude/masterplan.json` step
+86.117's `audit_basis`**, where a future step would have read it as measurement.
+The script now **prints** the mean sigmas, so the number is computed rather than
+retyped and cannot drift again. No conclusion moves: the load-bearing fact is
+that the 6m term dominates, and 2.86x carries it.
+
+**6. The `git status` citation was imprecise.** `git status --short -- backend/`
+returns three modified files, all from a peer session's in-flight work. The
+substantive claim held, but a tree-scoped command cannot attribute a change to a
+step in a shared working tree. Both artifacts now cite `git show --name-only
+15a817cc`, which can.
+
+**Residual carried forward, disclosed rather than fixed mid-evaluation.** During
+cycle 1's EVALUATE I positive-controlled the "no `drop_duplicates` under
+`backend/`" claim (0 hits; 3 for a token that must exist; a planted
+`drop_duplicates` was detected then removed). Per the freeze-the-tree rule that
+evidence was held rather than edited into a file under evaluation; it is
+recorded here and belongs to **86.116**, which owns that claim.

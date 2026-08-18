@@ -125,6 +125,48 @@ CELLS: list[tuple[str, list[str], str, str, str]] = [
         "tie_rule_rejects_known_bad_inputs",
     ),
     (
+        "M14 baseline arm POISONED with a flag -> every criterion-4 delta reads zero",
+        ["--flags"],
+        '    ("baseline",              {}),',
+        '    ("baseline",              {"sector_neutral": True}),  # MUTANT',
+        "baseline_arm_applies_no_flags",
+    ),
+    (
+        "M15 every arm made identical to baseline -> deltas degenerate silently",
+        ["--flags"],
+        "    return all(arms[k].get(\"distinct\") != base for k in others)",
+        "    return any(arms[k].get(\"distinct\") != base for k in others)  # MUTANT",
+        "predicates_reject_known_bad_inputs",
+    ),
+    (
+        "M16 a suffixed non-US ticker reaches the panel -> the universe silently widens",
+        ["--verify"],
+        '    return not any("." in tk for tk in tickers)',
+        "    return True  # MUTANT",
+        "predicates_reject_known_bad_inputs",
+    ),
+    (
+        "M17 window/cycle budget check dropped -> a short panel would run truncated",
+        ["--verify"],
+        "    return n_sessions >= window + n_cycles",
+        "    return n_sessions >= 0  # MUTANT",
+        "predicates_reject_known_bad_inputs",
+    ),
+    (
+        "M18 dedup tripwire made vacuous -> a repaired-or-broken dedup goes unnoticed",
+        ["--verify"],
+        "    return dropped > 0",
+        "    return dropped >= 0  # MUTANT",
+        "predicates_reject_known_bad_inputs",
+    ),
+    (
+        "M19 multidim arm silently skipped -> finding (a)'s rebuttal rests on nothing",
+        ["--dispersion"],
+        "        rank_identical.append({",
+        "        if True: continue  # MUTANT\n        rank_identical.append({",
+        "price_only_multidim_arm_ran",
+    ),
+    (
         "M13 flag arm silently produces no turnover series",
         ["--flags"],
         "        turns = [one_sided_turnover(slates[i - 1], slates[i])\n"
@@ -145,6 +187,74 @@ NEGATIVE_CONTROL = (
     "    return moved <= -1  # MUTANT: rule made unsatisfiable",
     "tie_rule_rejects_known_bad_inputs",
 )
+
+
+# --------------------------------------------------------------------------
+# COVERAGE -- the structural fix for "a matrix licenses only its own cells"
+# --------------------------------------------------------------------------
+
+# A cell list proves things about the cells in it and nothing about the guards
+# it forgot. The cycle-1 Q/A made exactly that finding: 19 guards existed, 13
+# were named by a cell, and two of the six uncovered ones were UNKILLABLE. So
+# coverage is now itself checked: every `_ok("name", ...)` in the target must be
+# named by a cell or listed below with a reason. Adding a guard without a cell
+# FAILS this matrix.
+COVERED_TRANSITIVELY: dict[str, str] = {
+    # `displacements_are_tie_explained` consumes `_tie_explained`, whose own
+    # fixture guard (`tie_rule_rejects_known_bad_inputs`) is mutated by M12/M12b.
+    "displacements_are_tie_explained":
+        "covered via _tie_explained -- cells M12 and M12b",
+    "panel_carries_no_non_us_symbols":
+        "covered via the _us_only predicate fixture -- cell M16",
+    "enough_sessions_for_window":
+        "covered via the _enough_sessions predicate fixture -- cell M17",
+    "dedup_actually_fired_on_this_panel":
+        "covered via the _dedup_fired predicate fixture -- cell M18",
+    "flag_arms_are_distinguishable_from_baseline":
+        "covered via the _arms_distinguishable predicate fixture -- cell M15",
+    # These are per-cycle f-string guards; the cells target the literal prefix.
+    "window_len_": "cell M4 (f-string guard, matched by prefix)",
+    "full_rank_covers_cross_section_": "cell M2 (f-string guard)",
+    "slate_matches_an_independent_top_n_call_": "cell M3 (f-string guard)",
+}
+
+
+def guard_names_in_target() -> list[str]:
+    """Every `_ok(...)` invariant name in the target, via AST -- not regex.
+
+    A regex over source text would match this file's own prose about guard
+    names; the AST sees only real calls.
+    """
+    import ast
+
+    tree = ast.parse(TARGET.read_text())
+    names = []
+    for node in ast.walk(tree):
+        if not (isinstance(node, ast.Call)
+                and isinstance(node.func, ast.Name)
+                and node.func.id == "_ok" and node.args):
+            continue
+        a = node.args[0]
+        if isinstance(a, ast.Constant) and isinstance(a.value, str):
+            names.append(a.value)
+        elif isinstance(a, ast.JoinedStr):
+            # f"window_len_{d}" -> the literal prefix
+            lead = "".join(v.value for v in a.values
+                           if isinstance(v, ast.Constant) and isinstance(v.value, str))
+            names.append(lead)
+    return sorted(set(names))
+
+
+def check_coverage() -> tuple[bool, list[str]]:
+    named = {guard for *_, guard in [*CELLS, NEGATIVE_CONTROL]}
+    uncovered = []
+    for g in guard_names_in_target():
+        if any(g.startswith(n) or n.startswith(g) for n in named):
+            continue
+        if g in COVERED_TRANSITIVELY:
+            continue
+        uncovered.append(g)
+    return (not uncovered), uncovered
 
 
 def sha(p: Path) -> str:
@@ -210,6 +320,21 @@ def main() -> int:
         for mode, out in control_fail:
             print(f"\n--- {' '.join(mode)} ---\n{out}")
         return 1
+
+    # ---- COVERAGE GATE. Criterion 7 says EVERY new guard, not "these N". ---
+    covered, uncovered = check_coverage()
+    all_guards = guard_names_in_target()
+    print(f"coverage: {len(all_guards)} guards in target, "
+          f"{len(all_guards) - len(uncovered)} covered by a cell or an explicit "
+          f"transitive entry")
+    if not covered:
+        print("COVERAGE GAP -- these guards have no mutation cell:")
+        for g in uncovered:
+            print(f"  - {g}")
+        print("Add a cell, or record it in COVERED_TRANSITIVELY with a reason. "
+              "A matrix licenses only the cells it contains.")
+        return 1
+    print()
 
     results = []
     for name, mode, old, new, guard in [*CELLS, NEGATIVE_CONTROL]:

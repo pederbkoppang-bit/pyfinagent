@@ -98,6 +98,85 @@ def _ok(name: str, cond: bool, detail: str = "") -> None:
 
 
 # --------------------------------------------------------------------------
+# PREDICATES + FIXTURES
+#
+# An `_ok(name, EXPR)` guard can ALWAYS be defeated by mutating EXPR to
+# something always-true, and no assertion detects that from the inside -- the
+# weakened rule simply passes. The cycle-1 Q/A proved this on two guards by
+# execution, and a follow-up matrix run reproduced it on four more.
+#
+# The general fix is to stop writing the rule inline: extract it into a named
+# predicate and assert the predicate against KNOWN-BAD inputs it must reject.
+# Weaken the rule and the fixture fires, because the fixture does not depend on
+# today's data being interesting.
+# --------------------------------------------------------------------------
+
+def _us_only(tickers: list[str]) -> bool:
+    """True iff no ticker carries an exchange suffix (`.KS`, `.DE`, ...)."""
+    return not any("." in tk for tk in tickers)
+
+
+def _enough_sessions(n_sessions: int, window: int, n_cycles: int) -> bool:
+    """True iff the panel can supply `n_cycles` cycles at `window` trailing."""
+    return n_sessions >= window + n_cycles
+
+
+def _dedup_fired(dropped: int) -> bool:
+    """True iff de-duplication actually removed rows from this panel."""
+    return dropped > 0
+
+
+def _arms_distinguishable(arms: dict) -> bool:
+    """True iff EVERY non-baseline arm differs from baseline.
+
+    Note `all`, not `any`. The first version used `any`, so emptying ONE arm's
+    kwargs left the others differing and the guard passed -- matrix cell M15
+    survived on exactly that.
+    """
+    base = arms.get("baseline", {}).get("distinct")
+    others = [k for k in arms if k != "baseline"]
+    if not others:
+        return False
+    return all(arms[k].get("distinct") != base for k in others)
+
+
+# Known-bad (and known-good) inputs each predicate MUST classify correctly.
+# This is what makes the rules falsifiable; without it they guard nothing.
+_PREDICATE_FIXTURE: list[tuple[str, bool]] = [
+    ("_us_only([])", True),
+    ("_us_only(['AAPL', 'MSFT'])", True),
+    ("_us_only(['AAPL', '005930.KS'])", False),
+    ("_us_only(['BMW.DE'])", False),
+    ("_enough_sessions(200, 126, 20)", True),
+    ("_enough_sessions(146, 126, 20)", True),
+    ("_enough_sessions(145, 126, 20)", False),
+    ("_enough_sessions(0, 126, 20)", False),
+    ("_dedup_fired(1)", True),
+    ("_dedup_fired(0)", False),
+    ("_dedup_fired(-5)", False),
+    ("_arms_distinguishable({'baseline': {'distinct': ['A']}, "
+     "'x': {'distinct': ['B']}})", True),
+    ("_arms_distinguishable({'baseline': {'distinct': ['A']}, "
+     "'x': {'distinct': ['A']}})", False),
+    ("_arms_distinguishable({'baseline': {'distinct': ['A']}, "
+     "'x': {'distinct': ['B']}, 'y': {'distinct': ['A']}})", False),
+    ("_arms_distinguishable({'baseline': {'distinct': ['A']}})", False),
+]
+
+
+def _check_predicate_fixture() -> None:
+    """Assert every predicate agrees with its fixture. Called by every mode."""
+    bad = []
+    for expr, expected in _PREDICATE_FIXTURE:
+        got = eval(expr)  # noqa: S307 -- fixed literal table, no external input
+        if got is not expected:
+            bad.append(f"{expr} -> {got}, expected {expected}")
+    _ok("predicates_reject_known_bad_inputs", not bad,
+        "a guard predicate no longer agrees with its own fixture, so it has "
+        "been weakened and can no longer detect what it names: " + "; ".join(bad))
+
+
+# --------------------------------------------------------------------------
 # panel
 # --------------------------------------------------------------------------
 
@@ -334,7 +413,18 @@ def measure(n_cycles: int, window: int, quiet: bool = False) -> dict:
     all_sessions = sorted(df["date"].unique().tolist())
     tickers = sorted(df["ticker"].unique().tolist())
 
-    _ok("panel_is_us_only", True, "market='US' filter applied at fetch")
+    # This guard used to read `_ok("panel_is_us_only", True, ...)` -- a literal
+    # constant, so it could not fail on any panel. The fetch SQL does carry
+    # `WHERE market = 'US'`, but a comment about the query is not a check on the
+    # data. Now it interrogates the PANEL: every ticker must look like a US
+    # symbol, i.e. carry no exchange suffix (`.KS`, `.DE`, ...). A KR or EU name
+    # reaching this panel would silently widen the universe every rate below is
+    # normalised on.
+    _check_predicate_fixture()
+    _foreign = sorted({tk for tk in tickers if "." in tk})
+    _ok("panel_carries_no_non_us_symbols", _us_only(tickers),
+        f"{len(_foreign)} suffixed (non-US) tickers reached the panel: "
+        f"{_foreign[:8]}")
     _ok(
         "panel_keys_unique_after_dedup",
         not df.duplicated(subset=["ticker", "date"]).any(),
@@ -342,14 +432,14 @@ def measure(n_cycles: int, window: int, quiet: bool = False) -> dict:
     )
     _ok(
         "dedup_actually_fired_on_this_panel",
-        panel["dropped_duplicate_rows"] > 0,
+        _dedup_fired(panel["dropped_duplicate_rows"]),
         "no duplicates were dropped -- either the table was repaired (check 86.116) "
         "or the de-duplication is not reaching the panel; either way the guard below "
         "would be vacuous and the discrepancy must be resolved before quoting a figure",
     )
     _ok(
         "enough_sessions_for_window",
-        len(all_sessions) >= window + n_cycles,
+        _enough_sessions(len(all_sessions), window, n_cycles),
         f"{len(all_sessions)} sessions < window {window} + cycles {n_cycles}",
     )
 
@@ -666,6 +756,7 @@ def measure_flags(n_cycles: int, window: int) -> dict:
     sectors = load_sectors()
     replay_dates = all_sessions[window - 1:][-n_cycles:]
 
+    _check_predicate_fixture()
     from backend.services.autonomous_loop import _min_k_sector_slice
 
     arms: dict[str, list[list[str]]] = {name: [] for name, _ in FLAG_ARMS}
@@ -704,10 +795,28 @@ def measure_flags(n_cycles: int, window: int) -> dict:
 
     _ok("flag_arms_all_ran", all(v["mean_turnover"] is not None for v in out.values()),
         "an arm produced no turnover series")
-    base_d = out["baseline"]["distinct"]
-    _ok("baseline_arm_is_the_unflagged_ranking",
-        out["baseline"]["n_distinct"] == len(set(base_d)),
-        "baseline distinct list is not a set")
+    # This guard used to assert `n_distinct == len(set(distinct))` on a list
+    # built as `sorted({...})` -- true for EVERY possible input. The Q/A proved
+    # it vacuous by EXECUTION: poisoning FLAG_ARMS[0] with sector_neutral=True
+    # made the "baseline" arm byte-identical to the sector_neutral arm, so every
+    # criterion-4 delta would have read ZERO, and the run stayed green.
+    #
+    # The property that actually matters is that the baseline arm applies NO
+    # flags, so that is what is asserted -- against the arm DEFINITION, which is
+    # the thing a poisoning mutates.
+    _bname, _bkw = FLAG_ARMS[0]
+    _ok("baseline_arm_applies_no_flags",
+        _bname == "baseline" and _bkw == {},
+        f"FLAG_ARMS[0] is ({_bname!r}, {_bkw!r}) -- the baseline arm must pass "
+        f"NO flag kwargs, or every delta in this table is measured against a "
+        f"flagged reference and reads too low")
+    # And the deltas must not be silently degenerate: if an arm's slate history
+    # is identical to baseline's, its delta is zero by construction and the
+    # table would report 'no effect' for a flag that was never actually varied.
+    _ok("flag_arms_are_distinguishable_from_baseline",
+        _arms_distinguishable(out),
+        "every arm produced the same distinct-ticker set as baseline -- either "
+        "no flag was applied, or they were all applied to the baseline too")
     return {"window": window, "n_cycles": len(replay_dates), "arms": out}
 
 
@@ -803,6 +912,7 @@ def measure_dispersion(n_cycles: int, window: int) -> dict:
     sectors = load_sectors()
     replay_dates = all_sessions[window - 1:][-n_cycles:]
 
+    _check_predicate_fixture()
     rows, rank_identical = [], []
     for d in replay_dates:
         i = all_sessions.index(d)
@@ -869,8 +979,11 @@ def measure_dispersion(n_cycles: int, window: int) -> dict:
         "a displacement was NOT explained by a rounding tie -- the affine "
         "rank-preservation argument would then be refuted and the (a) analysis "
         "must be redone")
+    n_r = len(rows) or 1
     return {
         "window": window, "rows": rows,
+        "mean_sigma": {k: sum(r["sigma"][k] for r in rows) / n_r
+                       for k in ("1m", "3m", "6m")},
         "arm": rank_identical,
         "total_positions": tot,
         "moved_positions": mov,
@@ -901,6 +1014,11 @@ def report_dispersion(res: dict) -> None:
     m1 = sum(r["effective_share"]["1m"] for r in res["rows"]) / len(res["rows"])
     m3 = sum(r["effective_share"]["3m"] for r in res["rows"]) / len(res["rows"])
     m6 = sum(r["effective_share"]["6m"] for r in res["rows"]) / len(res["rows"])
+    g1 = sum(r["sigma"]["1m"] for r in res["rows"]) / len(res["rows"])
+    g3 = sum(r["sigma"]["3m"] for r in res["rows"]) / len(res["rows"])
+    g6 = sum(r["sigma"]["6m"] for r in res["rows"]) / len(res["rows"])
+    print(f"mean cross-sectional sigma : 1m {g1:.3f}  3m {g3:.3f}  6m {g6:.3f}"
+          f"   (6m/1m dispersion ratio {g6/g1:.2f}x)")
     print(f"mean effective share : 1m {m1*100:.1f}%  3m {m3*100:.1f}%  6m {m6*100:.1f}%")
     print(f"declared             : 1m 40.0%  3m 35.0%  6m 25.0%")
     print(f"gap (effective-declared): 1m {(m1-0.40)*100:+.1f}pp  "

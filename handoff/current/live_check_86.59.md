@@ -153,8 +153,18 @@ gap (effective-declared): 1m -17.4pp  3m +2.0pp  6m +15.4pp
 ```
 
 **The term with the smallest declared weight has the largest effective
-influence.** Measured sigmas are ~10.2 (1m), ~19.4 (3m), ~31.0 (6m) -- the 6m
-term carries ~3.0x the dispersion of the 1m term.
+influence.** Measured mean cross-sectional sigmas are **10.646** (1m),
+**19.850** (3m), **30.441** (6m) -- the 6m term carries **2.86x** the
+dispersion of the 1m term.
+
+> *Corrected in cycle 2.* Cycle 1 quoted "~10.2 / ~19.4 / ~31.0 ... ~3.0x",
+> which does **not** reproduce from the command cited for it, and was
+> internally inconsistent: weight x sigma on that triple yields effective
+> shares 21.9/36.5/41.6, while the artifact's own headline is 22.6/37.0/40.4 --
+> which is exactly what the corrected means give. The figures above are now
+> **printed by the script** (`mean cross-sectional sigma` line) rather than
+> retyped into prose, so they cannot drift again. No conclusion moves; the
+> load-bearing fact is that the 6m term dominates, and 2.86x carries it.
 
 **Does the existing `multidim_momentum` flag already fix this? No -- measured,
 not argued.** It *does* call `_zscore`, which makes it look like the fix. But it
@@ -177,20 +187,36 @@ above and the failure is recorded rather than quietly replaced.
 
 ## 7. Criterion 5 -- nothing promoted, nothing written
 
-`git status --short -- backend/` shows **no production file modified by this
-step**. The only files it authors are `scripts/qa/rank_stability_86_59.py` and
+`git show --name-only 15a817cc | grep -E '^(backend|frontend)/'` returns
+**nothing** -- no production file is in this step's commit.
+
+> *Corrected in cycle 2.* Cycle 1 cited `git status --short -- backend/`, which
+> returns three modified files. All three belong to a peer session's in-flight
+> work, so the substantive claim held, but the command cited did not
+> demonstrate it: the working tree is shared and a tree-scoped command cannot
+> attribute a change to a step. The commit-scoped command can. The only files it authors are `scripts/qa/rank_stability_86_59.py` and
 `scripts/qa/mutation_86_59.py`. No `.env` write, no flag promotion, no gate
 touched, no restart pending.
 
 ## 8. Criterion 7 -- mutation matrix
 
 ```
-KILLED 14 / 14   SURVIVED 0   UNSCORABLE 0
-restore verified: sha256 unchanged (c2f7982efba00a40...)
 control --verify       -> rc=0 GREEN
 control --dispersion   -> rc=0 GREEN
 control --flags        -> rc=0 GREEN
+
+coverage: 20 guards in target, 20 covered by a cell or an explicit transitive entry
+
+KILLED 20 / 20   SURVIVED 0   UNSCORABLE 0
+restore verified: sha256 unchanged (9282ba866f2afc87...)
 ```
+
+**Cycle 1 shipped 14 cells and that was not enough.** The evaluator ran an AST
+census, found 19 guards with 13 covered, and proved two of the uncovered ones
+**unkillable** -- by execution, not argument. Extending coverage surfaced four
+more survivors. All are now closed; the matrix additionally runs a **coverage
+gate** that fails if any `_ok` guard has no cell, and it caught a real gap on
+its first run. Details in `experiment_results_86.59.md` § Cycle 2.
 
 Control observed GREEN on all three modes **first**; a non-zero exit alone is
 not scored as a kill (the named guard must appear in the output); a
