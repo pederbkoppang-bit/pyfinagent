@@ -36698,3 +36698,51 @@ first version, and was narrowed accordingly.
 Also exhausted: **86.59** (5/5, its cycle-5 fixes likewise unevaluated).
 Extensions granted in-session earlier: 86.47 and 75.11.4 (+1 each, unused).
 Un-parkable with no extension: **86.108 / 86.110 / 86.116** (one attempt each).
+
+## Cycle 8 -- 2026-08-18 -- phase=86.116 result=FAIL (budget exhausted 5/5)
+
+Judge returned CONDITIONAL; the caller applied CLAUDE.md F1
+(`consecutive_conditionals=3`, `would_auto_fail=true`), so the recorded verdict
+is FAIL and 86.116 is at its ceiling. **Criteria 1-6 MET and independently
+reproduced** -- the judge re-ran the census (1,859,482 rows / 1,152,607 keys /
+706,875 dup keys, 38.01% of rows), the full verify, the matrix, ruff and the
+restart check, and all reproduced.
+
+All three cycle-3 violations were closed first, each by DRIVING rather than
+reading, and the replacement guard itself had **two further problems I found
+before spawning**: a dead `and`-clause no fixture could falsify, and
+unreachability under `--offline` -- which is exactly how the vacuous version
+shipped. Offline invariants 19 -> 29; cells T4/T5/T6.
+
+**Criterion 7 capped on two MORE guards that cannot fail** --
+`size_inflation_is_above_one` (implied by a guard three lines above; the judge
+swept 256 input pairs and it was never the failing invariant) and
+`_declares_dead_key` (infers membership from two independent token searches).
+The judge answered my own grade-hard question straight: *the class is NOT
+empty*. Queued, not fixed: the budget is exhausted, so any further change is
+unevaluated by construction.
+
+**THE FINDING THAT MATTERS BEYOND THIS STEP.** The judge found a HOLE IN
+`pre_spawn_gate.py`, the class sweep built earlier in this session: it printed
+two contradictory capture blocks (`killed 11` and `killed 14`) and still
+reported CLEAN, while `experiment_results` carried "11 cells across 2 targets"
+against a matrix that runs 14. Three causes, all now closed and each re-verified
+against the historical true positive so the fixes did not disarm it:
+
+1. ground truth was built by OVERWRITING per block, so a stale block silently
+   became truth -- contradictory captures within one artifact set are now
+   themselves a refusal;
+2. the prose idiom knew "cells OVER targets" and the artifact wrote "cells
+   ACROSS targets" -- a pattern list is not a derivation, and the gate now says
+   so in its own output rather than implying its CLEAN is absolute;
+3. the history discriminator did not recognise "Evidence after cycle N", so a
+   legitimate cycle record read as a live claim.
+
+And a fourth, mine: repairing 86.116 I DERIVED the replacement numbers from
+`live_check` -- which was itself stale -- so the "fix" wrote 11 back over 11.
+Deriving is only as good as the source; the numbers now come from the captured
+run, and the whole matrix block was pasted WHOLE rather than edited.
+
+All five parked steps now pass the gate. **Zero steps closed this session.**
+86.59, 86.118 and 86.116 are all at 5/5; 86.108 and 86.110 hold one attempt each
+with unevaluated product work (86.108's `8200283c` touches 8 production files).

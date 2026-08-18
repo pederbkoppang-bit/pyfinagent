@@ -204,17 +204,33 @@ def prose_vs_captures(text: str, blocks: list[dict]) -> list[str]:
     # big the matrix is. Flagging it made an earlier checker refuse correct
     # prose -- and a checker that flags a correct line trains its reader to
     # ignore it. So the cell count is matched only in the SIZE IDIOM.
+    # WORDING VARIANTS MATTER, and this list is the honest scope of the check.
+    # The 86.116 cycle-4 Q/A found three stale counts this gate missed because
+    # the artifact wrote "11 cells ACROSS 2 targets" and "11 cells, 11 KILLED"
+    # while the pattern only knew "cells OVER targets". A pattern list is not a
+    # derivation, so `CLEAN` here means "none of the shapes below disagree" --
+    # never "no stale number exists". The durable fix is to GENERATE these
+    # sentences from a capture instead of authoring them; until then the scope
+    # is stated rather than implied.
     patterns = {
         "failures remain": r"(\w+)\s+failures remain",
-        "cells": r"(\w+)\s+cells?\s+over\s+\w+\s+targets?",
+        "cells": r"(\w+)\s+cells?\s+(?:over|across)\s+\w+\s+targets?"
+                 r"|(\w+)\s+cells?,\s+\w+\s+KILLED"
+                 r"|KILLED\s+(\w+)\s*/",
     }
     bad: list[str] = []
     for noun, want in truth.items():
         for m in re.finditer(patterns.get(noun, r"(\w+)\s+" + noun), flat, re.I):
             ctx = flat[max(0, m.start() - 130):m.end()]
-            if "earlier revision" in ctx or "An earlier" in ctx:
+            # A claim explicitly scoped to a PAST cycle is a record, not a live
+            # claim. "Evidence after cycle 3: ... 11/11 KILLED" is true of cycle
+            # 3 and stays true; rewriting it would destroy the step's history.
+            # The marker must be explicit -- a bare number near the word "cycle"
+            # is not enough, or this becomes a way to silence real staleness.
+            if re.search(r"earlier revision|An earlier|[Ee]vidence after cycle \d|"
+                         r"cycle-\d (?:record|figures)|left as the record", ctx):
                 continue
-            got = _num(m.group(1))
+            got = next((_num(x) for x in m.groups() if x and _num(x) is not None), None)
             if got is not None and got != want:
                 bad.append(f"prose says {got} {noun!r} but the capture says {want}")
     return bad
@@ -306,6 +322,40 @@ def main() -> int:
         detail="the artifact reports a SURVIVED or UNSCORABLE cell; a survivor "
                "is a guard shown not to fire and an unscorable cell is one that "
                "was never really scored",
+    )
+
+    # ---- C3a: the capture blocks must agree WITH EACH OTHER -------------
+    # THE HOLE THE 86.116 CYCLE-4 Q/A FOUND IN THIS GATE. `prose_vs_captures`
+    # builds its ground truth by overwriting per block, so with two blocks in
+    # one artifact set the LAST one wins -- and prose matching an OLDER block
+    # sails through. Measured on 86.116: the gate printed `killed: 11` AND
+    # `killed: 14` and still reported CLEAN, while experiment_results carried
+    # "11 cells, 11 KILLED" against a matrix that runs 14.
+    #
+    # Two captures of the same quantity that disagree mean one is STALE, which
+    # is the same "a corrected capture leaves its siblings stale" class -- just
+    # at the BLOCK level rather than the prose level. Caught here, no downstream
+    # check has to guess which block is current.
+    # AUTHORED artifacts only, for the same reason the prose check is scoped
+    # that way: `evaluator_critique` is a VERBATIM TRANSCRIPT and legitimately
+    # records EVERY past cycle's capture, so its blocks disagree with the
+    # current one BY DESIGN. Measured on 86.59: the spread [26, 29] came
+    # entirely from the transcript while live_check and experiment_results both
+    # said 29. Flagging that would demand editing a transcript to satisfy a
+    # checker -- which is exactly what must never happen.
+    all_blocks = capture_blocks(authored_text)
+    def _spread(key):
+        vals = {b[key] for b in all_blocks if b.get(key, -1) >= 0}
+        return sorted(vals)
+    disagreements = {k: _spread(k) for k in ("scored", "suite_failed")
+                     if len(_spread(k)) > 1}
+    g.ok(
+        "capture_blocks_do_not_contradict_each_other",
+        lambda d: not d,
+        disagreements,
+        falsified_by={"scored": [11, 14]},
+        detail=f"two capture blocks in the same artifact set report different "
+               f"values, so at least one is stale: {disagreements}",
     )
 
     # ---- C3b: prose must agree with the artifact's OWN captures ---------

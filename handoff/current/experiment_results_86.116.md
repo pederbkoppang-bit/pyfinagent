@@ -17,8 +17,8 @@ parses
 |---|---|
 | `backend/backtest/cache.py` | **NEW** `_dedupe_index()`; called from **both** read paths -- `preload_prices` and `cached_prices` |
 | `backend/tests/test_phase_86_116_price_dedup.py` | **NEW** -- **13 tests** |
-| `scripts/qa/verify_86_116.py` | **NEW** -- criteria 1, 2, 3, 5, 6; **33 invariants** |
-| `scripts/qa/mutation_86_116.py` | **NEW** -- criterion 7; **11 cells across 2 targets** + 1 declared equivalent |
+| `scripts/qa/verify_86_116.py` | **NEW** -- criteria 1, 2, 3, 5, 6; **43 invariants** (29 under `--offline`) |
+| `scripts/qa/mutation_86_116.py` | **NEW** -- criterion 7; **14 cells across 2 targets** + 1 declared equivalent |
 | `backend/tests/test_phase_82_12_string_column_guards.py` | line pins re-derived (658->700, 718->760) -- my insertion moved them |
 
 **Both read paths, deliberately.** Step 86.59 spent three evaluation cycles
@@ -129,7 +129,7 @@ either changes, the section must be re-derived rather than trusted.
 
 **No threshold is adjusted**: `min_dsr=0.95` / `max_pbo=0.20` untouched.
 
-**Criterion 7 -- 11 cells, 11 KILLED, 0 SURVIVED, 0 UNSCORABLE across TWO
+**Criterion 7 -- 14 cells, 14 KILLED, 0 SURVIVED, 0 UNSCORABLE across TWO
 targets**, control GREEN first at 13 collected, run against the **real file and the real suite**. Scoring is strict by
 design: a non-zero exit is not a kill (pytest exits **5** on "no tests
 collected"), the mutant must exit **1**, must **collect the same 13 tests** as
@@ -312,3 +312,39 @@ T3 UNSCORABLE instead of a kill.
 targets**. `backend/backtest/cache.py` is byte-identical to what all three cycles
 evaluated (`9f5f1d67...`) -- **no production code has changed since the original
 fix**, and `git diff --name-only -- backend/backtest/cache.py` is empty.
+
+
+## Cycle-3 and cycle-4 follow-up
+
+*(The cycle-4 Q/A noted that this GENERATE artifact still carried the pre-fix
+counts while the whole follow-up lived only in `evaluator_critique_86.116.md` --
+so the EVALUATE artifact was carrying the GENERATE evidence. Corrected here, and
+the numbers above are now DERIVED from the live_check capture rather than typed.)*
+
+**Cycle 3 capped on a guard that could not fire**, and its replacement had two
+further problems, both found by DRIVING it:
+
+- a **dead `and`-clause** no fixture could falsify (`scale_pre < 3.0 and
+  scale_post < 3.0`, where the first implies the second under the ordering guard
+  above it) -- replaced with `max(...) < 3.0`;
+- **unreachability offline**, which is how the vacuous version shipped in the
+  first place. `gate_effect()` takes a plain dict, so the tripwires now drive
+  the real function with synthetic volatilities.
+
+Paired negative AND positive: `gate_guard_rejects_saturating_inputs` and
+`gate_guard_accepts_unsaturated_inputs`. Offline invariants **19 -> 29**; full
+run **43 invariants**. Cells **T4/T5/T6** added; matrix **14/14**.
+
+**Cycle 4 then found two MORE guards that cannot fail**, which is the honest
+state of this step and is recorded rather than glossed:
+
+- `size_inflation_is_above_one` is implied by `pre_fix_volatility_is_the_lower_one`
+  three lines above (`size_inflation = 1.0/vol_ratio`, and `vol_ratio < 1.0` is
+  already asserted). The judge swept 256 input pairs and it was never the
+  failing invariant. It is redundant rather than wrong -- unlike the cycle-3
+  one, its failure could not corrupt a reported number -- but it has no cell.
+- `_declares_dead_key` infers MEMBERSHIP from two independent token searches, so
+  a re-wired `_DEAD_KEYS` tuple that still mentions the key classifies True.
+
+Both are queued rather than fixed here: **86.116's attempt budget is exhausted
+at 5/5**, so any further change to it is unevaluated by construction.

@@ -122,7 +122,7 @@ table: sunny-might-477607-p8.financial_reports.historical_prices
   NO THRESHOLD IS ADJUSTED by this step. min_dsr=0.95 / max_pbo=0.20
   are untouched; if a re-run moves them, that is a finding to report.
 
-OK: all 33 invariants hold
+OK: all 43 invariants hold
 ```
 
 ## 7 -- mutation matrix, verbatim
@@ -132,13 +132,6 @@ new guard, and cycle 2 added two tripwires in `verify_86_116.py` that had no
 cells -- which is precisely why one of them shipped vacuous.
 
 ```
-==============================================================================
-phase-86.116 -- MUTATION MATRIX (criterion 7)
-==============================================================================
-target : backend/backtest/cache.py
-suite  : backend/tests/test_phase_86_116_price_dedup.py
-sha256 : 9f5f1d6798833281...
-
 control -> rc=0  collected=13  GREEN
 
 [KILLED] M1 preload_prices stops de-duplicating -> the bulk path hands out a doubled index
@@ -163,6 +156,12 @@ tripwire control (verify_86_116.py --offline) -> rc=0 GREEN
            invariant `tripwire_predicates_reject_known_bad_inputs` fired (rc=1)
 [KILLED] T2 the volatility-term tripwire is disarmed -> a vol-scaled barrier goes unnoticed
            invariant `tripwire_predicates_reject_known_bad_inputs` fired (rc=1)
+[KILLED] T4 the saturation guard is made ALWAYS TRUE -- the precise cycle-3 vacuity, where the script reported 1.2500x while the TRUE inflation was 1.0000x
+           invariant `gate_guard_rejects_saturating_inputs` fired (rc=1)
+[KILLED] T5 the saturation guard is made ALWAYS FALSE -> it fires on everything and masks the real measurement
+           invariant `gate_guard_accepts_unsaturated_inputs` fired (rc=1)
+[KILLED] T6 the known-bad fixture is replaced by a healthy one -> the paired negative goes unfalsifiable
+           invariant `gate_guard_rejects_saturating_inputs` fired (rc=1)
 [KILLED] T3 the tripwire FIXTURE is emptied -> both predicates go unfalsifiable
            invariant `tripwire_predicates_reject_known_bad_inputs` fired (rc=1)
 
@@ -175,8 +174,8 @@ tripwire control (verify_86_116.py --offline) -> rc=0 GREEN
             neither a kill nor a survivor.
 
 ------------------------------------------------------------------------------
-KILLED 11 / 11   SURVIVED 0   UNSCORABLE 0   EQUIVALENT-BY-DESIGN 1 (not scored)
-restore verified: cache.py 9f5f1d6798833281... verify_86_116.py 22e302ecb4168f47...
+KILLED 14 / 14   SURVIVED 0   UNSCORABLE 0   EQUIVALENT-BY-DESIGN 1 (not scored)
+restore verified: cache.py 9f5f1d6798833281... verify_86_116.py 9fcf8806b56755ef...
 ```
 
 ## The query criterion 1 requires beside the counts
