@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-18 | `4f90a2fe` | ops: WEEKLY MAX BUDGET EXHAUSTED -- resets Aug 20 19:00 Europe/Oslo |
 | 2026-08-18 | `ee319908` | feat(masterplan): file 86.129 + 86.130 -- pipeline-report audit findings |
 | 2026-08-18 | `ae99e311` | phase-86.110: regenerate every stale capture; the internal contradiction now reconciles |
 | 2026-08-18 | `db6db6a2` | chore: split phase-86 out of phase-85's steps array |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-18 | `2e0728ae` | phase-86.118: cycle-1 CONDITIONAL recorded; criteria 2 and 5 discharged by measurement |
 | 2026-08-18 | `1bf26bf8` | phase-86.118: 19 red tests -> 8, none weakened; the suite was not hermetic |
 | 2026-08-18 | `67070b79` | phase-86.59: cycle-5 CONDITIONAL recorded; all three "one seam short" gaps closed |
-| 2026-08-18 | `497ae3ac` | phase-86.59: cycle-4 verdict FAIL recorded; both capping guards fixed red-first |
 
 ---
 
