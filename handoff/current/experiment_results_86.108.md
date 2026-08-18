@@ -58,7 +58,7 @@ Found 1 error.        <- PRE-EXISTING: reproduces on the HEAD copy
      DERIVED from git diff, never hand-typed.
 
 $ python -m pytest backend/tests/ -q -p no:cacheprovider -k "debate or llm_parse or parse or orchestrat or settings or observab or 75_5 or 70_4 or 72_0_2"
-1 failed, 560 passed, 3068 deselected
+567 passed, 3143 deselected, 1 warning in 5.22s
   -> the 1 failure is PRE-EXISTING and unrelated: test_phase_40_2 pins
      effortLevel=="xhigh" while the operator moved it to "max" on 2026-08-04.
      `.claude/settings.json` is unmodified in this tree and the test imports

@@ -391,7 +391,7 @@ Regression sweep over every adjacent suite:
 
 ```
 $ python -m pytest backend/tests/ -q -p no:cacheprovider -k "debate or llm_parse or parse or orchestrat or settings or observab or 75_5 or 70_4 or 72_0_2"
-1 failed, 560 passed, 3068 deselected
+567 passed, 3143 deselected, 1 warning in 5.22s
 ```
 
 The single failure is **pre-existing and unrelated**:
