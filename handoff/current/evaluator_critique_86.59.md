@@ -7,10 +7,10 @@
 | 1 | **CONDITIONAL** | `wf_5a3bc88c-4e1` | 2026-08-18T03:08:02Z |
 | 2 | **CONDITIONAL** | `wf_d1d01d57-0f6` | 2026-08-18T03:37:41Z |
 
-**3rd-CONDITIONAL rule is now armed.** Two consecutive CONDITIONALs stand on
-this step id; per CLAUDE.md F1 a third forces the next verdict to FAIL
-regardless of evidence. The next spawn is therefore the last one that can
-return anything else.
+**3rd-CONDITIONAL rule status.** Two consecutive CONDITIONALs stand on this
+step id. CLAUDE.md F1 forces FAIL on the pass *following* **three** consecutive
+CONDITIONALs, so cycle 3's verdict is still unconstrained; a fourth would not
+be.
 
 ---
 

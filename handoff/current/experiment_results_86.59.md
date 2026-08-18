@@ -328,7 +328,10 @@ predicate to appear with a minimum number of **rejecting** cases, plus cell M21.
 evaluator showed kill/survive is cycle-count dependent (a `w=0.15` poison
 survived at 4 and died at 20). Criterion-4 cells now run at 20.
 
-**Attempt state.** This is the third Q/A spawn on 86.59. Two CONDITIONALs stand,
-so per CLAUDE.md F1 a third would force FAIL regardless of evidence. That is
-stated as fact, not as an argument for leniency -- if residuals remain, FAIL is
-the correct outcome and the step should park rather than iterate.
+**Attempt state, stated precisely because I got it wrong once.** This is the
+third Q/A spawn on 86.59 and the sequence is `[CONDITIONAL, CONDITIONAL]`.
+CLAUDE.md F1 forces FAIL on the pass *following* **three** consecutive
+CONDITIONALs, so this verdict is still free -- a fourth would not be. An earlier
+revision of this line said a third was already forced; that was a misreading of
+the rule and is corrected here rather than quietly deleted. If residuals remain,
+FAIL is the right outcome and the step should park rather than iterate.
