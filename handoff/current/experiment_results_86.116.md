@@ -17,8 +17,8 @@ parses
 |---|---|
 | `backend/backtest/cache.py` | **NEW** `_dedupe_index()`; called from **both** read paths -- `preload_prices` and `cached_prices` |
 | `backend/tests/test_phase_86_116_price_dedup.py` | **NEW** -- **13 tests** |
-| `scripts/qa/verify_86_116.py` | **NEW** -- criteria 1, 2, 3, 5, 6; **31 invariants** |
-| `scripts/qa/mutation_86_116.py` | **NEW** -- criterion 7; **8 cells** + 1 declared equivalent |
+| `scripts/qa/verify_86_116.py` | **NEW** -- criteria 1, 2, 3, 5, 6; **33 invariants** |
+| `scripts/qa/mutation_86_116.py` | **NEW** -- criterion 7; **11 cells across 2 targets** + 1 declared equivalent |
 | `backend/tests/test_phase_82_12_string_column_guards.py` | line pins re-derived (658->700, 718->760) -- my insertion moved them |
 
 **Both read paths, deliberately.** Step 86.59 spent three evaluation cycles
@@ -122,8 +122,8 @@ either changes, the section must be re-derived rather than trusted.
 
 **No threshold is adjusted**: `min_dsr=0.95` / `max_pbo=0.20` untouched.
 
-**Criterion 7 -- 8 cells, 8 KILLED, 0 SURVIVED, 0 UNSCORABLE**, control GREEN
-first at 13 collected, run against the **real file and the real suite**. Scoring is strict by
+**Criterion 7 -- 11 cells, 11 KILLED, 0 SURVIVED, 0 UNSCORABLE across TWO
+targets**, control GREEN first at 13 collected, run against the **real file and the real suite**. Scoring is strict by
 design: a non-zero exit is not a kill (pytest exits **5** on "no tests
 collected"), the mutant must exit **1**, must **collect the same 13 tests** as
 the control, and the **named** test must be among the failures. Restore verified
@@ -236,3 +236,42 @@ check that the barrier label has no volatility term.
 
 **Evidence after cycle 2:** 31 invariants, 13 tests, mutation **8/8 KILLED**
 with control GREEN first, collected-count parity and SHA-256 restore.
+
+---
+
+## Cycle 3 -- response to the second CONDITIONAL (`wf_10d2c895-28e`)
+
+**One finding, accepted: the tripwire I added in cycle 2 to close the previous
+finding was itself vacuous.** The evaluator's phrasing is exact and worth
+keeping: *the remedy for brittleness introduced the vacuity.*
+
+The guard read `("vol" not in <slice>) or ("self.tp_pct" in <slice>)`. The second
+clause is **true on the unmutated tree**, so it short-circuited the first. I
+reproduced the evaluator's result before touching anything -- `MUTANT vol added:
+A=False B=True GUARD=True <- SURVIVES` -- and confirmed the window overshoot
+(function **1753** chars, slice 2600, so 847 chars into `_compute_sample_weights`;
+the evaluator measured 1,788/812 and the direction is the same).
+
+**v3 has no escape clause and reads the AST**, collecting every identifier the
+function *references* and rejecting any containing `vol`. Against the evaluator's
+own mutants: `daily_vol/vol_mult` **KILLED**, `self.daily_volatility` **KILLED**,
+and a comment-only mention correctly does **not** fire -- precise, not merely
+sensitive. The slice is bounded by `ast`, not a character count.
+
+**Both tripwires are now mutation-tested, which required a second matrix
+target.** The matrix ran only against `cache.py` -- exactly how an untested guard
+shipped. `verify_86_116.py` is now a second target, exercised through `--offline`
+so no cell depends on BigQuery, with its own control and SHA-256 restore.
+
+**The first version of those cells SURVIVED, and that is the more useful
+result.** Disarming `_ok(name, EXPR)` to `True` cannot be caught by that
+assertion -- the identical outcome step 86.59 produced. The rules are therefore
+named predicates (`_declares_dead_key`, `_volatility_identifiers`) backed by a
+fixture of known-bad inputs they must reject; and an **incomplete** fixture is
+now reported as a fixture failure rather than raising `KeyError`, which had made
+T3 UNSCORABLE instead of a kill.
+
+**Evidence after cycle 3:** 33 invariants, 13 tests, **11/11 KILLED across two
+targets**. `backend/backtest/cache.py` is byte-identical to what all three cycles
+evaluated (`9f5f1d67...`) -- **no production code has changed since the original
+fix**, and `git diff --name-only -- backend/backtest/cache.py` is empty.

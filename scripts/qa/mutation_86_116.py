@@ -35,6 +35,13 @@ REPO = Path(__file__).resolve().parents[2]
 TARGET = REPO / "backend" / "backtest" / "cache.py"
 SUITE = "backend/tests/test_phase_86_116_price_dedup.py"
 
+# Criterion 7 says mutation-test EVERY new guard. The two mechanism tripwires
+# added in cycle 2 live in verify_86_116.py, not in cache.py, and cycle 2
+# shipped them WITHOUT cells -- so one of them was vacuous and nothing caught
+# it. They are a second target now, exercised through `--offline` so no cell
+# depends on BigQuery.
+VERIFY = REPO / "scripts" / "qa" / "verify_86_116.py"
+
 # (cell, old, new, named test that must fail)
 CELLS: list[tuple[str, str, str, str]] = [
     (
@@ -92,6 +99,28 @@ CELLS: list[tuple[str, str, str, str]] = [
     ),
 ]
 
+# (cell, target, old, new, named invariant that must fire)
+TRIPWIRE_CELLS: list[tuple[str, str, str, str]] = [
+    (
+        "T1 the dead-key tripwire is disarmed -> a re-wired barrier key goes unnoticed",
+        "    return f'\"{key}\",' in src and \"_DEAD_KEYS\" in src",
+        "    return True  # MUTANT",
+        "tripwire_predicates_reject_known_bad_inputs",
+    ),
+    (
+        "T2 the volatility-term tripwire is disarmed -> a vol-scaled barrier goes unnoticed",
+        "    return sorted(i for i in idents if \"vol\" in i.lower())",
+        "    return []  # MUTANT",
+        "tripwire_predicates_reject_known_bad_inputs",
+    ),
+    (
+        "T3 the tripwire FIXTURE is emptied -> both predicates go unfalsifiable",
+        "_TRIPWIRE_FIXTURE_SRC = {",
+        "_TRIPWIRE_FIXTURE_SRC = {}\n_UNUSED_FIXTURE = {  # MUTANT",
+        "tripwire_predicates_reject_known_bad_inputs",
+    ),
+]
+
 # Declared UP FRONT, with the measurement that justifies it.
 EQUIVALENT_BY_DESIGN: list[tuple[str, str, str, str]] = [
     (
@@ -110,6 +139,16 @@ EQUIVALENT_BY_DESIGN: list[tuple[str, str, str, str]] = [
 
 def sha(p: Path) -> str:
     return hashlib.sha256(p.read_bytes()).hexdigest()
+
+
+def run_verify_offline() -> tuple[int, int, str]:
+    """Runner for the tripwire cells. Collected-count is not meaningful here,
+    so it is reported as -1 and the parity check is skipped for this runner."""
+    r = subprocess.run(
+        [sys.executable, str(VERIFY), "--offline"],
+        capture_output=True, text=True, cwd=str(REPO),
+    )
+    return r.returncode, -1, (r.stdout + r.stderr)
 
 
 def run_suite() -> tuple[int, int, str]:
@@ -197,6 +236,41 @@ def main() -> int:
         results.append((name, verdict, detail))
         print(f"[{verdict}] {name}\n           {detail}")
 
+    # ---- tripwire cells: a DIFFERENT target and a DIFFERENT runner --------
+    verify_orig = VERIFY.read_bytes()
+    verify_sha = hashlib.sha256(verify_orig).hexdigest()
+    vrc, _vn, _vout = run_verify_offline()
+    print()
+    print(f"tripwire control ({VERIFY.name} --offline) -> rc={vrc} "
+          f"{'GREEN' if vrc == 0 else 'RED'}")
+    if vrc != 0:
+        print("TRIPWIRE CONTROL NOT GREEN -- those cells are UNSCORABLE.")
+        results.append(("tripwire cells", "UNSCORABLE", "control was red"))
+    else:
+        for name, old, new, named in TRIPWIRE_CELLS:
+            vtext = verify_orig.decode()
+            if vtext.count(old) != 1:
+                results.append((name, "UNSCORABLE",
+                                f"anchor appears {vtext.count(old)}x, expected 1"))
+                print(f"[UNSCORABLE] {name}\n             anchor not unique")
+                continue
+            VERIFY.write_text(vtext.replace(old, new, 1))
+            try:
+                mrc, _mn, mout = run_verify_offline()
+            finally:
+                VERIFY.write_bytes(verify_orig)
+                assert sha(VERIFY) == verify_sha, "RESTORE FAILED on VERIFY"
+            if mrc == 0:
+                verdict, detail = "SURVIVED", "verify stayed green under the mutation"
+            elif named not in mout:
+                verdict, detail = "UNSCORABLE", (
+                    f"verify went red but `{named}` never appeared -- something "
+                    f"else broke and this tripwire was never shown to fire")
+            else:
+                verdict, detail = "KILLED", f"invariant `{named}` fired (rc={mrc})"
+            results.append((name, verdict, detail))
+            print(f"[{verdict}] {name}\n           {detail}")
+
     print()
     for name, old, new, why in EQUIVALENT_BY_DESIGN:
         print(f"[EQUIVALENT-BY-DESIGN] {name}")
@@ -215,7 +289,8 @@ def main() -> int:
         print(f"  SURVIVED: {n}")
     for n in unscorable:
         print(f"  UNSCORABLE: {n}")
-    print(f"restore verified: sha256 unchanged ({sha(TARGET)[:16]}...)")
+    print(f"restore verified: cache.py {sha(TARGET)[:16]}... "
+          f"verify_86_116.py {sha(VERIFY)[:16]}...")
     return 0 if not survived and not unscorable else 1
 
 

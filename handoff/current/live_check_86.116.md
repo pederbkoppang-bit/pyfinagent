@@ -21,12 +21,8 @@ All output below is verbatim from one `verify_86_116.py` run and one
 
 ## 1-3, 5, 6 -- the evidence script, verbatim
 
-**Re-captured in cycle 2.** Cycle 1 shipped a `--base-rev` default of `HEAD`,
-which was the pre-fix tree only while the fix was uncommitted; the moment commit
-`539f16eb` landed, `HEAD` became the POST-fix tree, the criterion-3 probe found
-this step's own code and the script **aborted before printing any evidence**.
-The default is now pinned to `539f16eb~1`, so the first advertised re-runnable
-command works from any checkout.
+**Re-captured in cycle 3.** Both blocks below come from single fresh runs at the
+pinned `--base-rev` default; nothing is spliced across runs.
 
 ```
 ==============================================================================
@@ -126,10 +122,14 @@ table: sunny-might-477607-p8.financial_reports.historical_prices
   NO THRESHOLD IS ADJUSTED by this step. min_dsr=0.95 / max_pbo=0.20
   are untouched; if a re-run moves them, that is a finding to report.
 
-OK: all 31 invariants hold
+OK: all 33 invariants hold
 ```
 
 ## 7 -- mutation matrix, verbatim
+
+The matrix now covers **two targets**. Criterion 7 says mutation-test *every*
+new guard, and cycle 2 added two tripwires in `verify_86_116.py` that had no
+cells -- which is precisely why one of them shipped vacuous.
 
 ```
 ==============================================================================
@@ -158,6 +158,14 @@ control -> rc=0  collected=13  GREEN
 [KILLED] M6 empty/None guard dropped -> the loader crashes on an empty result set
            `test_dedupe_handles_empty_and_none` failed (rc=1, collected=13)
 
+tripwire control (verify_86_116.py --offline) -> rc=0 GREEN
+[KILLED] T1 the dead-key tripwire is disarmed -> a re-wired barrier key goes unnoticed
+           invariant `tripwire_predicates_reject_known_bad_inputs` fired (rc=1)
+[KILLED] T2 the volatility-term tripwire is disarmed -> a vol-scaled barrier goes unnoticed
+           invariant `tripwire_predicates_reject_known_bad_inputs` fired (rc=1)
+[KILLED] T3 the tripwire FIXTURE is emptied -> both predicates go unfalsifiable
+           invariant `tripwire_predicates_reject_known_bad_inputs` fired (rc=1)
+
 [EQUIVALENT-BY-DESIGN] E1 keep='first' -> keep='last'
            EQUIVALENT BY DESIGN: which of two same-date rows survives is immaterial
             -- measured across the 394,719 duplicated keys whose close differs, the
@@ -167,8 +175,8 @@ control -> rc=0  collected=13  GREEN
             neither a kill nor a survivor.
 
 ------------------------------------------------------------------------------
-KILLED 8 / 8   SURVIVED 0   UNSCORABLE 0   EQUIVALENT-BY-DESIGN 1 (not scored)
-restore verified: sha256 unchanged (9f5f1d6798833281...)
+KILLED 11 / 11   SURVIVED 0   UNSCORABLE 0   EQUIVALENT-BY-DESIGN 1 (not scored)
+restore verified: cache.py 9f5f1d6798833281... verify_86_116.py 22e302ecb4168f47...
 ```
 
 ## The query criterion 1 requires beside the counts

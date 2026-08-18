@@ -252,6 +252,153 @@ def parity_oracle() -> dict:
 # criterion 6 -- the gate path, with the mechanism stated correctly
 # --------------------------------------------------------------------------
 
+# --------------------------------------------------------------------------
+# tripwire PREDICATES + their fixture
+#
+# An `_ok(name, EXPR)` guard can always be disarmed by mutating EXPR to True,
+# and no assertion detects that from the inside -- proven here, not assumed:
+# the first version of the tripwire cells (T1/T2/T3) SURVIVED exactly that
+# mutation. The remedy, learned on step 86.59, is to extract each rule into a
+# named predicate and assert the predicate against KNOWN-BAD inputs it must
+# reject. Disarm the rule and the fixture fires, because the fixture does not
+# depend on today's tree being interesting.
+# --------------------------------------------------------------------------
+
+def _declares_dead_key(src: str, key: str = "vol_barrier_multiplier") -> bool:
+    """True iff `src` lists `key` inside a _DEAD_KEYS declaration."""
+    return f'"{key}",' in src and "_DEAD_KEYS" in src
+
+
+def _volatility_identifiers(fn_node) -> list[str]:
+    """Every identifier the function REFERENCES whose name mentions volatility.
+
+    AST-based on purpose: a comment or docstring mentioning volatility must not
+    satisfy it, and renaming an unrelated attribute must not disarm it.
+    """
+    import ast as _a
+
+    idents = set()
+    for node in _a.walk(fn_node):
+        if isinstance(node, _a.Name):
+            idents.add(node.id)
+        elif isinstance(node, _a.Attribute):
+            idents.add(node.attr)
+        elif isinstance(node, _a.arg):
+            idents.add(node.arg)
+    return sorted(i for i in idents if "vol" in i.lower())
+
+
+_TRIPWIRE_FIXTURE_SRC = {
+    "dead_yes": 'X = 1\n_DEAD_KEYS = (\n    "vol_barrier_multiplier",\n)\n',
+    "dead_no_list": '_DEAD_KEYS = (\n    "something_else",\n)\n',
+    "dead_no_decl": 'NOTES = "vol_barrier_multiplier is dead"\n',
+    "vol_yes": "def f(self):\n    daily_vol = 1\n    return daily_vol * self.tp_pct\n",
+    "vol_yes_attr": "def f(self):\n    return self.daily_volatility * self.tp_pct\n",
+    "vol_no": "def f(self):\n    return entry_price * (1 + self.tp_pct / 100)\n",
+    "vol_comment_only": "def f(self):\n    # volatility is not used here\n    return self.tp_pct\n",
+}
+
+
+def _check_tripwire_fixture() -> None:
+    """Assert both predicates classify known inputs correctly."""
+    import ast as _a
+
+    bad = []
+    F = _TRIPWIRE_FIXTURE_SRC
+
+    # An INCOMPLETE fixture is a fixture failure, not a crash. Without this,
+    # emptying the table raised KeyError and the run went red for the wrong
+    # reason -- which scores as UNSCORABLE, not as a kill, and would have left
+    # the "someone deleted the fixture" case genuinely uncovered.
+    required = ("dead_yes", "dead_no_list", "dead_no_decl",
+                "vol_yes", "vol_yes_attr", "vol_no", "vol_comment_only")
+    missing = [k for k in required if k not in F]
+    if missing:
+        _ok("tripwire_predicates_reject_known_bad_inputs", False,
+            f"the tripwire fixture is missing {missing}, so the predicates it "
+            f"backs are unfalsifiable")
+        return
+
+    for key, expected in (("dead_yes", True), ("dead_no_list", False),
+                          ("dead_no_decl", False)):
+        got = _declares_dead_key(F[key])
+        if got is not expected:
+            bad.append(f"_declares_dead_key({key}) -> {got}, expected {expected}")
+    for key, expected in (("vol_yes", True), ("vol_yes_attr", True),
+                          ("vol_no", False), ("vol_comment_only", False)):
+        fn = _a.parse(F[key]).body[0]
+        got = bool(_volatility_identifiers(fn))
+        if got is not expected:
+            bad.append(f"_volatility_identifiers({key}) -> {got}, expected {expected}")
+    _ok("tripwire_predicates_reject_known_bad_inputs", not bad,
+        "a mechanism tripwire's predicate no longer agrees with its own "
+        "fixture, so it has been weakened and can no longer detect what it "
+        "names: " + "; ".join(bad))
+
+
+def check_mechanism_tripwires() -> None:
+    """The two durability guards behind criterion 6's corrected mechanism.
+
+    Split out of `gate_effect` so the mutation matrix can exercise them WITHOUT
+    BigQuery -- a guard that can only be reached through a network call is a
+    guard that will not be mutation-tested, which is how the previous version
+    shipped vacuous.
+    """
+    # The dead key must STAY dead. A grep-and-filter tripwire was tried first
+    # and was too brittle -- it fired on `if "vol_barrier_multiplier" in params:`
+    # at quant_optimizer.py:715, which is the SETTER's guard, not a reader. So
+    # the tripwire now checks the repo's own authoritative statement instead of
+    # trying to re-derive readership from text.
+    _check_tripwire_fixture()
+
+    dead_src = (REPO / "backend" / "autoresearch" / "rotation_runner.py").read_text()
+    _ok("vol_barrier_multiplier_is_declared_dead_by_the_repo",
+        _declares_dead_key(dead_src),
+        "vol_barrier_multiplier is no longer listed in rotation_runner's "
+        "_DEAD_KEYS, so the barrier mechanism may have been re-wired and this "
+        "whole section must be re-derived rather than trusted")
+
+    # And the barrier label itself must stay volatility-free. This is the claim
+    # that actually matters: even if the key came back, the barrier is only
+    # vol-sensitive if the LABEL reads a volatility.
+    #
+    # THIS GUARD HAS BEEN WRONG TWICE AND THE HISTORY IS THE POINT.
+    #   v1 was a grep-with-filters over the whole repo -- too BRITTLE: it fired
+    #      on `if "vol_barrier_multiplier" in params:`, the setter's own guard.
+    #   v2 was `("vol" not in <text slice>) or ("self.tp_pct" in <slice>)` --
+    #      and the second clause is TRUE on the unmutated tree, so it
+    #      short-circuited the whole thing. The cycle-2 Q/A proved it by adding
+    #      a real volatility term while keeping `self.tp_pct`: the guard stayed
+    #      GREEN. It detected a RENAME, not a volatility. The remedy for v1's
+    #      brittleness introduced v2's vacuity.
+    #   v3, below, has NO escape clause and reads the AST rather than text: it
+    #      collects every identifier the function actually references and
+    #      rejects any that names a volatility. Comments and docstrings cannot
+    #      satisfy it, and a renamed `tp_pct` cannot disarm it.
+    #
+    # The slice is also bounded to the function via `ast`, not a fixed
+    # character count -- the v2 window took 2600 chars from a 1753-char
+    # function, overshooting 847 chars into `_compute_sample_weights`.
+    import ast as _ast
+
+    eng_src = (REPO / "backend" / "backtest" / "backtest_engine.py").read_text()
+    tree = _ast.parse(eng_src)
+    fn = next((n for n in _ast.walk(tree)
+               if isinstance(n, _ast.FunctionDef)
+               and n.name == "_compute_triple_barrier_label"), None)
+    _ok("triple_barrier_label_function_was_found", fn is not None,
+        "_compute_triple_barrier_label no longer exists, so the claim that it "
+        "carries no volatility term cannot be checked and must be re-derived")
+
+    vol_idents = _volatility_identifiers(fn)
+    _ok("triple_barrier_label_references_no_volatility_identifier",
+        not vol_idents,
+        f"_compute_triple_barrier_label now references {vol_idents}, so the "
+        f"barrier may be volatility-scaled after all and criterion 6's "
+        f"mechanism must be re-derived rather than trusted")
+
+
+
 def gate_effect(harm: dict) -> dict:
     """What the duplication does to the DSR/PBO inputs -- via the LIVE path.
 
@@ -302,29 +449,7 @@ def gate_effect(harm: dict) -> dict:
         f"at or above the cap the inflation saturates and this arithmetic no "
         f"longer describes the outcome")
 
-    # The dead key must STAY dead. A grep-and-filter tripwire was tried first
-    # and was too brittle -- it fired on `if "vol_barrier_multiplier" in params:`
-    # at quant_optimizer.py:715, which is the SETTER's guard, not a reader. So
-    # the tripwire now checks the repo's own authoritative statement instead of
-    # trying to re-derive readership from text.
-    dead_src = (REPO / "backend" / "autoresearch" / "rotation_runner.py").read_text()
-    _ok("vol_barrier_multiplier_is_declared_dead_by_the_repo",
-        '"vol_barrier_multiplier",' in dead_src and "_DEAD_KEYS" in dead_src,
-        "vol_barrier_multiplier is no longer listed in rotation_runner's "
-        "_DEAD_KEYS, so the barrier mechanism may have been re-wired and this "
-        "whole section must be re-derived rather than trusted")
-
-    # And the barrier label itself must stay volatility-free. This is the claim
-    # that actually matters: even if the key came back, the barrier is only
-    # vol-sensitive if the LABEL reads a volatility.
-    eng = (REPO / "backend" / "backtest" / "backtest_engine.py").read_text()
-    i = eng.index("def _compute_triple_barrier_label")
-    label_src = eng[i:i + 2600]
-    _ok("triple_barrier_label_has_no_volatility_term",
-        "vol" not in label_src.split("tp_price")[0].split("def ")[-1].lower()
-        or "self.tp_pct" in label_src,
-        "the triple-barrier label now appears to reference a volatility; the "
-        "cycle-1 correction (fixed tp_pct/sl_pct, no vol term) must be redone")
+    check_mechanism_tripwires()
 
     return {
         "vol_ratio_pre_over_post": vol_ratio,
@@ -377,6 +502,7 @@ def main() -> int:
         print()
 
     if a.offline:
+        check_mechanism_tripwires()
         print(f"OK: all {len(_RAN)} invariants hold (offline subset)")
         return 0
 

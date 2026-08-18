@@ -5,6 +5,7 @@
 | cycle | verdict | run id | recorded |
 |---|---|---|---|
 | 1 | **CONDITIONAL** | `wf_6c5d3dfc-43a` | 2026-08-18T05:28:04Z |
+| 2 | **CONDITIONAL** | `wf_10d2c895-28e` | 2026-08-18T05:51:37Z |
 
 ---
 
@@ -135,3 +136,93 @@ as the evaluator says, **understated**; the mechanism I named was not wired.
 Matrix **8/8 KILLED**, control GREEN first at 13 collected, SHA-256 restore
 verified. Evidence script **31 invariants**. No production code changed in this
 cycle -- every fix was to evidence, exactly as the evaluator characterised them.
+
+---
+
+## Cycle 2 -- CONDITIONAL -- `wf_10d2c895-28e`
+
+*Transcribed verbatim from the captured Workflow return in the same turn it
+landed.*
+
+**verdict:** `CONDITIONAL` | **ok:** `false` | **harness_compliance_ok:** `true`
+
+**reason (the capping half; the confirmatory half is in the run record):**
+
+> The PRODUCT fix is correct, minimal, complete and mutation-proven, all three cycle-1
+> findings are genuinely fixed, and I reproduced every headline number independently -- one new
+> capping finding, in a guard cycle 2 itself added. [...] the FULL suite (not a -k selection)
+> gives 19 failed / 3635 passed, which is exactly 86.118's enumerated 18 plus the declared
+> ordering artifact [...] and the three independent runs reconcile arithmetically (author
+> 3633/20 pre-pin-fix, cycle-1 Q/A 3634/19, mine 3635/19, the +1 being precisely the one test
+> cycle 2 added). [...] CAPPING FINDING: the cycle-2 tripwire
+> triple_barrier_label_has_no_volatility_term (verify_86_116.py:319-325) cannot fire for the
+> condition it names. Executed, not argued: adding a real volatility term to
+> _compute_triple_barrier_label while retaining self.tp_pct -- the shape any vol-scaled barrier
+> would take -- leaves the guard GREEN (clause A False, clause B True), and it fires only when
+> self.tp_pct is ALSO renamed away, i.e. it detects a RENAME. The `or "self.tp_pct" in
+> label_src` clause is unconditionally true on the control and disarms the half that works.
+> Criterion 7 says mutation-test EVERY NEW GUARD; the two tripwires are new guards, are not
+> cells in mutation_86_116.py, and the one Main's own comment calls "the claim that actually
+> matters" survives. **Notably the recorded cycle-2 lesson was that the first tripwire was too
+> BRITTLE -- the remedy for brittleness introduced the vacuity.** FIX: drop the escape clause,
+> bound the slice to the function instead of a fixed 2600 chars (the function is 1,788, so it
+> overshoots 812 into _compute_sample_weights), and add matrix cells that mutate both
+> tripwires. T1 is NOT vacuous and I checked it: the literal `"vol_barrier_multiplier",` occurs
+> exactly once, at rotation_runner.py:64 inside _DEAD_KEYS, and the :22 docstring mention does
+> not satisfy it.
+
+**violated_criteria:**
+`criterion_7_cycle2_tripwire_not_mutation_tested_and_survives_its_own_subject`
+
+**violation -- Circular_Reasoning.** Mutated `_compute_triple_barrier_label` in
+memory to add a real volatility term and evaluated the guard expression:
+`CONTROL A=True B=True GUARD=True`; `MUTANT V1 (vol term added, self.tp_pct
+retained) A=False B=True GUARD=True **SURVIVED**`; `V2 (inline) SURVIVED`; `V3
+(vol term added AND self.tp_pct renamed) fires`. *"Clause A alone would have
+fired on V1/V2; the clause `or "self.tp_pct" in label_src` is already True on the
+unmutated tree and overrides it, so the guard detects a RENAME rather than a
+volatility term."* Severity WARN/capping rather than BLOCK, because it is *"a
+durability guard on a narrative correction rather than the evidence for an
+immutable criterion -- criterion 6 requires the gate effect be REPORTED, and that
+report is correct and was independently verified."*
+
+---
+
+## Main's response -- cycle 3
+
+**Accepted, and the evaluator's sharpest line is the one I want on the record:**
+*the remedy for brittleness introduced the vacuity.* Cycle 2's tripwire v1 was a
+grep-with-filters that fired on the setter's own guard; I replaced it with a
+text check carrying an `or` escape clause, and that clause was **true on the
+unmutated tree**, so it short-circuited the half that worked. I reproduced the
+exact result before changing anything: `MUTANT vol added -> A=False B=True
+GUARD=True <- SURVIVES`, and measured the function at **1753** chars against a
+2600-char window (my number differs slightly from the evaluator's 1,788/812; I
+report mine and the direction is identical).
+
+**v3 has no escape clause and reads the AST.** `_volatility_identifiers()`
+collects every identifier the function actually *references* -- `Name`,
+`Attribute`, `arg` -- and rejects any containing `vol`. Verified against the
+evaluator's own mutants: `V1 (daily_vol, vol_mult)` **KILLED**, `V2
+(self.daily_volatility)` **KILLED**, and a comment-only mention correctly does
+**not** fire, so it is precise rather than merely sensitive. The slice is bounded
+by `ast`, not a character count.
+
+**Both tripwires are now mutation-tested, and that required a second target.**
+The matrix ran only against `cache.py`, which is exactly how cycle 2 shipped an
+untested guard. It now carries a second target (`verify_86_116.py`, exercised via
+`--offline` so no cell depends on BigQuery) with its own control, its own
+SHA-256 restore, and cells T1/T2/T3.
+
+**The first attempt at those cells SURVIVED, and that was the real lesson.**
+Disarming `_ok(name, EXPR)` to `True` cannot be detected by that assertion --
+the same result 86.59 produced. So the rules are now named predicates
+(`_declares_dead_key`, `_volatility_identifiers`) backed by a fixture of
+known-bad inputs they must reject, and an **incomplete** fixture is reported as
+a fixture failure rather than crashing with `KeyError` (which had scored T3
+UNSCORABLE rather than as a kill).
+
+Matrix **11/11 KILLED** across both targets, 0 SURVIVED, 0 UNSCORABLE. Evidence
+**33 invariants**. `backend/backtest/cache.py` is byte-identical to what cycles
+1 and 2 evaluated (`9f5f1d67...`) -- **no production code has changed since the
+original fix.**
