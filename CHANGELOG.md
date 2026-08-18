@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-18 | `f7685272` | phase-86.108: refresh the stale regression-sweep capture in BOTH artifacts |
 | 2026-08-18 | `a067e80b` | phase-86.116: cycle-4 FAIL recorded; the Q/A found a HOLE in my own pre-spawn gate |
 | 2026-08-18 | `f675c0cf` | phase-86.116: cycle-3 follow-up -- dead clause removed, guard made offline-reachable |
 | 2026-08-18 | `b7b8dbc5` | feat(qa): gate the stale-claim class -- the biggest single cause of repeat cycles |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-18 | `e52ac101` | chore: goal at final size, under the 4000-char limit |
 | 2026-08-18 | `be444466` | chore: goal updated -- 86.118 gate PASSED and contract written |
 | 2026-08-18 | `731860e5` | phase-86.118: research gate PASSED, contract written |
-| 2026-08-18 | `f68e0bed` | chore: goal at 3972 chars |
 
 ---
 
