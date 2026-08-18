@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-18 | `aec5d815` | phase-86.116 cycle 2: the mechanism I credited was not wired |
 | 2026-08-18 | `539f16eb` | phase-86.116: de-duplicate price frames on read, keyed on the index |
 | 2026-08-18 | `34a56b03` | chore: next-session goal -- 86.116 is the money-path priority |
 | 2026-08-18 | `099414fe` | phase-86.59: PARK on the 3rd-CONDITIONAL rule -- blocker fixed, unevaluated |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-17 | `6d5d6c31` | chore: correct the day report's frontend-pid claim and note the peer's 86.111 |
 | 2026-08-17 | `9971a0b0` | chore: day report + next-session goal for the 2026-08-17 overnight drain |
 | 2026-08-17 | `de895f25` | chore: add the 86.69 research brief that its evaluation cites |
-| 2026-08-17 | `2e9597bd` | phase-75.11.4: status-aware handoff backfill + 86.69/86.74 parked with escalations |
 
 ---
 
