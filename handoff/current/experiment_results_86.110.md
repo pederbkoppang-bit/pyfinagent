@@ -30,10 +30,10 @@ parses
 EXIT=0
 
 $ pytest backend/tests/test_phase_86_110_heartbeat_isolation.py -q
-13 passed in 4.72s
+13 passed in 4.79s
 
 $ pytest backend/tests/ -q -k "cycle_health or heartbeat or rail_guard or 38_2 or 86_38 or 23_2_14 or 86_110"
-71 passed, 3588 deselected
+73 passed, 3637 deselected
 
 $ python scripts/qa/heartbeat_leak_sweep_86_110.py
 POPULATION: 4   ISOLATED TESTS: 3   LEAKING: 0   LEGITIMATE PRODUCTION WRITERS: 1
@@ -47,7 +47,7 @@ $ uvx ruff check --select F821,F401,F811 --no-cache <8-file DERIVED scope>
 All checks passed!    RUFF_EXIT=0
 
 $ pytest backend/tests/ -q                 (the FULL suite, because the new fixture is global)
-20 failed, 3621 passed, 12 skipped, 5 xfailed, 1 xpassed in 8:31 (3,659 collected)
+7 failed, 3685 passed, 12 skipped, 5 xfailed, 1 xpassed (3,710 collected)
 $ grep -c "phase-86.110 test guard"  -> 0  <- my guard fires on NONE of the 20
   CONTROLLED CHECK (same 20-test subset, fixture off vs on): 19 failed / 1 passed BOTH times.
   The fixture causes zero failures. 19 reproduce in isolation; the 1 that passes

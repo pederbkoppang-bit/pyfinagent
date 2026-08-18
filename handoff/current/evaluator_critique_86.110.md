@@ -242,3 +242,48 @@ evidence. See `escalation_86.110_third_conditional.md`.
   "verdict_unmodified": true
 }
 ```
+
+---
+
+## Cycle-3 Follow-up -- what Main changed in response
+
+The cycle-3 verdict carried **one** capping violation, WARN-level: the scoped
+`-k` block quoted `68 passed` where 71 reproduced, in both artifacts, and the
+quoted pair summed to 3,656 against the same artifacts' `3,659 collected` --
+an internal contradiction on the face of the document.
+
+**Every stale capture in both artifacts is now regenerated from a live run, and
+the arithmetic is checked rather than asserted.**
+
+| block | was | now (re-run today) |
+|---|---|---|
+| own test file | `13 passed in 4.72s` | `13 passed in 4.79s` |
+| scoped `-k` sweep | `71 passed, 3588 deselected` | `73 passed, 3637 deselected` |
+| full suite | `20 failed, 3621 passed, ... in 511.28s` | `7 failed, 3685 passed, 12 skipped, 5 xfailed, 1 xpassed, 48 warnings in 408.95s` |
+| collected note | `3,659 collected` | `3,710 collected` |
+
+**The internal contradiction is closed by arithmetic, not by assertion:**
+`73 + 3637 = 3710` and `7 + 3685 + 12 + 5 + 1 = 3710`, both equal to the
+`--collect-only` total. The cycle-3 defect was precisely that these did not
+reconcile; they now do, and the check was run rather than eyeballed.
+
+**Why the numbers moved again rather than settling on the evaluator's 71.** The
+suite grew from 3,659 to 3,710 collected between that verdict and today, and
+step **86.118** repaired 12 previously-failing tests, so the full-suite failure
+count fell 20 -> 7. The evaluator's `71` was correct when measured; a capture of
+a moving suite is a dated fact, which is why every figure above was re-run today
+rather than carried forward.
+
+**Historical narrative is deliberately NOT rewritten.** The passages describing
+what a prior revision quoted (`3,608 passed / 3,646 collected`,
+`3,646 vs 3,659`) are records of a past defect and remain as written -- editing
+them would destroy the audit trail that makes the correction checkable.
+
+**Pre-spawn class sweep** (`scripts/qa/pre_spawn_gate.py 86.110`): **CLEAN** --
+no spliced capture, no guard asserting a truthy literal, no prose contradicting
+its own capture blocks, no contradictory capture blocks, no SURVIVED or
+UNSCORABLE cell.
+
+*Stated plainly, because it bears on how much weight that CLEAN carries:* the
+scoped `-k` selection covers 73 of 3,710 collected tests. It is a targeted
+sweep, not a regression suite, and this artifact does not claim otherwise.

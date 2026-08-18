@@ -147,8 +147,8 @@ fixture must be shown not to break the suite:
 
 ```
 $ pytest backend/tests/ -q -p no:cacheprovider
-20 failed, 3621 passed, 12 skipped, 5 xfailed, 1 xpassed  in 511.28s (0:08:31)
-  (= 3,659 collected, which includes this step's own 13 tests)
+7 failed, 3685 passed, 12 skipped, 5 xfailed, 1 xpassed, 48 warnings in 408.95s (0:06:48)
+  (= 3,710 collected, which includes this step's own 13 tests)
 
 $ grep -c "phase-86.110 test guard"   -> 0     <- MY guard fires on NONE of them
 ```
@@ -285,10 +285,10 @@ inner run too (20 != 10). The counter now reads only the final summary line.
 
 ```
 $ pytest backend/tests/test_phase_86_110_heartbeat_isolation.py -q
-13 passed in 4.72s
+13 passed in 4.79s
 
 $ pytest backend/tests/ -q -k "cycle_health or heartbeat or rail_guard or 38_2 or 86_38 or 23_2_14 or 86_110"
-71 passed, 3588 deselected
+73 passed, 3637 deselected
 
 $ uvx ruff check --select F821,F401,F811 --no-cache <8-file DERIVED scope>
 All checks passed!
