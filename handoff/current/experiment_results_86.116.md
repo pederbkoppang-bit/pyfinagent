@@ -199,7 +199,7 @@ cannot produce agreement will always report total disagreement.
 - **It does not unblock 86.117 by fiat** -- that step re-measures for itself.
 - **No flag promoted, no `.env` written.**
 
-**RESTART IS PENDING, and my earlier claim that it was not was FALSE.**
+**RESTART WAS PENDING, and my earlier claim that it was not was FALSE.**
 Measured, not reasoned: uvicorn **pid 41635** started **2026-08-17T15:57:16Z**
 (etime 16h14m at the time of writing, no `--reload`), while this fix landed
 2026-08-18T07:55. `backend/backtest/backtest_engine.py:25` does a **module-level**
@@ -215,9 +215,21 @@ The fix **is** live for every *fresh* process (harness, CLI, scripts); I
 confirmed a fresh import carries `_dedupe_index`. So this is a **disclosure**
 defect, not a broken fix.
 
-**PENDING-RESTART LIST:** `backend/backtest/cache.py` (`_dedupe_index`, this
-step) joins 86.108's two read-only routes and 86.109's `emit_alarm=False`, all
-NOT YET IN FORCE on pid 41635.
+**RESOLVED 2026-08-18T08:26:53Z -- the operator authorised the restart and it
+is DONE.** `launchctl kickstart -k gui/<uid>/com.pyfinagent.backend`; pid
+**41635 -> 89340**, verified by asserting the pid CHANGED rather than by a
+health code alone. The pid launchd reports and the pid holding `:8000` are the
+same (89340), so it is not an orphan; `/api/health` 200; 86.108's
+`/api/settings/flags` and `/api/observability/parse-failures` both answer 200.
+
+`kickstart -k` was chosen over `bootout`+`bootstrap` deliberately: no plist
+`EnvironmentVariables` changed, and CLAUDE.md records a bootout/bootstrap race
+that left the backend down ~4 minutes on 2026-08-09. A fresh interpreter
+re-imports every module from disk, which is what this fix needed.
+
+**Now in force on pid 89340:** 86.116's `_dedupe_index` (3 references on disk,
+verified before the restart), 86.108's two read-only routes, 86.109's
+`emit_alarm=False`.
 
 ---
 

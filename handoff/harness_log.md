@@ -36447,3 +36447,31 @@ All three cycle-3 findings are fixed and UNEVALUATED. 33 invariants, 13 tests,
 matrix 11/11 KILLED across two targets. Filed on discovery: **86.118** (18
 pre-existing RED tests). Escalation:
 `handoff/current/escalation_86.116_third_conditional.md`.
+
+## Cycle 1253 -- 2026-08-18 -- OPERATOR-AUTHORISED BACKEND RESTART
+
+The operator granted restart + `.env` write authority. Restart executed and
+verified: `launchctl kickstart -k gui/<uid>/com.pyfinagent.backend`, pid
+**41635 -> 89340**. Verified by asserting the PID CHANGED, not by a health code
+-- and the pid launchd reports equals the pid holding `:8000` (89340), so it is
+not an orphaned listener. `/api/health` 200; 86.108's `/api/settings/flags` and
+`/api/observability/parse-failures` both 200.
+
+`kickstart -k` chosen over `bootout`+`bootstrap`: no plist `EnvironmentVariables`
+changed, and CLAUDE.md records a bootout/bootstrap race that left the backend
+down ~4 minutes on 2026-08-09. A fresh interpreter re-imports from disk, which
+is all this needed.
+
+**IN FORCE NOW:** 86.116 `_dedupe_index` (the API backtest path had been reading
+duplicated price frames for ~16h since the fix landed), 86.108's two read-only
+routes, 86.109's `emit_alarm=False`. Pending-restart list is EMPTY.
+
+A near-miss worth recording: `launchctl list | grep -i pyfinagent | head -5`
+did not show `com.pyfinagent.backend`, which looked like the orphaned-process
+shape. It was an artifact of `head -5` -- the service IS loaded at pid 41635.
+Checked before acting rather than after.
+
+Also filed on operator instruction: **86.119** -- `pytest-randomly` is NOT
+installed, so `-p no:randomly` has been a NO-OP in every run that passed it, and
+the suite's fixed order makes test-order dependence invisible (86.118 has a live
+example that passes alone and fails in the full suite).
