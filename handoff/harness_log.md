@@ -36792,3 +36792,42 @@ positive so the fix did not disarm it:
 measures, and 86.112 flagged MOOT.
 
 **ALL FIVE parked steps are now at 5/5.** Zero closed this session.
+
+## Cycle 10 -- 2026-08-18 -- phase=86.110 result=NO_VERDICT -- WEEKLY MAX BUDGET EXHAUSTED
+
+The 86.110 spawn returned `null` with
+`You've hit your weekly limit - resets Aug 20 at 7pm (Europe/Oslo)` after 117,169
+subagent tokens. **This is not a stochastic StructuredOutput drop; a retry
+cannot succeed.** Attempt 5 of 5 was consumed at launch by the PreToolUse gate,
+so 86.110 is exhausted with its fix round ungraded. 28 gated launches today.
+
+**NO FURTHER Q/A SPAWN IS POSSIBLE UNTIL THE RESET.** Continuing would move spend
+to metered credits, which the standing $0-metered constraint forbids.
+
+**MONEY IS SAFE, and I verified this myself rather than inheriting it from the
+peer's 86.120 filing.** With `PAPER_USE_CLAUDE_CODE_ROUTE=true` (backend/.env:75),
+BOTH fallthrough paths in `backend/agents/llm_client.py` hard-raise rather than
+constructing a direct-Anthropic client: `make_client` at :2211-2216 and
+`advisor_call` at :2333-2337, each `ValueError("Routing breach: ... would
+silently bill against api.anthropic.com instead of the Max-subscription rail")`.
+So an exhausted weekly limit CANNOT cause metered spend.
+
+**But the peer session's step 86.120 has just gone from a prediction to a live
+condition, and the operator should know tonight.** Its audit_basis says the rail
+guard is a per-cycle, per-process, generic-failure breaker: `_RAIL_GUARD` resets
+at the start of every cycle and only opens after ~20 CONSECUTIVE failures of any
+kind, while the health probe checks CLI login/auth rather than quota -- so a
+logged-in-but-over-quota CLI reads as healthy. Consequence for the rest of the
+week: the analyst spawns doomed `claude` subprocesses every cycle, per
+rail-touching call site, and produces no real analysis.
+
+**I did NOT touch the flag.** Flipping `PAPER_USE_CLAUDE_CODE_ROUTE` is a
+promotion decision reserved to the operator, and turning it OFF would remove the
+very guard that makes metered spend impossible -- the safe state is the current
+one. Backend pid 89340 left running and untouched.
+
+**SESSION FINAL STATE.** 75.11.4 closed on a real PASS (its verdict was earned
+before this session and its ledger row was missing; backfilled today). 86.59,
+86.118, 86.116, 86.108 and 86.110 are all exhausted at 5/5 with unevaluated fix
+rounds. Nine Q/A evaluations ran; every one confirmed the shipped product was
+correct and not one capping finding was a bug in production code.
