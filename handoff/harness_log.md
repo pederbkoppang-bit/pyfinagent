@@ -36746,3 +36746,49 @@ run, and the whole matrix block was pasted WHOLE rather than edited.
 All five parked steps now pass the gate. **Zero steps closed this session.**
 86.59, 86.118 and 86.116 are all at 5/5; 86.108 and 86.110 hold one attempt each
 with unevaluated product work (86.108's `8200283c` touches 8 production files).
+
+## Cycle 9 -- 2026-08-18 -- phase=86.108 result=FAIL (budget exhausted 5/5)
+
+Judge CONDITIONAL -> F1 auto-FAIL. **ALL SIX immutable criteria MET** and
+re-verified by execution: immutable cmd exit 0, 37/37 suite, sweep 567 reproduces,
+census 2,859 reproduces, `/api/settings/flags` exercised LIVE at 200 with no
+secret leakage, `.env` mtime predates all step work, and every filed step id real.
+
+Three findings, none a product defect, and the first is the most useful result of
+the whole session:
+
+1. **I committed the exact class I had built a gate for, one hour earlier.**
+   Repairing the stale sweep I replaced the capture LINE in both artifacts and
+   left the SENTENCE beneath it -- "the 1 failure is PRE-EXISTING... test_phase_40_2"
+   -- asserting a failure that MY OWN 86.118 work had just repaired. The capture
+   said zero failures; the prose insisted on one. The gate's numeric check could
+   not see it because there was no number to disagree with: **the claim was
+   semantic.** Downstream, this step's own filing 86.112 is now MOOT.
+2. The AST whitelist is **NOT sole-sufficient**, answering my own grade-hard
+   question: under in-memory full-source mutation `_client_model_name("claude-opus-4-8")`,
+   `("")` and `(self.general_client)` all SURVIVED 37/37, while the same literal
+   at a debate site was KILLED -- proving the debate sites are behaviourally
+   covered and the orchestrator's three are not. The whitelist rejects the TOKEN
+   `None` and non-Call shapes, not the semantic class.
+3. "Regression sweep over every adjacent suite" has **13/18 known-member recall**;
+   the judge ran the five missed and all are green, so the defect is the claim's
+   support, not a hidden red.
+
+**Gate extended to the class it missed** -- a capture reporting ZERO failures
+while authored prose still explains one. Getting there exposed three defects in
+the gate itself, each fixed and each re-verified against the historical true
+positive so the fix did not disarm it:
+- `capture_blocks` DROPPED a zero-failure block entirely (no controls, no
+  restores, no KILLED, no `N failed`), so the new check ran over an EMPTY list
+  and reported CLEAN. A check that cannot dirty. Positive control added.
+- the contradiction check compared `suite_failed` across blocks and flagged
+  86.118 ([0,7]) and 86.110 ([0,20]) for legitimately holding a full-suite AND a
+  targeted capture. Narrowed to `scored`: a step has ONE matrix but MANY pytest
+  scopes.
+- the history discriminator did not know past-tense markers, so my own
+  correction note ("the paragraph that USED TO explain...") read as a live claim.
+
+86.108's prose is fixed, its over-claimed sweep scope narrowed to what it
+measures, and 86.112 flagged MOOT.
+
+**ALL FIVE parked steps are now at 5/5.** Zero closed this session.

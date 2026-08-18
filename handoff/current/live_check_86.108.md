@@ -387,20 +387,31 @@ hand-assembling a scope that omits the failing member is how a green gate gets
 manufactured. The scope is now DERIVED from `git diff`, which is the authority
 on what changed.
 
-Regression sweep over every adjacent suite:
+Targeted regression sweep (13 of 18 known adjacent suites; see the scope note):
 
 ```
 $ python -m pytest backend/tests/ -q -p no:cacheprovider -k "debate or llm_parse or parse or orchestrat or settings or observab or 75_5 or 70_4 or 72_0_2"
 567 passed, 3143 deselected, 1 warning in 5.22s
 ```
 
-The single failure is **pre-existing and unrelated**:
-`test_phase_40_2_claude_code_v2_1_140_features.py::test_phase_40_2_settings_json_still_valid_json_after_edit`
-asserts `.claude/settings.json` has `effortLevel == "xhigh"`, but the operator
-raised it to `max` on 2026-08-04 (recorded in CLAUDE.md). That file is
-unmodified in this tree (`git status --short .claude/settings.json` is empty)
-and the test imports nothing this step touched (`grep -c` for every changed
-module returns **0**). Queued as a defect below rather than fixed here.
+**The sweep now reports ZERO failures**, and the paragraph that used to
+explain the single failure is deleted rather than amended, because the failure
+it explained no longer exists. It said
+`test_phase_40_2_..._settings_json_still_valid_json_after_edit` pinned
+`effortLevel == "xhigh"` against an operator value of `max`. Step **86.118**
+repaired that test (commit `1bf26bf8`) to assert the documented `max`, and it is
+still selected by this `-k` pattern -- so the capture is right and the old
+explanation was simply outlived.
+
+**Downstream consequence, stated rather than left for a reader to notice:**
+masterplan step **86.112**, filed by THIS step to fix that test, is now **MOOT**
+and should be closed or re-scoped.
+
+**Scope of this sweep, stated honestly:** `-k` selects **567 of 3710** collected
+tests, and a known-member recall check over the suites importing this step's
+changed modules finds **13 of 18** selected -- the five missed were run
+separately and are green (39 passed), so no regression is hidden, but this is a
+targeted selection and NOT "every adjacent suite".
 
 ## 9. Scope honesty -- what this step did NOT do
 
@@ -501,8 +512,10 @@ the pre-existing `debate.py` finding. See §8.
 **Finding 3 -- the regression sweep number was carried forward from cycle 1**
 (543 vs the then-current 552). Re-run -- **but the regenerated figure was
 written into `experiment_results` only, and this file kept the stale 543 while
-this very sentence claimed otherwise.** Closed in cycle 4; both artifacts now
-carry the measured 560.
+this very sentence claimed otherwise.** Closed in cycle 4. Cycle 5 then found the same class one layer
+down: the capture LINE was refreshed in both files and the SENTENCE beneath it
+was left asserting a failure that no longer existed. Both are now regenerated
+together.
 
 **Two prose imprecisions the evaluator caught and did not count separately, now
 corrected here:** the threading is through **nine** call sites, not eight

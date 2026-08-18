@@ -116,9 +116,19 @@ def capture_blocks(text: str) -> list[dict]:
         restores = re.findall(r"^restore verified: \S+", body, re.M)
         summary = re.search(r"KILLED (\d+) / (\d+)\s+SURVIVED (\d+)\s+UNSCORABLE (\d+)", body)
         suite = re.search(r"^(\d+) failed, (\d+) passed,", body, re.M)
-        if controls or restores or summary or suite:
+        # `N passed, M deselected` with no `failed` clause means ZERO failures.
+        # Without this it read as "unknown" and the zero-failure case -- the one
+        # that caught me on 86.108 -- could not be checked at all.
+        clean = None if suite else re.search(r"^(\d+) passed,", body, re.M)
+        # `clean` MUST be in this condition. Without it a zero-failure sweep
+        # block -- which has no controls, no restores, no KILLED summary and
+        # no `N failed` clause -- was dropped entirely, so the zero-failure
+        # check below ran over an EMPTY list and reported CLEAN. That is a
+        # check that cannot dirty: it meant 'found nothing to check', not
+        # 'nothing is wrong'. Caught on 86.108, where the defect was real.
+        if controls or restores or summary or suite or clean:
             out.append({
-                "suite_failed": int(suite.group(1)) if suite else -1,
+                "suite_failed": int(suite.group(1)) if suite else (0 if clean else -1),
                 "controls": len(controls),
                 "restores": len(restores),
                 "killed": int(summary.group(1)) if summary else -1,
@@ -347,8 +357,13 @@ def main() -> int:
     def _spread(key):
         vals = {b[key] for b in all_blocks if b.get(key, -1) >= 0}
         return sorted(vals)
-    disagreements = {k: _spread(k) for k in ("scored", "suite_failed")
-                     if len(_spread(k)) > 1}
+    # `scored` ONLY. A step has exactly ONE mutation matrix, so two different
+    # KILLED totals mean one capture is stale. It legitimately runs pytest at
+    # MANY scopes, though -- a full suite beside a targeted subset -- so
+    # comparing `suite_failed` across blocks flagged 86.118 ([0, 7]) and 86.110
+    # ([0, 20]) for holding both, which is correct evidence, not a defect.
+    # Different commands are not contradictory claims about the same quantity.
+    disagreements = {k: _spread(k) for k in ("scored",) if len(_spread(k)) > 1}
     g.ok(
         "capture_blocks_do_not_contradict_each_other",
         lambda d: not d,
@@ -367,6 +382,53 @@ def main() -> int:
         falsified_by=["prose says 8 'failures remain' but the capture says 7"],
         detail=f"an authored sentence contradicts a command capture in the same "
                f"artifact: {contradictions[:4]}",
+    )
+
+    # ---- C3c: prose must not assert a failure the capture says is gone ---
+    # THE DEFECT I COMMITTED ONE HOUR AFTER BUILDING THIS GATE. Repairing
+    # 86.108's stale sweep I replaced the capture LINE and left the sentence
+    # beneath it: "the 1 failure is PRE-EXISTING and unrelated: test_phase_40_2"
+    # -- a test my OWN 86.118 work had just repaired. The capture said zero
+    # failures; the prose insisted on one. The numeric check above could not see
+    # it, because there was no number to disagree with: the claim was semantic.
+    #
+    # So when a capture reports ZERO failures, authored prose must not assert
+    # that a failure exists.
+    zero_fail = any(b.get("suite_failed") == 0 for b in capture_blocks(authored_text))
+    flat_auth = re.sub(r"\s+", " ", authored_text)
+    asserts_failure = []
+    if zero_fail:
+        for m in re.finditer(r"the (?:single|1|one) failure|the \d+ failures? (?:is|are) "
+                             r"(?:pre-existing|unrelated)", flat_auth, re.I):
+            ctx = flat_auth[max(0, m.start() - 130):m.end() + 40]
+            # Explicit PAST-TENSE markers. A note recording that a failure USED
+            # TO exist is a correction, not a live claim -- and demanding it be
+            # deleted would erase the very record that makes the fix auditable.
+            # This cannot defend against a deliberate lie ("it used to fail"),
+            # only against honest history; that is the same bound every marker
+            # in this file has, and it is stated rather than implied.
+            if re.search(r"earlier revision|An earlier|[Ee]vidence after cycle \d|"
+                         r"used to|no longer exists|is deleted|was outlived|"
+                         r"previously carried", ctx):
+                continue
+            asserts_failure.append(ctx[-120:].strip())
+    if zero_fail:
+        g.ok(
+            "zero_failure_check_had_a_capture_to_check",
+            lambda z: z,
+            zero_fail,
+            falsified_by=False,
+            detail="no zero-failure capture was parsed, so the check below would "
+                   "pass over nothing -- the shape that made it report CLEAN on a "
+                   "real defect",
+        )
+    g.ok(
+        "prose_does_not_assert_a_failure_the_capture_says_is_gone",
+        lambda xs: not xs,
+        asserts_failure,
+        falsified_by=["...the 1 failure is PRE-EXISTING and unrelated: test_phase_40_2..."],
+        detail=f"a capture reports ZERO failures while authored prose still "
+               f"explains one: {asserts_failure[:2]}",
     )
 
     # ---- C4: no guard asserts a literal ---------------------------------

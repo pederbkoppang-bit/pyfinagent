@@ -59,10 +59,13 @@ Found 1 error.        <- PRE-EXISTING: reproduces on the HEAD copy
 
 $ python -m pytest backend/tests/ -q -p no:cacheprovider -k "debate or llm_parse or parse or orchestrat or settings or observab or 75_5 or 70_4 or 72_0_2"
 567 passed, 3143 deselected, 1 warning in 5.22s
-  -> the 1 failure is PRE-EXISTING and unrelated: test_phase_40_2 pins
-     effortLevel=="xhigh" while the operator moved it to "max" on 2026-08-04.
-     `.claude/settings.json` is unmodified in this tree and the test imports
-     none of the changed modules (grep count = 0). Queued as a defect.
+  -> ZERO failures. The sweep previously carried one, and the explanation
+     that used to sit here -- "test_phase_40_2 pins effortLevel=='xhigh' while
+     the operator moved it to 'max'" -- is now OBSOLETE: step 86.118 repaired
+     that test (commit 1bf26bf8) to assert the documented `max`, and it is
+     still selected by this -k pattern. Consequence stated rather than left
+     implicit: masterplan step 86.112, filed by THIS step to fix that test, is
+     now MOOT and should be closed or re-scoped.
 
 $ python scripts/qa/mutation_86_108.py
 CONTROL rc=0  collected=37
