@@ -36416,3 +36416,34 @@ Full verdict transcribed verbatim in
 `handoff/current/evaluator_critique_75.11.4.md` (Cycle 5 section). Residual
 NOTE items (N1-N6) should be filed as their own defect steps per
 `feedback_queue_discovered_defects_in_masterplan` if not already tracked.
+
+## Cycle 1252 -- 2026-08-18 -- phase=86.116 result=PARKED (3rd-CONDITIONAL rule)
+
+Sequence `[CONDITIONAL, CONDITIONAL, CONDITIONAL]`. Attempts 4 of 5 -- the
+BUDGET was not the constraint; F1 forces the next verdict to FAIL.
+
+**The product is correct and three independent evaluators each re-derived the
+headline numbers from BigQuery and reproduced them exactly.** No production code
+changed after the original fix: `cache.py` is `9f5f1d67...` across all three
+cycles. THE FIX: `_dedupe_index` at BOTH read paths in `backend/backtest/cache.py`,
+keyed on the INDEX -- `drop_duplicates()` is wrong here because pandas ignores
+the index, measured on AVB 2026 (159 rows / 155 dates vs exactly 155).
+
+**Each capping finding was in a guard written to close the previous one:** a
+credited DEAD KEY, then a tripwire whose `or` clause was true on the unmutated
+tree, then a cap guard asserting `x < 3.0` where `x <= sqrt(2)`. That pattern is
+why the next-session goal leads with `guardlib`.
+
+**ONE finding had operational consequence and it was mine to own: RESTART IS
+PENDING.** uvicorn pid 41635 (started 2026-08-17T15:57:16Z, no `--reload`) holds
+the PRE-FIX cache module via `backtest_engine.py:25`'s module-level import, and
+`backend/api/backtest.py` runs `run_backtest` in-process -- so every
+API-triggered backtest STILL reads duplicated frames. I had claimed "no restart
+pending" on the reasoning that the backtest loads per run; it does, but from the
+already-imported module object. Corrected in `experiment_results_86.116.md` AND
+in the next-session goal, which had carried the false line to the operator.
+
+All three cycle-3 findings are fixed and UNEVALUATED. 33 invariants, 13 tests,
+matrix 11/11 KILLED across two targets. Filed on discovery: **86.118** (18
+pre-existing RED tests). Escalation:
+`handoff/current/escalation_86.116_third_conditional.md`.

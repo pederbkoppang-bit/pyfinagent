@@ -91,9 +91,18 @@ def census(client) -> dict:
     _ok("census_rows_exceed_keys", d["total_rows"] > d["keys"],
         "no duplication measured -- if the table was repaired, this step's "
         "premise is stale and must be re-derived, not assumed")
-    _ok("excess_equals_rows_minus_keys",
+    # SELF-CONSISTENCY ONLY, and labelled as such. Over the grouping,
+    # SUM(n) == total_rows and COUNT(*) == keys BY CONSTRUCTION, so
+    # SUM(n-1) == total_rows - keys is an ALGEBRAIC IDENTITY: it cannot detect a
+    # normalisation error. An earlier revision of experiment_results credited it
+    # with preventing the two shares from "drifting apart silently", which it
+    # cannot do. Kept because it would catch a malformed edit to CENSUS_SQL, and
+    # renamed so the name no longer overclaims.
+    _ok("census_sql_is_internally_consistent",
         d["excess_rows"] == d["total_rows"] - d["keys"],
-        f"{d['excess_rows']} != {d['total_rows']} - {d['keys']}")
+        f"{d['excess_rows']} != {d['total_rows']} - {d['keys']} -- CENSUS_SQL "
+        f"has been edited into something that no longer aggregates the same "
+        f"grouping")
     _ok("multiplicity_is_bounded", d["max_mult"] >= 2,
         "max multiplicity below 2 contradicts the duplication census")
     _ok("year_buckets_cover_the_table",
@@ -443,11 +452,25 @@ def gate_effect(harm: dict) -> dict:
     _ok("size_inflation_is_above_one", size_inflation > 1.0,
         "a DEPRESSED volatility must INFLATE an inverse-vol position size; "
         "if this is below 1.0 the direction of the claim is wrong")
-    _ok("cap_is_accounted_for", size_inflation < 3.0,
-        f"the measured inflation {size_inflation:.4f} must be read against the "
-        f"3.0 cap at backtest_trader.py `min(self.target_vol / stock_vol, 3.0)`; "
-        f"at or above the cap the inflation saturates and this arithmetic no "
-        f"longer describes the outcome")
+    # THE CAP BINDS ON target_vol/stock_vol, NOT ON THE RATIO. The first version
+    # of this guard asserted `size_inflation < 3.0`, and with max multiplicity 2
+    # the inflation is bounded by sqrt(2) = 1.4142 -- a bound this same function
+    # PRINTS four lines below -- so it could never fire. The cycle-3 Q/A drove
+    # gate_effect() with saturating inputs and got "1.2500x reported, 1.0000x
+    # true": all eight gate invariants passed while the printed number was
+    # wrong. `--ticker` is a CLI flag, so that false negative was reachable.
+    #
+    # What must actually hold is that vol_scale is UNSATURATED on BOTH sides;
+    # only then is the reported inflation the real one.
+    target_vol = 0.15  # backtest_trader.py TARGET_VOL default
+    scale_pre = target_vol / a["vol_ann"]
+    scale_post = target_vol / b["vol_ann"]
+    _ok("vol_scale_is_unsaturated_on_both_sides",
+        scale_pre < 3.0 and scale_post < 3.0,
+        f"vol_scale saturates at the 3.0 cap (pre {scale_pre:.4f}, post "
+        f"{scale_post:.4f}); at or beyond the cap the reported inflation "
+        f"{size_inflation:.4f}x is NOT the outcome -- min() clips it and the "
+        f"ratio arithmetic stops describing what the trader does")
 
     check_mechanism_tripwires()
 
@@ -455,6 +478,8 @@ def gate_effect(harm: dict) -> dict:
         "vol_ratio_pre_over_post": vol_ratio,
         "position_size_inflation": size_inflation,
         "vol_scale_cap": 3.0,
+        "vol_scale_pre": 0.15 / a["vol_ann"],
+        "vol_scale_post": 0.15 / b["vol_ann"],
         "full_duplication_closed_form": 2 ** -0.5,
         "max_inflation_under_full_duplication": 2 ** 0.5,
     }
@@ -585,8 +610,10 @@ def main() -> int:
           f"{gate['vol_ratio_pre_over_post']:.4f}")
     print(f"  => position-size inflation (1/ratio)   : "
           f"{gate['position_size_inflation']:.4f}x")
-    print(f"  cap at backtest_trader.py              : "
-          f"{gate['vol_scale_cap']:.1f}x")
+    print(f"  vol_scale pre / post                   : "
+          f"{gate['vol_scale_pre']:.4f} / {gate['vol_scale_post']:.4f}  "
+          f"(cap {gate['vol_scale_cap']:.1f} -- UNSATURATED, so the inflation")
+    print(f"                                           above is the real one)")
     print(f"  closed form under FULL duplication     : "
           f"{gate['full_duplication_closed_form']:.4f} (1/sqrt(2)), giving at")
     print(f"                                           most "

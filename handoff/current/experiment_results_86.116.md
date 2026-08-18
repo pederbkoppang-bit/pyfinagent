@@ -37,8 +37,15 @@ tickers**. Per-year: 2017 90.5%, 2018-2025 62-65%, **2026 0.1%**.
 *The normalisation rule is stated beside every share because the two are not
 interchangeable*: share-of-keys divides by distinct `(ticker,date)` pairs,
 share-of-rows by total rows. Quoting one as the other misstates the defect by
-~23 points. The script asserts `excess_rows == total_rows - keys` so the two
-cannot drift apart silently.
+~23 points.
+
+*A correction to my own prose:* an earlier revision claimed the script's
+`excess_rows == total_rows - keys` assertion stops the two shares "drifting
+apart silently". It cannot -- over that grouping `SUM(n) == total_rows` and
+`COUNT(*) == keys` by construction, so it is an **algebraic identity**. It is
+renamed `census_sql_is_internally_consistent` and now claims only what it does.
+Criterion 1 is met independently, by the printed normalisation rule and the
+`% OF KEYS` / `% OF ROWS` label on every share.
 
 **Criterion 2 -- the harm, DRIVEN through real code.** Loaded `AKAM` 2025 via
 the **real** `preload_prices`, factors from the **real** `screener` functions:
@@ -190,9 +197,27 @@ cannot produce agreement will always report total disagreement.
   (**86.118**), the picker score (**86.59**, parked), or the entry path
   (**86.60**, blocked by a peer session).
 - **It does not unblock 86.117 by fiat** -- that step re-measures for itself.
-- **No flag promoted, no `.env` written, no restart pending** (the change is in
-  the backtest read path, not in a running process's hot loop; the backtest
-  loads it per run).
+- **No flag promoted, no `.env` written.**
+
+**RESTART IS PENDING, and my earlier claim that it was not was FALSE.**
+Measured, not reasoned: uvicorn **pid 41635** started **2026-08-17T15:57:16Z**
+(etime 16h14m at the time of writing, no `--reload`), while this fix landed
+2026-08-18T07:55. `backend/backtest/backtest_engine.py:25` does a **module-level**
+`from backend.backtest import cache`, so that process holds the **pre-fix**
+module in `sys.modules`, and `backend/api/backtest.py` runs `run_backtest`
+in-process. **Every API-triggered backtest still reads duplicated frames.**
+
+My justification -- *"the backtest loads it per run"* -- was wrong in the way
+this project has a standing rule about: `preload_prices` is indeed called per
+run, but **from the already-imported module object**. Committed is not in force.
+
+The fix **is** live for every *fresh* process (harness, CLI, scripts); I
+confirmed a fresh import carries `_dedupe_index`. So this is a **disclosure**
+defect, not a broken fix.
+
+**PENDING-RESTART LIST:** `backend/backtest/cache.py` (`_dedupe_index`, this
+step) joins 86.108's two read-only routes and 86.109's `emit_alarm=False`, all
+NOT YET IN FORCE on pid 41635.
 
 ---
 

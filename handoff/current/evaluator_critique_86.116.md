@@ -6,6 +6,11 @@
 |---|---|---|---|
 | 1 | **CONDITIONAL** | `wf_6c5d3dfc-43a` | 2026-08-18T05:28:04Z |
 | 2 | **CONDITIONAL** | `wf_10d2c895-28e` | 2026-08-18T05:51:37Z |
+| 3 | **CONDITIONAL** | `wf_62e2fe3c-126` | 2026-08-18T06:12:00Z |
+
+**PARKED.** `[C,C,C]` -- CLAUDE.md F1 forces the next verdict to FAIL regardless
+of evidence. Budget is 4/5, so the BUDGET is not the constraint; the rule is.
+See `escalation_86.116_third_conditional.md`.
 
 ---
 
@@ -226,3 +231,71 @@ Matrix **11/11 KILLED** across both targets, 0 SURVIVED, 0 UNSCORABLE. Evidence
 **33 invariants**. `backend/backtest/cache.py` is byte-identical to what cycles
 1 and 2 evaluated (`9f5f1d67...`) -- **no production code has changed since the
 original fix.**
+
+---
+
+## Cycle 3 -- CONDITIONAL -- `wf_62e2fe3c-126`
+
+*Transcribed verbatim from the captured return in the same turn it landed.*
+
+**verdict:** `CONDITIONAL` | **ok:** `false`
+
+**violated_criteria:** `criterion_6_cap_guard_cannot_fire_for_the_saturation_it_names`,
+`criterion_1_identity_assertion_credited_with_drift_protection_it_lacks`,
+`scope_honesty_no_restart_pending_is_false_for_the_in_process_api_path`
+
+**1. Circular_Reasoning.** *"`cap_is_accounted_for` asserts `size_inflation <
+3.0`, but the 3.0 cap binds on target_vol/stock_vol, not on the inflation ratio;
+with max multiplicity 2 the inflation is bounded by sqrt(2)=1.4142 -- a bound the
+same function PRINTS -- so it cannot fail."* Driven with saturating inputs:
+`vol 0.020/0.025 -> ALL 8 gate invariants PASS, script reports 1.2500x, TRUE
+1.0000x`; `0.040/0.060 -> reports 1.5000x, TRUE 1.2000x`. *"The script takes
+--ticker, so the false negative is reachable."*
+
+**2. Overgeneralization.** *"Over the grouping SUM(n)==total_rows and
+COUNT(*)==keys, so SUM(n-1)==total_rows-keys is an ALGEBRAIC IDENTITY that cannot
+detect a normalisation error."* Criterion 1 is met independently by the printed
+rule and the per-share labels; only the prose claim was wrong.
+
+**3. Invalid_Precondition.** *"'no restart pending' is FALSE for the in-process
+API path: uvicorn pid 41635 started 2026-08-17 15:57:16 (etime 16:10, no
+--reload) while cache.py landed 07:55, backtest_engine.py:25 imports cache at
+module level, and backend/api/backtest.py:1008 runs engine.run_backtest inside
+that process -- so every API-triggered backtest still reads duplicated frames.
+[...] The justification is wrong: preload_prices is called per run, but from the
+already-imported module object."*
+
+**NOTE-level:** `_volatility_identifiers` rejects only `vol`-named identifiers,
+so `sigma`, `self.daily_sigma`, an inline `.std()` and `_atr_width` all MISS --
+*"though it is NOT vacuous (I reproduced V1/V2 and T2 killing it)"*. The
+"positive control finds this step's own fix" line is prose-only. The live_check
+full-suite block is the pre-pin-fix `20/3633` capture, unrelabelled.
+
+---
+
+## Main's response -- cycle 3
+
+**All three accepted; finding 3 is the one that mattered and I verified it
+myself before changing anything**: pid 41635, started 2026-08-17T15:57:16Z, up
+16h14m, no `--reload`; `backtest_engine.py:25` module-level import confirmed; a
+*fresh* import carries `_dedupe_index` while that process cannot. My
+justification -- "the backtest loads it per run" -- was wrong in exactly the way
+this project has a standing rule about: `preload_prices` runs per call, **from
+the already-imported module object**. Committed is not in force. The claim is
+corrected in `experiment_results` **and in the next-session goal file**, which
+had carried "Restart: none pending" to the operator.
+
+**Finding 1 fixed and the replacement is proven to fire**: the guard now asserts
+`vol_scale` is unsaturated on **both** sides (`target_vol / vol_ann < 3.0`,
+`target_vol = 0.15` from `backtest_trader.py:54`). On the real control it passes
+(vol_scale 0.4487 / 0.3587 -- matching the evaluator's independently computed
+figures); on **both** of the evaluator's saturating cases it **FIRES**.
+
+**Finding 2 fixed by renaming rather than defending**: the assertion is now
+`census_sql_is_internally_consistent` and claims only what an identity can claim,
+and the false prose is replaced by an explicit correction.
+
+**The NOTE is carried forward, not silently absorbed**: `_volatility_identifiers`
+would miss a `sigma`-named term. It is not vacuous, but it is narrower than its
+name suggests, and that belongs in the escalation rather than in a fix made
+during EVALUATE.
