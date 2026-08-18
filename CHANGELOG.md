@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-18 | `2e0728ae` | phase-86.118: cycle-1 CONDITIONAL recorded; criteria 2 and 5 discharged by measurement |
 | 2026-08-18 | `1bf26bf8` | phase-86.118: 19 red tests -> 8, none weakened; the suite was not hermetic |
 | 2026-08-18 | `67070b79` | phase-86.59: cycle-5 CONDITIONAL recorded; all three "one seam short" gaps closed |
 | 2026-08-18 | `497ae3ac` | phase-86.59: cycle-4 verdict FAIL recorded; both capping guards fixed red-first |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-18 | `064f5396` | phase-86.116: PARK on the 3rd-CONDITIONAL rule -- and a FALSE restart claim, corrected |
 | 2026-08-18 | `92caebab` | phase-75.11.4: Audit75 S11 follow-up -- backfill_handoff_archive.py archives by filename pattern,... |
 | 2026-08-18 | `75c19c2b` | chore: drop emoji from the goal file (project bans emojis in files) |
-| 2026-08-18 | `63773c31` | chore: next-session goal -- 114 pending, harness loop is the bottleneck |
 
 ---
 
