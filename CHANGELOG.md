@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-18 | `5ffca35a` | phase-86.110: stop tests writing the real heartbeat; PARKED on the 3rd-CONDITIONAL rule |
 | 2026-08-18 | `085a7f2e` | phase-86.109: stop the freshness alarm paging from a dashboard poll; gate the notifier on the tradin |
 | 2026-08-17 | `8200283c` | phase-86.108: parse-failure ledger + derived dark-flag route; PARKED on the 3rd-CONDITIONAL rule |
 | 2026-08-17 | `9ec0de11` | chore: record 86.108's landed criterion 1 in the next-session goal |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-17 | `0c8613e0` | phase-86.78/86.79: cycle 6 -- span-strip before split, STEP-0 content pin, quote-aware trailing stri |
 | 2026-08-17 | `b9be4bdf` | phase-86.37: dropped-gate survival -- PASS on cycle 6 |
 | 2026-08-17 | `07e33d18` | phase-86.79: F5 actually landed -- the em-dash title defeated the first anchor |
-| 2026-08-17 | `2dbe09d4` | phase-86.79: cycle 5 -- prior_attempts staleness rule, effective-text pins, floor 59 |
 
 ---
 
