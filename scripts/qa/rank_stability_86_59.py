@@ -164,8 +164,38 @@ _PREDICATE_FIXTURE: list[tuple[str, bool]] = [
 ]
 
 
+# Every predicate that MUST appear in the fixture, with the minimum number of
+# rejecting (expected-False) cases. Without this, emptying _PREDICATE_FIXTURE
+# leaves the check green -- a loop over an empty list finds nothing wrong. The
+# cycle-2 Q/A proved exactly that by clearing the table.
+_FIXTURE_REQUIRED: dict[str, int] = {
+    "_us_only": 2,
+    "_enough_sessions": 2,
+    "_dedup_fired": 2,
+    "_arms_distinguishable": 3,
+}
+
+
 def _check_predicate_fixture() -> None:
-    """Assert every predicate agrees with its fixture. Called by every mode."""
+    """Assert every predicate agrees with its fixture. Called by every mode.
+
+    Checks the FIXTURE first. A fixture is only evidence if it exists and
+    actually exercises each predicate on inputs it must reject; an empty or
+    thinned table would silently disarm four of the twenty mutation cells.
+    """
+    missing = []
+    for fn, need_false in _FIXTURE_REQUIRED.items():
+        rows = [(e, x) for e, x in _PREDICATE_FIXTURE if e.startswith(fn + "(")]
+        n_false = sum(1 for _e, x in rows if x is False)
+        if not rows:
+            missing.append(f"{fn}: absent from the fixture")
+        elif n_false < need_false:
+            missing.append(
+                f"{fn}: {n_false} rejecting case(s), needs >= {need_false}")
+    _ok("fixture_exercises_every_predicate_on_rejecting_inputs", not missing,
+        "the predicate fixture no longer covers what it must, so the guards it "
+        "backs are unfalsifiable again: " + "; ".join(missing))
+
     bad = []
     for expr, expected in _PREDICATE_FIXTURE:
         got = eval(expr)  # noqa: S307 -- fixed literal table, no external input
@@ -761,6 +791,7 @@ def measure_flags(n_cycles: int, window: int) -> dict:
 
     arms: dict[str, list[list[str]]] = {name: [] for name, _ in FLAG_ARMS}
     arms["min_k_sectors=3"] = []
+    baseline_agrees: list[bool] = []
 
     for d in replay_dates:
         i = all_sessions.index(d)
@@ -773,6 +804,34 @@ def measure_flags(n_cycles: int, window: int) -> dict:
         # min-K operates on the ALREADY-RANKED candidate list, downstream of
         # the picker -- so it is fed the baseline ranking, exactly as live.
         _sd, base = replay_session(df, tickers, sess, sector_lookup=sectors)
+
+        # BEHAVIOURAL baseline check. `baseline_arm_applies_no_flags` asserts
+        # the arm DEFINITION, and the cycle-2 Q/A showed that is not enough: it
+        # wrapped `replay_session` so only the baseline call acquired
+        # `momentum_52wh_tilt`, left FLAG_ARMS[0] byte-identical, and the run
+        # stayed green while min_k's reported delta FLIPPED SIGN (+2.1pp ->
+        # -2.1pp) -- the exact figure ASK-1 rests on.
+        #
+        # So the baseline slate is recomputed here through a DIRECT
+        # `rank_candidates` call that bypasses `replay_session` entirely, and
+        # the two must agree. An injection anywhere in the replay path -- at the
+        # seam, in the kwargs, in a wrapper -- makes these diverge.
+        import backend.tools.screener as _screener
+
+        _frame = build_yf_frame(df, tickers, sess)
+        _real = _screener.yf.download
+        try:
+            _screener.yf.download = lambda *a, **k: _frame  # noqa: ARG005
+            _sd_direct = _screener.screen_universe(
+                tickers=tickers, period="6mo", sector_lookup=sectors
+            )
+            _direct = _screener.rank_candidates(_sd_direct, top_n=SCREEN_TOP_N)
+        finally:
+            _screener.yf.download = _real
+        baseline_agrees.append(
+            [c["ticker"] for c in base[:SCREEN_TOP_N]]
+            == [c["ticker"] for c in _direct]
+        )
         picked = _min_k_sector_slice(base, ANALYZE_TOP_N, 3)
         arms["min_k_sectors=3"].append([c["ticker"] for c in picked])
 
@@ -813,6 +872,13 @@ def measure_flags(n_cycles: int, window: int) -> dict:
     # And the deltas must not be silently degenerate: if an arm's slate history
     # is identical to baseline's, its delta is zero by construction and the
     # table would report 'no effect' for a flag that was never actually varied.
+    _ok("baseline_slate_matches_an_unflagged_direct_call",
+        all(baseline_agrees) and len(baseline_agrees) == len(replay_dates),
+        f"the baseline slate disagreed with a direct unflagged "
+        f"rank_candidates() call on "
+        f"{sum(1 for x in baseline_agrees if not x)} of {len(baseline_agrees)} "
+        f"cycles -- something is injecting a flag into the baseline reference, "
+        f"so every delta in this table is measured against a flagged baseline")
     _ok("flag_arms_are_distinguishable_from_baseline",
         _arms_distinguishable(out),
         "every arm produced the same distinct-ticker set as baseline -- either "

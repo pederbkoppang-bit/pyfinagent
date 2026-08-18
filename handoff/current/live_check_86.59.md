@@ -200,48 +200,79 @@ touched, no restart pending.
 
 ## 8. Criterion 7 -- mutation matrix
 
+**This block is a single verbatim capture of one `python scripts/qa/mutation_86_59.py`
+run.** Cycle 2 presented a coverage line from one run beside a sha line from
+another; the evaluator caught it, and it was the second non-reproducing number
+in this step. Nothing here is assembled from more than one execution.
+
 ```
+sha256 : be0565ff3c9615da...
 control --verify       -> rc=0 GREEN
 control --dispersion   -> rc=0 GREEN
 control --flags        -> rc=0 GREEN
-
-coverage: 20 guards in target, 20 covered by a cell or an explicit transitive entry
-
-KILLED 20 / 20   SURVIVED 0   UNSCORABLE 0
-restore verified: sha256 unchanged (9282ba866f2afc87...)
+coverage: 23 guards in target, 23 covered by a cell or an explicit transitive entry
+KILLED 22 / 22   SURVIVED 0   UNSCORABLE 0
+restore verified: sha256 unchanged (be0565ff3c9615da...)
 ```
-
-**Cycle 1 shipped 14 cells and that was not enough.** The evaluator ran an AST
-census, found 19 guards with 13 covered, and proved two of the uncovered ones
-**unkillable** -- by execution, not argument. Extending coverage surfaced four
-more survivors. All are now closed; the matrix additionally runs a **coverage
-gate** that fails if any `_ok` guard has no cell, and it caught a real gap on
-its first run. Details in `experiment_results_86.59.md` § Cycle 2.
 
 Control observed GREEN on all three modes **first**; a non-zero exit alone is
 not scored as a kill (the named guard must appear in the output); a
-non-applying anchor is UNSCORABLE, never a kill.
+non-applying anchor is UNSCORABLE, never a kill; restore verified by SHA-256.
 
-**Two defects this matrix found in my own deliverable:**
+The cell count (22) is lower than the guard count (23) because some guards are
+covered **transitively** through the predicate they consume, each recorded in
+`COVERED_TRANSITIVELY` with a reason. The coverage gate fails the matrix if any
+guard is covered by neither.
 
-1. **A tautological guard.** `slate_is_a_prefix_of_the_full_ranking` read
-   `ranked == full[:SCREEN_TOP_N]` immediately after `ranked =
-   full[:SCREEN_TOP_N]` -- a variable compared to its own definition, which
-   cannot fail on any input. Replaced with an **independent**
-   `rank_candidates(top_n=10)` call (cell M3).
-2. **A guard that survived being weakened.** The tie-explanation rule was
-   inline; mutating it to `len(moved) >= 0` left the run green, because an
-   assertion cannot detect its own weakening from the inside. Fixed with a
-   **paired negative fixture** of known-bad inputs the rule must reject
-   (`_TIE_FIXTURE`), which turns M12 from SURVIVED into KILLED.
+**Criterion-4 cells now run at the PUBLISHED `--cycles 20`, not 4.** The cycle-2
+evaluator showed kill/survive can be cycle-count dependent -- a `w=0.15`
+baseline poison survived at 4 cycles and died at 20 -- so running every cell at
+4 made the matrix a *weaker* oracle than the run whose numbers are published.
 
-**A third defect, found by an accident worth recording.** A 2-minute command
-timeout SIGTERMed the matrix mid-cell and **stranded a mutant on disk** --
-`return moved >= 0  # MUTANT` -- which then failed the very fixture it was
-added to protect. `try/finally` does not run on SIGTERM. The matrix now
-installs SIGTERM/SIGINT/SIGHUP handlers that restore, and **refuses to start**
-if the target already contains a `MUTANT` marker, because a matrix run from a
-poisoned baseline is not a measurement.
+### What the matrix and the evaluators found in this deliverable
+
+Recorded because most of these are the guard-vacuity class, and because two of
+them were found *after* this step had already claimed credit for finding the
+first two.
+
+| # | defect | found by | fix |
+|---|---|---|---|
+| 1 | `slate_is_a_prefix_of_the_full_ranking` compared a variable to its own defining expression | my own matrix (cycle 1) | independent `rank_candidates(top_n=10)` call |
+| 2 | the tie rule survived being weakened to always-true | my own matrix (cycle 1) | paired negative fixture `_TIE_FIXTURE` |
+| 3 | a mutant stranded on disk by a SIGTERM | an accident (cycle 1) | signal handlers + refuse-to-start on a poisoned baseline |
+| 4 | `panel_is_us_only` was a literal `True` | **evaluator, cycle 1** | interrogate the panel, not the query |
+| 5 | `baseline_arm_is_the_unflagged_ranking` was `len(x)==len(set(x))` on a set-derived list | **evaluator, cycle 1** | assert the arm definition + distinguishability |
+| 6 | four more guards died to `EXPR -> always-true` | extending coverage (cycle 2) | named predicates + known-bad fixtures |
+| 7 | a cell list licenses only its own cells | **evaluator, cycle 1** | AST coverage gate; caught a real gap on its first run |
+| 8 | a flag injected into the BASELINE at the replay seam left the definition intact and **flipped min_k's delta from +2.1pp to -2.1pp** | **evaluator, cycle 2** | recompute the baseline slate via a direct unflagged call (cell M20) |
+| 9 | `_PREDICATE_FIXTURE` had no cell and no size assertion -- emptying it left the guard green | **evaluator, cycle 2** | `fixture_exercises_every_predicate_on_rejecting_inputs` (cell M21) |
+| 10 | the §8 evidence block was spliced from two runs | **evaluator, cycle 2** | regenerated verbatim from one run, above |
+
+**All three cycle-2 attacks now KILL, control observed GREEN first at the
+published `--cycles 20`** (min_k delta reproducing at +2.1pp):
+
+```
+=== CONTROL (published --cycles 20) ===
+control GREEN; guards: ['fixture_exercises_every_predicate_on_rejecting_inputs',
+ 'predicates_reject_known_bad_inputs', 'flag_arms_all_ran',
+ 'baseline_arm_applies_no_flags', 'baseline_slate_matches_an_unflagged_direct_call',
+ 'flag_arms_are_distinguishable_from_baseline']
+  min_k delta: +2.1pp
+
+=== ATTACK 1: momentum_52wh_tilt into ONLY the baseline call, 20 cycles ===
+KILLED: INVARIANT FAILED: baseline_slate_matches_an_unflagged_direct_call --
+the baseline slate disagreed with a direct unflagged rank_candidates() call on
+15 of 20 cycles
+
+=== ATTACK 2: soft_sector_diversity w=0.05 into the baseline only, 20 cycles ===
+KILLED: INVARIANT FAILED: baseline_slate_matches_an_unflagged_direct_call --
+... on 20 of 20 cycles
+
+=== ATTACK 3: empty the predicate fixture ===
+KILLED: INVARIANT FAILED: fixture_exercises_every_predicate_on_rejecting_inputs
+```
+
+The criterion-4 path now carries **six** guards, up from two at cycle 1.
 
 ## 9. Data-quality control -- the stored panel is NOT clean
 

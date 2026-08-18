@@ -5,6 +5,12 @@
 | cycle | verdict | run id | recorded |
 |---|---|---|---|
 | 1 | **CONDITIONAL** | `wf_5a3bc88c-4e1` | 2026-08-18T03:08:02Z |
+| 2 | **CONDITIONAL** | `wf_d1d01d57-0f6` | 2026-08-18T03:37:41Z |
+
+**3rd-CONDITIONAL rule is now armed.** Two consecutive CONDITIONALs stand on
+this step id; per CLAUDE.md F1 a third forces the next verdict to FAIL
+regardless of evidence. The next spawn is therefore the last one that can
+return anything else.
 
 ---
 
@@ -150,3 +156,105 @@ against writing another one, and "I already audited for this" is precisely the
 assumption the audit is supposed to replace.
 
 Fixes are listed in the cycle-2 section below.
+
+---
+
+## Cycle 2 -- CONDITIONAL -- `wf_d1d01d57-0f6`
+
+*Transcribed verbatim from the captured Workflow return in the same turn it
+landed.*
+
+**verdict:** `CONDITIONAL` | **ok:** `false` | **certified_fallback:** `false`
+**harness_compliance_ok:** `true` | **research_needed:** `false`
+
+**reason:**
+
+> Every published number reproduces EXACTLY under my own independent re-runs (rho
+> 0.9622/0.9319, turnover 15.8%/day, 3-of-19 zero-turnover sessions, 12 distinct + IT 72.0%
+> with identical counts {20,72,8}, flag arms 15.8/28.4/22.1/17.9 with deltas +12.6/+6.3/+2.1pp,
+> sigmas 10.646/19.850/30.441 and 2.86x now PRINTED by the script, effective shares
+> 22.6/37.0/40.4, multidim 50/10139 = 0.493%, fidelity 80%, dedup 47,880/200,875, 10 split
+> bars); immutable command exit=0 "parses"; derived-scope ruff F821/F401/F811 clean on both
+> the step-commit scope and the working-tree scope; ZERO production files in BOTH step commits
+> (15a817cc and 3e75c2d6, grep exit 1 each); criteria byte-identical across
+> 15a817cc~1/15a817cc/3e75c2d6/HEAD; harness compliance clean (gate PASSED 8 sources/54 URLs,
+> mtime order brief<contract<artifacts, status still pending, no harness_log result row). All
+> four cycle-1 findings are genuinely fixed and I re-verified each by execution: the matrix is
+> 20/20 KILLED with control GREEN FIRST on all three modes and a SHA-256-verified restore, the
+> AST census reports full coverage and I proved it is not vacuous with a positive control,
+> cycle-1's two exact mutations now KILL, and the sigma correction reached masterplan 86.117's
+> audit_basis. Criteria 1/3/5 fully MET; 2 and 6 are degenerately satisfied and honestly
+> flagged BY the author rather than claimed -- and I rule that criterion 2 does NOT require the
+> reweighted term to be built here, because criterion 4 mandates measuring existing flags
+> before new code (all three MOVE the slate), criterion 2's own DSR/PBO demand reads a table
+> this step measured at 38% duplicate keys, and the obligation is carried forward verbatim into
+> 86.117's criteria. THREE residuals cap this at CONDITIONAL. (1) A poisoned BASELINE reference
+> SURVIVES all four criterion-4 guards at the PUBLISHED --cycles 20 setting: with control GREEN
+> first and FLAG_ARMS[0] left byte-identical as ("baseline", {}), injecting momentum_52wh_tilt
+> at the script's own replay_session seam flips min_k_sectors=3's reported delta from +2.1pp to
+> -2.1pp -- a SIGN FLIP on the exact number ASK-1 rests on -- and a w=0.05 variant survives
+> with every turnover delta reading exactly as published while baseline top-sector share
+> silently moves 0.72->0.64. (2) live_check section 8 presents "coverage: 20 guards in target,
+> 20 covered" in the same fenced block as "sha256 unchanged (9282ba866f2afc87...)"; at that
+> exact sha the command prints 21/21 -- a spliced verbatim capture, and the second
+> non-reproducing number in this step. (3) The _PREDICATE_FIXTURE that makes four of the twenty
+> cells meaningful has no cell and no size assertion: emptying it leaves
+> predicates_reject_known_bad_inputs GREEN. The PRODUCT is sound, nothing ships to production,
+> and all three are precisely fixable in a few lines.
+
+**violated_criteria:** `criterion_4_baseline_reference_has_no_behavioural_guard`,
+`criterion_7_evidence_block_does_not_reproduce`, `illusory-guard`
+
+### violation_details (abridged to the action/state/constraint triples)
+
+**1. Unjustified_Inference** -- wrapped `rs.replay_session` so only the baseline
+arm's call acquired `momentum_52wh_tilt=True, k=0.2`; `FLAG_ARMS[0]` left
+byte-identical; `measure_flags(20, 126)`. **SURVIVED** -- all four guards ran and
+none fired. Baseline turnover 15.8%->20.0%, distinct 12->13; reported deltas
+became sector_neutral +8.4pp (published +12.6), soft_diversity +2.1pp (published
++6.3), min_k **-2.1pp (published +2.1pp) -- a SIGN FLIP on the figure ASK-1
+cites**. A `w=0.05` variant also survived at 20 cycles with all three turnover
+deltas reading exactly as published while baseline top-sector share silently
+moved 0.72->0.64. A `w=0.15` variant survived at `--cycles 4` but was killed at
+20, so kill/survive is cycle-count dependent and the matrix ran every cell at 4,
+**making the matrix oracle weaker than the published run's**.
+*Constraint:* `baseline_arm_applies_no_flags` asserts the arm DEFINITION, which
+no downstream injection touches, while its own detail string claims the
+behavioural property. *MITIGATING and measured:* `backend/tools/screener.py`
+contains ZERO `settings.` references, so flags reach `rank_candidates` only as
+explicit caller kwargs -- this is a code-edit risk in the measurement harness,
+**not reachable from an operator promoting ASK-1/ASK-2**.
+
+**2. Contradiction** -- `live_check` §8 claimed "coverage: 20 guards in target,
+20 covered" in the same fenced block as "sha256 unchanged (9282ba866f2afc87...)";
+at that exact sha the command prints **21/21**. A spliced capture. Direction is
+conservative (it understates coverage) and 20 coincides with the CELL count,
+"which is exactly the guards-vs-cells conflation that would mask a real coverage
+gap." Second non-reproducing number in this step.
+
+**3. Missing_Assumption** -- cleared `_PREDICATE_FIXTURE` and called
+`_check_predicate_fixture()`: **SURVIVED**, because a loop over an empty list
+yields `bad == []`. With `_us_only` additionally rebound always-true, fully
+blind. The fixture is the entire cycle-2 remediation mechanism and the
+load-bearing half of 4 of the 20 cells, yet carried no cell and no size
+assertion -- and the AST census structurally cannot see it, because the fixture
+is DATA, not an `_ok(...)` call.
+
+---
+
+## Main's response -- cycle 2 (fixes applied, cycle 3 below)
+
+**All three accepted.** Finding 1 is the one that matters and it is the same
+lesson one level deeper: cycle 1's guard checked a *value*, so I replaced it
+with one that checks the *definition* -- and a definition is still not
+behaviour. The evaluator injected at the seam, left the definition untouched,
+and flipped the sign of the exact number ASK-1 rests on.
+
+The fix stops asserting anything about how the baseline was *configured* and
+instead **recomputes the baseline slate through a direct, unflagged
+`rank_candidates` call** and requires the two to agree. An injection anywhere in
+the replay path makes them diverge.
+
+Finding 2 is the second non-reproducing number in this step, and both were mine.
+The §8 block is now a single verbatim capture; nothing in it is assembled from
+more than one run.

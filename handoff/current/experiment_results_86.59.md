@@ -21,7 +21,7 @@ written*, and criterion 5 forbids promoting a flag. Two new files, both under
 | file | what it is |
 |---|---|
 | `scripts/qa/rank_stability_86_59.py` | the measurement -- drives the REAL `screen_universe` + `rank_candidates` with stored BigQuery prices swapped in for the yfinance network call |
-| `scripts/qa/mutation_86_59.py` | criterion 7 -- **20 cells + an AST coverage gate**, control-green-first, SHA-256-verified restore |
+| `scripts/qa/mutation_86_59.py` | criterion 7 -- **22 cells + an AST coverage gate**, control-green-first, SHA-256-verified restore |
 
 **No production file is modified.** `git show --name-only 15a817cc | grep -E
 '^(backend|frontend)/'` returns nothing; no `.env` write, no flag promotion, no
@@ -96,11 +96,12 @@ production file, so the live candidate list is unchanged by construction, and
 the measurement additionally shows `rank_candidates(top_n=10)` agreeing with a
 slice of the full ranking on every cycle (an independent call, cell M3).
 
-**Criterion 7 -- 20 cells, 20 KILLED, 0 SURVIVED, 0 UNSCORABLE**, control
-GREEN first on all three modes, SHA-256-verified restore, plus an **AST
-coverage gate** that fails the matrix if any `_ok` guard has no cell. Cycle 1
-shipped 14 cells and the evaluator proved two guards unkillable; see the cycle-2
-section.
+**Criterion 7 -- 22 cells, 22 KILLED, 0 SURVIVED, 0 UNSCORABLE**, coverage
+23/23, control GREEN first on all three modes, SHA-256-verified restore, plus an
+**AST coverage gate** that fails the matrix if any `_ok` guard has no cell.
+Criterion-4 cells now run at the published `--cycles 20`. Cycle 1 shipped 14
+cells and the evaluator proved two guards unkillable; cycle 2 shipped 20 and it
+proved a third attack; see the cycle-3 section.
 
 ## Finding (a): the declared weights are not the effective weights
 
@@ -275,3 +276,59 @@ cycle 1's EVALUATE I positive-controlled the "no `drop_duplicates` under
 `drop_duplicates` was detected then removed). Per the freeze-the-tree rule that
 evidence was held rather than edited into a file under evaluation; it is
 recorded here and belongs to **86.116**, which owns that claim.
+
+---
+
+## Cycle 3 -- response to the second CONDITIONAL (`wf_d1d01d57-0f6`)
+
+**All three residuals accepted.** The evaluator confirmed by execution that
+every cycle-1 finding was genuinely fixed, that every published number
+reproduces, and that both step commits contain zero production files -- then
+found three more. Two were mine to have caught.
+
+**1. A definition is not behaviour.** Cycle 1's guard checked a *value*
+(`len(x)==len(set(x))`); I replaced it with one that checks the *definition*
+(`FLAG_ARMS[0] == ("baseline", {})`). The evaluator injected `momentum_52wh_tilt`
+at the `replay_session` seam, left the definition byte-identical, and the run
+stayed green while **min_k's reported delta flipped from +2.1pp to -2.1pp** --
+the exact figure ASK-1 rests on. A `w=0.05` variant was worse: every turnover
+delta read *exactly as published* while the baseline's top-sector share silently
+moved 0.72 -> 0.64.
+
+The fix stops asserting how the baseline was configured. It **recomputes the
+baseline slate through a direct, unflagged `rank_candidates` call that bypasses
+`replay_session` entirely** and requires the two to agree
+(`baseline_slate_matches_an_unflagged_direct_call`, cell M20). An injection
+anywhere in the path -- seam, kwargs, wrapper -- makes them diverge. Both of the
+evaluator's exact attacks now KILL at the published 20 cycles (15/20 and 20/20
+cycles disagreeing), with the control GREEN first and min_k reproducing at
++2.1pp. The criterion-4 path now carries **six** guards, up from two at cycle 1.
+
+I am recording the evaluator's own mitigation rather than only its finding:
+`backend/tools/screener.py` contains **zero** `settings.` references, so flags
+reach `rank_candidates` only as explicit caller kwargs. This was a code-edit
+risk in the measurement harness, **not** something reachable by an operator
+promoting ASK-1 or ASK-2.
+
+**2. The §8 evidence block was spliced from two runs.** It carried a coverage
+line reading 20/20 beside a sha line from a later run at which the command
+prints 21/21. That is the **second non-reproducing number in this step, and both
+were mine** -- the first was the sigma triple. §8 is now a single verbatim
+capture from one execution, and it says so at the top of the block.
+
+**3. The fixture that backs four cells had no cell of its own.** Emptying
+`_PREDICATE_FIXTURE` left `predicates_reject_known_bad_inputs` green, because a
+loop over an empty list finds nothing wrong -- and the AST census structurally
+could not see it, since the fixture is *data*, not an `_ok(...)` call. Added
+`fixture_exercises_every_predicate_on_rejecting_inputs`, which requires every
+predicate to appear with a minimum number of **rejecting** cases, plus cell M21.
+
+**4. The matrix was a weaker oracle than the published run.** Every cell ran at
+`--cycles 4` while the headline numbers come from `--cycles 20`, and the
+evaluator showed kill/survive is cycle-count dependent (a `w=0.15` poison
+survived at 4 and died at 20). Criterion-4 cells now run at 20.
+
+**Attempt state.** This is the third Q/A spawn on 86.59. Two CONDITIONALs stand,
+so per CLAUDE.md F1 a third would force FAIL regardless of evidence. That is
+stated as fact, not as an argument for leniency -- if residuals remain, FAIL is
+the correct outcome and the step should park rather than iterate.

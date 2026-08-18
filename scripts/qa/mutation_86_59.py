@@ -167,6 +167,24 @@ CELLS: list[tuple[str, list[str], str, str, str]] = [
         "price_only_multidim_arm_ran",
     ),
     (
+        "M20 a flag injected into the BASELINE reference at the replay seam "
+        "(definition left byte-identical) -> every delta reads against a "
+        "flagged baseline",
+        ["--flags"],
+        "        _sd, base = replay_session(df, tickers, sess, sector_lookup=sectors)",
+        "        _sd, base = replay_session(df, tickers, sess, sector_lookup=sectors,\n"
+        "                                   momentum_52wh_tilt=True,\n"
+        "                                   momentum_52wh_tilt_k=0.2)  # MUTANT",
+        "baseline_slate_matches_an_unflagged_direct_call",
+    ),
+    (
+        "M21 predicate fixture emptied -> the four predicate-backed guards go blind",
+        ["--verify"],
+        "_PREDICATE_FIXTURE: list[tuple[str, bool]] = [",
+        "_PREDICATE_FIXTURE: list[tuple[str, bool]] = []\n_UNUSED_FIXTURE = [  # MUTANT",
+        "fixture_exercises_every_predicate_on_rejecting_inputs",
+    ),
+    (
         "M13 flag arm silently produces no turnover series",
         ["--flags"],
         "        turns = [one_sided_turnover(slates[i - 1], slates[i])\n"
@@ -261,9 +279,21 @@ def sha(p: Path) -> str:
     return hashlib.sha256(p.read_bytes()).hexdigest()
 
 
+# Cycle counts per mode. The cycle-2 Q/A found that kill/survive can be
+# CYCLE-COUNT DEPENDENT (a w=0.15 baseline poison survived at 4 cycles and was
+# killed at 20), so running every cell at 4 made the matrix a WEAKER oracle than
+# the published run. Criterion-4 cells now run at the published 20.
+MODE_CYCLES: dict[str, str] = {
+    "--flags": "20",
+    "--dispersion": "4",
+    "--verify": "4",
+}
+
+
 def run(mode: list[str]) -> tuple[int, str]:
+    cycles = MODE_CYCLES.get(mode[0], "4")
     r = subprocess.run(
-        [sys.executable, str(TARGET), *mode, "--cycles", "4"],
+        [sys.executable, str(TARGET), *mode, "--cycles", cycles],
         capture_output=True, text=True, cwd=str(REPO),
     )
     return r.returncode, (r.stdout + r.stderr)
