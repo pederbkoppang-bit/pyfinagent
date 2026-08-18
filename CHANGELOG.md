@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-18 | `5dd79342` | phase-86.118: cycle-4 FAIL recorded; the section-7 capture was SPLICED and is regenerated |
 | 2026-08-18 | `77546b68` | phase-86.118: cycle-3 CONDITIONAL recorded; three defects in my own correction fixed |
 | 2026-08-18 | `b22b4dbe` | phase-86.118: cycle-2 FAIL recorded; my criterion-5 answer was wrong and is REPLACED |
 | 2026-08-18 | `2e0728ae` | phase-86.118: cycle-1 CONDITIONAL recorded; criteria 2 and 5 discharged by measurement |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-18 | `01c52563` | chore: trim goal file back under the 4000-char limit |
 | 2026-08-18 | `58ee7ede` | chore: goal file -- restart DONE, and record the .env write authority |
 | 2026-08-18 | `4f0fc00c` | chore: operator-authorised backend restart + file 86.119 (pytest-randomly absent) |
-| 2026-08-18 | `064f5396` | phase-86.116: PARK on the 3rd-CONDITIONAL rule -- and a FALSE restart claim, corrected |
 
 ---
 
