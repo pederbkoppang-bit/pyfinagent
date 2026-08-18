@@ -36327,3 +36327,40 @@ four BUY trades executed with a REJECT verdict on record (2026-06-02 HPE,
 asserted, nothing changed.
 
 Escalation: `handoff/current/escalation_attempt_budget_86.47.md`.
+
+## Cycle 1251 -- 2026-08-18 -- phase=86.59 result=PARKED (3rd-CONDITIONAL rule)
+
+Sequence `[CONDITIONAL, CONDITIONAL, CONDITIONAL]` (`wf_5a3bc88c-4e1`,
+`wf_d1d01d57-0f6`, `wf_2cc6808c-bea`). Attempts 3 of 5 -- **the budget was not
+the constraint**; CLAUDE.md F1 forces the next verdict to FAIL, so a fourth
+spawn could not return PASS and the step parked rather than iterating.
+
+**Unlike 86.108 and 86.110, this step did NOT park with every criterion met.**
+All three CONDITIONALs found real, blocking, reproducible defects I had shipped,
+and every one was the SAME class one seam further out: a value check, then a
+definition check, then a behavioural check on the WRONG VARIABLE, then an
+overclaim about what the check covered. `delta = arm - baseline`, and I guarded
+the baseline that feeds one arm instead of the row every delta is subtracted
+from -- two structurally identical call sites, one guarded. The evaluator
+flipped min_k's reported delta from +2.1pp to -2.1pp while the min_k arm was
+provably unchanged.
+
+**The blocker IS fixed and is UNEVALUATED.** Oracle computed once per cycle
+before the arms loop; both unflagged slates must match it (cell M22). Both exact
+injections now KILL at the published 20 cycles, control green, disk untouched.
+Matrix 23/23, coverage 24/24.
+
+**The measurement survives the park, and three evaluators independently
+re-derived every number in it.** rho 0.9622 with 15.8% daily turnover -- highly
+persistent but NOT frozen, partially refuting the step's own premise; the live
+system analysed 18 distinct tickers over the same 20 sessions, not 8. All three
+existing dark flags MOVE the slate (min_k=3: IT 72%->60% for +2.1pp), so the
+diversity mitigation is built and switched off -- four operator asks recorded.
+
+**Filed rather than absorbed:** 86.116 (P1 -- 38.0% of historical_prices rows
+are duplicate (ticker,date) keys, nothing under backend/ de-duplicates them,
+harm is positional) and 86.117 (declared 40/35/25 measures as 22.6/37.0/40.4),
+the latter BLOCKED-BY the former.
+
+Nothing shipped: zero production files across all four step commits. Escalation:
+`handoff/current/escalation_86.59_third_conditional.md`.

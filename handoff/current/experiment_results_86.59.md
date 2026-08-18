@@ -21,7 +21,7 @@ written*, and criterion 5 forbids promoting a flag. Two new files, both under
 | file | what it is |
 |---|---|
 | `scripts/qa/rank_stability_86_59.py` | the measurement -- drives the REAL `screen_universe` + `rank_candidates` with stored BigQuery prices swapped in for the yfinance network call |
-| `scripts/qa/mutation_86_59.py` | criterion 7 -- **22 cells + an AST coverage gate**, control-green-first, SHA-256-verified restore |
+| `scripts/qa/mutation_86_59.py` | criterion 7 -- **23 cells + an AST coverage gate**, control-green-first, SHA-256-verified restore |
 
 **No production file is modified.** `git show --name-only 15a817cc | grep -E
 '^(backend|frontend)/'` returns nothing; no `.env` write, no flag promotion, no
@@ -96,8 +96,8 @@ production file, so the live candidate list is unchanged by construction, and
 the measurement additionally shows `rank_candidates(top_n=10)` agreeing with a
 slice of the full ranking on every cycle (an independent call, cell M3).
 
-**Criterion 7 -- 22 cells, 22 KILLED, 0 SURVIVED, 0 UNSCORABLE**, coverage
-23/23, control GREEN first on all three modes, SHA-256-verified restore, plus an
+**Criterion 7 -- 23 cells, 23 KILLED, 0 SURVIVED, 0 UNSCORABLE**, coverage
+24/24, control GREEN first on all three modes, SHA-256-verified restore, plus an
 **AST coverage gate** that fails the matrix if any `_ok` guard has no cell.
 Criterion-4 cells now run at the published `--cycles 20`. Cycle 1 shipped 14
 cells and the evaluator proved two guards unkillable; cycle 2 shipped 20 and it
@@ -335,3 +335,53 @@ CONDITIONALs, so this verdict is still free -- a fourth would not be. An earlier
 revision of this line said a third was already forced; that was a misreading of
 the rule and is corrected here rather than quietly deleted. If residuals remain,
 FAIL is the right outcome and the step should park rather than iterate.
+
+---
+
+## DEVIATION FROM THE CONTRACT'S PLAN -- disclosed, not papered over
+
+The cycle-3 evaluator raised this as a NOTE and it is correct. `contract_86.59.md`
+commits to **P3** (standardise cross-sectionally behind a new default-OFF flag),
+**P4** (criterion-2 DSR/PBO on that change) and **P6** (parity with the new flag
+OFF). **None of the three was built.**
+
+Saying "the criteria describe a measurement" is true of the *criteria* and steps
+over the *plan*. The plan was abandoned for a measured reason -- P4's DSR/PBO
+reads `historical_prices`, which this step measured at 38% duplicate keys, so
+any gate number would have been one I could not stand behind -- and the work was
+filed as **86.117 BLOCKED-BY 86.116** rather than absorbed. But an abandoned
+plan is a deviation whether or not the reason is good, and it belonged here from
+cycle 1.
+
+## Cycle 4 -- the fix, and the decision to PARK
+
+**The residual was real and is fixed.** `delta = arm - baseline`, and I had
+guarded the wrong baseline. `measure_flags` calls `replay_session` at **two
+structurally identical sites**: inside the `FLAG_ARMS` loop (producing
+`arms["baseline"]`, the row every delta is subtracted from) and again below
+(producing `base`, which feeds only the min_k arm). Cycle 3 guarded the second.
+Injecting at the first survived all six guards and flipped min_k's delta from
++2.1pp to **-2.1pp** *while the min_k arm was provably unchanged*.
+
+The oracle is now computed **once per cycle, before the arms loop**, and both
+unflagged slates must equal it. Both of the evaluator's exact injections now
+KILL at the published `--cycles 20`, control GREEN first and reproducing
+15.8%/12 with min_k at +2.1pp, disk md5 unchanged. Matrix **23/23**, coverage
+**24/24**, new cell M22. The false claim -- *"an injection anywhere in the replay
+path makes these diverge"* -- is narrowed in the code comment and both artifacts.
+
+**Four appearances of one lesson, in one step.** A value check, a definition
+check, a behavioural check on the wrong variable, and an overclaim about what
+the check covered. Recorded plainly because the pattern, not any one instance,
+is the finding.
+
+**PARKED, not re-spawned.** The sequence is `[CONDITIONAL, CONDITIONAL,
+CONDITIONAL]`, so CLAUDE.md F1 forces the next verdict to FAIL regardless of
+evidence. A fourth spawn cannot return PASS, so spending one would buy a verdict
+the rule has already determined. Escalation:
+`escalation_86.59_third_conditional.md`.
+
+**Nothing shipped.** Zero production files across all four step commits; two
+scripts under `scripts/qa/`. No `.env`, no flag promoted, no gate loosened, no
+restart pending. The measurement stands and every number in it has now been
+independently re-derived by three separate evaluators.

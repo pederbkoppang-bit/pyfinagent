@@ -178,6 +178,20 @@ CELLS: list[tuple[str, list[str], str, str, str]] = [
         "baseline_slate_matches_an_unflagged_direct_call",
     ),
     (
+        "M22 a flag injected at the ARMS LOOP -> the baseline ROW every delta "
+        "is subtracted from is poisoned while each arm looks unchanged",
+        ["--flags"],
+        "            _sd, ranked = replay_session(\n"
+        "                df, tickers, sess, sector_lookup=sectors, **kw\n"
+        "            )",
+        "            _sd, ranked = replay_session(\n"
+        "                df, tickers, sess, sector_lookup=sectors,\n"
+        "                **({**kw, 'momentum_52wh_tilt': True,\n"
+        "                   'momentum_52wh_tilt_k': 0.2} if not kw else kw)\n"
+        "            )  # MUTANT",
+        "baseline_ROW_matches_an_unflagged_direct_call",
+    ),
+    (
         "M21 predicate fixture emptied -> the four predicate-backed guards go blind",
         ["--verify"],
         "_PREDICATE_FIXTURE: list[tuple[str, bool]] = [",
@@ -230,6 +244,8 @@ COVERED_TRANSITIVELY: dict[str, str] = {
         "covered via the _dedup_fired predicate fixture -- cell M18",
     "flag_arms_are_distinguishable_from_baseline":
         "covered via the _arms_distinguishable predicate fixture -- cell M15",
+    "baseline_slate_matches_an_unflagged_direct_call":
+        "the min_k reference; cell M20 injects at that call site",
     # These are per-cycle f-string guards; the cells target the literal prefix.
     "window_len_": "cell M4 (f-string guard, matched by prefix)",
     "full_rank_covers_cross_section_": "cell M2 (f-string guard)",

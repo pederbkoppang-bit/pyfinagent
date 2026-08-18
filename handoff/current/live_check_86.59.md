@@ -206,13 +206,13 @@ another; the evaluator caught it, and it was the second non-reproducing number
 in this step. Nothing here is assembled from more than one execution.
 
 ```
-sha256 : be0565ff3c9615da...
+sha256 : 16164dcb7e04f039...
 control --verify       -> rc=0 GREEN
 control --dispersion   -> rc=0 GREEN
 control --flags        -> rc=0 GREEN
-coverage: 23 guards in target, 23 covered by a cell or an explicit transitive entry
-KILLED 22 / 22   SURVIVED 0   UNSCORABLE 0
-restore verified: sha256 unchanged (be0565ff3c9615da...)
+coverage: 24 guards in target, 24 covered by a cell or an explicit transitive entry
+KILLED 23 / 23   SURVIVED 0   UNSCORABLE 0
+restore verified: sha256 unchanged (16164dcb7e04f039...)
 ```
 
 Control observed GREEN on all three modes **first**; a non-zero exit alone is
@@ -248,7 +248,7 @@ first two.
 | 9 | `_PREDICATE_FIXTURE` had no cell and no size assertion -- emptying it left the guard green | **evaluator, cycle 2** | `fixture_exercises_every_predicate_on_rejecting_inputs` (cell M21) |
 | 10 | the §8 evidence block was spliced from two runs | **evaluator, cycle 2** | regenerated verbatim from one run, above |
 
-**All three cycle-2 attacks now KILL, control observed GREEN first at the
+**All cycle-2 AND cycle-3 attacks now KILL, control observed GREEN first at the
 published `--cycles 20`** (min_k delta reproducing at +2.1pp):
 
 ```
@@ -272,7 +272,35 @@ KILLED: INVARIANT FAILED: baseline_slate_matches_an_unflagged_direct_call --
 KILLED: INVARIANT FAILED: fixture_exercises_every_predicate_on_rejecting_inputs
 ```
 
-The criterion-4 path now carries **six** guards, up from two at cycle 1.
+```
+=== CONTROL (null mutant, published --cycles 20) ===
+GREEN. baseline 15.8%/12  min_k delta +2.1pp
+
+=== ATTACK A: momentum_52wh_tilt k=0.2 at the ARMS LOOP ===
+KILLED: INVARIANT FAILED: baseline_ROW_matches_an_unflagged_direct_call
+
+=== ATTACK B: soft_sector_diversity w=0.05 at the ARMS LOOP ===
+KILLED: INVARIANT FAILED: baseline_ROW_matches_an_unflagged_direct_call
+
+=== disk untouched ===
+md5 same: True
+```
+
+The criterion-4 path now carries **seven** guards, up from two at cycle 1.
+
+**A claim of mine that was FALSE and is now narrowed.** Cycle 3 shipped, in a
+code comment *and* in both artifacts: *"An injection anywhere in the replay path
+-- at the seam, in the kwargs, in a wrapper -- makes these diverge."* That was
+not true. `baseline_slate_matches_an_unflagged_direct_call` compares the `base`
+variable only, which feeds the **min_k arm**; the baseline **row** that every
+delta is subtracted from came from a structurally identical sibling call in the
+`FLAG_ARMS` loop, and injecting there survived all six guards. The comment now
+states its scope narrowly, and the sibling call has its own guard
+(`baseline_ROW_matches_an_unflagged_direct_call`, cell M22).
+
+**Two structurally identical call sites, one guarded, is not guarded.** That is
+the fourth appearance of one lesson in this step: a value check, then a
+definition check, then a behavioural check on the wrong variable.
 
 ## 9. Data-quality control -- the stored panel is NOT clean
 

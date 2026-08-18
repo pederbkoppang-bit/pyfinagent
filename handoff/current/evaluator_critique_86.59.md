@@ -6,11 +6,13 @@
 |---|---|---|---|
 | 1 | **CONDITIONAL** | `wf_5a3bc88c-4e1` | 2026-08-18T03:08:02Z |
 | 2 | **CONDITIONAL** | `wf_d1d01d57-0f6` | 2026-08-18T03:37:41Z |
+| 3 | **CONDITIONAL** | `wf_2cc6808c-bea` | 2026-08-18T04:08:16Z |
 
-**3rd-CONDITIONAL rule status.** Two consecutive CONDITIONALs stand on this
-step id. CLAUDE.md F1 forces FAIL on the pass *following* **three** consecutive
-CONDITIONALs, so cycle 3's verdict is still unconstrained; a fourth would not
-be.
+**3rd-CONDITIONAL rule is now BINDING.** Three consecutive CONDITIONALs stand.
+Per CLAUDE.md F1 the next Q/A pass **must return FAIL regardless of evidence**.
+The step is therefore **PARKED** rather than re-spawned: a fourth attempt cannot
+produce a PASS, so spending one would burn tokens to obtain a verdict the rule
+has already determined. See `escalation_86.59_third_conditional.md`.
 
 ---
 
@@ -258,3 +260,86 @@ the replay path makes them diverge.
 Finding 2 is the second non-reproducing number in this step, and both were mine.
 The §8 block is now a single verbatim capture; nothing in it is assembled from
 more than one run.
+
+---
+
+## Cycle 3 -- CONDITIONAL -- `wf_2cc6808c-bea`
+
+*Transcribed verbatim from the captured Workflow return in the same turn it
+landed.*
+
+**verdict:** `CONDITIONAL` | **ok:** `false` | **certified_fallback:** `false`
+
+**reason (abridged to the load-bearing half; the confirmatory half is in the
+run record):**
+
+> Every published number reproduces EXACTLY under my own independent re-runs [...]
+> Mutation matrix reproduced end to end: control GREEN FIRST on all three modes, coverage 23
+> guards/23 covered, KILLED 22/22, SURVIVED 0, UNSCORABLE 0, restore sha256 unchanged
+> be0565ff3c9615da -- which also matches the sha in live_check section 8, so the
+> previously-spliced block is genuinely one capture now. [...] ZERO production files across ALL
+> FOUR step commits (15a817cc, 3e75c2d6, fb6f8a67, a4a5765c -- I checked all four, not the two
+> the artifact cites) [...] Harness compliance 5/5 [...] Cycle-2 findings 2 and 3 are genuinely
+> closed and I verified both by execution. ONE BLOCKING RESIDUAL, and it is the same class a
+> third time, one seam over. delta = arm - baseline. The cycle-3 fix guards the `base` call at
+> measure_flags():806, which feeds ONLY the min_k_sectors=3 ARM. The row every delta is
+> subtracted FROM -- arms["baseline"], produced by a separate, structurally identical
+> replay_session(...) inside `for name, kw in FLAG_ARMS` at :799-802 -- has no behavioural
+> guard at all. With the CONTROL observed GREEN first and reproducing the published table to
+> the digit, adding momentum_52wh_tilt=True,k=0.2 to that one line SURVIVES all six criterion-4
+> guards while baseline goes 15.8%/12/IT 72% -> 20.0%/13/IT 70%, sector_neutral 28.4% -> 46.3%
+> with its top sector changing Industrials->Financials, and min_k's delta FLIPS +2.1pp ->
+> -2.1pp (the exact figure ASK-1 rests on) even though the min_k arm itself is provably
+> unchanged. A w=0.05 variant also SURVIVES with every turnover delta reading EXACTLY as
+> published while the baseline's top-sector share moves 0.72->0.64 -- verbatim the variant the
+> cycle-3 narrative says was closed. Both were applied in memory only; the file on disk was
+> never written and md5 is identical pre/post. Consequently the claim at
+> rank_stability_86_59.py:816-818 and in live_check section 8 -- "An injection anywhere in the
+> replay path -- at the seam, in the kwargs, in a wrapper -- makes these diverge" -- is FALSE.
+> No criterion is missed and nothing ships to production, and the fix is a few lines [...]
+
+**violated_criteria:** `criterion_4_baseline_ROW_has_no_behavioural_guard`,
+`illusory-guard`, `guard_coverage_claim_exceeds_the_guard`
+
+**violation 1 -- Missing_Assumption (BLOCKING).** In-memory mutant, disk never
+written, null-mutant CONTROL first and reproducing the published table exactly.
+Injected at `:799-802`, left `:806` and `FLAG_ARMS[0]` byte-identical.
+**SURVIVED** -- all six guards ran, none fired. min_k's delta flipped +2.1pp ->
+-2.1pp *while the min_k arm itself was provably unchanged*; soft_diversity's
+delta dropped +6.3pp -> +3.2pp (ASK-2's figure). *Constraint:* "Two structurally
+identical call sites; one guarded."
+
+**violation 2 -- Overgeneralization (BLOCKING).** The shipped claim "An
+injection anywhere in the replay path ... makes these diverge" is false; both
+injections are at the replay seam and neither diverges. *"A guard licenses only
+the variable it compares -- not the path it is described as covering."*
+
+**violation 3 -- Unjustified_Inference (NOTE).** The contract commits to P3
+(build the standardisation behind a default-OFF flag), P4 (DSR/PBO on it) and P6
+(parity with it OFF). None was built. The reason is sound and recorded, "but it
+steps over the CONTRACT's own plan, and the contract was never reconciled."
+
+---
+
+## Main's response -- cycle 3
+
+**All three accepted; the first is the one that matters and it is my error four
+times over.** The lesson arrived as: a *value* check (cycle 1), then a
+*definition* check (cycle 2), then a *behavioural* check **on the wrong
+variable** (cycle 3). Each fix moved the seam instead of closing the class. The
+evaluator's phrasing is the right summary and I am keeping it: *two structurally
+identical call sites; one guarded.*
+
+**Fixed anyway, though the step is parking.** The oracle is now computed once
+per cycle *before* the arms loop, and **both** unflagged slates -- the baseline
+ROW and the min_k reference -- are required to equal it
+(`baseline_ROW_matches_an_unflagged_direct_call`, cell M22). Both of the
+evaluator's exact injections now KILL at the published `--cycles 20`, control
+green and reproducing 15.8%/12 with min_k at +2.1pp, disk untouched. Matrix
+23/23, coverage 24/24. The false coverage claim is narrowed in the code comment
+and in both artifacts.
+
+**Violation 3 is reconciled** in `experiment_results_86.59.md` rather than left
+implicit: the contract's P3/P4/P6 were abandoned, for a measured reason, and
+that is now stated as a **deviation** instead of being papered over by "the
+criteria describe a measurement".

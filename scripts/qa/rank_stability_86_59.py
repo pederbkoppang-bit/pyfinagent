@@ -792,30 +792,16 @@ def measure_flags(n_cycles: int, window: int) -> dict:
     arms: dict[str, list[list[str]]] = {name: [] for name, _ in FLAG_ARMS}
     arms["min_k_sectors=3"] = []
     baseline_agrees: list[bool] = []
+    baseline_row_agrees: list[bool] = []
 
     for d in replay_dates:
         i = all_sessions.index(d)
         sess = all_sessions[i - window + 1: i + 1]
-        for name, kw in FLAG_ARMS:
-            _sd, ranked = replay_session(
-                df, tickers, sess, sector_lookup=sectors, **kw
-            )
-            arms[name].append([c["ticker"] for c in ranked[:ANALYZE_TOP_N]])
-        # min-K operates on the ALREADY-RANKED candidate list, downstream of
-        # the picker -- so it is fed the baseline ranking, exactly as live.
-        _sd, base = replay_session(df, tickers, sess, sector_lookup=sectors)
 
-        # BEHAVIOURAL baseline check. `baseline_arm_applies_no_flags` asserts
-        # the arm DEFINITION, and the cycle-2 Q/A showed that is not enough: it
-        # wrapped `replay_session` so only the baseline call acquired
-        # `momentum_52wh_tilt`, left FLAG_ARMS[0] byte-identical, and the run
-        # stayed green while min_k's reported delta FLIPPED SIGN (+2.1pp ->
-        # -2.1pp) -- the exact figure ASK-1 rests on.
-        #
-        # So the baseline slate is recomputed here through a DIRECT
-        # `rank_candidates` call that bypasses `replay_session` entirely, and
-        # the two must agree. An injection anywhere in the replay path -- at the
-        # seam, in the kwargs, in a wrapper -- makes these diverge.
+        # THE ORACLE, computed FIRST and independently of everything below: a
+        # direct unflagged rank_candidates call that does not go through
+        # replay_session at all. Every unflagged slate this function produces
+        # must equal it.
         import backend.tools.screener as _screener
 
         _frame = build_yf_frame(df, tickers, sess)
@@ -828,9 +814,41 @@ def measure_flags(n_cycles: int, window: int) -> dict:
             _direct = _screener.rank_candidates(_sd_direct, top_n=SCREEN_TOP_N)
         finally:
             _screener.yf.download = _real
+        _direct_tk = [c["ticker"] for c in _direct]
+
+        for name, kw in FLAG_ARMS:
+            _sd, ranked = replay_session(
+                df, tickers, sess, sector_lookup=sectors, **kw
+            )
+            arms[name].append([c["ticker"] for c in ranked[:ANALYZE_TOP_N]])
+            # THE ROW EVERY DELTA IS SUBTRACTED FROM. `delta = arm - baseline`,
+            # so a poisoned baseline moves every reported delta while each arm
+            # stays provably unchanged. Cycle 3 guarded the `base` variable
+            # below -- which feeds only the min_k arm -- and left THIS call, a
+            # structurally identical sibling, unguarded. The cycle-3 Q/A
+            # injected here and min_k's delta flipped +2.1pp -> -2.1pp again.
+            # Two identical call sites; one guarded is not guarded.
+            if name == "baseline":
+                baseline_row_agrees.append(
+                    arms[name][-1] == _direct_tk[:ANALYZE_TOP_N])
+
+        # min-K operates on the ALREADY-RANKED candidate list, downstream of
+        # the picker -- so it is fed the baseline ranking, exactly as live.
+        _sd, base = replay_session(df, tickers, sess, sector_lookup=sectors)
+
+        # BEHAVIOURAL check on the min_k reference. Asserting the arm
+        # DEFINITION (`baseline_arm_applies_no_flags`) is not enough: cycle 2
+        # wrapped `replay_session` so only this call acquired
+        # `momentum_52wh_tilt`, left FLAG_ARMS[0] byte-identical, and the run
+        # stayed green.
+        #
+        # SCOPE OF THIS GUARD, stated narrowly because an earlier revision
+        # overclaimed it: it compares the `base` variable only. It does NOT
+        # cover the arms loop above -- that is what `baseline_row_agrees`
+        # covers -- and it does not cover a flag reaching rank_candidates by
+        # some route neither call passes.
         baseline_agrees.append(
-            [c["ticker"] for c in base[:SCREEN_TOP_N]]
-            == [c["ticker"] for c in _direct]
+            [c["ticker"] for c in base[:SCREEN_TOP_N]] == _direct_tk
         )
         picked = _min_k_sector_slice(base, ANALYZE_TOP_N, 3)
         arms["min_k_sectors=3"].append([c["ticker"] for c in picked])
@@ -872,6 +890,15 @@ def measure_flags(n_cycles: int, window: int) -> dict:
     # And the deltas must not be silently degenerate: if an arm's slate history
     # is identical to baseline's, its delta is zero by construction and the
     # table would report 'no effect' for a flag that was never actually varied.
+    _ok("baseline_ROW_matches_an_unflagged_direct_call",
+        all(baseline_row_agrees) and len(baseline_row_agrees) == len(replay_dates),
+        f"the BASELINE ARM's slate -- the row every delta in this table is "
+        f"subtracted from -- disagreed with a direct unflagged "
+        f"rank_candidates() call on "
+        f"{sum(1 for x in baseline_row_agrees if not x)} of "
+        f"{len(baseline_row_agrees)} cycles. Every reported delta is then "
+        f"measured against a flagged reference, and each ARM can look "
+        f"perfectly unchanged while its delta moves or flips sign")
     _ok("baseline_slate_matches_an_unflagged_direct_call",
         all(baseline_agrees) and len(baseline_agrees) == len(replay_dates),
         f"the baseline slate disagreed with a direct unflagged "
