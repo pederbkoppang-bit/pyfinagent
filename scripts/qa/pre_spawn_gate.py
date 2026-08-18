@@ -1,0 +1,289 @@
+#!/usr/bin/env python3
+"""Refuse to spawn a Q/A until the KNOWN defect classes are swept clean.
+
+WHY THIS EXISTS -- measured, not assumed
+----------------------------------------
+Over 134 verdicts on 30 steps in `handoff/verdict_ledger.jsonl`: mean **4.47
+cycles per step**, max 12, and only 3 of 30 closed in one cycle. The verdict mix
+is 75 CONDITIONAL / 26 FAIL / 18 PASS / 15 NO_VERDICT.
+
+What those cycles were spent on, counted over the ledger notes:
+
+    12  stale / contradictory artifact
+     7  guard cannot fail (vacuous)
+     6  wrong mechanism / unproven claim
+     6  coverage gap (no cell, unmapped)
+     0  PRODUCT defect in the shipped code
+
+Exactly **3 of 134** rows mention a product defect at all, and all three say
+"zero product defects".
+
+**So the evaluator is not the problem -- it is right nearly every time, and it
+is finding real defects.** The loop is structural: the Q/A reports an INSTANCE,
+Main fixes that INSTANCE, and the next cycle surfaces another instance of the
+SAME CLASS. With N instances in the evidence and one surfaced per cycle, closing
+a step costs N cycles.
+
+Two observations from step 86.59 and 86.118 make the mechanism concrete: 86.59
+spent five consecutive cycles on five vacuous guards, each fix relocating the
+seam rather than closing the class; 86.118 carried five stale-claim instances
+across four cycles, and every hand-repair fixed the named one and missed a
+sibling. Against that, `guardlib.census` listed ALL 21 uncelled guards in 86.116
+in a single command -- the difference between enumerating a class and waiting to
+be told about it one member at a time.
+
+WHAT THIS DOES, AND WHAT IT DELIBERATELY DOES NOT
+--------------------------------------------------
+It sweeps the classes above over a step's own evidence and REFUSES the spawn
+while any is dirty, so the Q/A meets evidence that is already class-clean and
+can spend its cycle on something NOVEL -- which is what an independent evaluator
+is for.
+
+**It does not touch the evaluator.** No criterion is relaxed, `qa.md` is
+unmodified, no threshold moves, and nothing here can turn a FAIL into a PASS --
+it runs BEFORE the spawn and its only power is to withhold one. A gate that
+could admit work the Q/A refused would be the opposite of this.
+
+Every check is a `guardlib.Guards.ok()` call, so none could be written without a
+known-bad fixture it re-proves it rejects on each run: this file cannot ship the
+very defect it exists to catch.
+
+    python scripts/qa/pre_spawn_gate.py 86.118
+    python scripts/qa/pre_spawn_gate.py 86.116 --strict-census
+"""
+
+from __future__ import annotations
+
+import argparse
+import ast
+import re
+import sys
+from pathlib import Path
+
+REPO = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+from guardlib import Guards, GuardFailed, VacuousGuard, census  # noqa: E402
+
+CURRENT = REPO / "handoff" / "current"
+
+
+# ---------------------------------------------------------------------------
+# discovery -- DERIVED from the step id, never a typed file list
+# ---------------------------------------------------------------------------
+
+
+def step_artifacts(sid: str) -> dict[str, Path]:
+    """The five-file protocol artifacts for a step, by convention."""
+    return {
+        name: CURRENT / f"{name}_{sid}.md"
+        for name in ("contract", "experiment_results", "live_check",
+                     "evaluator_critique")
+    }
+
+
+def step_scripts(sid: str) -> dict[str, list[Path]]:
+    """Scripts belonging to this step, found by the `_<sid>` suffix convention.
+
+    Derived by glob rather than listed, so a script added later is swept without
+    anyone remembering to add it here.
+    """
+    tag = sid.replace(".", "_")
+    matrices, others = [], []
+    for p in sorted((REPO / "scripts" / "qa").glob(f"*{tag}*.py")):
+        (matrices if "mutation" in p.name else others).append(p)
+    return {"matrices": matrices, "evidence": others}
+
+
+# ---------------------------------------------------------------------------
+# the class sweeps
+# ---------------------------------------------------------------------------
+
+
+def capture_blocks(text: str) -> list[dict]:
+    """Every fenced block that looks like a MutationMatrix run."""
+    out = []
+    for m in re.finditer(r"```(.*?)```", text, re.S):
+        body = m.group(1)
+        # guardlib emits `control <label> rc=N collected=N`, one per TARGET,
+        # and one restore line per target -- so restores == controls holds.
+        # Bespoke matrices predating guardlib (86.59) print one control per
+        # MODE against a single target, where 3 controls / 1 restore is
+        # CORRECT. `collected=` is the discriminator, taken from the emitting
+        # code rather than guessed, so the invariant is only applied where the
+        # tool actually guarantees it.
+        controls = re.findall(r"^control\s+\S+.*rc=\d+.*collected=", body, re.M)
+        restores = re.findall(r"^restore verified: \S+", body, re.M)
+        summary = re.search(r"KILLED (\d+) / (\d+)\s+SURVIVED (\d+)\s+UNSCORABLE (\d+)", body)
+        if controls or restores or summary:
+            out.append({
+                "controls": len(controls),
+                "restores": len(restores),
+                "killed": int(summary.group(1)) if summary else -1,
+                "scored": int(summary.group(2)) if summary else -1,
+                "survived": int(summary.group(3)) if summary else -1,
+                "unscorable": int(summary.group(4)) if summary else -1,
+            })
+    return out
+
+
+def constant_truth_guards(path: Path) -> list[str]:
+    """`_ok("name", True, ...)` and friends -- a guard with a literal verdict.
+
+    This is the cheapest member of the vacuity class and the one that recurred
+    most: 86.59 shipped `_ok("panel_is_us_only", True, ...)`. An AST walk finds
+    it with no false positives, because it looks for a literal, not a pattern in
+    the text.
+    """
+    try:
+        tree = ast.parse(path.read_text())
+    except (OSError, SyntaxError):
+        return []
+    bad = []
+    for node in ast.walk(tree):
+        if not (isinstance(node, ast.Call)
+                and getattr(node.func, "id", None) in {"_ok", "ok", "guard"}
+                and len(node.args) >= 2):
+            continue
+        cond = node.args[1]
+        # ONLY a truthy literal is vacuous. `_ok(name, False, ...)` inside an
+        # `if missing:` branch is a deliberate fail-with-message idiom -- it can
+        # only ever FAIL, so it cannot be the "guard that cannot fail" defect.
+        # Flagging it made this gate refuse verify_86_116.py, which is correct
+        # code; a checker that flags a correct line trains its reader to ignore
+        # it, which is worse than not checking.
+        if isinstance(cond, ast.Constant) and bool(cond.value):
+            name = node.args[0].value if isinstance(node.args[0], ast.Constant) else "?"
+            bad.append(f"{path.name}:{node.lineno} {name!r} asserts the literal {cond.value!r}")
+    return bad
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser()
+    ap.add_argument("step_id")
+    ap.add_argument("--strict-census", action="store_true",
+                    help="also require every _ok() guard to be named by a cell")
+    a = ap.parse_args()
+    sid = a.step_id
+
+    arts = step_artifacts(sid)
+    scripts = step_scripts(sid)
+    present = {k: p for k, p in arts.items() if p.is_file()}
+    text = "\n".join(p.read_text() for p in present.values())
+
+    g = Guards(label=f"pre-spawn gate {sid}")
+    problems: list[str] = []
+
+    # ---- C1: the protocol artifacts exist -------------------------------
+    g.ok(
+        "step_has_its_evidence_artifacts",
+        lambda d: len(d) >= 2,
+        present,
+        falsified_by={},
+        detail=f"found {sorted(present)} for {sid}; a Q/A cannot grade evidence "
+               f"that is not on disk",
+    )
+
+    # ---- C2: SPLICE DETECTOR --------------------------------------------
+    # MutationMatrix prints exactly one `restore verified:` line per target,
+    # unconditionally, so any block whose restore count differs from its control
+    # count was EDITED rather than regenerated. This is the check that would
+    # have caught 86.118's spliced capture at the moment it was written: two
+    # lines were hand-edited into a 7-target block when an 8th target was added,
+    # leaving the only cell covering a previously-FAILED criterion with no
+    # restore evidence. The numbers typed in were correct; the evidence was not.
+    blocks = [b for b in capture_blocks(text) if b["controls"] and b["restores"]]
+    g.ok(
+        "no_capture_block_is_spliced",
+        lambda bs: all(b["restores"] == b["controls"] for b in bs),
+        blocks,
+        falsified_by=[{"controls": 8, "restores": 7}],
+        detail="a capture block reports a different number of restores than "
+               "controls, so it was edited rather than regenerated -- "
+               "guardlib emits one restore line per target on every run",
+    )
+    # POSITIVE CONTROL, but only where it is meaningful. A step whose matrix
+    # predates guardlib emits no `collected=` blocks at all, and refusing it for
+    # that would be refusing it for using an older tool -- not for a defect. The
+    # absence is REPORTED either way so it is never silent.
+    if blocks:
+        g.ok(
+            "splice_check_had_something_to_check",
+            lambda bs: len(bs) > 0,
+            blocks,
+            falsified_by=[],
+            detail="the splice check would have passed over nothing",
+        )
+    else:
+        problems.append(
+            "NOTE: no guardlib-shaped capture block found, so the splice check "
+            "was vacuous here. That is expected for a step whose matrix predates "
+            "guardlib; it is stated rather than reported as clean."
+        )
+
+    # ---- C3: the matrix the artifact reports is actually clean -----------
+    scored = [b for b in capture_blocks(text) if b["scored"] >= 0]
+    g.ok(
+        "reported_matrix_has_no_survivor_or_unscorable_cell",
+        lambda bs: all(b["survived"] == 0 and b["unscorable"] == 0 for b in bs),
+        scored,
+        falsified_by_each=[
+            [{"survived": 1, "unscorable": 0}],
+            [{"survived": 0, "unscorable": 1}],
+        ],
+        detail="the artifact reports a SURVIVED or UNSCORABLE cell; a survivor "
+               "is a guard shown not to fire and an unscorable cell is one that "
+               "was never really scored",
+    )
+
+    # ---- C4: no guard asserts a literal ---------------------------------
+    literals: list[str] = []
+    for p in scripts["evidence"] + scripts["matrices"]:
+        literals.extend(constant_truth_guards(p))
+    g.ok(
+        "no_guard_asserts_a_literal_constant",
+        lambda ls: not ls,
+        literals,
+        falsified_by=["fake.py:1 'panel_is_us_only' asserts the literal True"],
+        detail="a guard whose condition is a literal cannot fail on any input "
+               "-- this exact shape shipped in 86.59 and cost a cycle",
+    )
+
+    # ---- C5: every guard has a mutation cell (opt-in) --------------------
+    if a.strict_census and scripts["evidence"] and scripts["matrices"]:
+        res = census(scripts["evidence"], scripts["matrices"],
+                     callees=("_ok", "ok", "guard"))
+        g.ok(
+            "every_guard_is_named_by_a_mutation_cell",
+            lambda r: not r.uncelled and not r.dynamic_names,
+            res,
+            falsified_by=type(res)(uncelled=["x (registered at f.py:1)"]),
+            detail=f"{len(res.uncelled)} guard(s) have no cell: "
+                   f"{res.uncelled[:6]}",
+        )
+
+    print(g.summary())
+    print()
+    print(f"  artifacts        : {sorted(present)}")
+    print(f"  evidence scripts : {[p.name for p in scripts['evidence']]}")
+    print(f"  matrix scripts   : {[p.name for p in scripts['matrices']]}")
+    print(f"  capture blocks   : {blocks}")
+    for note in problems:
+        print(f"  {note}")
+    print()
+    print("PRE-SPAWN GATE: CLEAN -- the known classes are swept; a Q/A cycle "
+          "spent now can only find something NOVEL.")
+    return 0
+
+
+if __name__ == "__main__":
+    try:
+        raise SystemExit(main())
+    except (GuardFailed, VacuousGuard) as exc:
+        print()
+        print("PRE-SPAWN GATE: REFUSED")
+        print(f"  {exc}")
+        print()
+        print("Fix this and re-run. The gate withholds a spawn; it can never "
+              "admit work a Q/A refused, and it changes no criterion.")
+        raise SystemExit(1) from None
