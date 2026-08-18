@@ -325,7 +325,11 @@ CLASSIFICATION: dict[tuple[str, str], dict] = {
         # edit -- deriving once mid-change left them stale a second time, which
         # is the failure this table's docstring warns about:
         # "file:line claims rot. Re-derive rather than trusting the table."
-        "line": 658,
+        # phase-86.116 moved it again, 658 -> 700, by inserting the
+        # `_dedupe_index` helper above `preload_prices`. Re-derived from source
+        # via `so._row_key_reads(ast.parse(...))`, NOT by adding the diff's line
+        # count -- the comment above records what arithmetic cost last time.
+        "line": 700,
         "why": (
             "`str(r.get(\"report_date\", \"\")) <= cutoff_date` -- an EXPLICIT str() "
             "coercion followed by a lexical comparison against an ISO-8601 cutoff. "
@@ -343,7 +347,11 @@ CLASSIFICATION: dict[tuple[str, str], dict] = {
         # the `apply_embargo` docstring above it. This read is in `cached_macro`
         # and its SEMANTICS are untouched -- the embargo applies to fundamentals
         # only. Re-derived from source by script, never by arithmetic.
-        "line": 718,
+        # phase-86.116: shifted 718 -> 760 by the `_dedupe_index` helper. Again
+        # SEMANTICS-NEUTRAL: de-duplication runs on the PRICES frames, and this
+        # read is in `cached_macro`, which the fix does not touch. Re-derived
+        # from source by the same script.
+        "line": 760,
         "why": (
             "`str(entry[\"date\"]) > cutoff_date` -- same explicit-str() + lexical-ISO "
             "pattern on historical_prices.date (declared STRING). Note this is the "

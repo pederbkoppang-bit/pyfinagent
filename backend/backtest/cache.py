@@ -206,6 +206,43 @@ def clear_cache():
 
 # ── Bulk Preloaders ──────────────────────────────────────────────────
 
+# phase-86.116: de-duplicate price frames ON READ, keyed on the INDEX.
+#
+# `financial_reports.historical_prices` carries duplicate (ticker, date) rows --
+# re-measured 2026-08-18 at 706,875 duplicated keys of 1,152,607 (61.33% of
+# keys; 706,875 excess rows = 38.01% of the table), across 336 of 513 tickers,
+# concentrated in 2017-2025 (~63%/yr) and essentially absent in 2026 (0.1%).
+# Nothing under backend/ de-duplicated them, so every POSITIONAL lookback in the
+# backtest stack silently spanned about half the sessions it named.
+#
+# WHY `~index.duplicated()` AND NOT `drop_duplicates()`: pandas ignores the
+# index in `DataFrame.drop_duplicates` ("Indexes, including time indexes are
+# ignored"), so it compares VALUES. 394,719 duplicated keys carry a differing
+# `close`, and for those the value-keyed call keeps BOTH rows. Measured on AVB
+# 2026 through this very loader: `drop_duplicates()` returned 159 rows for 155
+# distinct dates -- four duplicate dates left behind -- while the index-keyed
+# form returned exactly 155. It happens to suffice only where the duplicate rows
+# are byte-identical (AKAM 2025), which is not something a reader can rely on.
+#
+# `keep="first"` after `sort_index()` is deterministic. The rows differ by float
+# noise (p50 and p99 gap both 0.0%, max 0.93%), so the choice is immaterial --
+# measured, not assumed.
+def _dedupe_index(df: "pd.DataFrame", ticker: str = "") -> "pd.DataFrame":
+    """Drop duplicate INDEX entries, logging how many were removed."""
+    if df is None or df.empty or df.index.is_unique:
+        return df
+    before = len(df)
+    out = df[~df.index.duplicated(keep="first")]
+    logger.warning(
+        "phase-86.116: dropped %d duplicate price row(s) for %s "
+        "(%d -> %d); positional lookbacks would otherwise span ~%.0f%% of "
+        "the sessions they name",
+        before - len(out), ticker or "<ticker>", before, len(out),
+        100.0 * len(out) / before,
+    )
+    return out
+
+
 def preload_prices(tickers: list[str], start_date: str, end_date: str, market: str = _DEFAULT_MARKET) -> int:
     """Bulk-load all price data for tickers in a single BQ query.
 
@@ -252,8 +289,10 @@ def preload_prices(tickers: list[str], start_date: str, end_date: str, market: s
     total_rows = len(df)
 
     for ticker, group in df.groupby("ticker"):
-        _prices_full[str(ticker)] = (
-            group.drop(columns=["ticker"]).set_index("date").sort_index()
+        # phase-86.116: de-duplicate on read, keyed on the index.
+        _prices_full[str(ticker)] = _dedupe_index(
+            group.drop(columns=["ticker"]).set_index("date").sort_index(),
+            str(ticker),
         )
 
     logger.info(
@@ -592,7 +631,10 @@ def cached_prices(ticker: str, start_date: str, end_date: str) -> pd.DataFrame:
     if rows:
         df = pd.DataFrame([dict(r) for r in rows])
         df["date"] = pd.to_datetime(df["date"])
-        df = df.set_index("date").sort_index()
+        # phase-86.116: same de-duplication as preload_prices. Both read paths
+        # need it -- guarding one of two structurally identical call sites is
+        # not guarding, which is the lesson step 86.59 paid three cycles for.
+        df = _dedupe_index(df.set_index("date").sort_index(), ticker)
     else:
         df = pd.DataFrame(columns=["open", "high", "low", "close", "volume"])
 
