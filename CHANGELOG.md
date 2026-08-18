@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-18 | `3e75c2d6` | phase-86.59 cycle 2: close the CONDITIONAL -- guard vacuity, all four findings |
 | 2026-08-18 | `15a817cc` | phase-86.59: measure the picker rank stability; file 86.116 + 86.117 |
 | 2026-08-18 | `bb572f1f` | phase-86.47: PARK -- attempt budget exhausted 5/5, two-gates correction unevaluated |
 | 2026-08-18 | `45404c70` | chore: next-session goal -- 86.109 closed, 86.108 and 86.110 parked on the 3rd-CONDITIONAL rule |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-17 | `3315546c` | phase-86.28: ledger backfilled from the critique's own table; closing re-capture at 124 |
 | 2026-08-17 | `4bac49ff` | phase-86.78: consequence blinding -- PASS on cycle 7, the last budgeted attempt |
 | 2026-08-17 | `0ccb75b0` | phase-86.79: the attempt-counter gauge semantics -- PASS on cycle 6 |
-| 2026-08-17 | `1a2e0504` | phase-86.78: cycle 7 -- the locator class closed by a DRIVEN Object.keys assertion |
 
 ---
 
