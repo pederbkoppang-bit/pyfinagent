@@ -160,8 +160,12 @@ def _log_paths() -> dict[str, Path]:
         # These surface the .env exit-127 errors (line 24 ALPHAVANTAGE_API_KEY
         # for autoresearch, line 56 ANTHROPIC_API_KEY for ablation).
         "autoresearch_launchd":  _REPO_ROOT / "handoff" / "autoresearch.launchd.log",
-        "ablation":              _REPO_ROOT / "handoff" / "ablation.log",
-        "ablation_launchd":      _REPO_ROOT / "handoff" / "ablation.launchd.log",
+        # phase-91.18: ablation is a DIFFERENT writer than autoresearch/mas-harness
+        # above -- run_ablation.sh:14 and the plist's StandardOutPath both write
+        # under handoff/logs/, not repo-root handoff/. The 23.3.5 comment's
+        # "repo-root, not handoff/logs/" convention was never true for ablation.
+        "ablation":              _REPO_ROOT / "handoff" / "logs" / "ablation.log",
+        "ablation_launchd":      _REPO_ROOT / "handoff" / "logs" / "ablation.launchd.log",
     }
 
 

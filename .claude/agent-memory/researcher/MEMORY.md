@@ -1,5 +1,7 @@
 # Researcher Agent Memory Index
 
+- [Phase-tag in UI 91.9](project_phase_tag_in_ui_91_9.md) — naive grep over-reports ~20:1 (60 raw -> 1 real); a "grep returns zero" criterion is unsatisfiable (57 hits are REQUIRED provenance comments); OWASP assigns NO severity here
+
 - [Glow emphasis 91.13](project_glow_emphasis_91_13.md) — `.alpha-score-glow` is named after DEAD code (0 render sites); both live sites are 1-of-N UNIFORM rows; 1 of 5 infinite animations is motion-guarded
 - [Tooltip contrast 91.22](project_tooltip_contrast_91_22.md) — `contentStyle.color` is a NO-OP for item rows (3 sites already bet on it); the LABEL is not the bug; 6 of 16 files bypass the default so an itemStyle fix is vacuous there
 - [launchd log paths 91.18](project_launchd_log_paths_91_18.md) — StandardOutPath resolves vs RootDirectory NOT WorkingDirectory; 4/10 `_log_paths()` targets missing; a 0-byte launchd log is often CORRECT
