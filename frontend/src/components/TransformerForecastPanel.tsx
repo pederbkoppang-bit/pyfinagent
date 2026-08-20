@@ -12,6 +12,7 @@
 import { BentoCard } from "@/components/BentoCard";
 import type { TransformerForecastResponse } from "@/lib/types";
 import { Warning, LineSegments } from "@/lib/icons";
+import { CHART_TOOLTIP_ITEM_STYLE } from "@/lib/chart-tooltip-style";
 import {
   Line,
   XAxis,
@@ -116,11 +117,11 @@ export function TransformerForecastPanel({ data }: TransformerForecastPanelProps
               />
               <YAxis tick={{ fill: "#64748b", fontSize: 11 }} />
               <Tooltip
+                itemStyle={CHART_TOOLTIP_ITEM_STYLE}
                 contentStyle={{
                   backgroundColor: "#0f172a",
                   border: "1px solid #1e293b",
                   borderRadius: 8,
-                  color: "#e2e8f0",
                 }}
               />
               <Legend wrapperStyle={{ color: "#94a3b8", fontSize: 11 }} />

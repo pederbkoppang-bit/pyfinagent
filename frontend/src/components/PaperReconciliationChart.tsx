@@ -13,6 +13,7 @@ import {
 
 import { IconWarning } from "@/lib/icons";
 import type { PaperReconciliation } from "@/lib/types";
+import { CHART_TOOLTIP_ITEM_STYLE } from "@/lib/chart-tooltip-style";
 
 interface Props {
   reconciliation: PaperReconciliation | null;
@@ -142,6 +143,7 @@ export function PaperReconciliationChart({
               tickFormatter={(v: number) => `${v.toFixed(1)}%`}
             />
             <Tooltip
+              itemStyle={CHART_TOOLTIP_ITEM_STYLE}
               contentStyle={{
                 backgroundColor: "#0f172a",
                 border: "1px solid #334155",

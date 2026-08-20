@@ -16,6 +16,7 @@ import {
   CartesianGrid,
 } from "recharts";
 import { ArrowClockwise } from "@/lib/icons";
+import { CHART_TOOLTIP_ITEM_STYLE } from "@/lib/chart-tooltip-style";
 
 // ── Section 1: Training Data Scope ──────────────────────────────
 
@@ -155,6 +156,7 @@ function SlicePlotsSection({
                     width={32}
                   />
                   <Tooltip
+                    itemStyle={CHART_TOOLTIP_ITEM_STYLE}
                     contentStyle={{ background: "#0f172a", border: "1px solid #334155", borderRadius: 8, fontSize: 11 }}
                     formatter={(val: number, name: string) => [
                       name === "x" ? (isInt ? Math.round(val) : val.toFixed(4)) : val.toFixed(4),
@@ -231,6 +233,7 @@ function ParamImportanceSection({ experiments, paramBounds }: {
           <XAxis type="number" tick={{ fontSize: 10, fill: "#64748b" }} />
           <YAxis type="category" dataKey="param" tick={{ fontSize: 10, fill: "#94a3b8" }} width={140} />
           <Tooltip
+            itemStyle={CHART_TOOLTIP_ITEM_STYLE}
             contentStyle={{ background: "#0f172a", border: "1px solid #334155", borderRadius: 8, fontSize: 12 }}
             formatter={(val: number) => [val.toFixed(4), "Importance"]}
           />

@@ -16,6 +16,7 @@ import {
 import { BentoCard } from "./BentoCard";
 import { IconChart } from "@/lib/icons";
 import { getChartData, type ChartPricePoint } from "@/lib/api";
+import { CHART_TOOLTIP_ITEM_STYLE } from "@/lib/chart-tooltip-style";
 
 type OHLCVRow = ChartPricePoint;
 
@@ -225,6 +226,7 @@ export function StockChart({ ticker, currentPrice, analysisDate }: StockChartPro
                 hide
               />
               <Tooltip
+                itemStyle={CHART_TOOLTIP_ITEM_STYLE}
                 contentStyle={{
                   background: "#0f172a",
                   border: "1px solid #334155",
@@ -312,6 +314,7 @@ export function StockChart({ ticker, currentPrice, analysisDate }: StockChartPro
                   <ReferenceLine y={70} stroke="#ef4444" strokeDasharray="3 3" />
                   <ReferenceLine y={30} stroke="#22c55e" strokeDasharray="3 3" />
                   <Tooltip
+                    itemStyle={CHART_TOOLTIP_ITEM_STYLE}
                     contentStyle={{
                       background: "#0f172a",
                       border: "1px solid #334155",

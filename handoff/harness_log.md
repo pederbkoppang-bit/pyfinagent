@@ -36879,3 +36879,88 @@ records); CLAUDE.md's false "attempt_budget.py is NOT YET WIRED / 86.71 pending"
 Research gates PASSED for **90.2** (`wf_05a76fdf-b16`) and **90.9** (`wf_a963cdc4-7d4`,
 after a first attempt correctly FAILED enforcement for over-claiming URLs), contracts
 written for both.
+
+## Cycle 195 -- 2026-08-20 -- phase=91.22 result=PASS
+
+Recharts chart tooltips illegible across 16 files / 21 `<Tooltip>` instances (0 set
+`itemStyle`, defaulting to the library's `#000` item-row color -- 1.18:1 on this app's dark
+tooltip background, vs the WCAG 2.2 AA floor of 4.5:1). Research (gate_passed=true, 7
+sources) corrected the scope upward from the 7 originally-named files to the true 16, and
+found 3 files had already tried the wrong fix (`contentStyle.color`, a no-op for item rows).
+
+Fix: one shared constant (`frontend/src/lib/chart-tooltip-style.ts::CHART_TOOLTIP_ITEM_STYLE`,
+`#e2e8f0`, 14.48:1/11.87:1 on both tooltip backgrounds in use) applied to all 15
+default-content Tooltip instances across 10 files; the 3 dead `contentStyle.color` no-ops
+removed. 6 custom-`content` files explicitly out of scope (itemStyle inert there), queued as
+a follow-up.
+
+Q/A independently re-derived the population via its own grep (16/21, matching), ran a
+BEHAVIOURAL mutation matrix against the installed recharts 2.15.4 via `react-dom/server`
+(itemStyle removed -> defect reproduces; itemStyle set -> fixed; itemStyle beats a series
+color), pixel-measured all 3 live captures (brightest tooltip pixel exactly `#e2e8f0` at
+14.48:1 in all three), and recomputed every quantified contrast claim. **PASS, 0 violated
+criteria.** Full verdict transcribed verbatim in `evaluator_critique_91.22.md`.
+
+Filed 2026-08-20 from an operator screenshot during a live-app walkthrough; part of a
+23-step batch originally accreted onto phase-86, re-homed to a dedicated phase-91 the same
+day after the operator flagged the same "just adding to 86.xxx" pattern that produced the
+86.18 phase-85->86 split.
+
+## Cycle 196 -- 2026-08-20 -- phase=91.13 result=PASS
+
+Report-detail Cost & Token Usage panel's Total Cost stat box carried a stray `glow` prop
+(`<BentoCard glow>`) that its 3 siblings didn't get. Research (gate_passed=true, 7 sources)
+confirmed a uniform KPI row should not carry per-card decorative motion (external consensus:
+emphasis belongs in position/size/contrast, not animation) and separately found the glow's
+CSS class (`.alpha-score-glow`) is unguarded by `prefers-reduced-motion`, a WCAG 2.2 SC 2.2.2
+gap affecting 4 infinite animations project-wide -- queued as a follow-up, not folded in.
+
+Fix: removed the `glow` prop, 1 line (`CostDashboard.tsx:85`).
+
+Cycle 1 verdict: CONDITIONAL, capped solely on a missing `live_check_91.13.md` artifact --
+both criteria were already independently confirmed MET via a 6-cell mutation matrix and a
+pixel-level measurement of the shipped capture (all 4 boxes RGB-identical). Fixed:
+`live_check_91.13.md` authored, no code change needed.
+
+Cycle 2: **PASS, 0 violated criteria.** Q/A re-derived the fix independently, ran a LIVE
+positive control (a real glowing card elsewhere in the app) to calibrate its pixel oracle
+before trusting it on the no-glow capture, and cross-checked capture provenance against the
+Playwright server's own artifacts (not just Main's word). Full verdict transcribed verbatim
+in `evaluator_critique_91.13.md`.
+
+Filed 2026-08-20 from the same operator screenshot batch as 91.22 (formerly 86.139, renumbered
+during the phase-86 -> phase-91 split).
+
+## Cycle 197 -- 2026-08-20 -- phase=91.9 result=PASS
+
+Internal phase-tracking label "(phase-25.C7)" leaked into the Data Freshness page's
+user-facing subtitle. Research (gate_passed=true, 7 sources) found a naive fix would
+over-report ~20:1 against a naive grep, confirmed the one real rendered leak, and flagged a
+recommendation Main initially missed: relocate the tag's provenance into a JSX comment
+rather than deleting it outright (Mozilla doctrine + standing project guidance on provenance).
+
+Cycle 1 (CONDITIONAL): both criteria independently confirmed MET; capped on 3 non-criterion
+gaps -- a missing `live_check_91.9.md`, the dropped relocate-don't-delete recommendation, and
+a contract claim ("confirmed correctly scoped") the step's own GENERATE had already falsified
+without correcting it in place.
+
+Cycle 2 (CONDITIONAL): all 3 cycle-1 gaps genuinely fixed (not just disclosed) -- the fix
+itself changed to relocate the tag into a `{/* phase-91.9: ... */}` JSX comment matching the
+file's own idiom; capped instead on a NEW, narrower gap: **Main had never written
+`evaluator_critique_91.9.md` at all**, a real process omission the harness protocol requires.
+Plus two prose inaccuracies (a wrong line citation, a wrong comment-syntax description).
+
+Cycle 3: **PASS, 0 violated criteria.** All gaps closed; Q/A independently re-derived every
+claim, ran a positive-controlled mutation matrix, took its own live capture, and confirmed
+behaviorally (via compiled output inspection) that the relocated provenance comment is
+compile-time stripped and never reaches the DOM. Full verdict history (all 3 cycles)
+transcribed verbatim in `evaluator_critique_91.9.md`.
+
+**Process note for this session:** cycles 1-2 exposed that Main was fixing Q/A's findings
+without completing the five-file protocol's own EVALUATE artifact -- `evaluator_critique_*.md`
+was never being written after a verdict returned. Corrected for 91.9, 91.13, and 91.22 in this
+same session; the doctrine (transcribe every verdict, every cycle, verbatim, before moving on)
+is now being followed going forward.
+
+Filed 2026-08-20 from an operator screenshot during a live-app walkthrough (formerly 86.135,
+renumbered during the phase-86 -> phase-91 split).

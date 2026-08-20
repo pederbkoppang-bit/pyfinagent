@@ -20,6 +20,7 @@ import {
 } from "recharts";
 import { usePaperTradingData } from "@/lib/paper-trading-context";
 import { useLivePortfolio } from "@/lib/live-portfolio-context";
+import { CHART_TOOLTIP_ITEM_STYLE } from "@/lib/chart-tooltip-style";
 
 export default function NavChartPage() {
   const { snapshots } = usePaperTradingData();
@@ -87,6 +88,7 @@ export default function NavChartPage() {
               tickFormatter={(v: number) => `${v.toFixed(1)}%`}
             />
             <Tooltip
+              itemStyle={CHART_TOOLTIP_ITEM_STYLE}
               contentStyle={{
                 backgroundColor: "#0f172a",
                 border: "1px solid #334155",

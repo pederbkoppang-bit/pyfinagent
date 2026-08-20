@@ -27466,7 +27466,7 @@
         {
           "id": "91.9",
           "name": "internal phase-tracking label \"(phase-25.C7)\" leaks into user-facing Data Freshness page copy",
-          "status": "pending",
+          "status": "done",
           "priority": "P2",
           "harness_required": true,
           "audit_basis": "SURFACED 2026-08-20 from an operator screenshot showing the Data Freshness section subtitle 'Per-table age + SLA bands across the warehouse (phase-25.C7)'. Confirmed via full grep of frontend/src for the pattern 'phase-[0-9]': ~150 hits, exactly ONE is genuine rendered JSX text -- frontend/src/app/observability/page.tsx:115, <p className=\"text-sm text-slate-500\">Per-table age + SLA bands across the warehouse (phase-25.C7)</p> -- everything else is a code comment, JSDoc, or a test-file describe() string, invisible to users. No other page has a rendered phase-tag; the operator's 'several pages' most likely refers to seeing 'phase-' in devtools/source rather than multiple live UI surfaces.",
@@ -27540,7 +27540,7 @@
         {
           "id": "91.13",
           "name": "the report-detail Cost & Token Usage panel's Total Cost stat box has a stray glow/highlight CSS class applied that its three sibling boxes don't get, an inconsistent one-off rather than a deliberate design choice",
-          "status": "pending",
+          "status": "done",
           "priority": "P2",
           "harness_required": true,
           "audit_basis": "SURFACED 2026-08-20 from an operator screenshot of the Cost & Token Usage panel showing the Total Cost box with a distinct glowing blue border/background that Total Tokens/LLM Calls/Deep Think Calls don't have. Confirmed: frontend/src/components/CostDashboard.tsx:85 renders <BentoCard glow> for Total Cost; lines 91/97/103 render plain <BentoCard> (no glow) for the other three -- hardcoded, not threshold-conditional. `glow` maps to `alpha-score-glow` (BentoCard.tsx:19), a pulse-glow sky-blue box-shadow animation (globals.css:60-68) named/designed for highlighting an 'Alpha Score' hero metric elsewhere in the app -- semantically wrong for a uniform 4-box KPI row.",
@@ -27705,7 +27705,7 @@
         {
           "id": "91.22",
           "name": "Recharts chart tooltips are illegible across at least 9 components -- itemStyle is never set, so the value/series row defaults to Recharts' built-in black text on the project's dark navy tooltip background",
-          "status": "pending",
+          "status": "done",
           "priority": "P2",
           "harness_required": true,
           "audit_basis": "SURFACED 2026-08-20 from an operator screenshot of the Sector Rotation chart (Signals page, Sector deep-dive): hovering a bar shows a tooltip where the category label ('Healthcare') is clearly readable but the value row ('Return : 16.9%') is barely visible. Root cause confirmed at frontend/src/components/SectorDashboard.tsx:121-129 -- the <Tooltip> sets contentStyle (dark #0f172a background) and labelStyle (color: #e2e8f0, readable) but never sets itemStyle. Recharts' documented default itemStyle is {color:'#000', ...} -- black text on a near-black background is the exact defect shown. Confirmed this is NOT isolated: grepped every Recharts <Tooltip> usage in frontend/src/components/*.tsx (SectorDashboard, OptimizerInsights x2, PaperReconciliationChart, TransformerForecastPanel, RedLineMonitor, StrategyDetail, StockChart x2) -- zero of them set itemStyle, and there is no global CSS override targeting .recharts-tooltip-item in frontend/src/app/globals.css to compensate. This violates the project's own documented contrast rule (.claude/rules/frontend.md 'Dark-mode + readability', WCAG 2.2 AAA targets) and affects essentially every dark-themed chart tooltip in the app, not just the one captured.",

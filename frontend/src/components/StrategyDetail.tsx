@@ -17,6 +17,7 @@
 
 import { BentoCard } from "@/components/BentoCard";
 import { TrendUp, ListBullets, ShieldCheck } from "@/lib/icons";
+import { CHART_TOOLTIP_ITEM_STYLE } from "@/lib/chart-tooltip-style";
 import {
   Area,
   AreaChart,
@@ -81,11 +82,11 @@ export function StrategyDetail({
                   <XAxis dataKey="date" tick={{ fill: "#64748b", fontSize: 11 }} />
                   <YAxis tick={{ fill: "#64748b", fontSize: 11 }} />
                   <Tooltip
+                    itemStyle={CHART_TOOLTIP_ITEM_STYLE}
                     contentStyle={{
                       backgroundColor: "#0f172a",
                       border: "1px solid #1e293b",
                       borderRadius: 8,
-                      color: "#e2e8f0",
                     }}
                   />
                   <Area

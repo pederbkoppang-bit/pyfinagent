@@ -462,7 +462,7 @@ export default function HomePage() {
           </div>
 
           {/* Operator instruction (2026-08-14): the 3 cards below were sized
-              by content (phase-44.6 items-start), which reads as uneven at
+              by content (phase 44.6, items-start), which reads as uneven at
               narrow/stacked widths since grid item-stretch only equalizes
               siblings within the same row -- with grid-cols-1 each card is
               its own row, so items-start/items-stretch has no effect below

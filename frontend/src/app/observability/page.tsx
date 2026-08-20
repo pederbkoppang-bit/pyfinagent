@@ -111,8 +111,15 @@ export default function ObservabilityPage() {
           <div className="mb-6 flex items-center justify-between">
             <div>
               <h2 className="text-2xl font-bold text-slate-100">Data Freshness</h2>
+              {/* phase-91.9: the "(phase-25.C7)" build-provenance tag that used to sit
+                  in this subtitle leaked an internal dev label into user-facing copy
+                  (operator report, 2026-08-20). Per Mozilla's l10n doctrine, author
+                  context attaches to the string rather than being discarded -- so the
+                  tag is relocated here, matching this file's own :9-12 idiom, instead
+                  of being deleted outright. This page was originally built in
+                  phase-25.C7 (Unified /api/observability/data-freshness endpoint). */}
               <p className="text-sm text-slate-500">
-                Per-table age + SLA bands across the warehouse (phase-25.C7)
+                Per-table age + SLA bands across the warehouse
               </p>
             </div>
             <div className="flex items-center gap-3">

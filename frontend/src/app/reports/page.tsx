@@ -30,6 +30,7 @@ import { reportsColumns, buildTickerHistory } from "@/components/reports-columns
 import { useURLState } from "@/lib/hooks";
 import { listReports, getReport, getChartData } from "@/lib/api";
 import type { ReportSummary, SynthesisReport } from "@/lib/types";
+import { CHART_TOOLTIP_ITEM_STYLE } from "@/lib/chart-tooltip-style";
 import {
   IconChart, IconStar, IconScoringMatrix, IconWarning,
 } from "@/lib/icons";
@@ -461,6 +462,7 @@ function ReportsContent() {
                         <XAxis dataKey="date" tick={{ fontSize: 10, fill: "#64748b" }} interval="preserveStartEnd" tickCount={10} />
                         <YAxis tick={{ fontSize: 10, fill: "#64748b" }} tickFormatter={(v: number) => `${v > 0 ? "+" : ""}${v.toFixed(0)}%`} />
                         <Tooltip
+                          itemStyle={CHART_TOOLTIP_ITEM_STYLE}
                           contentStyle={{ background: "#0f172a", border: "1px solid #334155", borderRadius: 8, fontSize: 12 }}
                           formatter={(val: number, name: string) => [`${val > 0 ? "+" : ""}${val.toFixed(2)}%`, name]}
                         />
@@ -484,6 +486,7 @@ function ReportsContent() {
                         <XAxis type="number" domain={[0, 10]} tick={{ fontSize: 11, fill: "#64748b" }} />
                         <YAxis type="category" dataKey="ticker" tick={{ fontSize: 13, fill: "#e2e8f0", fontFamily: "monospace", fontWeight: 700 }} width={70} />
                         <Tooltip
+                          itemStyle={CHART_TOOLTIP_ITEM_STYLE}
                           contentStyle={{ background: "#0f172a", border: "1px solid #334155", borderRadius: 8, fontSize: 12 }}
                           formatter={(val: number) => [val.toFixed(2), "Score"]}
                         />

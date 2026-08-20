@@ -14,6 +14,7 @@
 
 import { BentoCard } from "@/components/BentoCard";
 import { TrendDown, TrendUp } from "@/lib/icons";
+import { CHART_TOOLTIP_ITEM_STYLE } from "@/lib/chart-tooltip-style";
 import {
   CartesianGrid,
   ComposedChart,
@@ -188,11 +189,11 @@ export function RedLineMonitor({
             <XAxis dataKey="date" tick={{ fill: "#64748b", fontSize: 11 }} />
             <YAxis tick={{ fill: "#64748b", fontSize: 11 }} domain={["auto", "auto"]} />
             <Tooltip
+              itemStyle={CHART_TOOLTIP_ITEM_STYLE}
               contentStyle={{
                 backgroundColor: "#0f172a",
                 border: "1px solid #1e293b",
                 borderRadius: 8,
-                color: "#e2e8f0",
               }}
               formatter={(value: number, name: string, item: { payload?: RedLinePoint }) => {
                 const isLive = item?.payload?.source === "live_now";

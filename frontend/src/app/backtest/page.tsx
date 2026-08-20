@@ -72,6 +72,7 @@ import { mapExperimentsToCandidates } from "@/components/AutoresearchLeaderboard
 import { SharpeHistoryChart } from "@/components/SharpeHistoryChart";
 import { HarnessDashboard } from "@/components/HarnessDashboard";
 import { BudgetDashboard } from "@/components/BudgetDashboard";
+import { CHART_TOOLTIP_ITEM_STYLE } from "@/lib/chart-tooltip-style";
 // OptimizerInsightsView removed — consolidated into Overview tab
 import type { Icon } from "@/lib/icons";
 
@@ -959,6 +960,7 @@ export default function BacktestPage() {
                         <XAxis dataKey="name" tick={{ fill: "#94a3b8", fontSize: 11 }} />
                         <YAxis tick={{ fill: "#94a3b8", fontSize: 11 }} />
                         <Tooltip
+                          itemStyle={CHART_TOOLTIP_ITEM_STYLE}
                           contentStyle={{ backgroundColor: "#1e293b", border: "1px solid #334155", borderRadius: "8px" }}
                           labelStyle={{ color: "#e2e8f0" }}
                         />
@@ -1373,6 +1375,7 @@ export default function BacktestPage() {
                         tickFormatter={(v: number) => `$${(v / 1000).toFixed(0)}k`}
                       />
                       <Tooltip
+                        itemStyle={CHART_TOOLTIP_ITEM_STYLE}
                         contentStyle={{
                           background: "#0f172a",
                           border: "1px solid #334155",
@@ -1412,6 +1415,7 @@ export default function BacktestPage() {
                         width={160}
                       />
                       <Tooltip
+                        itemStyle={CHART_TOOLTIP_ITEM_STYLE}
                         contentStyle={{
                           background: "#0f172a",
                           border: "1px solid #334155",
@@ -1512,7 +1516,7 @@ export default function BacktestPage() {
 
                 {/* phase-4.7.4: Autoresearch Leaderboard -- DSR/PBO/P&L.
                     pbo is passed through from the backend; when the
-                    optimizer ships per-candidate PBO (phase-8.5) the
+                    optimizer ships per-candidate PBO (phase 8.5) the
                     leaderboard starts rendering real values without a
                     frontend change. */}
                 <AutoresearchLeaderboard

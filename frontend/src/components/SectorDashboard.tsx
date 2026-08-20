@@ -10,6 +10,7 @@ import {
   Cell,
 } from "recharts";
 import type { SectorData } from "@/lib/types";
+import { CHART_TOOLTIP_ITEM_STYLE } from "@/lib/chart-tooltip-style";
 
 const PERIOD_LABELS: Record<string, string> = {
   "1mo": "1M",
@@ -119,6 +120,7 @@ export function SectorDashboard({ data }: { data: SectorData }) {
                 tickFormatter={(v: number) => `${v}%`}
               />
               <Tooltip
+                itemStyle={CHART_TOOLTIP_ITEM_STYLE}
                 contentStyle={{
                   background: "#0f172a",
                   border: "1px solid #334155",

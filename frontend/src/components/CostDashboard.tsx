@@ -82,7 +82,7 @@ export function CostDashboard({ costSummary }: { costSummary: CostSummary | unde
 
       {/* Summary cards */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <BentoCard glow>
+        <BentoCard>
           <p className="text-xs text-slate-400">Total Cost</p>
           <p className="mt-1 font-mono text-3xl font-bold text-emerald-400">
             {formatCost(total_cost_usd)}
