@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-20 | `cfa77375` | fix(masterplan): correct the 87.9 claim in phase-90 -- critique and return disagree |
 | 2026-08-20 | `7abb9792` | feat(masterplan): file phase-90 from the Q/A re-cycle-loop forensic audit |
 | 2026-08-18 | `e1d3c27c` | feat(masterplan): file 87.6-87.11 from the harness self-audit research gate |
 | 2026-08-18 | `28182547` | chore: split pipeline-report-integrity findings into phase-88 |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-18 | `97abc84b` | phase-86.118: harness log for the four-cycle drain; budget exhausted at 5/5 |
 | 2026-08-18 | `5dd79342` | phase-86.118: cycle-4 FAIL recorded; the section-7 capture was SPLICED and is regenerated |
 | 2026-08-18 | `77546b68` | phase-86.118: cycle-3 CONDITIONAL recorded; three defects in my own correction fixed |
-| 2026-08-18 | `b22b4dbe` | phase-86.118: cycle-2 FAIL recorded; my criterion-5 answer was wrong and is REPLACED |
 
 ---
 
