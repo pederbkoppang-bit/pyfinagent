@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-20 | `1c2f25b3` | docs(harness): flip 89.1/87.9 superseded, correct the stale attempt_budget wiring claim |
 | 2026-08-20 | `d06e7288` | docs(goal): trim the 2026-08-20 goal prompt under the 4000-char paste limit |
 | 2026-08-20 | `ed99d1f2` | docs(goal): add 90.9 to the 2026-08-20 goal prompt, refresh commit ref |
 | 2026-08-20 | `37080397` | docs(goal): add 90.9 to the 2026-08-20 goal prompt, refresh commit ref |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-18 | `a067e80b` | phase-86.116: cycle-4 FAIL recorded; the Q/A found a HOLE in my own pre-spawn gate |
 | 2026-08-18 | `f675c0cf` | phase-86.116: cycle-3 follow-up -- dead clause removed, guard made offline-reachable |
 | 2026-08-18 | `b7b8dbc5` | feat(qa): gate the stale-claim class -- the biggest single cause of repeat cycles |
-| 2026-08-18 | `eb6a77bd` | feat(qa): pre-spawn gate -- sweep the known defect CLASSES before buying a cycle |
 
 ---
 
