@@ -26561,6 +26561,356 @@
             "live_check": "live_check_86.126.md with the verbatim orders list from the real engine, the decision point where the second swap SELL is dropped, and the measured live-cycle impact"
           },
           "notes": "Filed 2026-08-18 by 86.118. Paper trading only. The test has been red for some time and was inside the 18 that made 'the suite is green' unmeasurable, which is exactly how a money-path defect stays invisible."
+        },
+        {
+          "id": "86.127",
+          "name": "the Research Investigator follow-up-question panel crashes on every single request -- orchestrator.rag_model has no .generate_content(), a dead code path from the phase-11.3 SDK migration",
+          "status": "pending",
+          "priority": "P1",
+          "harness_required": true,
+          "audit_basis": "SURFACED 2026-08-20 from an operator screenshot showing the Research Investigator panel returning 'unavailable'. Live-reproduced via direct API call: curl -X POST localhost:8000/api/investigate -d '{\"ticker\":\"PANW\",\"question\":\"What is the P/E ratio trend?\"}' -> 500, {\"detail\":\"Investigation failed: AttributeError: 'GeminiModelBundle' object has no attribute 'generate_content'\"}, confirmed in backend.log with full traceback at backend/api/investigate.py:62. orchestrator.rag_model (backend/agents/llm_client.py:761, a plain dataclass with no methods) is the wrong attribute; the wrapper with a working .generate_content() is orchestrator.rag_client (backend/agents/orchestrator.py:693, class GeminiClient at llm_client.py:903). This is stale code from the phase-11.3 google-genai SDK migration (orchestrator.py:624-693 comments describe the migration; every other call site was updated, investigate.py was not). The fix is not a single attribute swap: GeminiClient.generate_content() returns a normalized LLMResponse (llm_client.py:665, fields text/grounding_metadata), but investigate.py:65-85 still parses the OLD raw-SDK shape (response.grounding_metadata.grounding_attributions[].web.uri/.title, response.candidates[0].content.parts), none of which exist on LLMResponse -- the citation-extraction block needs rewriting against the new response shape. 100% reproducible, not intermittent, no auth/session dependency. No existing masterplan step covers this (grepped for 'investigat'; the only hit is an unrelated a11y-audit note about the panel's send-button accessibility, explicitly refuted, a different concern).",
+          "verification": {
+            "command": "curl -s -o /dev/null -w '%{http_code}' -X POST http://localhost:8000/api/investigate -H 'Content-Type: application/json' -d '{\"ticker\":\"PANW\",\"question\":\"What is the trailing P/E ratio?\"}'",
+            "success_criteria": [
+              "the command above returns HTTP 200, not 500",
+              "the response JSON has a non-empty 'answer' (or equivalent) string field derived from a real orchestrator.rag_client.generate_content() call, not a fallback/placeholder string",
+              "no AttributeError or traceback appears in backend.log for the request timestamp",
+              "the citation-extraction code path is updated to read fields that actually exist on LLMResponse (text, grounding_metadata) -- verified by reading the diff, not just the happy-path response",
+              "a live Playwright capture of the Research Investigator panel on a real report page shows an actual assistant reply, not the 'may not be available yet' error text (frontend/src/components/ResearchInvestigator.tsx:51)"
+            ],
+            "live_check": "curl output from /api/investigate showing HTTP 200 with a populated answer field, plus a Playwright screenshot of the Research Investigator panel showing a real reply"
+          },
+          "notes": "Filed 2026-08-20 from an operator bug report, confirmed by a fresh read-only investigation before filing (curl reproduction + backend.log traceback, not code-reading alone)."
+        },
+        {
+          "id": "86.128",
+          "name": "lite-mode analyses are never tagged in the UI even though the backend already tracks analysis_path -- identical-looking lite and full reports are indistinguishable to the operator",
+          "status": "pending",
+          "priority": "P1",
+          "harness_required": true,
+          "audit_basis": "SURFACED 2026-08-20 from an operator request ('when the model runs lite mode that should be marked with a lite mode tag'), confirmed as a pure frontend gap on data that already exists end-to-end. backend/services/autonomous_loop.py:2517,3266,3518 stamp full_report_json._path in {'lite','full','degraded'}; backend/db/bigquery_client.py:281-292 reads it back via JSON_VALUE(full_report_json, '$._path') AS analysis_path; backend/api/models.py:92-107 ReportSummary.analysis_path is already documented for exactly this purpose ('identical-looking 7.0/10 digest rows from the 2-call lite wrapper'); backend/api/reports.py returns it in GET /api/reports/ today. The only consumer of analysis_path repo-wide is backend/slack_bot/formatters.py:562-564 (Slack digest text) -- zero hits in frontend/src, not in types.ts's ReportSummary interface, not rendered on the Reports list or a report detail page.",
+          "verification": {
+            "command": "curl -s localhost:8000/api/reports/ | python3 -c \"import json,sys; rows=json.load(sys.stdin); print(sum(1 for r in rows if r.get('analysis_path')=='lite'))\"",
+            "success_criteria": [
+              "the command above proves at least one row in the live API response already carries analysis_path=='lite' (backend contract, should already pass today)",
+              "frontend/src/lib/types.ts's ReportSummary interface includes analysis_path",
+              "a Playwright snapshot of the Reports history page (or a report detail page) for a ticker whose latest analysis_path=='lite' shows a visible 'Lite' badge/tag on that row -- absent for 'full' rows",
+              "the same check for a 'full' analysis_path row shows no lite badge"
+            ],
+            "live_check": "curl output proving a lite-path row exists in /api/reports/, plus a Playwright screenshot of the Reports page showing the Lite badge on that specific row"
+          },
+          "notes": "Filed 2026-08-20 from an operator bug report, confirmed by a fresh read-only investigation before filing."
+        },
+        {
+          "id": "86.129",
+          "name": "the MAS Operator Cockpit's cycle-status dots conflate per-table data-freshness bands with the actual cycle outcome, so a healthy zero-trade cycle can render a red dot next to the word 'completed'",
+          "status": "pending",
+          "priority": "P2",
+          "harness_required": true,
+          "audit_basis": "SURFACED 2026-08-20 from an operator screenshot showing several red dots in the CYCLE row next to the trailing label 'completed', with the complaint 'red circle should always stay green unless there is something wrong.' Investigation (read-only) found the dots are NOT one-per-recent-cycle: frontend/src/components/OpsStatusBar.tsx CycleSegment (:443-509) renders one dot per data-source freshness band (heartbeat + paper_trades, paper_portfolio_snapshots, historical_prices, historical_fundamentals, historical_macro, signals_log from backend/services/cycle_health.py::compute_freshness :685-719+), colored by staleness ratio -- a DIFFERENT signal from the trailing statusLabel (:472), which comes from the real latestCycle.status in handoff/cycle_history.jsonl. Both are individually correct; adjacent rendering with no distinguishing label makes a red freshness dot read as a failed cycle. Plausible (not independently re-measured live) contributing mechanism: cycle_health.py:685-690 bands paper_trades freshness purely by last-trade-age/cycle_interval, and handoff/cycle_history.jsonl shows n_trades:0 on nearly every recent cycle (2026-08-04 through -20) -- a normal 'nothing to buy' day can legitimately paint that dot red/amber, indistinguishable from a real failure.",
+          "verification": {
+            "command": "curl -s localhost:8000/api/paper-trading/freshness 2>/dev/null | python3 -m json.tool || true",
+            "success_criteria": [
+              "the freshness-band dots and the cycle-outcome status word carry visibly distinct labels in the UI (e.g. 'Data freshness' vs 'Cycle: completed'), verified by a Playwright snapshot, so a red freshness dot cannot be read as 'the cycle failed'",
+              "OR: driving a synthetic cycle with n_trades:0 and status=='completed'/error_count==0 through compute_freshness is shown NOT to paint the paper_trades dot red purely from zero-trade staleness, distinguishing 'no trades today' from 'stale data'",
+              "a control case using a genuinely stale/broken data source still renders red, proving the fix didn't blanket-suppress real alarms"
+            ],
+            "live_check": "Playwright screenshot of the MAS Operator Cockpit showing the freshness dots and cycle-outcome label as visually distinct concepts, captured on a day the paper book had zero trades but a healthy completed cycle"
+          },
+          "notes": "Filed 2026-08-20 from an operator bug report. Confirmed as a real labeling/UX defect, not a color-mapping bug; the underlying freshness computation may be working as designed -- this step is about disambiguating the presentation, not about changing what counts as stale."
+        },
+        {
+          "id": "86.130",
+          "name": "the Reports history page has no per-ticker report-count column and no way to see prior reports for a ticker -- get_recent_reports dedupes to exactly 1 row/ticker so history is invisible",
+          "status": "pending",
+          "priority": "P2",
+          "harness_required": true,
+          "audit_basis": "SURFACED 2026-08-20 from an operator request ('add a new column where it shows how many reports has been ran on that ticker... expand the row where the user sees all reports ran for that specific ticker'). Confirmed: frontend/src/components/reports-columns.tsx:57-132 has no count column (ticker/company/date/score/recommendation/trend only). backend/db/bigquery_client.py:277-302 get_recent_reports dedupes with ROW_NUMBER() OVER (PARTITION BY ticker ORDER BY analysis_date DESC) WHERE rk=1 -- live-verified via curl localhost:8000/api/reports/?limit=10 returning 10 unique tickers, zero dupes. The underlying financial_reports.analysis_results table is append-only (save_report at bigquery_client.py:61 is a plain insert_rows_json; no MERGE/UPDATE/DELETE touches it anywhere) -- every past run is still a row, the History list just hides all but the latest per ticker. A report-count column is a COUNT(*) OVER (PARTITION BY ticker) addition to the existing query; the expand-row feature needs one new endpoint adapting get_report (bigquery_client.py:324+) by dropping the rank filter. The operator's separate complaint about the SAME tickers being re-picked repeatedly is a DIFFERENT, ALREADY-FILED issue (masterplan step 86.59, P1, pending) and is deliberately NOT re-filed here.",
+          "verification": {
+            "command": "bash -c \"source .venv/bin/activate && python3 -c \\\"from backend.db.bigquery_client import get_bq_client; print('needs a COUNT(*) GROUP BY ticker query against financial_reports.analysis_results')\\\"\"",
+            "success_criteria": [
+              "the Reports history table renders a '# Reports' column whose value for a given ticker matches a live COUNT(*) GROUP BY ticker query against financial_reports.analysis_results",
+              "clicking/expanding a row shows every historical report for that ticker (date, score, recommendation), not just the latest -- verified via Playwright capture",
+              "the new endpoint/query does not change the existing single-row-per-ticker behavior of the main Reports list (no regression to the dedup that already works correctly for the top-level table)"
+            ],
+            "live_check": "Playwright screenshot of the Reports page showing the new report-count column with values matching a live BQ COUNT(*), and a screenshot of an expanded row showing multiple historical reports for one ticker"
+          },
+          "notes": "Filed 2026-08-20 from an operator bug report. Do NOT duplicate 86.59 (ticker-repetition/diversity) under this step -- that is a separate, already-tracked concern."
+        },
+        {
+          "id": "86.131",
+          "name": "when the Claude weekly rail is exhausted, tickers still run through the pipeline and get saved with a fabricated 0/degraded score instead of being skipped -- and no settings override exists to control this behavior",
+          "status": "pending",
+          "priority": "P1",
+          "harness_required": true,
+          "audit_basis": "SURFACED 2026-08-20 from an operator report ('if we are out of weekly limit on anthropic the app still runs ticker with 0 score. the app should [not run] any tickers if [no] override setting is applied'). Confirmed distinct from the in-flight 86.120 (CC-rail circuit breaker efficiency fix, uncommitted WIP in claude_code_client.py/settings.py per git status): 86.120's 11 criteria only address re-spawning a doomed subprocess, none address what happens to the ticker's report while cooldown is active. Traced mechanism -- lite path: ClaudeCodeError (incl. the cooldown_blocked case, claude_code_client.py:636-646, cooldown_status() at :460) is caught generically at autonomous_loop.py:3139-3146, text='', falling into the parse-fail fallback {'action':'HOLD','confidence':0,'score':5,'_parse_failed':True} at :3165-3166 -- fabricated, not skipped. Full/deep pipeline: orchestrator.py:2370-2371 compute_weighted_score() (:1727-1737) evaluates to 0.0 on an empty/failed scoring_matrix -- the exact '0 score' reported. frontend/src/app/reports/page.tsx:266,554,605 renders r.synthesis.final_weighted_score ?? 0 with no filtering for degraded/rail-down rows, so these reach the Reports page unfiltered. Grepped backend/config/settings.py and frontend/src/app/settings/page.tsx for weekly/quota/rate-limit/override -- zero relevant hits; no override setting exists anywhere. A post-hoc detector exists (_degraded_scoring_check, autonomous_loop.py:2785-2815, fires a P1 Slack alert when >=3 or ALL analyses in a cycle score 0/degraded) but it only alerts after the bad rows are already written, and isn't specific to quota exhaustion.",
+          "verification": {
+            "command": "bash -c \"source .venv/bin/activate && grep -n 'allow_analysis_during_rail_cooldown\\|cooldown_active' backend/config/settings.py backend/services/autonomous_loop.py\"",
+            "success_criteria": [
+              "when cooldown_active() is true and a new allow_analysis_during_rail_cooldown setting is False (the default), the ticker is skipped before any LLM call and no row is written to paper_trades/report storage for it this cycle -- proven by a test asserting zero rows written under a simulated cooldown-active state",
+              "when the override is True (settable from the Settings page), any row written during cooldown carries an explicit _degraded=True marker and final_score=None, never a bare numeric 0.0 and never the silent _parse_failed placeholder",
+              "MUTATION: removing the skip-on-cooldown logic makes the zero-rows-written test go red",
+              "the Settings page UI actually exposes the override toggle (not just a backend flag), verified via Playwright"
+            ],
+            "live_check": "test output proving zero rows written during a simulated cooldown with the override off, plus a Playwright screenshot of the new Settings page toggle"
+          },
+          "notes": "Filed 2026-08-20 from an operator bug report. Pairs with 86.132 (UI surfacing of the same cooldown state) as a natural follow-on but is a distinct fix (pipeline behavior vs. UI visibility)."
+        },
+        {
+          "id": "86.132",
+          "name": "there is no UI surfacing anywhere of Claude weekly-limit / rail-cooldown state -- the operator has no way to see that analysis is currently degraded or paused due to quota exhaustion",
+          "status": "pending",
+          "priority": "P1",
+          "harness_required": true,
+          "audit_basis": "SURFACED 2026-08-20 from an operator report ('if LLM weekly limit has been used up it should show that error'). Confirmed: raise_cron_alert (backend/services/observability/alerting.py:179-250) routes exclusively to Slack (webhook or bot-token fallback) -- grep of frontend/src for cron_alert/alerting returns zero hits, no UI surfacing exists at all. Checked the two components matching 'KILL'/'GATE' on the MAS Operator Cockpit: KillSwitchPanel.tsx tracks only daily-loss/trailing-DD P&L breach (no claude/rail/quota awareness); GoLiveGateWidget.tsx is an unrelated go-live readiness gate. Neither references claude/rail/quota/weekly/degraded. No settings-page or dashboard string for weekly/quota/rate-limit anywhere in frontend/src. Not a duplicate of anything in phase-86.",
+          "verification": {
+            "command": "grep -rn 'cooldown_status\\|rail_guard_status' backend/api/ | head -20",
+            "success_criteria": [
+              "a backend endpoint (new or extended from an existing status endpoint) exposes cooldown_status()/rail_guard_status() to the frontend",
+              "a banner/toast/status element renders 'Claude weekly limit exceeded -- analysis paused until <retry_at>' when cooldown_active is true, visible on the Reports page and/or the MAS Operator Cockpit's OpsStatusBar",
+              "the banner disappears once cooldown_active is false, verified with both states",
+              "verified via Playwright snapshot showing the banner text after seeding a mock cooldown-active backend state"
+            ],
+            "live_check": "Playwright screenshot showing the weekly-limit-exceeded banner rendered live, and a second screenshot after cooldown clears showing it's gone"
+          },
+          "notes": "Filed 2026-08-20 from an operator bug report. Pairs with 86.131 (pipeline behavior during cooldown)."
+        },
+        {
+          "id": "86.133",
+          "name": "every enrichment agent's confidence score is hardcoded to 0.7 in DecisionTrace regardless of whether the agent actually found real data -- a NO_DATA/UNKNOWN badge is shown next to a confident-looking 70%",
+          "status": "pending",
+          "priority": "P1",
+          "harness_required": true,
+          "audit_basis": "SURFACED 2026-08-20 from an operator screenshot of a Decision Trace / Full Audit Trail panel showing Options Flow=NO_DATA, Alt Data=NO_DATA, Insider Activity=UNKNOWN, Patent Innovation=NO_DATA, each tagged '70%'. Confirmed this is UNIVERSAL (all tickers, not Korea-specific): backend/agents/orchestrator.py:2180, inside _run_agent_with_trace(), hardcodes confidence=0.7 into every one of the 11 Step-7 enrichment agents' DecisionTrace regardless of output_signal. frontend/src/components/DecisionTraceView.tsx:154-169 is a pure pass-through (Math.round(trace.confidence*100)+'%') -- not a frontend bug. The badge and the confidence number come from two independent, disconnected code paths, so a NO_DATA/UNKNOWN signal always displays alongside a fake 70% confidence. No existing masterplan step covers this (86.111 is a different bug -- Google Trends 429/cache-miss rate, not this hardcode).",
+          "verification": {
+            "command": "bash -c \"source .venv/bin/activate && grep -n 'confidence=0.7\\|confidence = 0.7' backend/agents/orchestrator.py\"",
+            "success_criteria": [
+              "_run_agent_with_trace() derives confidence from the actual output_signal (e.g. 0.0 or null when signal is NO_DATA/UNKNOWN/ERROR; a real confidence value only when a genuine signal was produced)",
+              "a unit test asserts this for at least one NO_DATA case and one real-signal case",
+              "MUTATION: reverting to the hardcoded 0.7 makes the NO_DATA-case test go red",
+              "a live report for any ticker with at least one NO_DATA/UNKNOWN agent shows a confidence value other than 70% for that specific agent in the Decision Trace UI"
+            ],
+            "live_check": "curl output from a report's decision_trace showing confidence != 0.7 for an agent whose signal is NO_DATA/UNKNOWN/ERROR"
+          },
+          "notes": "Filed 2026-08-20 from an operator bug report about Korean-ticker data gaps; this half of the finding is universal (affects every ticker), the market-specific half is filed separately as 86.134."
+        },
+        {
+          "id": "86.134",
+          "name": "insider-activity, options-flow, patent-innovation, and alt-data (Google Trends) sources are US-market-only but are called unconditionally for every ticker, so Korean (and other non-US) listings render as broken NO_DATA/UNKNOWN badges instead of a clear market-unsupported label",
+          "status": "pending",
+          "priority": "P2",
+          "harness_required": true,
+          "audit_basis": "SURFACED 2026-08-20 from an operator report ('for korean tickers there is several data points missing. insider activity, options flow innovation alt data'). Confirmed each source is genuinely US-only by construction, not a fetch failure: sec_insider.py's _resolve_cik() (:165-169) returns None for .KS tickers (SEC Form 4 is US-SEC-only) -> signal='UNKNOWN'; options_flow.py:22-23 -- yfinance has no KRX options chains -> stock.options empty -> signal='NO_DATA'; alt_data.py:82 hardcodes geo='US' in pytrends.build_payload(...) -- searching a Korean ticker in the US Trends region returns empty -> signal='NO_DATA'; patent_tracker.py:29 hardcodes WHERE country_code='US' in its BQ query despite the module docstring claiming worldwide coverage. The codebase already has the correct pattern for exactly this situation and doesn't apply it here: orchestrator.py:552-560 _is_sec_covered() + orchestrator.py:1783-1808 skipped_stages (phase-60.1/AW-4) explicitly tags SEC-bound stages as skipped-with-reason for non-US listings, persisted to full_report_json for audit -- that gate is never applied to these 4 Step-6 tool-fetch calls (orchestrator.py:2072-2078) or the Step-7 agents that consume them.",
+          "verification": {
+            "command": "bash -c \"source .venv/bin/activate && grep -n '_is_sec_covered\\|skipped_stages' backend/agents/orchestrator.py | head -20\"",
+            "success_criteria": [
+              "the _is_sec_covered/skipped_stages pattern (or an analogous per-tool market-support flag) is extended to insider_activity, options_flow, patent_tracker, and alt_data",
+              "for a non-US ticker, full_report_json carries an explicit skip-reason tag for each of these 4 tools instead of a generic NO_DATA/UNKNOWN with a fabricated confidence",
+              "the frontend Decision Trace renders 'N/A -- not available for this market' (or equivalent) for a tagged skip, distinct in appearance from a genuine fetch failure on a US ticker",
+              "verified with a live .KS ticker's full_report_json showing the skip tags, plus a Playwright screenshot of the updated Decision Trace UI"
+            ],
+            "live_check": "BQ row or curl output showing a .KS ticker's full_report_json carrying explicit skip-reason tags for the 4 tools, plus a Playwright screenshot of the market-unsupported label rendering"
+          },
+          "notes": "Filed 2026-08-20 from an operator bug report about Korean-ticker data gaps. Depends conceptually on 86.133 (confidence-hardcode fix) being done first or alongside, since both touch the same DecisionTrace surface."
+        },
+        {
+          "id": "86.135",
+          "name": "internal phase-tracking label \"(phase-25.C7)\" leaks into user-facing Data Freshness page copy",
+          "status": "pending",
+          "priority": "P2",
+          "harness_required": true,
+          "audit_basis": "SURFACED 2026-08-20 from an operator screenshot showing the Data Freshness section subtitle 'Per-table age + SLA bands across the warehouse (phase-25.C7)'. Confirmed via full grep of frontend/src for the pattern 'phase-[0-9]': ~150 hits, exactly ONE is genuine rendered JSX text -- frontend/src/app/observability/page.tsx:115, <p className=\"text-sm text-slate-500\">Per-table age + SLA bands across the warehouse (phase-25.C7)</p> -- everything else is a code comment, JSDoc, or a test-file describe() string, invisible to users. No other page has a rendered phase-tag; the operator's 'several pages' most likely refers to seeing 'phase-' in devtools/source rather than multiple live UI surfaces.",
+          "verification": {
+            "command": "grep -rnE '\\(phase-[0-9]' frontend/src/app frontend/src/components --include=*.tsx | grep -v '\\.test\\.tsx' | grep -vE '^[^:]+:[0-9]+: *(//|\\*|\\{/\\*)'",
+            "success_criteria": [
+              "the command above returns zero hits after the fix",
+              "the Data Freshness page subtitle no longer contains an internal phase reference, verified via a live Playwright screenshot"
+            ],
+            "live_check": "Playwright screenshot of the observability/Data Freshness page showing the subtitle with no phase-tag"
+          },
+          "notes": "Filed 2026-08-20 from an operator bug report. Cosmetic, one-line fix."
+        },
+        {
+          "id": "86.136",
+          "name": "cycle_health._band() is a candidate regression on 86.109's trading-day-aware fix -- the per-source freshness bands feeding both the UI table and the P1 Slack freshness alarm may still use naive ratio math with no weekend/holiday awareness",
+          "status": "pending",
+          "priority": "P1",
+          "harness_required": true,
+          "audit_basis": "SURFACED 2026-08-20 while investigating an operator report about 'stale' data-source labels on the Data Freshness page. Today's specific red rows (paper_trades, paper_portfolio_snapshots, signals_log) were confirmed WORKING AS INTENDED -- they correctly surface a real, already-tracked trading-engine outage (phase-85.6, closed, 'the Claude Code analysis rail is dead'). While checking this, a residual was found: masterplan step 86.109 (done) required its trading-day fix to reach _band()/compute_freshness/_fire_freshness_alarm per its own success-criteria text, but backend/services/cycle_health.py's is_weekday_et logic (~lines 262-380) currently lives ONLY inside the separate cycle_heartbeat_alarm function. _band() (lines 101-109), which every per-table row in sources{} keys off -- both the UI table AND _fire_freshness_alarm (:123-158) -- still appears to be pure ratio math with zero calendar awareness. This was NOT independently confirmed by pulling the actual 86.109 diff (budget-limited); it is flagged as a suspected regression or a fix that was never fully shipped to _band() specifically, not asserted as certain. Two adjacent PENDING steps exist and neither covers this: 76.10 adds a frozen_by_policy band for deliberately-frozen tables; 80.24 is the inverse bug (green shown when already 1.0-1.5x past SLA, before the 2.0x red threshold).",
+          "verification": {
+            "command": "bash -c \"source .venv/bin/activate && grep -n 'def _band\\|is_weekday_et' backend/services/cycle_health.py\"",
+            "success_criteria": [
+              "first, CONFIRM OR REFUTE the suspected gap: read the actual 86.109 diff/commit and determine whether _band() was ever made trading-day aware, or only cycle_heartbeat_alarm was",
+              "if confirmed unfixed: a unit test calls _band() directly with a synthetic Saturday-morning age that reads red under naive ratio math but should read healthy under Mon-Fri cadence -- asserts non-red after the fix",
+              "a control test using today's live genuine-outage numbers (paper_trades/paper_portfolio_snapshots/signals_log) still asserts red -- proving the fix is calendar-aware, not a blanket suppression",
+              "MUTATION: reverting the calendar-awareness in _band() makes the weekend test go red",
+              "if REFUTED (86.109 already covers _band()), this step closes with evidence showing where the trading-day logic actually lives and why the earlier read was wrong -- not silently dropped"
+            ],
+            "live_check": "unit test output for both the weekend-false-positive case and the live-outage control case, or a diff citation proving 86.109 already covers _band()"
+          },
+          "notes": "Filed 2026-08-20 as a CANDIDATE defect surfaced during an unrelated investigation -- honestly hedged per the investigating agent's own caveat. First verification action is to resolve the hedge, not to assume the bug is real."
+        },
+        {
+          "id": "86.137",
+          "name": "the Backtest page has unguarded .toFixed() calls on baseline-comparison fields that will crash the page on a null/NaN value, and backend/api/backtest.py has no NaNSafeJSONResponse -- the same defect class just fixed in charts.py, unfixed here",
+          "status": "pending",
+          "priority": "P1",
+          "harness_required": true,
+          "audit_basis": "SURFACED 2026-08-20 from an operator report of a Next.js error on the Backtest page. Not reproduced live in this session (clean render at capture time), but the root cause is confirmed by code and is currently dormant, not defused: frontend/src/app/backtest/page.tsx:1076 -- a?.sharpe.toFixed(2) ?? \"-\" -- the ?. only guards `a`, not `a.sharpe`; if a.sharpe is null this throws TypeError: Cannot read properties of null (reading 'toFixed'). Lines :1095 and :1098 (val.total_return_pct.toFixed(1), val.sharpe.toFixed(2)) have zero null guard at all, unlike every other numeric field on the same page, which consistently uses `!= null ? x.toFixed() : \"-\"`. backend/api/backtest.py's router has no default_response_class=NaNSafeJSONResponse (confirmed via grep) -- the exact defect class already fixed in charts.py (commit on main, backend/tests/test_charts_nan_serialisation.py passing 6/6) but NOT extended to backtest.py. backend/backtest/analytics.py:866-880 builds report['baselines'][x]['sharpe'/'total_return_pct'] via .get(key, 0), which is safe only if the key is absent, not if compute_baseline_strategies() ever writes an actual NaN into it -- not fully traced end to end.",
+          "verification": {
+            "command": "bash -c \"source .venv/bin/activate && python -m pytest backend/tests/test_backtest_nan_serialisation.py -q\"",
+            "success_criteria": [
+              "backend/api/backtest.py's router uses default_response_class=NaNSafeJSONResponse, matching the pattern already shipped in charts.py/signals.py",
+              "frontend/src/app/backtest/page.tsx:1076,1095,1098 use `!= null ? x.toFixed() : \"-\"` guards, matching every other numeric field on the page",
+              "a new test (mirroring test_charts_nan_serialisation.py) proves a NaN in results.baselines[*].sharpe or total_return_pct renders as an em-dash / null in the API response, not a raw NaN token that breaks JSON parsing",
+              "a Playwright capture of the Backtest page with a seeded NaN baseline value shows an em-dash, not a client-side crash / Next.js error overlay"
+            ],
+            "live_check": "test output plus a Playwright screenshot of the Backtest page rendering a seeded NaN baseline value safely"
+          },
+          "notes": "Filed 2026-08-20 from an operator bug report. Adjacent to the already-shipped charts.py NaN fix but backtest.py was not touched by it -- confirmed as a new, unfixed instance of the same class."
+        },
+        {
+          "id": "86.138",
+          "name": "Next.js is a full major version behind (15.5.12 installed vs 16.3.1 latest) with no documented pin rationale, producing a persistent dev-mode out-of-date toast",
+          "status": "pending",
+          "priority": "P2",
+          "harness_required": true,
+          "audit_basis": "SURFACED 2026-08-20 from an operator screenshot of a Next.js dev-mode 'update available' toast. Confirmed: frontend/node_modules/next/package.json reports 15.5.12 installed vs 16.3.1 latest on npm -- a full major version behind. frontend/package.json:35 pins \"next\": \"^15.0.0\"; git history shows this spec has never changed and no rationale commit exists. CLAUDE.md's stated stack ('Next.js 15 + React 19') documents the choice but not a reason to stay off 16. A 15->16 bump carries real regression risk (Turbopack defaults, React requirement changes, possible routing changes) -- this is scoped as an evaluate-then-upgrade task, not a version-string bump.",
+          "verification": {
+            "command": "bash -c \"cd frontend && node -e \\\"console.log(require('./node_modules/next/package.json').version)\\\" && npm run build\"",
+            "success_criteria": [
+              "either Next.js is upgraded to the latest stable 16.x with `npm run build` succeeding and zero new type errors, OR an explicit documented pin rationale is added (CLAUDE.md note or a package.json comment/README) explaining why 15.x is intentionally retained",
+              "if upgraded: a Playwright smoke pass on /backtest, /reports, and /paper-trading shows no regression versus the pre-upgrade baseline",
+              "the dev-mode 'update available' toast no longer appears (if upgraded) or the decision to keep it is explicit and on record (if not)"
+            ],
+            "live_check": "npm run build output post-decision, plus Playwright smoke screenshots of the three named pages if upgraded"
+          },
+          "notes": "Filed 2026-08-20 from an operator bug report. Low urgency (dev-only nag, no functional impact today) but should be tracked so the gap doesn't silently widen."
+        },
+        {
+          "id": "86.139",
+          "name": "the report-detail Cost & Token Usage panel's Total Cost stat box has a stray glow/highlight CSS class applied that its three sibling boxes don't get, an inconsistent one-off rather than a deliberate design choice",
+          "status": "pending",
+          "priority": "P2",
+          "harness_required": true,
+          "audit_basis": "SURFACED 2026-08-20 from an operator screenshot of the Cost & Token Usage panel showing the Total Cost box with a distinct glowing blue border/background that Total Tokens/LLM Calls/Deep Think Calls don't have. Confirmed: frontend/src/components/CostDashboard.tsx:85 renders <BentoCard glow> for Total Cost; lines 91/97/103 render plain <BentoCard> (no glow) for the other three -- hardcoded, not threshold-conditional. `glow` maps to `alpha-score-glow` (BentoCard.tsx:19), a pulse-glow sky-blue box-shadow animation (globals.css:60-68) named/designed for highlighting an 'Alpha Score' hero metric elsewhere in the app -- semantically wrong for a uniform 4-box KPI row.",
+          "verification": {
+            "command": "grep -c 'BentoCard glow' frontend/src/components/CostDashboard.tsx",
+            "success_criteria": [
+              "the command above returns 0 after the fix (glow prop removed from the Total Cost card), OR all 4 cards are made visually consistent by deliberate design with a documented reason",
+              "a Playwright screenshot of the Cost & Token Usage panel shows a uniform border/background across all 4 stat boxes"
+            ],
+            "live_check": "Playwright screenshot of the panel showing consistent styling across all 4 boxes"
+          },
+          "notes": "Filed 2026-08-20 from an operator bug report. Cosmetic, low-risk one-line fix."
+        },
+        {
+          "id": "86.140",
+          "name": "per-agent token usage on the report-detail Cost & Token Usage panel excludes prompt-cache tokens, showing a near-zero Input count for heavily-cached deep-think agents (Synthesis, Critic, Moderator) even though their real input was large",
+          "status": "pending",
+          "priority": "P1",
+          "harness_required": true,
+          "audit_basis": "SURFACED 2026-08-20 from an operator screenshot showing Total Tokens 143.0K split as Input 1.5K / Output 141.6K, with individual agents like Synthesis (input=2, output=11.4K) and Critic (input=2, output=12.7K) -- an input token count of literally '2' for an LLM call requiring a substantial system prompt is implausible. Confirmed root cause: backend/agents/cost_tracker.py:169-171 sets input_tokens = usage.prompt_token_count, total_tokens = input_tokens + output_tokens, both EXCLUDING cache_read_input_tokens/cache_creation_input_tokens (extracted separately at :174-175, stored on the entry at :235-236, but never folded into the input/total fields the UI reads). The code's own comment (:187-209) states Anthropic's real semantics correctly (total_input_tokens = cache_read + cache_creation + input_tokens) and applies that correctly to COST (:210-218, a prior 'MONEY FIX' from phase-75.4/75.5) but never to the TOKEN-COUNT fields. backend/agents/claude_code_client.py:1098-1123 (the CC-rail path used by exactly these deep-think agents) correctly captures the cache fields from Anthropic's response -- the data exists, cost_tracker.summarize() and CostDashboard.tsx (:59, never destructures prompt_caching from costSummary) simply don't surface it. Distinct from masterplan step 76.1 (NULL-at-source total_tokens on a different table/surface, the autonomous-cycle /performance view) -- not a duplicate.",
+          "verification": {
+            "command": "bash -c \"source .venv/bin/activate && python3 -c \\\"import backend.agents.cost_tracker as ct; print('inspect summarize() for cache-token inclusion')\\\"\"",
+            "success_criteria": [
+              "a unit test on cost_tracker.summarize() with a synthetic entry (input=2, cache_read_input_tokens=12000, output=11400) asserts the displayed Input/Total fields include the cache buckets, not just the raw input_tokens field",
+              "MUTATION: reverting the fix makes the synthetic-entry test go red",
+              "a live report with heavily-cached deep-think agents (Synthesis/Critic/Moderator/Risk-Judge) shows an Input count consistent with a real system prompt + context, not a near-zero placeholder, verified against the CC-rail response's actual usage object for that call"
+            ],
+            "live_check": "test output for the synthetic-entry assertion, plus a curl/BQ comparison of a live deep-think call's raw Anthropic usage object against the Cost & Token Usage panel's displayed Input value for the same call"
+          },
+          "notes": "Filed 2026-08-20 from an operator bug report. Not a trading-correctness bug -- it's a misleading cost/usage display, hence P1 not P0."
+        },
+        {
+          "id": "86.141",
+          "name": "the debate engine can silently produce an empty Bull Case (unvalidated empty LLM response) and dumps raw JSON-fenced text into the Bear Case unparsed -- both defects visible on the latest MRVL report",
+          "status": "pending",
+          "priority": "P0",
+          "harness_required": true,
+          "audit_basis": "SURFACED 2026-08-20 from an operator screenshot of the MRVL (Marvell Technology) report's Debate tab: Bull Case shows literally 'No bull case provided.' with a 50% confidence bar rendered anyway, while Bear Case shows a wall of raw text starting with a literal ```json { \"thesis\": ... fence. Confirmed two independent backend defects: (1) EMPTY BULL CASE -- backend/agents/debate.py run_debate() inits bull_text=''/bear_text='' (~line 247) and only overwrites `if bull_response:` (line 264); a non-exception empty-.text LLM response (safety filter, or thinking-budget starving the answer -- same failure class already documented at llm_client.py:1312) silently leaves bull_text='' with zero validation or retry. ModeratorConsensus (schemas.py:94-98) has no bull_case/bear_case fields at all, so debate_result.setdefault('bull_case', {'thesis': bull_text,...}) (line 364/373) always fires with the raw unvalidated text -- the failure is masked, not surfaced anywhere. (2) RAW JSON IN BEAR CASE -- bull_text/bear_text are `.text.strip()` with no _clean_json/_parse_json applied, unlike Devil's Advocate (debate.py:312) and Moderator (:356), which both strip ```json fences. debate_stance.md's own OUTPUT FORMAT directive (line 49-50) tells Bull/Bear agents to emit {thesis, confidence, key_threats/catalysts, evidence} JSON, so a compliant fenced response flows verbatim into bear_case.thesis; frontend/src/components/DebateView.tsx:193-195 renders it in a bare <p>{...}</p> with no stripping. This directly corrupts/masks content in a report used for live trading decisions -- the empty bull case is the more dangerous half since it looks like a clean success rather than a visible error.",
+          "verification": {
+            "command": "bash -c \"source .venv/bin/activate && python -m pytest backend/tests/test_debate_empty_and_unparsed_response.py -q\"",
+            "success_criteria": [
+              "a unit test drives run_debate() with a Bull mock returning an empty .text and asserts bull_case.thesis is either non-empty or carries an explicit, surfaced failure marker (e.g. bull_case.generation_failed=True) -- never a silent empty string that renders as a clean 'no bull case'",
+              "a second unit test drives run_debate() with a Bear mock returning a ```json-fenced response and asserts bear_case.thesis is parsed/stripped via the same _clean_json path already used by Devil's Advocate and Moderator, not passed through raw",
+              "MUTATION: reverting either fix makes its corresponding test go red",
+              "a live re-run of the MRVL report (or an equivalent fresh report) shows a real Bull Case with content, and a Bear Case rendered as formatted text with no visible JSON fence markers, verified via Playwright"
+            ],
+            "live_check": "test output for both new tests, plus a Playwright screenshot of a fresh report's Debate tab showing a populated Bull Case and a properly-rendered (non-raw-JSON) Bear Case"
+          },
+          "notes": "Filed 2026-08-20 from an operator bug report on the latest MRVL report. P0 because this silently corrupts/masks content in a report a human uses to make a trading decision -- the empty bull case in particular could bias the operator toward the bear thesis without them knowing the bull side never ran."
+        },
+        {
+          "id": "86.142",
+          "name": "long debate thesis text (Bull Case / Bear Case) on the report detail page has no expand/read-more control -- it renders unbounded with no way to collapse or a way to know if there's more",
+          "status": "pending",
+          "priority": "P2",
+          "harness_required": true,
+          "audit_basis": "SURFACED 2026-08-20 alongside the MRVL report screenshot (same investigation as 86.141) -- the operator explicitly asked for a way to expand text to read more. Confirmed: frontend/src/components/DebateView.tsx's Bull/Bear Case <p> blocks (lines ~143-145, ~193-195) have zero truncation/line-clamp/toggle. Only the separate Debate Rounds section (lines ~336-349) truncates at 500 chars. So the reported complaint is not 'text is cut off with no way to expand' but 'text renders unbounded with no way to collapse it' -- both are real gaps, addressed by the same fix (a consistent expand/collapse affordance).",
+          "verification": {
+            "command": "grep -n 'line-clamp\\|isExpanded\\|Read more\\|Show more' frontend/src/components/DebateView.tsx",
+            "success_criteria": [
+              "Bull Case and Bear Case text blocks get a consistent truncate-with-expand control (e.g. line-clamp + a 'Show more' toggle), matching the pattern already used for Debate Rounds",
+              "a Playwright capture shows the toggle present and functional (collapsed state truncates, clicking expands to full text) on a report with a long thesis"
+            ],
+            "live_check": "Playwright screenshot showing the collapsed and expanded states of a long Bull/Bear Case thesis"
+          },
+          "notes": "Filed 2026-08-20 from an operator bug report. Pure frontend feature gap, independent of the backend correctness fixes in 86.141 -- can ship separately."
+        },
+        {
+          "id": "86.143",
+          "name": "the Cron/Logs dashboard's job-status registry is in-memory in the backend process and not restart-durable, so infrequent (weekly) jobs show a false 'never_run' after any backend restart even though they are firing correctly on schedule",
+          "status": "pending",
+          "priority": "P2",
+          "harness_required": true,
+          "audit_basis": "SURFACED 2026-08-20 from an operator screenshot showing weekly_fred_refresh and weekly_data_integrity both as NEXT RUN '--' / STATUS 'never_run'. Confirmed both jobs ARE firing correctly (log evidence: weekly_fred_refresh fired 08-02/08-09/08-16, status=ok each time; weekly_data_integrity fired 08-03/08-10/08-17, status=ok each time) -- the dashboard is wrong, not the scheduler. Root cause: backend/api/job_status_api.py's _registry is an in-memory dict in the backend process, populated by a one-time seed (_seed_next_run_registry(), backend/slack_bot/scheduler.py:206-232, runs only at slack-bot startup) plus live EVENT_JOB_EXECUTED heartbeats when a job actually fires. Backend restarted 2026-08-19 20:34:55 (PID 31114), AFTER both weekly jobs' last fire (08-16/08-17) -- the restart wiped the registry to defaults, and slack-bot itself hasn't restarted since 08-10 so the seed never re-ran. Any job whose period exceeds the uptime between backend restarts gets stuck showing never_run indefinitely. This exact caveat was already NOTED (not fixed) in closed step 51.4 ('never_run on the dashboard is partly an in-memory-registry restart artifact') -- no open step targets the root cause.",
+          "verification": {
+            "command": "curl -s localhost:8000/api/jobs/all | python3 -c \"import json,sys; d=json.load(sys.stdin); print([j for j in d if j.get('status')=='never_run'])\"",
+            "success_criteria": [
+              "the job-status registry persists across a backend restart (e.g. to a file or BQ table) OR the backend's own startup re-seeds next-run times for all registered jobs directly, not only via slack-bot's startup path",
+              "after a simulated backend restart, a job that fired before the restart shows its correct last-fired/next-run time, not 'never_run'",
+              "verified live: restart the backend (respecting the session-end batching rule) and confirm weekly_fred_refresh/weekly_data_integrity show correct historical fire times, not never_run"
+            ],
+            "live_check": "curl output from /api/jobs/all post-restart showing correct status for the two weekly jobs, cross-checked against their actual fire history in logs"
+          },
+          "notes": "Filed 2026-08-20 from an operator bug report. Cosmetic/observability only -- the underlying jobs work correctly; only the dashboard's memory of them is wrong."
+        },
+        {
+          "id": "86.144",
+          "name": "the Cron/Logs page resolves the ablation job's log file paths without the /logs/ subdirectory, so it always shows \"log file does not exist yet\" for logs that exist and have real content",
+          "status": "pending",
+          "priority": "P2",
+          "harness_required": true,
+          "audit_basis": "SURFACED 2026-08-20 from operator screenshots showing 'Log file does not exist yet' for both ablation.launchd.log and ablation.log. Confirmed both files exist and have real, current content at handoff/logs/ablation.log (12KB, written 03:00 same day) and handoff/logs/ablation.launchd.log -- but backend/api/cron_dashboard_api.py:163-165 resolves them at handoff/ablation.log / handoff/ablation.launchd.log (repo root, missing /logs/). The plist StandardOutPath and scripts/ops/run_ablation.sh:14 both confirm the real path is under handoff/logs/. The code's own comment ('phase-23.3.5 ... NOT handoff/logs/') is correct for mas-harness/autoresearch's log locations but WRONG for ablation's. (mas-harness.launchd.log 'does not exist yet' is a separate, expected consequence of mas-harness's launchd job genuinely not being loaded -- already tracked by phase-85.1 and multiple other steps; not re-filed here.)",
+          "verification": {
+            "command": "curl -s 'http://localhost:8000/api/logs/tail?log=ablation&lines=10'",
+            "success_criteria": [
+              "backend/api/cron_dashboard_api.py's _log_paths() (or equivalent) resolves ablation.log and ablation.launchd.log under handoff/logs/, matching where run_ablation.sh and the plist actually write them",
+              "the command above returns real log content, not 'does not exist yet', when handoff/logs/ablation.log has content",
+              "a Playwright screenshot of the Cron/Logs page with 'ablation.log' selected shows real log lines"
+            ],
+            "live_check": "curl output showing real ablation log content, plus a Playwright screenshot of the Logs tab confirming it"
+          },
+          "notes": "Filed 2026-08-20 from an operator bug report. Small, well-scoped path fix."
+        },
+        {
+          "id": "86.145",
+          "name": "favicon.ico lives under the Next.js App Router (frontend/src/app/favicon.ico) instead of frontend/public/, so it compiles as a webpack route on first hit -- 12-77s observed -- which is the likely cause of a browser tab spinning for minutes",
+          "status": "pending",
+          "priority": "P2",
+          "harness_required": true,
+          "audit_basis": "SURFACED 2026-08-20 from an operator screenshot describing a spinning 'next symbol' in the browser tab area for many minutes. Checked every setLoading(true) call site in the frontend for a stuck-spinner anti-pattern -- found exactly one instance (frontend/src/components/OptimizerInsights.tsx:451, missing try/finally), but that component is confirmed dead code (zero references anywhere except its own export; app/backtest/page.tsx:75 comments 'OptimizerInsightsView removed'), so it cannot be the live symptom. Stronger match, measured directly in frontend/frontend.log: 'Compiling /favicon.ico ... Compiled /favicon.ico in 11.7s (6272 modules) / GET /favicon.ico 200 in 12510ms'. favicon.ico (1150 bytes, added 2026-07-26) sits under src/app/, the Next.js App Router special-file location, not public/ -- Next.js dev-mode therefore treats it as a compiled route rather than a static asset, and the browser's native tab-favicon fetch hangs while that compile is pending; under concurrent dev-server load this measurably stretches into tens of seconds and plausibly minutes. This is a side-effect of the already-pending masterplan step 80.19 ('404 on every page load /favicon.ico'), whose prescribed fix ('add app/favicon.ico per the Next.js 15 App Router convention') is exactly what landed and exactly what caused this -- 80.19 is still status:pending with its original 404-focused criteria, so this is filed as a separate, distinct step rather than editing 80.19's immutable criteria.",
+          "verification": {
+            "command": "bash -c \"curl -s -o /dev/null -w '%{http_code}\\n' http://localhost:3000/favicon.ico\"",
+            "success_criteria": [
+              "favicon.ico is served from frontend/public/ (or another Next.js static convention that bypasses webpack route compilation), while still resolving 200 (not reintroducing the 404 that 80.19 originally fixed)",
+              "a fresh `next dev` + first page load never logs 'Compiling /favicon.ico' in frontend/frontend.log",
+              "GET /favicon.ico resolves in under 100ms on the very first hit after a clean dev-server start"
+            ],
+            "live_check": "frontend.log grep showing zero favicon compile events after a clean restart, plus curl timing confirming sub-100ms first response"
+          },
+          "notes": "Filed 2026-08-20 from an operator bug report. Related to but distinct from 80.19 -- that step's 404 fix already shipped and is confirmed working; this step addresses the compile-cost side effect the fix introduced, without touching 80.19's immutable criteria."
         }
       ]
     },
