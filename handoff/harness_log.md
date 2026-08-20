@@ -36831,3 +36831,51 @@ before this session and its ledger row was missing; backfilled today). 86.59,
 86.118, 86.116, 86.108 and 86.110 are all exhausted at 5/5 with unevaluated fix
 rounds. Nine Q/A evaluations ran; every one confirmed the shipped product was
 correct and not one capping finding was a bug in production code.
+
+## Cycle 194 -- 2026-08-20 -- phase=90.1 result=CONDITIONAL (loop stopped on operator instruction)
+
+**Step 90.1** -- an attempt row cannot tell a graded attempt from a rail drop, and the
+token half of the budget has never been able to fire.
+
+**Research gate:** PASSED (enforced), `wf_db313c3d-b75`, 10 sources read in full, 25 URLs,
+`self_report_disagreed: false`. Brief `handoff/current/research_brief_90.1.md`.
+
+**Built:** `scripts/harness/attempt_outcomes.py` (NEW) resolves outcome + total_tokens from
+the Workflow run record -- join key `startTime`, never `timestamp` (83 of 89 rows unique,
+zero ambiguous, max delta 1.007s; the `timestamp` join resolves 9). `attempt_gate.py` gains
+masterplan membership validation with a loud DENY, reason-named escalations with the forged
+`# BUDGET EXHAUSTED` fallback deleted, and real token accounting so `DEFAULT_MAX_TOKENS`
+binds for the first time. `scripts/qa/mutation_matrix_90_1.py` (NEW), 16 cells / 25 checks.
+
+**Verdicts, 4 attempts (research gate took attempt 1):**
+
+| Cycle | Run | Verdict | Findings |
+|---|---|---|---|
+| 1 | `wf_b7fc2eb5-efd` | **FAIL** | 2 BLOCK + 3 WARN. Both blockers real: the membership walk denied 10 pending harness-required steps (38.13, 46.0-46.8), and `--backfill` exited 1 on the first real launch. |
+| 2 | `wf_7ab71c1d-843` | CONDITIONAL | Both BLOCKs independently re-derived as FIXED. 3 WARN. |
+| 3 | `wf_07182004-c54` | CONDITIONAL | 5 of 6 criteria MET by its own execution. ONE numbered criterion. |
+
+**All findings fixed.** Immutable command `exit 0`: self-test 36 checks, matrix control
+GREEN first, **15 KILLED / 0 SURVIVED / 0 ERROR**, null mutant survived, tree untouched,
+`verdict_ledger.jsonl` byte-identical across every run.
+
+**Why the loop stopped.** Criterion 5 clause 3 relocated ONE SEAM PER CYCLE for three
+cycles -- parse -> import -> run. Every finding correct, every fix correct, each followed by
+the next seam. That is the fixed point step 90.9 exists to describe, observed live on this
+step. **Operator instruction 2026-08-20:** do not spend further cycles on this class. The
+operator has since authorised a real Q/A once everything is fixed; that spawn is theirs to
+schedule. Budget stands at 4 of 5 attempts, 955,467 / 1,200,000 tokens.
+
+**Status: 90.1 stays `pending`.** No step is closed without a PASS verdict and
+self-evaluation is forbidden. Residuals FILED rather than remediated in place, per the
+operator's product-vs-evidence routing: **90.10** (a guard calibrated to a quoted threshold
+-- ambiguity actually starts at 386s, not the documented 900s) and **90.11** (a self-test
+one deleted line from destroying production state -- three instances, three channels, one
+class).
+
+**Also this cycle:** operator flips 89.1 -> superseded by 90.3 and 87.9 -> superseded by
+90.2 + 90.9 (87.9's trigger predicate fires on 0 of 219 CONDITIONAL and 0 of 66 FAIL run
+records); CLAUDE.md's false "attempt_budget.py is NOT YET WIRED / 86.71 pending" corrected.
+Research gates PASSED for **90.2** (`wf_05a76fdf-b16`) and **90.9** (`wf_a963cdc4-7d4`,
+after a first attempt correctly FAILED enforcement for over-claiming URLs), contracts
+written for both.

@@ -1,5 +1,9 @@
 # Researcher Agent Memory Index
 
+- [Glow emphasis 91.13](project_glow_emphasis_91_13.md) — `.alpha-score-glow` is named after DEAD code (0 render sites); both live sites are 1-of-N UNIFORM rows; 1 of 5 infinite animations is motion-guarded
+- [Tooltip contrast 91.22](project_tooltip_contrast_91_22.md) — `contentStyle.color` is a NO-OP for item rows (3 sites already bet on it); the LABEL is not the bug; 6 of 16 files bypass the default so an itemStyle fix is vacuous there
+- [launchd log paths 91.18](project_launchd_log_paths_91_18.md) — StandardOutPath resolves vs RootDirectory NOT WorkingDirectory; 4/10 `_log_paths()` targets missing; a 0-byte launchd log is often CORRECT
+
 - [Severity routing 90.2](project_severity_routing_90_2.md) — re-deriving severity from judge prose is WORSE than a constant (40.0% vs 56.7%, kappa 0.129); 71% of BLOCK mentions are negated; 0/969 rows carry a severity key
 - [Attempt accounting 90.1](project_attempt_accounting_90_1.md) — run records have NO `outcome` key (617/617); the token ceiling is INERT; one counter serves TWO budgets; `tool-ralph` uncorroborated
 - [Criterion shape 90.9](project_criterion_shape_90_9.md) — figures reproduce ONLY at the filing commit (corpus moved +19 steps in 49min); 44 reproduces as a PROXY (literal self-ref 0/155); qa-verdict.js does NOT pass verdict_sequence to the judge

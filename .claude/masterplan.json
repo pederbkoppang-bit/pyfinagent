@@ -2,7 +2,7 @@
   "$schema": "masterplan-v1",
   "project": "pyfinagent",
   "goal": "Ship an Intelligence Engine trading system that maximizes Net System Alpha = Profit - (Risk Exposure + Compute Burn) by dynamically shifting capital to the highest-earning strategy, recursively self-improving under hard risk caps, within a 15-slot daily Claude-routine budget.",
-  "updated_at": "2026-08-20T19:04:56Z",
+  "updated_at": "2026-08-20T20:34:21Z",
   "phases": [
     {
       "id": "phase-0",
@@ -27266,6 +27266,44 @@
             "live_check": "live_check_90.9.md: verbatim output of both --verify runs, the reproduced figures each beside the command and inclusion rule that produced it, the 155-step exit-code sweep, and the two sha256 pairs."
           },
           "notes": "Sequence after 90.2. Does NOT edit anything under scripts/harness/, so it is the one phase-90 step that may run concurrently with 90.1/90.3/90.6. COLLISIONS, each checked: 87.10 (P1 pending) owns the PLAN-time recommendation and a criteria-count guideline and is explicitly non-mechanical (its own criterion says 'this step's verification is a documented process/discipline change, not a code mutation-test'); 90.9 owns the classifier BY EXECUTION that 87.10 needs, proposes NO count guideline, and adopts 87.10's prohibition on retroactively editing any existing step's success_criteria in enforceable form as its criteria 4 and 5. 86.99 (P2 pending) bounds guard-of-the-guard DEPTH at grade time in .claude/agents/qa.md; 90.9 bounds criterion SCOPE at filing time, touches no file 86.99 touches, and states no depth. The findings seam now has four distinct owners and this step is the fourth: what the judge may EMIT (86.98) -> how the caller ROUTES it (90.2) -> what Main DOES with it (87.9) -> what the step ASKS FOR (90.9). Satisfies phase-90's gate because it changes what is ASKED, never what is GRADED -- criterion 5's ledger sha256 is the mechanical proof. IMMUTABLE-COMMAND NOTE: RED at filing time by design; it names the checker this step must build, and is deliberately not a grep/ast.parse presence check -- 89.1's command (sys.exit(0 if 'digest' in src.lower() else 1)) is satisfiable by adding the comment '# digest'."
+        },
+        {
+          "id": "90.10",
+          "priority": "P2",
+          "status": "pending",
+          "harness_required": true,
+          "name": "the join-tolerance ambiguity threshold is measured once and then quoted forever -- make the guard re-derive it instead of trusting a docstring",
+          "audit_basis": "MEASURED 2026-08-20 during step 90.1 cycle 4, raised by the cycle-3 Q/A (wf_07182004-c54) and independently re-derived by Main. scripts/harness/attempt_outcomes.py documented 'ambiguity first appears at 900s', measured over 'the real 89 attempt rows'. That figure was ALREADY STALE when written: on the live ledger the first ambiguous match appears at 386s (tol 30/300/385 -> 0 ambiguous, 21,059,736 summed tokens; tol 386 -> 1 ambiguous, 20,782,337; tol 899 -> 6 ambiguous, 19,692,711, a 6.5% loss). Mutation cell M11 was calibrated to the quoted 900s and therefore SURVIVED the entire [386,899] band. 90.1 cycle 4 corrected the docstring and re-pointed M11 at 386s -- but 386 is itself a measurement of a MOVING corpus (the ledger grows on every launch), so the same staleness will recur. The defect class is a guard calibrated to a QUOTED number rather than a re-derived one.",
+          "verification": {
+            "success_criteria": [
+              "the guard DERIVES the ambiguity threshold from the corpus at run time rather than reading a constant or a docstring, and prints the derived value with the corpus size and date beside it",
+              "red-first and discriminating: a fixture whose true threshold differs from the previously-quoted one is caught, the control is observed GREEN first, and a mutant that pins the threshold back to a literal constant is KILLED",
+              "the previously-quoted figure (900s) and the re-derived one (386s at 2026-08-20) are BOTH printed with their corpus sizes, so the drift is visible rather than silently replaced",
+              "a mutant that fails to RUN scores ERROR and never counts as a kill -- name-resolution failure means the code never ran, a domain exception means it ran and misbehaved (the discriminator 90.1 cycle 4 established)"
+            ],
+            "command": "python3 scripts/harness/attempt_outcomes.py --derive-tolerance --verify",
+            "live_check": "live_check_90.10.md: the derived threshold with corpus size and date, beside the historical 900s claim"
+          },
+          "notes": "FILED 2026-08-20 by step 90.1 cycle 4 rather than remediated in place, per the operator's product-vs-evidence routing instruction. Discovered by the 90.1 cycle-3 Q/A and labelled RESIDUAL by it (explicitly not a numbered criterion miss)."
+        },
+        {
+          "id": "90.11",
+          "priority": "P1",
+          "status": "pending",
+          "harness_required": true,
+          "name": "a self-test one deleted line away from destroying production state is a class, not an instance -- sweep every harness self-test for unredirected output paths",
+          "audit_basis": "MEASURED 2026-08-20 by the step-90.1 cycle-3 Q/A (wf_07182004-c54). It built a structurally-equivalent sandbox, deleted the SINGLE line `VERDICT_LEDGER = Path(td) / \"verdicts.jsonl\"` from attempt_gate.py::_self_test, and the self-test reported rc=0 SELF-TEST PASSED with ZERO FAILs while TRUNCATING the sandbox's verdict ledger from 3 rows to one synthetic {\"step_id\":\"9.1\",\"verdict\":\"PASS\"} row, via the PASS-exception fixture write. 90.1 cycle 4 fixed THAT instance (the self-test now refuses to run if LEDGER, VERDICT_LEDGER or ESCALATION_DIR resolve inside the repo). But the class is not swept: this project has a documented history of exactly this leak -- read_ledger's own docstring records a synthetic 9.4 extension row reaching the REAL audit stream, and 90.1 cycle 1 leaked a real escalation_unknown_step_id_9.9.md into handoff/current/ through a second, unredirected channel. Three instances, three channels, one class.",
+          "verification": {
+            "success_criteria": [
+              "every self-test and checker under scripts/ that writes ANY file is enumerated by execution, with its output paths resolved, and the enumeration is pinned to a file list rather than a grep that silently covers nothing",
+              "each one either redirects every output path outside the repo, or refuses to run -- proven by DELETING each redirect in a sandbox and asserting the test now fails loudly rather than passing while writing to production state",
+              "the sweep is re-runnable and its control is observed GREEN first; a mutant that removes one refusal is KILLED, and a mutant that fails to run scores ERROR",
+              "no production file is modified by the sweep itself, proven by sha256 over the repo's tracked handoff/ and .claude/ state before and after"
+            ],
+            "command": "python3 scripts/qa/sweep_selftest_output_paths_90_11.py --verify",
+            "live_check": "live_check_90.11.md: the enumerated file list, and the delete-the-redirect sandbox transcript for each"
+          },
+          "notes": "FILED 2026-08-20 by step 90.1 cycle 4. The instance is fixed; the CLASS is this step. Three historical instances across three different output channels are named in the audit_basis."
         }
       ]
     },

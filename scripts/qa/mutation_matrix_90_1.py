@@ -226,7 +226,7 @@ def drive_join(gate: Path, tmp: Path) -> dict:
     # fixture rather than to the property is the illusory-guard shape. Moved to
     # 950s: still unambiguous at the shipped 30s, ambiguous for anything at or
     # past the documented threshold.
-    _plant_run_record(tmp, REAL_SID, ts, 900_000, "PASS", 999999,
+    _plant_run_record(tmp, REAL_SID, ts, 386_000, "PASS", 999999,
                       name="wf_decoy")
     resolver = gate.parent / "attempt_outcomes.py"
     r = subprocess.run([sys.executable, str(resolver), "--backfill"],
@@ -237,7 +237,8 @@ def drive_join(gate: Path, tmp: Path) -> dict:
         row = {}
     return {"rc": r.returncode, "outcome": row.get("outcome"),
             "reason": row.get("outcome_reason"),
-            "tokens": row.get("total_tokens"), "run_id": row.get("run_id")}
+            "tokens": row.get("total_tokens"), "run_id": row.get("run_id"),
+            "stderr": r.stderr}
 
 
 def drive_nested(gate: Path, tmp: Path) -> dict:
@@ -303,7 +304,8 @@ def drive_launch_row_backfill(gate: Path, tmp: Path) -> dict:
         after = {}
     return {"rc": r.returncode, "outcome": after.get("outcome"),
             "tokens": after.get("total_tokens"),
-            "note_kept": after.get("note") == launch_row["note"]}
+            "note_kept": after.get("note") == launch_row["note"],
+            "stderr": r.stderr}
 
 
 def drive_backfill(gate: Path, tmp: Path) -> dict:
@@ -325,7 +327,48 @@ def drive_backfill(gate: Path, tmp: Path) -> dict:
     return {"rc": r.returncode, "kept_original_fields": kept,
             "gained_outcome": "outcome" in after,
             "gained_tokens": "total_tokens" in after,
-            "outcome": after.get("outcome")}
+            "outcome": after.get("outcome"), "stderr": r.stderr}
+
+
+#: Exception types that mean the mutated code could not RESOLVE what it needs
+#: -- i.e. it never ran -- as distinct from a domain exception the code raises
+#: on purpose (AssertionError, ValueError), which is a mutant RUNNING and
+#: misbehaving and must stay a KILL.
+UNRESOLVABLE_ERRORS = ("ModuleNotFoundError", "ImportError", "NameError",
+                       "AttributeError")
+
+
+def _drive_traceback(obs: dict) -> str | None:
+    """The first unhandled traceback any drive produced, or None.
+
+    Scored BEFORE the checks, because a mutant that crashed on every drive
+    fails every check for a reason that says nothing about the guard.
+    """
+    # Every drive, both subject modules. Cycle-4 first scanned only the hook
+    # drives and QX3 -- the same authoring slip in the RESOLVER -- still scored
+    # KILLED, because its crash surfaces on the --backfill drives instead.
+    #
+    # But "raised an exception" is NOT "could not run", and conflating them is
+    # its own defect: the first version of this scan flagged M14 as ERROR, and
+    # M14 is a perfectly good mutant whose whole POINT is to reintroduce a bug
+    # that raises AssertionError. Scoring a designed failure as ERROR silently
+    # deletes a cell from the matrix -- the over-eager probe is as bad as the
+    # blind one, which is why NULLCTL and a real-kill control are both drilled.
+    #
+    # The discriminator is the exception TYPE. A mutant that cannot run fails
+    # to RESOLVE A NAME: the function, module or attribute it needs is not
+    # there. A mutant that runs and misbehaves raises a DOMAIN exception the
+    # code itself chose to raise.
+    for key in ("below", "at", "unknown", "over", "under", "nested",
+                "backfill", "launch", "join"):
+        err = (obs.get(key) or {}).get("stderr") or ""
+        if "Traceback (most recent call last)" not in err:
+            continue
+        last = [ln for ln in err.strip().splitlines() if ln.strip()]
+        tail = last[-1] if last else ""
+        if any(tail.lstrip().startswith(x) for x in UNRESOLVABLE_ERRORS):
+            return f"{key} drive: {tail[:130]}"
+    return None
 
 
 def observations(gate: Path) -> dict:
@@ -558,14 +601,13 @@ CELLS = [
      "DEFAULT_TOLERANCE_S = 30",
      "DEFAULT_TOLERANCE_S = 0"),
 
-    ("M11", RESOLVER, "the join tolerance is WIDENED to the DOCUMENTED "
-                      "ambiguity threshold (900s), not merely past a decoy "
-                      "placed far away -- cycle-2 showed every tolerance up to "
-                      "the decoy's own offset survived, including 3600s, which "
-                      "collapses real summed tokens to 20% and turns 71 rows "
-                      "ambiguous",
+    ("M11", RESOLVER, "the join tolerance is WIDENED to the RE-MEASURED "
+                      "ambiguity threshold (386s, where the first ambiguous "
+                      "match actually appears on the live ledger) -- cycle 3 "
+                      "calibrated this to a stale docstring figure of 900s and "
+                      "the cell survived the entire [386,899] band",
      "DEFAULT_TOLERANCE_S = 30",
-     "DEFAULT_TOLERANCE_S = 900"),
+     "DEFAULT_TOLERANCE_S = 386"),
 
     ("M11b", RESOLVER, "the join tolerance is WIDENED past the measured "
                       "ambiguity threshold -- the upper bound had no cell at "
@@ -665,6 +707,24 @@ def run_cell(cell) -> dict:
         except Exception as exc:  # noqa: BLE001
             return {"id": cid, "desc": desc, "score": "ERROR",
                     "why": f"mutant did not run: {type(exc).__name__}: {exc}"}
+        # phase-90.1 cycle-4. THIRD relocation of the same seam: parse -> import
+        # -> RUN. The cycle-3 smoke-import closes the IMPORT seam only, and the
+        # cycle-3 Q/A executed three mutants that parse AND import cleanly and
+        # still cannot run -- a deferred missing import on the hook branch, and
+        # `handle_hook` -> `handle_hook_v2` (the realistic authoring slip) in
+        # each subject module. All three scored KILLED, and failure-COUNT gave
+        # no signal: QX3 failed 5 of 25 checks, exactly like the genuine kill M3.
+        #
+        # The discriminator the Q/A measured, and which I re-measured: a mutant
+        # that cannot run dies with an UNHANDLED TRACEBACK on a drive's stderr,
+        # while all 16 shipped cells produce none. Note what does NOT work: a
+        # benign-path smoke (`--status 9.1`) returns rc=0 for those mutants,
+        # because the mutation sits on the hook branch only.
+        broken = _drive_traceback(obs)
+        if broken:
+            return {"id": cid, "desc": desc, "score": "ERROR",
+                    "why": f"mutant imports but does NOT run: {broken} "
+                           "-- a mutant that cannot run is not a kill"}
         failed = []
         for name, fn in CHECKS:
             try:

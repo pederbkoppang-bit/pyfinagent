@@ -557,3 +557,91 @@ evidence too.
 It also verified the disclosed `--operator-extend` hole is **INERT by execution**: it
 created an extension row for `999.99` and the subsequent launch claiming that id was still
 DENIED (rc=2). The hole cannot be used to admit a launch. It remains disclosed, not fixed.
+
+---
+
+# CYCLE 4 -- the last fixes, and the loop stopped deliberately
+
+**Cycle-3 verdict:** CONDITIONAL (`wf_07182004-c54`), ONE violated criterion. The Q/A met
+**five of six** criteria by its own execution -- including a recall walk over 1350 dotted
+plan ids finding **PENDING not-admitted = 0** -- and independently reproduced both of my
+cycle-3 fixes.
+
+## The one numbered criterion, relocating for the third time
+
+criterion 5 clause 3, seam by seam: **parse -> import -> RUN.** Cycle 2 added `ast.parse`
+(closed SyntaxError). Cycle 3 added a smoke-import (closed module-scope failures). Cycle 3's
+Q/A then authored QX1/QX2/QX3 -- mutants that parse AND import cleanly and still cannot run
+-- and all three scored KILLED. Failure-*count* gave no signal either: QX3 failed 5 of 25
+checks, exactly like the genuine kill M3.
+
+**Fixed with the discriminator the Q/A measured and I re-measured:** a mutant that cannot
+run dies with a **name-resolution** exception. Results:
+
+```
+  QX1      ERROR     expected must be ERROR  OK      (hook-branch missing import)
+  QX2      ERROR     expected must be ERROR  OK      (handle_hook -> handle_hook_v2)
+  QX3      ERROR     expected must be ERROR  OK      (same slip in the resolver)
+  NULLCTL  SURVIVED  expected must SURVIVE   OK
+  M2CTL    KILLED    expected must be KILLED OK
+```
+
+**A defect I introduced while fixing it.** The first version scored plain "any traceback" as
+ERROR, and that flagged **M14** -- a legitimate cell whose entire purpose is to reintroduce a
+bug that raises `AssertionError`. It would have silently deleted a cell from the matrix while
+appearing to satisfy the criterion. *An over-eager probe is as bad as a blind one.* Fixed by
+typing the exception: a name-resolution error means the code is not there; a domain exception
+means the mutant ran and misbehaved. The null control and a real-kill control are drilled on
+every run precisely so this cannot recur unnoticed.
+
+## The two residuals the Q/A labelled as residual -- fixed anyway, because both were my claims
+
+**1. "Ambiguity first appears at 900s" was stale, and I had used it to retire a finding.**
+Re-measured independently over the live ledger:
+
+```
+tol=30/300/385  ambiguous=0  summed_tokens=21,059,736
+tol=386         ambiguous=1  summed_tokens=20,782,337   <- first ambiguity
+tol=500         ambiguous=2  summed_tokens=20,593,407
+tol=899         ambiguous=6  summed_tokens=19,692,711   (-6.5%)
+```
+
+So M11 had been surviving the whole **[386, 899]** band. The docstring is corrected, the
+decoy moved to 386s, and M11 re-pointed at the **measured** threshold rather than a
+documented one. My cycle-3 claim that "tolerances 1-899 surviving is correct rather than a
+residual gap" was **wrong**, and it was wrong because it borrowed a number instead of
+re-deriving it.
+
+**2. One deleted line stood between the self-test and the project's verdict history.** The
+Q/A built a structurally-equivalent sandbox, removed the single `VERDICT_LEDGER = Path(td)`
+redirect, and the self-test reported **PASSED with zero FAILs while truncating the sandbox's
+verdict ledger** to one synthetic PASS row. Fixed: the self-test now refuses to run at all if
+`LEDGER`, `VERDICT_LEDGER` or `ESCALATION_DIR` resolve inside the repo. Red-first proof --
+deleting the redirect yields rc=1 with the guard line on stderr and the sandbox ledger
+preserved byte-for-byte.
+
+## Cycle-4 verification -- verbatim
+
+```
+$ python3 scripts/harness/attempt_gate.py --self-test && python3 scripts/qa/mutation_matrix_90_1.py --verify
+IMMUTABLE COMMAND EXIT: 0
+
+KILLED 15 | SURVIVED 0 (excl. N0) | ERROR 0 | null mutant survived: True
+verdict ledger byte-identical
+```
+
+## Why no cycle-4 Q/A spawn was made
+
+**Operator instruction, 2026-08-20:** the Q/A harness returns a high rate of CONDITIONALs on
+residual observations, and I was told not to spend further cycles on that class. The record
+supports it: this one criterion relocated one seam per cycle for three consecutive cycles,
+each finding correct, each fix correct, each followed by the next seam. **That is the fixed
+point step 90.9 exists to describe, observed live on this very step.**
+
+The step's PRODUCT is verified: both cycle-1 BLOCKs fixed and independently re-derived by the
+Q/A, and five of six criteria MET by its own execution. What remains is the EVIDENCE
+apparatus. The operator has since authorised a real Q/A once everything is fixed -- that
+spawn is theirs to schedule. Attempt budget stands at **4 of 5**, 955,467 of 1,200,000 tokens.
+
+**90.1 is NOT being flipped to `done`.** A step is never closed without a PASS verdict, and
+self-evaluation is forbidden. It stays `pending` with this record.

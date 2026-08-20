@@ -543,6 +543,22 @@ def _self_test() -> int:
                        if old_e.is_dir() else set())
         ESCALATION_DIR = Path(td) / "escalations"
         ESCALATION_DIR.mkdir(parents=True, exist_ok=True)
+        # phase-90.1 cycle-4. The cycle-3 Q/A built a structurally-equivalent
+        # sandbox, deleted the ONE line that redirects VERDICT_LEDGER, and the
+        # self-test still reported PASSED with zero FAILs while TRUNCATING the
+        # sandbox's real verdict ledger to a single synthetic PASS row -- via
+        # the write below in the PASS-exception fixture. One deleted line
+        # between this test and the project's verdict history, and nothing
+        # would have said so. Refuse to run at all if any output path still
+        # resolves inside the repo.
+        for label, target in (("LEDGER", LEDGER),
+                              ("VERDICT_LEDGER", VERDICT_LEDGER),
+                              ("ESCALATION_DIR", ESCALATION_DIR)):
+            if Path(target).resolve().is_relative_to(REPO):
+                print(f"  FAIL  {label} still points INSIDE the repo "
+                      f"({target}) -- refusing to run the self-test rather "
+                      "than risk writing to production state", file=sys.stderr)
+                return 1
         # phase-90.1, criterion 4's last clause. This self-test's ids -- 9.1
         # through 9.5 -- are NOT synthetic: all five are REAL masterplan steps.
         # So a membership check would let them pass SILENTLY, which is exactly
