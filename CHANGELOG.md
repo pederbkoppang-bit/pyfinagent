@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-20 | `3a885852` | docs(memory): record phase-90 state and the research findings |
 | 2026-08-20 | `a252b025` | phase-90.1: cycle-4 fixes, file the residuals, stop the loop on operator instruction |
 | 2026-08-20 | `729dd1d4` | phase-90.2/90.9: contracts, both research gates PASSED (enforced) |
 | 2026-08-20 | `74d9862c` | phase-91: split today's 23-item operator defect batch out of phase-86 |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-18 | `e1d3c27c` | feat(masterplan): file 87.6-87.11 from the harness self-audit research gate |
 | 2026-08-18 | `28182547` | chore: split pipeline-report-integrity findings into phase-88 |
 | 2026-08-18 | `4f90a2fe` | ops: WEEKLY MAX BUDGET EXHAUSTED -- resets Aug 20 19:00 Europe/Oslo |
-| 2026-08-18 | `ee319908` | feat(masterplan): file 86.129 + 86.130 -- pipeline-report audit findings |
 
 ---
 
