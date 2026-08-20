@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-20 | `c3ce6bf8` | phase-91.9,91.13,91.22: three operator-reported UI defects fixed, PASS, done |
 | 2026-08-20 | `3a885852` | docs(memory): record phase-90 state and the research findings |
 | 2026-08-20 | `a252b025` | phase-90.1: cycle-4 fixes, file the residuals, stop the loop on operator instruction |
 | 2026-08-20 | `729dd1d4` | phase-90.2/90.9: contracts, both research gates PASSED (enforced) |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-20 | `7abb9792` | feat(masterplan): file phase-90 from the Q/A re-cycle-loop forensic audit |
 | 2026-08-18 | `e1d3c27c` | feat(masterplan): file 87.6-87.11 from the harness self-audit research gate |
 | 2026-08-18 | `28182547` | chore: split pipeline-report-integrity findings into phase-88 |
-| 2026-08-18 | `4f90a2fe` | ops: WEEKLY MAX BUDGET EXHAUSTED -- resets Aug 20 19:00 Europe/Oslo |
 
 ---
 
+### v6.93.238 — phase-91.9,91.13,91.22: three operator-reported UI defects fixed, PAS... (2026-08-20)
+
+- **phase-91.9,91.13,91.22: three operator-reported UI defects fixed, PASS, done**
 ### v6.93.237 — phase-75.11.4: Audit75 S11 follow-up -- backfill_handoff_archive.py a... (2026-08-18)
 
 - **phase-75.11.4: Audit75 S11 follow-up -- backfill_handoff_archive.py archives by filename pattern,...**
