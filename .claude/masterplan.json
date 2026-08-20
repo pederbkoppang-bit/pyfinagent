@@ -26911,6 +26911,65 @@
             "live_check": "frontend.log grep showing zero favicon compile events after a clean restart, plus curl timing confirming sub-100ms first response"
           },
           "notes": "Filed 2026-08-20 from an operator bug report. Related to but distinct from 80.19 -- that step's 404 fix already shipped and is confirmed working; this step addresses the compile-cost side effect the fix introduced, without touching 80.19's immutable criteria."
+        },
+        {
+          "id": "86.146",
+          "name": "add a \"Run Full Analysis\" action on the Signals page once the 12-source enrichment fetch completes, letting the operator trigger the full multi-agent report on-demand from the signals view",
+          "status": "pending",
+          "priority": "P2",
+          "harness_required": true,
+          "audit_basis": "SURFACED 2026-08-20 from an operator request: 'add this feature on the signal pages to run a full analysis when all the signals are fetched if the user wants to do so.' Confirmed: frontend/src/app/signals/page.tsx has no full-analysis trigger anywhere -- it only calls getAllSignals(ticker) (frontend/src/lib/api.ts:338) which hits the lightweight 12-source enrichment endpoint (backend/api/signals.py:74 get_all_signals). The full-analysis machinery already exists and is reusable as-is: frontend/src/lib/api.ts:289 startAnalysis(ticker) POSTs to backend/api/analysis.py:350-351 (start_analysis, AnalysisRequest{ticker}), and getAnalysisStatus (api.ts:299 area) polls backend/api/analysis.py:384-385 for progress. This is a wiring task, not new backend work: add a button that appears once `data` (the fetched signals) is populated, call startAnalysis(ticker), then reuse the existing progress-polling UI pattern (frontend/src/components/AnalysisProgress.tsx) to show it running, matching the project's 'lightweight polling' convention (.claude/rules/frontend.md).",
+          "verification": {
+            "command": "grep -n 'startAnalysis\\|Run Full Analysis' frontend/src/app/signals/page.tsx",
+            "success_criteria": [
+              "once signals are fetched (data is non-null) for a ticker, a 'Run Full Analysis' button is visible on the Signals page",
+              "clicking it calls the existing startAnalysis(ticker) endpoint and shows live progress via the existing AnalysisProgress pattern, not a new bespoke progress UI",
+              "on completion, the operator is shown a clear link/path to the resulting report (e.g. the Reports page or the new report directly)",
+              "the button is disabled/hidden appropriately while an analysis for that ticker is already in flight, consistent with the project's mutual-exclusion UI conventions",
+              "verified live via Playwright: fetch signals for a ticker, click Run Full Analysis, observe progress, confirm a report is produced"
+            ],
+            "live_check": "Playwright screenshots of the Signals page showing the new button, the in-progress state, and the completed analysis link"
+          },
+          "notes": "Filed 2026-08-20 from an operator feature request. Low risk -- reuses existing, already-shipped analysis-trigger plumbing; this is UI wiring, not new backend capability."
+        },
+        {
+          "id": "86.147",
+          "name": "the Signals page ticker input only accepts an exact ticker symbol -- add company-name search, since no name-to-ticker lookup capability exists anywhere in the codebase today",
+          "status": "pending",
+          "priority": "P2",
+          "harness_required": true,
+          "audit_basis": "SURFACED 2026-08-20 from an operator request: 'make it possible to search up by name and not only ticker.' Confirmed the input is ticker-only: frontend/src/app/signals/page.tsx:69-78, a plain text input labeled 'Ticker symbol', uppercased on every keystroke (onChange: e.target.value.toUpperCase()), with no autocomplete/lookup. Confirmed no existing name-to-ticker capability exists anywhere to build on: backend/backtest/universe_lists.py (the only 'universe' list in the repo) has raw ticker symbols only, no company names; financial_reports.analysis_results stores company_name per report (bigquery_client.py:61) but only for tickers ALREADY analyzed -- not a general lookup for new tickers; grepped backend/ and frontend/src for symbol_search/ticker_search/company_name lookup patterns, zero hits. This means the feature needs either (a) a live search call to an existing data provider already in the stack (yfinance is already used for price data per the Report page's 'Sources: yfinance' tag; Alpaca's asset-list endpoint is available via the pinned alpaca-mcp-server in .mcp.json) or (b) a maintained local ticker<->name reference table. This is a genuine build, not a one-line fix -- the implementer should pick and justify one approach in the contract, not both.",
+          "verification": {
+            "command": "grep -rn 'symbol_search\\|company_name.*lookup\\|name_to_ticker' backend/api/",
+            "success_criteria": [
+              "a backend endpoint accepts a free-text query and returns matching ticker+company-name pairs (fuzzy/prefix match on company name, exact/prefix match on ticker)",
+              "the Signals page input supports typing a company name (e.g. 'Marvell') and selecting the resolved ticker (e.g. MRVL) before fetching, alongside the existing exact-ticker path which must keep working unmodified",
+              "the chosen data source is documented and justified in the contract (why yfinance vs Alpaca vs a static reference table), including behavior when the query matches zero or many results",
+              "Korean/international tickers (per the project's multi-market support) are not silently excluded from name search -- or the limitation is explicitly documented if scoped to US-only in v1",
+              "verified live via Playwright: type a company name, select the resolved ticker, confirm the correct signals are fetched"
+            ],
+            "live_check": "Playwright screenshots showing a name-search query, the resolved ticker suggestion, and the correct signals fetched after selection"
+          },
+          "notes": "Filed 2026-08-20 from an operator feature request. Requires a research-gated approach decision (external API vs static reference data) before GENERATE -- do not skip the research gate for this one."
+        },
+        {
+          "id": "86.148",
+          "name": "Recharts chart tooltips are illegible across at least 9 components -- itemStyle is never set, so the value/series row defaults to Recharts' built-in black text on the project's dark navy tooltip background",
+          "status": "pending",
+          "priority": "P2",
+          "harness_required": true,
+          "audit_basis": "SURFACED 2026-08-20 from an operator screenshot of the Sector Rotation chart (Signals page, Sector deep-dive): hovering a bar shows a tooltip where the category label ('Healthcare') is clearly readable but the value row ('Return : 16.9%') is barely visible. Root cause confirmed at frontend/src/components/SectorDashboard.tsx:121-129 -- the <Tooltip> sets contentStyle (dark #0f172a background) and labelStyle (color: #e2e8f0, readable) but never sets itemStyle. Recharts' documented default itemStyle is {color:'#000', ...} -- black text on a near-black background is the exact defect shown. Confirmed this is NOT isolated: grepped every Recharts <Tooltip> usage in frontend/src/components/*.tsx (SectorDashboard, OptimizerInsights x2, PaperReconciliationChart, TransformerForecastPanel, RedLineMonitor, StrategyDetail, StockChart x2) -- zero of them set itemStyle, and there is no global CSS override targeting .recharts-tooltip-item in frontend/src/app/globals.css to compensate. This violates the project's own documented contrast rule (.claude/rules/frontend.md 'Dark-mode + readability', WCAG 2.2 AAA targets) and affects essentially every dark-themed chart tooltip in the app, not just the one captured.",
+          "verification": {
+            "command": "grep -c 'itemStyle' frontend/src/components/SectorDashboard.tsx frontend/src/components/OptimizerInsights.tsx frontend/src/components/PaperReconciliationChart.tsx frontend/src/components/TransformerForecastPanel.tsx frontend/src/components/RedLineMonitor.tsx frontend/src/components/StrategyDetail.tsx frontend/src/components/StockChart.tsx",
+            "success_criteria": [
+              "every Recharts <Tooltip> in the 9 identified components (and any others found by the same grep sweep during GENERATE) sets an explicit itemStyle with a readable color (e.g. #e2e8f0 / text-slate-100, matching the project's contrast tokens), ideally via one shared constant/style object rather than 9 copies",
+              "the command above returns a non-zero itemStyle count for every listed file after the fix",
+              "a live Playwright screenshot of the Sector Rotation tooltip (hover state) shows both the label and the value clearly legible against the dark background",
+              "spot-check at least 2 other affected charts (e.g. StockChart, RedLineMonitor) post-fix to confirm the shared fix pattern was actually applied everywhere, not just to the one reported instance"
+            ],
+            "live_check": "Playwright screenshot of the Sector Rotation chart tooltip on hover, post-fix, showing legible value text, plus one additional chart's tooltip as a spot-check"
+          },
+          "notes": "Filed 2026-08-20 from an operator screenshot. Confirmed systemic via a full grep sweep before filing, not assumed from the single reported instance -- do not scope the fix to SectorDashboard.tsx alone."
         }
       ]
     },
