@@ -183,6 +183,12 @@ class Settings(BaseSettings):
         le=500,
         description="phase-66.1: consecutive cc_rail failure count that trips the rail circuit breaker for the rest of the cycle (claude_code_client rail guard). On trip: remaining rail calls return empty responses without spawning the CLI, and exactly ONE P1 pages via the bot-token path (transition latch; P1s bypass the AlertDeduper by design). Resets every cycle. The 2026-06 outage logged ~162 doomed calls/cycle for 3 weeks with zero pages -- the immutable 66.1 criterion caps silent consecutive failures at <=20.",
     )
+    claude_rail_cooldown_default_hours: float = Field(
+        6.0,
+        ge=0.5,
+        le=192.0,
+        description="phase-86.120: fallback cooldown length (hours) after a classified Claude Max quota-exhaustion hit (session/weekly/Opus limit -- code.claude.com/docs/en/errors) when the CLI's own 'resets HH:MMam/pm' / 'resets Day HH:MMam/pm' string cannot be confidently parsed into a future instant. The actual cooldown prefers that CLI-reported reset time; this is the safety-net default only, applied uniformly across all three limit kinds so a parse failure never under-shoots the real cooldown. Persisted to backend/agents/_cache/cc_rail_cooldown.json -- survives both rail_guard_reset() (per-cycle, phase-66.1) and a backend process restart, unlike claude_rail_breaker_threshold's in-memory counter.",
+    )
     claude_code_timeout_s: int = Field(
         150,
         ge=60,

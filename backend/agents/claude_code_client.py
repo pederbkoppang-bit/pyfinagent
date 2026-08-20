@@ -28,12 +28,16 @@ import copy
 import json
 import logging
 import os
+import re
 import shutil
 import subprocess
 import threading
 import time
 from dataclasses import dataclass
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
 from typing import Any, Optional
+from zoneinfo import ZoneInfo
 
 logger = logging.getLogger(__name__)
 
@@ -136,7 +140,7 @@ def rail_guard_disable(reason: str) -> None:
 
 def rail_guard_status() -> dict[str, Any]:
     with _RAIL_GUARD_LOCK:
-        return {
+        status = {
             "cycle_id": _RAIL_GUARD.cycle_id,
             "rail_skipped": _RAIL_GUARD.disabled_reason is not None,
             "breaker_tripped": _RAIL_GUARD.open,
@@ -145,6 +149,10 @@ def rail_guard_status() -> dict[str, Any]:
             "disabled_reason": _RAIL_GUARD.disabled_reason,
             "last_error": _RAIL_GUARD.last_error,
         }
+    # phase-86.120: fold the disk-persisted quota cooldown into the SAME
+    # observability seam, rather than adding a new one-off status call.
+    status.update(cooldown_status())
+    return status
 
 
 def _rail_guard_blocked() -> Optional[str]:
@@ -210,6 +218,267 @@ def _rail_guard_record_failure(error: str) -> None:
             )
         except Exception as page_exc:  # paging must never break the rail
             logger.warning("rail breaker page failed (non-fatal): %r", page_exc)
+
+
+def _rail_guard_open_for_quota(reason: str) -> None:
+    """Azure 'accelerated circuit breaking' (research_brief_86.120.md S4): trip
+    the in-cycle breaker at N=1 on a CLASSIFIED quota signal, rather than
+    waiting for claude_rail_breaker_threshold generic consecutive failures.
+    Deliberately does NOT page -- the disk cooldown this pairs with is a
+    known, self-resolving condition; paging here would be exactly the
+    alarm-fatigue anti-pattern scripts/away_ops/auth_state.py's module
+    docstring warns about (a real, already-handled event should not also
+    interrupt an operator).
+    """
+    with _RAIL_GUARD_LOCK:
+        _RAIL_GUARD.open = True
+        _RAIL_GUARD.last_error = reason[:400]
+
+
+# ── phase-86.120: weekly/session/Opus quota-exhaustion cooldown ────────────
+# The rail guard above (phase-66.1) is IN-MEMORY and PER-CYCLE:
+# rail_guard_reset() wipes it at the start of every cycle
+# (autonomous_loop.py), and its consecutive-failure threshold treats a
+# quota exhaustion exactly like any transient blip. Once the operator's
+# weekly (or session, or Opus-only) Claude Max limit is hit, every
+# subsequent cycle for the rest of the week independently rediscovers the
+# same fact the hard way -- ~20 doomed subprocess spawns per cycle, per
+# call site, forever (research_brief_86.120.md G1/G2). This section adds a
+# DISK-PERSISTED cooldown, keyed off the CLI's own documented limit
+# messages, that survives both rail_guard_reset() and a process restart.
+#
+# Detection surface (research_brief_86.120.md S1, S6, M1-M5): `claude
+# --output-format json` exposes NO stop_reason/subtype for this -- the
+# only signal is the CLI's own human-readable sentence, either inside the
+# JSON envelope's `result` field (when the CLI still emits valid JSON on
+# failure) or as raw stdout text (when it does not -- the :441-443 comment
+# above already documents this case). The three documented forms
+# (verbatim, code.claude.com/docs/en/errors):
+#     "You've hit your session limit - resets 3:45pm"
+#     "You've hit your weekly limit - resets Mon 12:00am"
+#     "You've hit your Opus limit - resets 3:45pm"
+# Session/weekly reset strings carry no date; weekly carries no year --
+# reconstructing an absolute instant needs "next occurrence of" arithmetic,
+# which this repo has gotten wrong before (reference_stat_SB_prints_local_time,
+# reference_fixed_offset_tz_fixture_is_hour_dependent). So parsing here is
+# best-effort ONLY: cooldown_record_hit() always falls back to a
+# configurable default backoff when the parse is missing, in the past, or
+# implausibly far out -- it never trusts a parse that would UNDER-shoot the
+# real cooldown.
+_LIMIT_KIND_PATTERNS: tuple[tuple[str, "re.Pattern[str]"], ...] = (
+    ("weekly", re.compile(r"hit your weekly limit", re.IGNORECASE)),
+    ("opus", re.compile(r"hit your opus limit", re.IGNORECASE)),
+    ("session", re.compile(r"hit your session limit", re.IGNORECASE)),
+)
+# Minutes are OPTIONAL in both patterns: the official doc's examples are all
+# "3:45pm"-shaped, but the one real captured envelope in this repo
+# (handoff/away_ops/session_pm_20260707T200007Z.json) reads
+# "resets 1am (Europe/Oslo)" -- a bare on-the-hour form with no ":00". A
+# regex that required minutes would silently fail to parse live data.
+_RESET_CLOCK_RE = re.compile(
+    r"resets\s+(\d{1,2})(?::(\d{2}))?\s*([ap]m)(?:\s*\(([^)]+)\))?", re.IGNORECASE
+)
+_RESET_WEEKDAY_RE = re.compile(
+    r"resets\s+([A-Za-z]{3})\s+(\d{1,2})(?::(\d{2}))?\s*([ap]m)", re.IGNORECASE
+)
+_WEEKDAY_INDEX = {"mon": 0, "tue": 1, "wed": 2, "thu": 3, "fri": 4, "sat": 5, "sun": 6}
+
+_COOLDOWN_DIR = Path(__file__).parent / "_cache"
+_COOLDOWN_DIR.mkdir(parents=True, exist_ok=True)
+_COOLDOWN_PATH = _COOLDOWN_DIR / "cc_rail_cooldown.json"
+
+
+@dataclass
+class LimitClassification:
+    """A best-effort read of one CLI failure as a quota-exhaustion hit."""
+
+    kind: str  # "session" | "weekly" | "opus"
+    raw_message: str
+    parsed_retry_at: Optional[datetime] = None  # None if unparseable/absent
+
+
+def _default_backoff_hours() -> float:
+    try:
+        from backend.config.settings import get_settings
+
+        return float(getattr(get_settings(), "claude_rail_cooldown_default_hours", 6.0))
+    except Exception:  # settings must never break classification
+        return 6.0
+
+
+def _next_occurrence_of_clock(
+    hour12: int, minute: int, meridiem: str, tz_name: Optional[str], now: datetime
+) -> Optional[datetime]:
+    """Next future wall-clock HH:MM[am/pm], in tz_name if given else the HOST's
+    local timezone -- NOT `now`'s own tzinfo, which is UTC by default
+    (classify_limit_failure's default `now` is `datetime.now(timezone.utc)`).
+    The CLI prints these times in the operator's local zone (the one real
+    captured example carries an explicit "(Europe/Oslo)" suffix; the
+    official doc's bare "3:45pm" examples carry none), so treating an absent
+    suffix as literal UTC would misparse the common case."""
+    try:
+        hour = hour12 % 12
+        if meridiem.lower() == "pm":
+            hour += 12
+        tz = ZoneInfo(tz_name) if tz_name else datetime.now().astimezone().tzinfo
+        local_now = now.astimezone(tz)
+        candidate = local_now.replace(hour=hour, minute=minute, second=0, microsecond=0)
+        if candidate <= local_now:
+            candidate += timedelta(days=1)
+        return candidate.astimezone(timezone.utc)
+    except Exception:
+        return None
+
+
+def _next_occurrence_of_weekday_clock(
+    weekday_abbr: str, hour12: int, minute: int, meridiem: str, now: datetime
+) -> Optional[datetime]:
+    """Next future <Weekday> HH:MM[am/pm], host-local (no tz in the weekly string)."""
+    try:
+        target_wd = _WEEKDAY_INDEX[weekday_abbr.strip().lower()[:3]]
+        hour = hour12 % 12
+        if meridiem.lower() == "pm":
+            hour += 12
+        local_now = now.astimezone()
+        days_ahead = (target_wd - local_now.weekday()) % 7
+        candidate = (local_now + timedelta(days=days_ahead)).replace(
+            hour=hour, minute=minute, second=0, microsecond=0
+        )
+        if candidate <= local_now:
+            candidate += timedelta(days=7)
+        return candidate.astimezone(timezone.utc)
+    except Exception:
+        return None
+
+
+def classify_limit_failure(
+    raw_stdout: str, *, now: Optional[datetime] = None
+) -> Optional[LimitClassification]:
+    """Best-effort: is this CLI failure a quota-exhaustion hit, and which kind?
+
+    Tries the JSON envelope's `result` field first (the intact sentence,
+    per research_brief_86.120.md M5 -- the existing truncated `str(exc)[:150]`
+    severs it); falls back to a raw substring scan of stdout for the
+    plain-text case claude_code_invoke's own :441-443 comment documents.
+    Returns None for anything that doesn't match one of the three
+    documented forms -- an ordinary transient failure (network blip, auth
+    hiccup) must fall through to the existing consecutive-failure breaker
+    unchanged.
+    """
+    now = now or datetime.now(timezone.utc)
+    text = raw_stdout or ""
+    message = text
+    try:
+        envelope = json.loads(text)
+        if isinstance(envelope, dict):
+            result = envelope.get("result")
+            if isinstance(result, str) and result:
+                message = result
+    except Exception:
+        pass
+
+    for kind, pattern in _LIMIT_KIND_PATTERNS:
+        if pattern.search(message):
+            retry_at = None
+            if kind == "weekly":
+                m = _RESET_WEEKDAY_RE.search(message)
+                if m:
+                    retry_at = _next_occurrence_of_weekday_clock(
+                        m.group(1),
+                        int(m.group(2)),
+                        int(m.group(3)) if m.group(3) else 0,
+                        m.group(4),
+                        now,
+                    )
+            else:
+                m = _RESET_CLOCK_RE.search(message)
+                if m:
+                    retry_at = _next_occurrence_of_clock(
+                        int(m.group(1)),
+                        int(m.group(2)) if m.group(2) else 0,
+                        m.group(3),
+                        m.group(4),
+                        now,
+                    )
+            return LimitClassification(kind=kind, raw_message=message[:500], parsed_retry_at=retry_at)
+    return None
+
+
+def _cooldown_read() -> Optional[dict]:
+    try:
+        return json.loads(_COOLDOWN_PATH.read_text(encoding="utf-8"))
+    except Exception:
+        return None
+
+
+def _cooldown_write(state: Optional[dict]) -> None:
+    """Atomic write (tmp + os.replace) so a crash mid-write cannot corrupt
+    the persisted cooldown into an unreadable (and therefore fail-open,
+    losing the protection this step exists to add) state."""
+    try:
+        if state is None:
+            _COOLDOWN_PATH.unlink(missing_ok=True)
+            return
+        tmp = _COOLDOWN_PATH.with_suffix(".json.tmp")
+        tmp.write_text(json.dumps(state), encoding="utf-8")
+        os.replace(tmp, _COOLDOWN_PATH)
+    except Exception as exc:  # persistence must never break the rail
+        logger.warning("cc_rail cooldown: state write failed (non-fatal): %r", exc)
+
+
+def cooldown_record_hit(classification: LimitClassification, *, now: Optional[datetime] = None) -> dict:
+    """Persist a classified quota hit. retry_at prefers the CLI's own parsed
+    reset time; falls back to hit_at + the configured default whenever the
+    parse is missing, non-future, or implausibly far out (>9 days) -- see
+    the module-level note on why parsing is best-effort, never trusted
+    blindly."""
+    now = now or datetime.now(timezone.utc)
+    fallback = now + timedelta(hours=_default_backoff_hours())
+    retry_at = classification.parsed_retry_at
+    if retry_at is None or retry_at <= now or retry_at > now + timedelta(days=9):
+        retry_at = fallback
+    state = {
+        "kind": classification.kind,
+        "raw_message": classification.raw_message,
+        "hit_at": now.isoformat(),
+        "retry_at": retry_at.isoformat(),
+    }
+    _cooldown_write(state)
+    logger.warning(
+        "cc_rail cooldown ENGAGED: kind=%s retry_at=%s (message=%r)",
+        classification.kind, retry_at.isoformat(), classification.raw_message[:150],
+    )
+    return state
+
+
+def cooldown_clear_on_success() -> None:
+    if _cooldown_read() is not None:
+        logger.info("cc_rail cooldown CLEARED (a real call succeeded)")
+        _cooldown_write(None)
+
+
+def cooldown_status() -> dict[str, Any]:
+    """Operator-readable cooldown state; folded into rail_guard_status() so
+    it stays the one observability seam rather than a new one-off script."""
+    state = _cooldown_read()
+    if state is None:
+        return {"cooldown_active": False}
+    try:
+        retry_at = datetime.fromisoformat(state["retry_at"])
+        active = datetime.now(timezone.utc) < retry_at
+    except Exception:
+        active = True  # a corrupt record fails toward SAFE (still cooling down)
+    return {
+        "cooldown_active": active,
+        "cooldown_kind": state.get("kind"),
+        "cooldown_hit_at": state.get("hit_at"),
+        "cooldown_retry_at": state.get("retry_at"),
+        "cooldown_message": state.get("raw_message"),
+    }
+
+
+def cooldown_active() -> bool:
+    return bool(cooldown_status().get("cooldown_active"))
 
 
 def resolve_rail_model(envelope: Optional[dict], requested: Optional[str]) -> Optional[str]:
@@ -357,6 +626,28 @@ def claude_code_invoke(
     Note: check `envelope["subtype"] == "success"` for success detection;
     `is_error` has known mis-flag history (researcher source #18).
     """
+    # phase-86.120: quota cooldown gate -- checked FIRST, before resolving
+    # the binary or building argv, so a persisted quota exhaustion costs
+    # ZERO subprocess spawns. Placed here (inside claude_code_invoke itself)
+    # rather than only in ClaudeCodeClient.generate_content's existing
+    # _rail_guard_blocked() pre-check, because backend/services/
+    # ticket_queue_processor.py calls claude_code_invoke DIRECTLY -- a check
+    # placed only in generate_content would leave that call site unprotected.
+    _cd_status = cooldown_status()
+    if _cd_status.get("cooldown_active"):
+        _cd_msg = (
+            f"cc_rail cooldown active (kind={_cd_status.get('cooldown_kind')}, "
+            f"retry_at={_cd_status.get('cooldown_retry_at')}): "
+            f"{(_cd_status.get('cooldown_message') or '')[:150]}"
+        )
+        logger.info("claude_code_invoke: skipped -- %s", _cd_msg)
+        _cd_exc = ClaudeCodeError(_cd_msg)
+        _cd_exc.cooldown_blocked = True  # generate_content() reads this to avoid
+        # double-counting a KNOWN condition toward the generic consecutive-
+        # failure breaker (which could otherwise page P1 repeatedly for
+        # something already classified and handled).
+        raise _cd_exc
+
     # phase-cycle-4 bugfix (2026-05-26): pass prompt via STDIN, not argv.
     # `--disallowedTools <tools...>` is variadic; a trailing positional
     # prompt gets consumed by the tool list and the CLI fails with
@@ -451,6 +742,23 @@ def claude_code_invoke(
             (completed.stderr or "")[:300],
             _out_snip,
         )
+        # phase-86.120: classify BEFORE truncating into the generic error
+        # message below -- research_brief_86.120.md M5 measured that the
+        # existing 150-char str(exc) slice severs the human-readable limit
+        # sentence ("You've hit y..."), so classification must read the
+        # FULL completed.stdout, not the truncated exception text.
+        _limit = classify_limit_failure(completed.stdout or "")
+        if _limit is not None:
+            cooldown_record_hit(_limit)
+            _rail_guard_open_for_quota(f"quota limit classified: {_limit.kind}")
+            _limit_exc = ClaudeCodeError(
+                f"claude CLI quota exhausted (kind={_limit.kind}): {_limit.raw_message[:200]}"
+            )
+            _limit_exc.cooldown_blocked = True  # a freshly-classified hit is just
+            # as "known" as a cached cooldown skip -- see the cooldown-gate
+            # comment above claude_code_invoke's entry for why this must not
+            # feed the generic consecutive-failure counter.
+            raise _limit_exc
         raise ClaudeCodeError(
             f"claude CLI exited with code {completed.returncode}: "
             f"{(completed.stderr or '')[:150]} | stdout: {_out_snip[:150]}"
@@ -488,6 +796,10 @@ def claude_code_invoke(
         (envelope.get("usage") or {}).get("input_tokens"),
         (envelope.get("usage") or {}).get("output_tokens"),
     )
+    # phase-86.120: a real success clears any persisted quota cooldown --
+    # cleared here (not only in ClaudeCodeClient.generate_content) so the
+    # direct ticket_queue_processor.py caller also self-heals the cooldown.
+    cooldown_clear_on_success()
     return envelope
 
 
@@ -768,7 +1080,13 @@ def _make_claude_code_client_class():
                     latency_ms=(time.monotonic() - _t0) * 1000.0,
                     model=self.model_name, ok=False,
                 )
-                _rail_guard_record_failure(str(exc))
+                # phase-86.120: a cooldown-blocked call (fresh classification
+                # OR a cached skip) is a KNOWN condition, not a mystery
+                # failure -- feeding it into the generic consecutive-failure
+                # breaker would double-count and could page P1 repeatedly
+                # for something already classified and handled.
+                if not getattr(exc, "cooldown_blocked", False):
+                    _rail_guard_record_failure(str(exc))
                 return LLMResponse(
                     text="",
                     thoughts=f"errored: {exc}",

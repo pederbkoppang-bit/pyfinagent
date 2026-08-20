@@ -1,5 +1,15 @@
 # Researcher Agent Memory Index
 
+- [Attempt accounting 90.1](project_attempt_accounting_90_1.md) — run records have NO `outcome` key (617/617); the token ceiling is INERT; one counter serves TWO budgets; `tool-ralph` uncorroborated
+- [Terminal outcome vocabularies](reference_terminal_outcome_vocabularies.md) — k8s `Ignore`/`Count` + `DisruptionTarget`, Temporal's 6 closed statuses, OTel overflow bucket, and the live 2026 exclude-vs-score-zero split
+- [Local LLM 74.0](project_local_llm_74_0.md) — 80% halluc is UNGROUNDED recall; same class is 5.7% grounded; a dry round from an exhausted search budget is a FALSE dry
+
+- [CONDITIONAL collapse 87.6](project_conditional_collapse_87_6.md) — judge changed in the SAME window (qa.md +61%); 1.3% of findings are product; apparatus:product 0.16→2.73
+
+- [Quota exhaustion 86.120](project_quota_exhaustion_86_120.md) — subtype is "success" on 85/85 sessions incl. the 429; api_error_status is undocumented + unread by backend; breaker has ZERO cooldown
+
+- [Stale-test triage 86.118](project_stale_test_triage_86_118.md) — log-scraping is unsound in BOTH directions (one rotation reddens one test, greens its twin); "18 files" was 18 tests/12 files; the only OD victim sits OUTSIDE the named scope
+
 - [Duplicate rows 86.116](project_duplicate_rows_86_116.md) — historical_prices is 38% dup rows (LEGACY, 2026 clean); drop_duplicates MISSES 55.8% (float noise); iloc lookbacks break on RECENT dups, std() on the GLOBAL rate
 - [Zero-run denominator 86.47](project_zero_run_denominator_86_47.md) — 5 calendar days = 2 opportunity days, P(0)=0.672; analysis_results/signals_log are in financial_reports NOT pyfinagent_data; parse-fail fingerprint goes NULL not False
 - [Freshness calendar 86.109](project_freshness_calendar_86_109.md) — the 51.3 guard EXISTS behind a wrapper+local import (7 files not 2); live backend.log is at REPO ROOT; weekend is a MONDAY problem; severity whitelist DEAD (noise is already P1)

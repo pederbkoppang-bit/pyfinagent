@@ -1,386 +1,276 @@
-# Experiment Results -- phase-82.6
+# Experiment Results -- step 90.1
 
-**Step:** 82.6 (P2) -- DESIGN (not build) the registry-to-live selection bridge.
-**Date:** 2026-08-06. **Cycle:** 2 (cycle-1 Q/A returned CONDITIONAL; all 3 criteria MET, five findings on my claims and guards -- see §10).
-**Contract:** `handoff/current/contract_82.6.md`
-**Research brief:** `handoff/current/research_brief_82.6.md` (`gate_passed: true`,
-audit-class, dry after 13 rounds / 2 dry, 6 sources read in full, 34 URLs, 20 files)
+**Step:** 90.1 -- an attempt row cannot tell a graded attempt from a rail drop, and the
+token half of the budget has never been able to fire.
+**Date:** 2026-08-20. **Contract:** `handoff/current/contract_90.1.md`.
+**Research gate:** PASSED (enforced), `wf_db313c3d-b75`,
+`handoff/current/research_brief_90.1.md`.
 
 ---
 
-## 1. What changed
+## 1. What was built
 
-| File | Change | Lines |
-|------|--------|-------|
-| `docs/design/registry-to-live-selection-bridge.md` | new -- the design | 184 (new) |
-| `backend/tests/test_phase_82_6_bridge_design.py` | new -- 12 tests | 363 (new) |
-| `.claude/masterplan.json` | queued 82.64 / 82.65 / 82.66 | see §7 |
+| File | Change |
+|---|---|
+| `scripts/harness/attempt_outcomes.py` | **NEW.** Resolves what an attempt PRODUCED and what it COST from the Workflow run record. Backfill CLI, masterplan membership set, lazy per-step resolution. |
+| `scripts/harness/attempt_gate.py` | `extract_step_id_claim` / `extract_step_id` split; masterplan membership check; unknown-step-id DENY + its escalation body; reason-named `write_escalation` with the forged-exhaustion fallback REMOVED; `build_state` now passes tokens and prefers the row's own outcome; `--status` reports `verdicts_seen`/`dropped`/`outcome_mix`/`max_tokens`; self-test extended and CONTAINED. |
+| `scripts/qa/mutation_matrix_90_1.py` | **NEW.** 11 cells (1 null + 10 mutants), 21 checks, control-green-first. |
+| `handoff/audit/attempt_budget_audit.jsonl` | Backfilled: 4 keys added to all 89 attempt rows. Purely additive, proven. |
 
-**No production code was touched.** That is the point of the step: it ships a
-document and a guard that the live selection path is unchanged.
+## 2. Criterion-by-criterion evidence
 
-## 2. Verbatim output of the immutable verification command
+### Criterion 1 -- outcome + total_tokens, re-runnable backfill, UNKNOWN stated
 
-```
-$ source .venv/bin/activate && python -m pytest backend/tests/test_phase_82_6_bridge_design.py -q
-  warnings.warn(
-............                                                             [100%]
-12 passed in 2.21s
-```
-
-## 3. BOTH halves of the step's premise are refuted
-
-The step says *"the registry's EXIT PARAMS cross over; its SELECTION LOGIC does
-not."* Measured by me, then independently by the gate:
-
-**The exit params do not cross over either.** `summary["strategy_params"]`
-(`autonomous_loop.py:434-437`) has **zero readers repo-wide**, frontend included.
-`tp_pct` / `sl_pct` appear nowhere else in `backend/services/`. Live exits come
-from `settings.paper_default_stop_loss_pct` and the Risk Judge.
-
-**So today nothing the optimizer produces changes live trading behaviour** --
-one display number and one audit label.
-
-The provenance of the error is worth recording: the source spec
-(`incumbent_live_strategy_spec.md:35`) said the params cross over **"as display
-fields"**. The masterplan step dropped the qualifier, and the qualifier was the
-whole meaning.
-
-**Minor:** `:431` does not read `optimizer_best.json` directly; it calls
-`load_promoted_params(bq)`, which prefers BQ `promoted_strategies` and uses the
-JSON only as fallback. All five of the step's cited anchors do resolve.
-
-## 4. THE HEADLINE -- and a correction to the gate's framing
-
-The gate reported that `paper_trader.py` "silently disarms a risk control".
-**I read the branch before writing that down, and it overstates it.** The code is
-more careful than either of us said:
-
-> *Kaminski-Lo Proposition 2: mean-reverting strategies (and cointegrated pairs)
-> lose expected return when trailing-stop cumulative-loss thresholds fire; SKIP
-> for those. Fail-CLOSED-conservative: when entry_strategy is None/unknown, treat
-> as momentum (trail IS applied).*
-
-The skip is deliberate, research-cited, and its default is already fail-safe. It
-is not a defect, and I am not repeating that characterisation.
-
-**The real hazard is sequencing, and it survives the correction.**
-`paper_positions.entry_strategy` is NULL on every row (measured live; the table
-holds **1** row) so the branch is unreachable -- while
-`scripts/migrations/phase_32_2_add_entry_strategy.py:16-17` already names that
-column as the bridge's intended wire. So the bridge's first natural wire
-**activates a dormant live risk-behaviour change as a side effect of a change
-whose stated purpose is selection.** Today every position is trailed; the day
-that column is populated, `mean_reversion` and `pairs` positions stop being
-trailed.
-
-The design's requirement: populating `entry_strategy` must be separately flagged
-and separately reviewed from wiring selection -- never the same commit.
-
-## 5. The bridge was already designed
-
-`backend/autoresearch/strategy_selector.py` (phase-47.6) is complete, tested, and
-**dark with zero production callers**; its docstring specifies this exact bridge.
-Steps 47.6 / 48.1 / 48.2 / 48.3 / 48.4 are all `done`, and 48.3's own name records
-the deployment bridge as the deferred piece. So this step **ratifies and
-documents** rather than re-designing. **This is a deployment problem, not a design
-problem.**
-
-**Hard prerequisites, measured:** `optimizer_best.json` has **no `pbo` key at
-all** and `PromotionGate` is fail-closed on a missing pbo -- so **82.23** and
-**82.26** are build-time blockers, not advisories.
-
-## 6. Mutation matrix -- 7 mutants, all killed
+Verbatim, `python3 scripts/harness/attempt_outcomes.py --backfill`:
 
 ```
-baseline: rc=0 GREEN
+{
+  "attempt_rows": 89,
+  "dry_run": false,
+  "ledger": "/Users/ford/.openclaw/workspace/pyfinagent/handoff/audit/attempt_budget_audit.jsonl",
+  "outcome_counts": {
+    "CONDITIONAL": 45,
+    "FAIL": 10,
+    "NO_VERDICT": 18,
+    "PASS": 11,
+    "UNKNOWN": 5
+  },
+  "reason_counts": {
+    "completed_without_result": 2,
+    "graded": 66,
+    "no_run_record": 5,
+    "not_an_evaluation": 16
+  },
+  "rows_total": 93,
+  "tolerance_s": 30
+}
 
-M_A doc drops the trailing-stop hazard          DIED  (the §2 hazard is actually required)
-M_B a file:line ref rots                        DIED  (criterion 2 catches a rotted anchor)
-M_C doc drops the build prerequisites           DIED  (the ungateable-bridge warning is required)
-M_D doc stops naming the rollback               DIED  (criterion 1's rollback part)
-M_E live cycle references a registry label      DIED  (criterion 3 -- selection wired)
-M_F live cycle imports the backtest ENGINE      DIED  (criterion 3 -- engine reachable)
-M_G a SECOND strategy read appears              DIED  (label-only baseline is pinned)
-
-=== 7 died, 0 survived ===
+UNKNOWN = 5 (used ONLY where no run record matched; an ambiguous match also resolves UNKNOWN and is never guessed)
 ```
 
-Licenses exactly "these 7 mutants died", not "no survivors".
+**UNKNOWN = 5, and all five are the synthetic `999.2` pipetest rows** for which no run
+record exists. That is the only reason UNKNOWN is used.
 
-### Two mutants survived the first run, and BOTH were my own construction errors
+**The criterion says "all 92 existing rows"; the ledger holds 93** (4 of them
+`operator_extension`, 89 `attempt`). The count moved between filing and execution because
+the gate is live and kept recording -- one of the new rows is **this step's own research
+gate**. Extension rows are passed through verbatim and are not attempt rows, so 89 is the
+resolvable population. Stated rather than quietly reconciled to 92.
 
-This matters more than the final table, because a survivor I mis-read as a guard
-failure would have sent me editing a correct guard.
-
-- **M_E survived** because I injected the string `'_label_mean_reversion'` -- and
-  the registry's actual values are `_compute_mean_reversion_label` and friends.
-  **The mutant named something that was never in the registry**, so a
-  registry-value sweep correctly ignored it. A mutation that cannot succeed
-  proves nothing about the guard. Re-run with a real registry value: it dies.
-- **M_C survived** because `82.23` appears **3 times** in the design and I
-  mutated only the bolded occurrence. The exact string `**82.23**` was unique,
-  so my uniqueness assert passed while the mutation was still semantically a
-  no-op.
-
-Both are the same lesson from the other direction: a mutation matrix's *negative*
-results are only as trustworthy as the mutants, and "SURVIVED" must be diagnosed
-before it is believed.
-
-## 7. Criterion 3, and two things my own tests caught
-
-The sweep targets registry **method values** (`_compute_*_label`), never the
-**keys** -- `triple_barrier` legitimately appears in the live path as a label
-string, while its labeller must not. Traps avoided, each measured by the gate:
-`len(set(values)) == len(keys)` **fails on correct code** (6 keys, 5 distinct
-values -- `meta_label` shares `triple_barrier`'s); a blanket "no
-`backend.backtest` import" assertion is a **false positive** (`universe_lists`
-and `markets` are legitimate); `perf_metrics.py:151` names the engine in a
-comment.
-
-**My own guard found two real things while I was writing the doc:**
-
-1. **`autonomous_loop.py` is genuinely ambiguous -- there are TWO.**
-   `backend/autonomous_loop.py` is the phase-3.3 planner/evaluator harness;
-   `backend/services/autonomous_loop.py` is the live cycle. My first draft cited
-   the bare basename, which is exactly the kind of anchor that misleads. The
-   resolution test refused to resolve it, and the doc now uses full paths and
-   states the ambiguity.
-2. A prose token was matched case-sensitively ("Kill switch" vs "kill switch").
-   Fixed in the test: identifiers exact, prose case-insensitive.
-
-## 8. Discovered defects -- queued, verified by me before queueing
-
-| Step | Finding | How I verified it |
-|------|---------|-------------------|
-| **82.64** (P2) | `promoter.py:134` writes `float(trial.get("pbo") or 0.0)` -- a missing PBO is recorded as a **perfect 0.0** on the promoted row | read both sides; `optimizer_best.json` confirmed to have no `pbo` key |
-| **82.65** (P2) | `strategy_decisions` heartbeat ~6 days stale, write swallowed | live BQ: 51 rows, newest 2026-07-31 |
-| **82.66** (P3) | 3 stale registry enumerations + 2 dead configs | registry has 6 keys; two docs say "five" |
-
-**82.64 is stated carefully rather than dramatically.** The *gate* is fail-closed
-and does not promote on absent data -- that part is correct. The defect is the
-**record written afterwards**: any downstream consumer of
-`promoted_strategies.pbo` reads a fabricated pass. Overstating it as "the gate
-fails open" would have been wrong, and the queued step says so explicitly.
-
-## 9. What I did NOT do
-
-- **No selection wired**, no production code touched at all. The live book is
-  working; this step is a document plus a guard.
-- **Did not re-design the selector** (§5) -- that would duplicate settled work.
-- **Did not schedule `run_friday_promotion`** or populate `entry_strategy`. Both
-  are named in the design as deliberate, separately-gated future decisions.
-- **Did not run the full test suite.** This step adds no production code, so the
-  regression surface is the new test file itself; the targeted run is in §2. That
-  is a narrower check than 82.51/82.59 got, and it is stated rather than implied.
-
-## 10. Cycle 2 -- three claims of mine that did not reproduce, and two recall bounds
-
-The cycle-1 Q/A returned **CONDITIONAL** with all three criteria MET. It ran a
-17-mutant matrix, confirmed criterion 3's guard is genuinely live, and **ratified
-all three challenges I raised** -- including my correction of its predecessor's
-"silently disarms a risk control" framing, and 82.64's careful gate-vs-record
-distinction. Every finding below is mine.
-
-### 10.1 Two universal claims in the design were false
-
-- **"zero production callers"** for `strategy_selector`. `select_best_strategy`
-  **is** called at `backend/autoresearch/strategy_candidate_producer.py:181`,
-  reached via `rotation_runner.py:53`. All production modules.
-- **"`run_friday_promotion` has no caller anywhere."** **25** invocations exist across the tracked repo (987 `.py` files via `git ls-files`): 12 in `tests/autoresearch/test_friday_promotion.py`, 7 in `scripts/harness/phase10_friday_promotion_test.py`, 4 in `tests/autoresearch/test_slot_usage_wiring.py`, 2 in `tests/verify_phase_25_A3.py` -- every one a test or harness call, none a scheduler or production caller.
-  My cycle-2 correction said "four" (unmeasured) and my cycle-3 correction said
-  "7, all in one file" -- which reproduced ONLY inside a scope I chose,
-  `grep ... backend scripts`, that structurally cannot see `tests/`. **Three
-  consecutive corrections of the same claim, each wrong a different way.** The
-  count above is derived over `git ls-files '*.py'`, not a directory list I
-  picked.
-
-**Both came from the research gate, and I republished them without re-deriving.**
-The Q/A traced the gate's grep failure precisely: an **unquoted
-`--include=*.py`, glob-eaten by zsh** -- the same instrument failure I hit twice
-myself today. A "zero X" claim is a set claim, and I shipped two of them into a
-document a future builder would trust.
-
-Corrected to the claims that are true and that actually carry the argument:
-*zero callers on the live trading path*, and *no scheduled caller*. **The
-design's material conclusion is unaffected** -- the selector still has no path to
-live trading, so this remains a deployment problem, not a design problem.
-
-### 10.2 I edited a block presented as a verbatim source quote
-
-§2's fenced block was anchored to `paper_trader.py:1425-1428` but showed **three**
-lines, dropping the real first line `if pos.get("stop_advanced_at_R"):` and
-appending a trailing comment (`# skip the HWM trailing stop`) **that does not
-exist in the source**.
-
-The consequence is material, not cosmetic: the skip applies only to positions
-**past the breakeven ratchet**, so my prose "Today every position is trailed"
-overstated the blast radius of the very hazard the section exists to raise. This
-is the discipline I have been applying to my own figures all day, failing on a
-code quote.
-
-Fixed by **regenerating the block with `sed` and pasting the output**, never
-retyping it, plus a prose correction and a new assertion that the design states
-the `stop_advanced_at_R` precondition. A small irony worth recording: the
-fabricated comment was the only unhyphenated instance of "trailing stop" in the
-document, so removing it broke my own token check -- **my guard had been partly
-passing on text I invented.**
-
-### 10.3 Two recall bounds, both closed
-
-The Q/A found **five** wiring shapes criterion 3's sweep could not see:
-submodule import, `importlib.import_module`, registry **key** dispatch,
-f-string-built `getattr`, and a `["strategy"]` subscript read. None is reachable
-today, and criterion 3 as written was satisfied -- but the test docstring
-over-claimed "None of them may be reachable".
-
-All five are now guarded, and each was mutation-verified to die:
+Additive-only, verified against the pre-write `.bak` **independently of the writer's own
+assertion**:
 
 ```
-submodule import         DIED
-importlib string         DIED
-registry KEY dispatch    DIED
-f-string getattr         DIED
-subscript read           DIED
+rows before 93 after 93 | count preserved: True
+rows whose ORIGINAL fields changed or lost a key: 0 -- purely additive
+keys ADDED: ['outcome', 'outcome_reason', 'run_id', 'total_tokens']
+order preserved (ts sequence identical): True
 ```
 
-The `getattr` shape is the one that mattered most: the design itself says the
-label methods are dispatched by `getattr` inside the engine, so a copy-paste
-wiring would take exactly that form. The docstring now states what the sweep
-proves rather than what I wished it proved.
+A resolved row:
 
-**Criterion 1's token tests also passed on a comment-stuffed stub.** HTML
-comments are now stripped before the scan, so the tokens must appear in prose.
-
-### 10.4 Final matrix
-
-7 original mutants + 5 recall shapes = **12 kills, 0 survivors.** Still licenses
-only "these 12 mutants died".
-
-## 11. Cycle 3 -- I reported a fix that never applied
-
-The cycle-2 Q/A cured 4 of 5 findings by execution (all five recall shapes now
-die, the stub is rejected, the §2 block matched byte-for-byte). It blocked on one
-thing, and it is the sharpest self-inflicted finding of the day.
-
-**I wrote in §10.1 that both universals were "Corrected". Only one was.** My
-`str.replace` for the second targeted the single-line form
-`` `run_friday_promotion` has no caller anywhere. `` while the document has it
-**line-wrapped** as `has no\ncaller anywhere.`. The replace matched nothing,
-returned the string unchanged, and I reported success without checking.
-
-**That is a no-op that looks exactly like a success** -- the standing failure
-shape I have a note about and have caught in production code twice this week --
-committed in the middle of a section whose entire subject is claims that do not
-reproduce.
-
-And the replacement I *intended* was itself wrong: I wrote "Four call sites"
-without measuring. The real count is **7** invocations.
-
-### Fixed, and this time verified
-
-All three edits assert their anchor exists **and** re-read the file to confirm
-the old text is gone:
-
-```
-1. design fixed AND verified absent
-2. write-up count corrected to 7
-3. 82.66 corrected AND verified
+```json
+{"ts": "2026-08-18T18:57:26Z", "type": "attempt", "step_id": "74.0",
+ "workflow": "research-gate.js", "tool_use_id": "toolu_01Q7rtjSh5PRuN3jzxQHHAFh",
+ "session_id": "ad20ebbd-32bf-445b-8501-6734674c33b1", "attempt_number_inclusive": 1,
+ "note": "recorded at launch (PreToolUse); outcome unknown at this seam",
+ "outcome": "NO_VERDICT", "outcome_reason": "not_an_evaluation",
+ "total_tokens": 297590, "run_id": "wf_98c646a4-8b1"}
 ```
 
-- **The design** now says "no SCHEDULED caller", with the measured count, the
-  file, and why the ledger/plan slots (`cron_budget.yaml`'s
-  `friday_promotion_gate`, `sprint_calendar.yaml`'s `fri_promotion`,
-  `slot_accounting.py`'s logged name string) are not invocations. The Q/A
-  independently confirmed that replacement claim is sound.
-- **This write-up** carries the measured 7 and the command that produced it, and
-  says plainly that my correction was also untested.
-- **Queued step 82.66** no longer ships the refuted universal to an executor who
-  would have no way to know it was measured false in the cycle that queued it.
+**A defect this measurement found in my own first implementation.** The first classifier
+put all 18 no-verdict rows in one bucket, `no_verdict_other`. Breaking that bucket down
+showed it was **16 research-gate launches that COMPLETED successfully** (a different rail,
+which never had a verdict to give) plus **2 qa-verdict runs that completed returning
+nothing**. Calling the 16 "drops" would have overstated the drop rate by 8x on this
+ledger. `outcome_reason` now names six distinct classes and the criterion's five-value
+`outcome` vocabulary is untouched.
 
-The lesson is not "check your replaces". It is that **a claim of having fixed
-something is itself a claim, and gets the same burden of proof as the claim it
-replaces.** I applied that burden to the code all day and not to my own edits.
+**Zero `structured_output_drop` rows exist in the live ledger.** The 46 drops the brief
+measured are in the wider 617-record corpus and predate this gate's 2026-08-17 wiring.
+Stated so nobody reads "0 drops" as "drops stopped happening".
 
-## 12. Cycle 4 -- FAIL, and the verdict is correct
+### Criterion 2 -- reason-named escalations, pre-existing record byte-identical
 
-The cycle-3 Q/A returned **FAIL**. All three immutable criteria were MET, the
-cycle-2 blocker was confirmed cured, and no production code was touched -- but
-my replacement claim failed independent re-derivation for the **third
-consecutive cycle**, and the 3rd-cycle rule removed CONDITIONAL as an option.
-
-**The finding:** the design said `run_friday_promotion` has *"7 invocations, all
-in `scripts/harness/phase10_friday_promotion_test.py`"*. That reproduces **only
-inside the scope I chose** -- my pinned command was
-`grep ... --include="*.py" backend scripts`, which **structurally cannot see
-`tests/`**. Derived over the whole tracked repo the answer is **25**, with 18
-invocations in three tracked test files I never looked at.
-
-**Three corrections of one claim, each wrong a different way:**
-
-| cycle | claim | why it was wrong |
-|-------|-------|------------------|
-| 1 | "no caller anywhere" | inherited from the gate, never re-derived; the gate's grep had been glob-eaten by zsh |
-| 2 | "Four call sites" | typed, not measured -- and the edit never applied at all |
-| 3 | "7, all in one file" | measured, but over a scope I picked that excluded `tests/` |
-
-The third is the subtlest and the worst, because it *looks* like the fix: a
-command, a number, a file. **A tool that reports success over a scope the author
-chose is not evidence** -- which is the rule I have been applying to production
-code all day, failing on my own prose three times running.
-
-### Fixed, derived over `git ls-files`
+Run against the **real files at the real path**, not a fixture. A non-exhaustion denial
+(claim `86.118.1`) with all four real exhaustion records in the blast zone:
 
 ```
-tracked .py files scanned: 987
-TOTAL invocations: 25
-   12  tests/autoresearch/test_friday_promotion.py
-    7  scripts/harness/phase10_friday_promotion_test.py
-    4  tests/autoresearch/test_slot_usage_wiring.py
-    2  tests/verify_phase_25_A3.py
+BEFORE                                                             AFTER (identical)
+9180bf317cec3aac24c825c5288f2c38514e358c2d29f4bd6f431518508a3e05   escalation_attempt_budget_75.11.4.md
+670edd040b83e22603012ea12471469c1d7ac3b6b4e91a58a1e82811f53858bb   escalation_attempt_budget_86.47.md
+1d8a53e58131e2a20eff9dcf04f1b816b7c1e053155d0dc967217d052c1779ab   escalation_attempt_budget_86.85.md
+6fbbec66810478aaae8bb6d980c72894fb9cc3bf47fcd2cb8bd047aa06879610   escalation_attempt_budget_999.2.md
+ALL FOUR BYTE-IDENTICAL
+ledger untouched: a denied launch consumed no budget
 ```
 
-The scope is now `git ls-files '*.py'` -- the repo's own list of tracked files,
-not a directory list I supply. All three sites corrected and each verified by
-re-reading the file: the design, this write-up, and queued step **82.66**, which
-now warns explicitly that deleting or rewiring the function **breaks 25 call
-sites across four files**, and tells its executor to re-derive over the whole
-tracked repo because two earlier drafts of that very step were false.
+`86.85` is the load-bearing one: it is **hand-authored by the operator** and sits at
+exactly the path the old fixed-path + forged-body code would have overwritten.
 
-**What was never in question across all four cycles:** the three immutable
-criteria, the guards (12 kills, 0 survivors), that no production code was
-touched, and the design's load-bearing conclusion -- the Q/A checked all 25 sites
-itself and confirmed none is a scheduler or production caller, so *"no scheduled
-caller"* and *"a deployment problem, not a design problem"* are both true.
+The denial wrote its own artifact instead:
+`handoff/current/escalation_unknown_step_id_86.118.1.md`, kept as evidence.
 
-### Cycle 4 -- PASS, and two residuals accepted rather than fixed
+Exhaustion keeps `reason="attempt_budget"`, so the four existing files keep their exact
+names and nothing is orphaned. The `# BUDGET EXHAUSTED` fallback body is **deleted**;
+`write_escalation` now raises rather than forging an exhaustion record for a step that is
+not exhausted.
 
-`violated_criteria: []`. The Q/A **refused my scope entirely** -- it scanned the
-whole workspace, tracked and untracked, every file type, and classified each hit
-by reading the line -- and confirmed 25 with the same four-file breakdown. It
-also verified the design's load-bearing conclusion at that maximum scope: none of
-the 25 is a scheduler or production caller.
+### Criterion 3 -- the token ceiling FIRES (decided by running it, not by reading it)
 
-It recorded two NOTE-level residuals and **explicitly instructed me not to open a
-cycle 5 for them**, on the grounds that a 5th cycle to change a noun and a
-denominator, on a step whose criteria have now been confirmed four times, would
-be the "harness is logging, not correcting" pathology. I am taking that
-instruction, and recording the residuals rather than quietly editing evidence
-that has already been graded:
+**Decision: ENFORCE.** Shown by execution, both directions:
 
-- **R1:** 24 of the 25 are calls. The 25th
-  (`tests/autoresearch/test_slot_usage_wiring.py:5`) is a **module docstring
-  line** that a `run_friday_promotion(` substring match catches. So "invocations"
-  is loose for exactly 1 of 25 -- in a file already named, which a rewire would
-  want to update anyway.
-- **R2:** `git ls-files '*.py' | wc -l` returns **986**, not the 987 I stated in
-  three places. Most likely 986 tracked plus the 1 new untracked test file, which
-  `git ls-files` does not list. The denominator carries no part of the argument.
+```
+ok  ONE attempt costing 1,200,001 tokens is DENIED on the TOKEN ceiling with 4 of 5 attempts still unused
+ok  and one token UNDER the ceiling is still allowed -- so the check discriminates rather than always denying
+```
 
-Both are for 82.66's executor, who is already instructed to re-derive.
+The under-the-line cell is there because a ceiling that denies everything is not a
+ceiling. The defect it fixes: `attempt_gate` called `state.record(outcome)` with no
+`tokens=`, so `tokens_used` was a constant 0 -- which is why every escalation file on disk
+prints `tokens used : 0 / 1,200,000` verbatim.
 
-**Four cycles, and the substance never moved.** The three criteria were MET in
-cycle 1 and in every cycle since; no production code was ever touched; the guards
-went from 11 to 12 tests and from 7 to 12 mutation kills. Every blocker was a
-claim about a population, and the claim that took four attempts was a *count of
-call sites* -- wrong first by inheritance, then by typing, then by scope.
+**Operational consequence, measured on the live ledger BEFORE shipping.** Old logic
+re-implemented as a control and compared step by step across all 27 live ids:
+
+```
+DECISION CHANGES: NONE -- every live step decides identically
+```
+
+Five steps now sum at or above 1.2M (75.11.4 1,500,493; 86.108 1,241,203; 86.59
+1,208,831; 86.78 1,207,469; 86.116 1,203,394) and **every one is already denied by the
+attempt ceiling or already CLOSED_PASS**. Switching the token ceiling on denies nothing
+that is not already denied. It is a bound going forward, not a retroactive one.
+
+**Population, stated because it moves the answer.** The step's own audit_basis says "441
+qa-verdict runs" and then quotes "18 steps over 1.2M, max 2,677,199". Both figures are
+real but belong to different populations: 18 / 2,677,199 reproduces only on the 540-run
+all-workflows superset; restricted to the 441 qa-verdict runs it is **13 / 2,506,619**.
+The ledger holds both rails, so the enforced denominator is the all-workflows one.
+
+### Criterion 4 -- a claimed step id must resolve
+
+The four named cells, run against the real module:
+
+```
+  86.118       -> ADMITTED  (extract_step_id='86.118')
+  86.118.1     -> DENIED    (extract_step_id=None)
+  86.1180      -> DENIED    (extract_step_id=None)
+  999.99       -> DENIED    (extract_step_id=None)
+```
+
+The rule is a split, so the escape hatch survives: **no `step_id` at all** stays allowed
+and uncounted (81 of 617 historical launches use it); **a `step_id` that does not resolve**
+is a loud DENY.
+
+**Blast radius, measured over all 617 historical launches before choosing this:** 531
+resolve, 81 carry none, and only **5 do not resolve** -- `82.3+82.4`,
+`PLAYWRIGHT-SUBAGENT-PROBE`, `86.90-PROBE`, and two `86.28-LIVETEST-*`. All five are
+one-off probes and all five were already refused by the shape regex. **Zero production
+Q/A evaluations are affected.**
+
+**The self-test ids -- and a correction to this step's own filing.** The masterplan notes
+say `_self_test` "builds synthetic rows with step_id '9.1' that is not a masterplan id".
+**That is false on today's plan: 9.1, 9.2, 9.3, 9.4 and 9.5 are all real masterplan
+steps.** So membership validation would have let every one pass **silently**, which is
+what the criterion's last clause forbids -- and a leaked self-test row has already raised
+a real step's allowance once (`read_ledger`'s docstring records the 9.4 incident). Fix:
+an `ATTEMPT_GATE_MASTERPLAN` override points the self-test at a synthetic plan of record
+holding its own ids. They are exempt **by construction** and can never touch a real
+allowance again.
+
+The researcher proposed an OTel-style *visible overflow bucket* instead of a hard refusal.
+Criterion 4 is immutable and demands a loud DENY, so DENY is what shipped; the blast-radius
+measurement is why that costs nothing. Recorded, not silently dropped.
+
+### Criterion 5 -- mutation matrix, control GREEN first
+
+```
+KILLED 10 | SURVIVED 0 (excl. N0) | ERROR 0 | null mutant survived: True
+real tree untouched (md5 before == after): True
+```
+
+Control observed GREEN across all 21 checks before any cell ran. The two cells the
+criterion names by name:
+
+- **M1** (a NO_VERDICT attempt recorded as a graded outcome) -- **KILLED**
+- **M2** (the unresolvable-step-id DENY turned into exit 0) -- **KILLED**
+
+A mutant that does not run scores **ERROR**, never a kill. `N0` is a comment-only null
+mutant that must SURVIVE; if it were killed, every other kill in the run would be void.
+
+**Two cells survived the first run, and both were real holes in my checks, not weak
+mutants.** M4 (restoring the forged `# BUDGET EXHAUSTED` fallback) survived because every
+call site passes an explicit body, so the guard was never executed -- an unexercised guard
+is indistinguishable from an absent one. M10 (collapsing the join tolerance to 0) survived
+because every drive used an EMPTY run-record dir, so everything resolved UNKNOWN regardless
+of tolerance. Both are now driven directly: `drive_forge` reaches the guard, and
+`drive_join` plants a run record 900ms off the row's `ts` (inside 30s, outside 0s) with a
+deliberately distant `timestamp` so a join on the wrong field cannot find it. Both cells
+now KILL.
+
+### Criterion 6 -- verdict semantics unchanged
+
+sha256 of `handoff/verdict_ledger.jsonl` taken around the **whole** cell run:
+
+```
+BEFORE: fcfe56ad9788f0bc248253aea49e086812ab951c4145ecc5eac2b92c982e3eb2
+AFTER : fcfe56ad9788f0bc248253aea49e086812ab951c4145ecc5eac2b92c982e3eb2
+CRITERION 6: verdict ledger BYTE-IDENTICAL across the whole cell run
+```
+
+Structurally: every write-capable call site in the three changed files was enumerated. The
+only one targeting `VERDICT_LEDGER` is at `attempt_gate.py:577`, proven by AST to lie
+inside `_self_test()` (lines 518-741), which rebinds `VERDICT_LEDGER` to a temp path before
+writing. In production the verdict ledger is **read only**, via `emit_sequence` at
+`attempt_gate.py:208`. No new code path can emit a verdict value.
+
+## 3. Immutable verification command -- verbatim
+
+```
+$ python3 scripts/harness/attempt_gate.py --self-test && python3 scripts/qa/mutation_matrix_90_1.py --verify
+EXIT CODE: 0
+```
+
+Self-test: 32 checks, `SELF-TEST PASSED`. Matrix: control green, 10 killed, 0 survivors,
+0 errors, null mutant survived, real tree untouched.
+
+## 4. A defect this work introduced and then fixed
+
+The first revision of the extended self-test called `write_escalation` with only `LEDGER`
+rebound, and it wrote a real `escalation_unknown_step_id_9.9.md` into production
+`handoff/current/`. That is the **same leak class** as the 9.4 extension row the module's
+own docstring already records, in a second channel. Fixed by redirecting `ESCALATION_DIR`
+too, and the containment is now itself a check ("the self-test wrote every escalation into
+its OWN temp dir"). The stray file was deleted. Disclosed because the automated command
+would have passed either way.
+
+## 5. Findings queued, not absorbed
+
+- **90.5.** Validating the join by the independent `run_id` key surfaced that of 120
+  run_ids shared between `handoff/verdict_ledger.jsonl` and the run records, **7
+  disagree**: 2 ledger rows say `NO_VERDICT` where the rail returned a real verdict (86.84
+  FAIL, 86.85 CONDITIONAL) and 5 say `FAIL` where the rail returned `CONDITIONAL` (the
+  documented 3rd-CONDITIONAL conversion). `outcome` here is the **rail's raw return** and
+  is deliberately NOT reconciled with the ledger.
+- **90.6.** Confirmed live: this step's own research gate consumed 90.1 attempt **1 of 5**,
+  and 16 of the 89 ledger rows are research-gate launches. The row now carries both
+  `workflow` and `outcome_reason: not_an_evaluation`, so the discriminator 90.6 needs is
+  persistent -- acting on it is 90.6's.
+- **90.7.** Membership deliberately accepts both `X` and `phase-X` so this step cannot
+  deny a step 90.7 has not yet normalised.
+- **87.11.** The four non-functional metrics.
+
+## 6. Scope honesty
+
+- Criterion 1 says "92 rows"; the live ledger has **93** and 89 of them are attempt rows.
+  Not reconciled downward -- explained above.
+- The join is **measured** unambiguous on today's data (max |delta| 1.007s, 0 ambiguous up
+  to 300s) but it is a heuristic, not an identity. An ambiguous match resolves UNKNOWN
+  rather than guessing. A future run-record schema carrying the PreToolUse `tool_use_id`
+  would make it exact; that is not this step.
+- The gate remains **fail-open** by design. Resolution failure leaves tokens at 0, which
+  allows more, never less. Membership degrades open if the masterplan is unreadable.
+  Neither is a hard guarantee and neither is claimed as one.
+- **The Agent-tool path is still ungated** -- unchanged from 86.71 and restated here so it
+  is not mistaken for something this step closed.

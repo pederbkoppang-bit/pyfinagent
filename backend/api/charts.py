@@ -7,10 +7,21 @@ import logging
 
 from fastapi import APIRouter, HTTPException, Query
 
+from backend.api._json_safe import NaNSafeJSONResponse
 from backend.tools import yfinance_tool
 
 logger = logging.getLogger(__name__)
-router = APIRouter(prefix="/api/charts", tags=["charts"])
+# phase-80.1 precedent (backend/api/signals.py): yfinance/pandas can hand back
+# NaN (e.g. an incomplete/partial-day OHLC bar), and Starlette hardcodes
+# json.dumps(..., allow_nan=False) in JSONResponse.render -- any non-finite
+# float reaching the response is a guaranteed 500 that the route's own
+# try/except cannot catch (it happens during ASGI rendering, after the route
+# already returned). NaNSafeJSONResponse nulls non-finite floats instead.
+router = APIRouter(
+    prefix="/api/charts",
+    tags=["charts"],
+    default_response_class=NaNSafeJSONResponse,
+)
 
 
 @router.get("/{ticker}")

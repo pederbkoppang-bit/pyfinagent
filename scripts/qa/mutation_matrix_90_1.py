@@ -1,0 +1,525 @@
+#!/usr/bin/env python3
+"""Mutation matrix for phase-90.1 -- attempt-row accounting.
+
+Subjects: `scripts/harness/attempt_gate.py` and `scripts/harness/attempt_outcomes.py`.
+
+House discipline (per mutation_matrix_86_71.py): CONTROL observed GREEN before
+any cell; a cell is KILLED only when a NAMED check fails for a stated reason; a
+mutant that does not run scores ERROR and is NEVER a kill; the real tree is
+never written (md5 before == after, mutants run from a temp copy via subprocess
+so the CALL SITE is what is tested).
+
+Two things this matrix is careful about, because the project has been bitten by
+both:
+
+- DISCRIMINATION. Every check must be able to come back green on the real file
+  and red on a mutant. The null-mutant cell (`N0`) is a comment-only edit: if it
+  scores KILLED, the harness itself is broken and every other kill in the run is
+  meaningless. A matrix whose checks all fail for an environmental reason scores
+  a full house and proves nothing.
+- CONTAINMENT. Every drive redirects the ledger, the verdict ledger, the
+  escalation dir, the masterplan AND the run-record root. During development an
+  earlier revision of the gate's self-test wrote a real
+  `escalation_unknown_step_id_9.9.md` into production `handoff/current/`
+  because only the ledger had been redirected.
+
+    python3 scripts/qa/mutation_matrix_90_1.py            # report
+    python3 scripts/qa/mutation_matrix_90_1.py --verify   # exit 1 on a survivor
+"""
+from __future__ import annotations
+
+import hashlib
+import json
+import os
+import shutil
+import subprocess
+import sys
+import tempfile
+from pathlib import Path
+
+REPO = Path(__file__).resolve().parents[2]
+GATE = REPO / "scripts" / "harness" / "attempt_gate.py"
+OUTCOMES = REPO / "scripts" / "harness" / "attempt_budget.py"
+RESOLVER = REPO / "scripts" / "harness" / "attempt_outcomes.py"
+
+#: A step id that IS in the synthetic plan of record each drive writes.
+REAL_SID = "9.1"
+#: Well-formed, dotted-numeric, and in no plan. The `.1` suffix is the exact
+#: bypass this step closes.
+FAKE_SID = "9.1.1"
+
+
+def md5(p: Path) -> str:
+    return hashlib.md5(p.read_bytes()).hexdigest()
+
+
+def sha256(p: Path) -> str:
+    return hashlib.sha256(p.read_bytes()).hexdigest()
+
+
+def _hook_stdin(step_id: str) -> str:
+    return json.dumps({
+        "tool_name": "Workflow",
+        "tool_input": {"scriptPath": ".claude/workflows/qa-verdict.js",
+                       "args": {"step_id": step_id}},
+        "tool_use_id": "toolu_mm90_1", "session_id": "mm",
+    })
+
+
+def _env(tmp: Path, gate_dir: Path) -> dict:
+    """Every output channel redirected into tmp. See the docstring."""
+    plan = tmp / "masterplan.json"
+    if not plan.is_file():
+        plan.write_text(json.dumps({"phases": [{"id": "phase-9", "steps": [
+            {"id": f"9.{n}"} for n in range(1, 6)]}]}), encoding="utf-8")
+    esc = tmp / "escalations"
+    esc.mkdir(exist_ok=True)
+    records = tmp / "records"
+    records.mkdir(exist_ok=True)
+    return dict(
+        os.environ,
+        ATTEMPT_GATE_LEDGER=str(tmp / "attempts.jsonl"),
+        ATTEMPT_GATE_VERDICT_LEDGER=str(tmp / "absent_verdicts.jsonl"),
+        ATTEMPT_GATE_ESCALATION_DIR=str(esc),
+        ATTEMPT_GATE_MASTERPLAN=str(plan),
+        ATTEMPT_GATE_RUN_RECORDS=str(records),
+        PYTHONPATH=os.pathsep.join([
+            str(gate_dir), str(REPO / "scripts" / "harness"),
+            str(REPO / "scripts" / "qa"), os.environ.get("PYTHONPATH", "")]),
+    )
+
+
+def _seed(tmp: Path, rows: list[dict]) -> None:
+    (tmp / "attempts.jsonl").write_text(
+        "".join(json.dumps(r) + "\n" for r in rows), encoding="utf-8")
+
+
+def drive_hook(gate: Path, tmp: Path, step_id: str,
+               rows: list[dict] | None = None) -> dict:
+    _seed(tmp, rows or [])
+    env = _env(tmp, gate.parent)
+    r = subprocess.run([sys.executable, str(gate)], input=_hook_stdin(step_id),
+                       capture_output=True, text=True, env=env, timeout=90)
+    esc = tmp / "escalations"
+    return {"rc": r.returncode, "stderr": r.stderr,
+            "files": sorted(p.name for p in esc.iterdir()),
+            "rows_after": sum(1 for _ in (tmp / "attempts.jsonl").open())}
+
+
+def drive_status(gate: Path, tmp: Path, rows: list[dict]) -> dict:
+    _seed(tmp, rows)
+    env = _env(tmp, gate.parent)
+    r = subprocess.run([sys.executable, str(gate), "--status", REAL_SID],
+                       capture_output=True, text=True, env=env, timeout=90)
+    try:
+        return {"rc": r.returncode, "json": json.loads(r.stdout or "{}")}
+    except json.JSONDecodeError:
+        return {"rc": r.returncode, "json": {}}
+
+
+def drive_preserve(gate: Path, tmp: Path) -> dict:
+    """criterion 2: a NON-exhaustion denial must not touch an exhaustion record.
+
+    A REAL exhaustion escalation is planted at the exact path the pre-90.1
+    fixed-path/forged-body code would have overwritten. sha256 before and after.
+    """
+    esc = tmp / "escalations"
+    esc.mkdir(exist_ok=True)
+    victim = esc / f"escalation_attempt_budget_{REAL_SID}.md"
+    victim.write_text(
+        "# BUDGET EXHAUSTED -- step 9.1 -- OPERATOR DECISION REQUIRED\n\n"
+        "- attempts used : 5 / 5\n\nHAND-AUTHORED CONTENT THAT MUST SURVIVE.\n",
+        encoding="utf-8")
+    before = sha256(victim)
+    out = drive_hook(gate, tmp, FAKE_SID)      # a NON-exhaustion denial
+    return {"rc": out["rc"], "files": out["files"], "stderr": out["stderr"],
+            "sha_before": before,
+            "sha_after": sha256(victim) if victim.is_file() else None}
+
+
+def drive_forge(gate: Path, tmp: Path) -> dict:
+    """Call write_escalation with NO body and a non-exhaustion reason.
+
+    The first revision of this matrix let M4 SURVIVE, and the reason was a real
+    coverage hole rather than a bad mutant: every call site passes an explicit
+    body, so the `# BUDGET EXHAUSTED` fallback was unreachable from any drive
+    and its guard was never executed. An unexercised guard is indistinguishable
+    from an absent one -- so this drive reaches it directly.
+    """
+    env = _env(tmp, gate.parent)
+    code = (
+        "import importlib.util, json, sys" + chr(10) +
+        f"spec = importlib.util.spec_from_file_location('g', {str(gate)!r})" + chr(10) +
+        "m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)" + chr(10) +
+        "st = m.BudgetState(step_id='9.1')" + chr(10) +   # fresh: NOT exhausted
+        "out = {'raised': False, 'wrote': None, 'body': None}" + chr(10) +
+        "try:" + chr(10) +
+        "    p = m.write_escalation(st, reason='some_other_reason')" + chr(10) +
+        "    out['wrote'] = p.name" + chr(10) +
+        "    out['body'] = p.read_text(encoding='utf-8')[:80]" + chr(10) +
+        "except ValueError:" + chr(10) +
+        "    out['raised'] = True" + chr(10) +
+        "print(json.dumps(out))" + chr(10)
+    )
+    r = subprocess.run([sys.executable, "-c", code], capture_output=True,
+                       text=True, env=env, timeout=90)
+    try:
+        return json.loads(r.stdout.strip() or "{}")
+    except json.JSONDecodeError:
+        return {}
+
+
+def _plant_run_record(tmp: Path, step_id: str, ts_iso: str,
+                      offset_ms: int, verdict: str, tokens: int) -> None:
+    """A synthetic Workflow run record offset from the attempt row's ts.
+
+    The offset is what exercises the JOIN TOLERANCE. Without a record on disk
+    every row resolves UNKNOWN no matter what the tolerance is, which is why the
+    first revision of this matrix let M10 survive.
+    """
+    import datetime
+    t = datetime.datetime.strptime(ts_iso, "%Y-%m-%dT%H:%M:%SZ").replace(
+        tzinfo=datetime.timezone.utc)
+    d = tmp / "records" / "sess" / "workflows"
+    d.mkdir(parents=True, exist_ok=True)
+    (d / "wf_planted.json").write_text(json.dumps({
+        "runId": "wf_planted", "workflowName": "qa-verdict",
+        "startTime": int(t.timestamp() * 1000) + offset_ms,
+        "timestamp": "2026-08-19T23:59:59.000Z",     # deliberately far away:
+                                                     # a join on `timestamp`
+                                                     # must NOT find this
+        "status": "completed", "totalTokens": tokens,
+        "args": {"step_id": step_id},
+        "result": {"verdict": verdict, "violated_criteria": []},
+    }), encoding="utf-8")
+
+
+def drive_join(gate: Path, tmp: Path) -> dict:
+    """Resolve a row against a record 900ms away -- inside 30s, outside 0s."""
+    env = _env(tmp, gate.parent)
+    led = tmp / "attempts.jsonl"
+    ts = "2026-08-19T10:00:00Z"
+    led.write_text(json.dumps({"ts": ts, "type": "attempt",
+                               "step_id": REAL_SID,
+                               "workflow": "qa-verdict.js"}) + "\n",
+                   encoding="utf-8")
+    _plant_run_record(tmp, REAL_SID, ts, 900, "FAIL", 4242)
+    resolver = gate.parent / "attempt_outcomes.py"
+    r = subprocess.run([sys.executable, str(resolver), "--backfill"],
+                       capture_output=True, text=True, env=env, timeout=90)
+    try:
+        row = json.loads(led.read_text(encoding="utf-8").splitlines()[0])
+    except Exception:  # noqa: BLE001
+        row = {}
+    return {"rc": r.returncode, "outcome": row.get("outcome"),
+            "reason": row.get("outcome_reason"),
+            "tokens": row.get("total_tokens"), "run_id": row.get("run_id")}
+
+
+def drive_backfill(gate: Path, tmp: Path) -> dict:
+    """The resolver's additive-only invariant, driven through its own CLI."""
+    env = _env(tmp, gate.parent)
+    led = tmp / "attempts.jsonl"
+    original = {"ts": "2026-08-19T10:00:00Z", "type": "attempt",
+                "step_id": REAL_SID, "workflow": "qa-verdict.js",
+                "note": "MUST SURVIVE VERBATIM"}
+    led.write_text(json.dumps(original) + "\n", encoding="utf-8")
+    resolver = gate.parent / "attempt_outcomes.py"
+    r = subprocess.run([sys.executable, str(resolver), "--backfill"],
+                       capture_output=True, text=True, env=env, timeout=90)
+    try:
+        after = json.loads(led.read_text(encoding="utf-8").splitlines()[0])
+    except Exception:  # noqa: BLE001
+        after = {}
+    kept = all(after.get(k) == v for k, v in original.items())
+    return {"rc": r.returncode, "kept_original_fields": kept,
+            "gained_outcome": "outcome" in after,
+            "gained_tokens": "total_tokens" in after,
+            "outcome": after.get("outcome")}
+
+
+def observations(gate: Path) -> dict:
+    with tempfile.TemporaryDirectory() as td:
+        below = drive_hook(gate, Path(td), REAL_SID)
+    with tempfile.TemporaryDirectory() as td:
+        at = drive_hook(gate, Path(td), REAL_SID,
+                        [{"ts": "2026-08-19T10:00:00Z", "type": "attempt",
+                          "step_id": REAL_SID} for _ in range(5)])
+    with tempfile.TemporaryDirectory() as td:
+        unknown = drive_hook(gate, Path(td), FAKE_SID)
+    with tempfile.TemporaryDirectory() as td:
+        preserve = drive_preserve(gate, Path(td))
+    with tempfile.TemporaryDirectory() as td:
+        over = drive_hook(gate, Path(td), REAL_SID,
+                          [{"ts": "2026-08-19T10:00:00Z", "type": "attempt",
+                            "step_id": REAL_SID, "outcome": "CONDITIONAL",
+                            "total_tokens": 1_200_001}])
+    with tempfile.TemporaryDirectory() as td:
+        under = drive_hook(gate, Path(td), REAL_SID,
+                           [{"ts": "2026-08-19T10:00:00Z", "type": "attempt",
+                             "step_id": REAL_SID, "outcome": "CONDITIONAL",
+                             "total_tokens": 1_199_999}])
+    with tempfile.TemporaryDirectory() as td:
+        drop = drive_status(gate, Path(td),
+                            [{"ts": "2026-08-19T10:00:00Z", "type": "attempt",
+                              "step_id": REAL_SID, "outcome": "NO_VERDICT",
+                              "total_tokens": 100}])
+    with tempfile.TemporaryDirectory() as td:
+        graded = drive_status(gate, Path(td),
+                              [{"ts": "2026-08-19T10:00:00Z", "type": "attempt",
+                                "step_id": REAL_SID, "outcome": "FAIL",
+                                "total_tokens": 100}])
+    with tempfile.TemporaryDirectory() as td:
+        backfill = drive_backfill(gate, Path(td))
+    with tempfile.TemporaryDirectory() as td:
+        forge = drive_forge(gate, Path(td))
+    with tempfile.TemporaryDirectory() as td:
+        join = drive_join(gate, Path(td))
+    return {"below": below, "at": at, "unknown": unknown, "preserve": preserve,
+            "over": over, "under": under, "drop": drop, "graded": graded,
+            "backfill": backfill, "forge": forge, "join": join}
+
+
+CHECKS = [
+    # --- pre-existing behaviour that must survive this step ------------------
+    ("a below-ceiling launch for a REAL step is ALLOWED and COUNTED",
+     lambda o: o["below"]["rc"] == 0 and o["below"]["rows_after"] == 1),
+    ("an at-ceiling launch is DENIED (exit 2) and writes the attempt_budget "
+     "escalation under its unchanged name",
+     lambda o: o["at"]["rc"] == 2
+     and any(n.startswith("escalation_attempt_budget_") for n in o["at"]["files"])),
+    ("a denied launch is NOT counted as an attempt",
+     lambda o: o["at"]["rows_after"] == 5),
+
+    # --- criterion 4: the id must resolve ------------------------------------
+    ("a launch claiming an id ABSENT from the plan of record is DENIED (c4)",
+     lambda o: o["unknown"]["rc"] == 2),
+    ("the unknown-id denial names the rejected claim and says the launch cost "
+     "nothing",
+     lambda o: FAKE_SID in o["unknown"]["stderr"]
+     and "not a step in" in o["unknown"]["stderr"]),
+    ("the unknown-id denial writes its OWN reason-named artifact (c2/c4)",
+     lambda o: any(n == f"escalation_unknown_step_id_{FAKE_SID}.md"
+                   for n in o["unknown"]["files"])),
+    ("an unresolvable id is NOT recorded as an attempt (it must not consume "
+     "budget it was denied for claiming)",
+     lambda o: o["unknown"]["rows_after"] == 0),
+
+    # --- criterion 2: no collateral damage, proven by sha256 -----------------
+    ("a NON-exhaustion denial leaves a pre-existing exhaustion escalation "
+     "BYTE-IDENTICAL (c2, sha256 before == after)",
+     lambda o: o["preserve"]["sha_after"] is not None
+     and o["preserve"]["sha_before"] == o["preserve"]["sha_after"]),
+    ("and it still wrote its own record rather than staying silent",
+     lambda o: any(n.startswith("escalation_unknown_step_id_")
+                   for n in o["preserve"]["files"])),
+
+    # --- criterion 3: the token ceiling actually fires -----------------------
+    ("ONE attempt over DEFAULT_MAX_TOKENS is DENIED on the token ceiling (c3)",
+     lambda o: o["over"]["rc"] == 2),
+    ("one token UNDER the ceiling is ALLOWED -- the check discriminates rather "
+     "than always denying",
+     lambda o: o["under"]["rc"] == 0),
+
+    # --- criterion 1/5: a drop is a drop -------------------------------------
+    ("a NO_VERDICT row reports dropped=1 / verdicts_seen=0 (c1, c5)",
+     lambda o: o["drop"]["json"].get("dropped") == 1
+     and o["drop"]["json"].get("verdicts_seen") == 0),
+    ("a graded row reports dropped=0 / verdicts_seen=1 -- so the probe "
+     "DISCRIMINATES and is not just always-zero",
+     lambda o: o["graded"]["json"].get("dropped") == 0
+     and o["graded"]["json"].get("verdicts_seen") == 1),
+    ("tokens are summed from the rows rather than the constant 0 the pre-90.1 "
+     "gate always reported",
+     lambda o: o["drop"]["json"].get("tokens_used") == 100),
+
+    # --- criterion 1: the backfill enriches without rewriting ---------------
+    ("--backfill ADDS outcome and total_tokens to an existing row (c1)",
+     lambda o: o["backfill"]["gained_outcome"] and o["backfill"]["gained_tokens"]),
+    ("--backfill leaves every ORIGINAL field byte-identical (append-only "
+     "enrichment, never a rewrite)",
+     lambda o: o["backfill"]["kept_original_fields"]),
+    ("a row with no matching run record resolves UNKNOWN, never a guess",
+     lambda o: o["backfill"]["outcome"] == "UNKNOWN"),
+
+    # --- criterion 2: the forged-exhaustion guard is EXECUTED, not assumed ---
+    ("write_escalation RAISES rather than forging '# BUDGET EXHAUSTED' for a "
+     "step that is not exhausted (c2)",
+     lambda o: o["forge"].get("raised") is True),
+    ("and it writes NO file when it refuses -- a refusal must not leave a "
+     "half-record behind",
+     lambda o: o["forge"].get("wrote") is None),
+
+    # --- criterion 1: the join tolerance is EXERCISED against a real record --
+    ("a row 900ms from its run record RESOLVES to the returned verdict -- the "
+     "join tolerance is exercised, not assumed (c1)",
+     lambda o: o["join"].get("outcome") == "FAIL"
+     and o["join"].get("reason") == "graded"),
+    ("and it carries that record's tokens and run_id onto the row, giving the "
+     "attempt stream a shared key with the verdict ledger",
+     lambda o: o["join"].get("tokens") == 4242
+     and o["join"].get("run_id") == "wf_planted"),
+]
+
+#: (id, target, description, find, replace) -- find must appear exactly once.
+CELLS = [
+    ("N0", GATE, "NULL MUTANT (comment only) -- must SURVIVE. If this scores "
+                 "KILLED the harness is broken and every other kill this run "
+                 "is meaningless.",
+     "def _outcome_mix(state: BudgetState) -> dict:",
+     "def _outcome_mix(state: BudgetState) -> dict:  # null mutant"),
+
+    ("M1", GATE, "criterion 5, NAMED: a NO_VERDICT attempt is recorded as a "
+                 "GRADED outcome -- the drop is laundered into a verdict",
+     '        recorded = str(r.get("outcome") or "")\n'
+     '        if recorded in Outcome.__members__:\n'
+     '            outcome = Outcome(recorded)',
+     '        recorded = str(r.get("outcome") or "")\n'
+     '        if recorded == "NO_VERDICT":\n'
+     '            outcome = Outcome.CONDITIONAL\n'
+     '        elif recorded in Outcome.__members__:\n'
+     '            outcome = Outcome(recorded)'),
+
+    ("M2", GATE, "criterion 5, NAMED: the unresolvable-step-id DENY becomes "
+                 "exit 0 -- an unrecognised key silently mints an allowance again",
+     "                file=sys.stderr)\n            return 2\n        rows = read_ledger()",
+     "                file=sys.stderr)\n            return 0\n        rows = read_ledger()"),
+
+    ("M3", GATE, "the membership check is dropped -- shape validation alone, "
+                 "i.e. the pre-90.1 behaviour",
+     "    return sid if sid in known else None",
+     "    return sid"),
+
+    ("M4", GATE, "criterion 2: the forged '# BUDGET EXHAUSTED' fallback is "
+                 "restored, so a non-exhaustion denial writes a false "
+                 "exhaustion record",
+     '        body = state.escalation_summary()\n'
+     '        if not body:\n'
+     '            raise ValueError(',
+     '        body = state.escalation_summary() or (\n'
+     '            f"# BUDGET EXHAUSTED -- step {state.step_id}\\n")\n'
+     '        if False:\n'
+     '            raise ValueError('),
+
+    ("M5", GATE, "criterion 2: the escalation path goes back to being FIXED, "
+                 "so every denial reason writes to the exhaustion file",
+     '    p = ESCALATION_DIR / f"escalation_{reason}_{state.step_id}.md"',
+     '    p = ESCALATION_DIR / f"escalation_attempt_budget_{state.step_id}.md"'),
+
+    ("M6", GATE, "criterion 3: tokens stop being passed to record(), which is "
+                 "exactly the pre-90.1 defect that made the ceiling inert",
+     "        state.record(outcome, tokens=int(tokens) if isinstance(tokens, int) else 0,\n"
+     "                     run_id=str(r.get(\"run_id\") or \"\"))",
+     "        state.record(outcome)"),
+
+    ("M7", OUTCOMES, "criterion 3: the token half of `exhausted` is removed, so "
+                     "only the attempt ceiling can ever bind",
+     "        return (self.attempts_used >= self.max_attempts\n"
+     "                or self.tokens_used >= self.max_tokens)",
+     "        return self.attempts_used >= self.max_attempts"),
+
+    ("M8", RESOLVER, "criterion 1: the additive-only guard is removed, so the "
+                     "backfill may silently rewrite an existing field",
+     "        projection = {k: merged[k] for k in parsed if k in merged}\n"
+     "        if projection != parsed:",
+     "        merged[\"note\"] = \"REWRITTEN BY BACKFILL\"\n"
+     "        projection = {k: merged[k] for k in parsed if k in merged}\n"
+     "        if False:"),
+
+    ("M9", RESOLVER, "criterion 1: an ambiguous or absent match is GUESSED "
+                     "instead of resolving UNKNOWN",
+     '    if not hits:\n        return unknown',
+     '    if not hits:\n        return {"outcome": "PASS", "outcome_reason": "guessed",\n'
+     '                "total_tokens": 0, "run_id": None}'),
+
+    ("M10", RESOLVER, "the join reverts to `timestamp` semantics by widening the "
+                      "tolerance past the measured ambiguity threshold",
+     "DEFAULT_TOLERANCE_S = 30",
+     "DEFAULT_TOLERANCE_S = 0"),
+]
+
+
+def run_cell(cell) -> dict:
+    cid, target, desc, find, repl = cell
+    with tempfile.TemporaryDirectory() as td:
+        work = Path(td) / "harness"
+        shutil.copytree(GATE.parent, work)
+        mutant_file = work / target.name
+        src = mutant_file.read_text(encoding="utf-8")
+        n = src.count(find)
+        if n != 1:
+            return {"id": cid, "desc": desc, "score": "ERROR",
+                    "why": f"anchor appears {n} times in {target.name}, expected 1"}
+        mutant_file.write_text(src.replace(find, repl, 1), encoding="utf-8")
+        gate = work / GATE.name
+        try:
+            obs = observations(gate)
+        except Exception as exc:  # noqa: BLE001
+            return {"id": cid, "desc": desc, "score": "ERROR",
+                    "why": f"mutant did not run: {type(exc).__name__}: {exc}"}
+        failed = []
+        for name, fn in CHECKS:
+            try:
+                if not fn(obs):
+                    failed.append(name)
+            except Exception as exc:  # noqa: BLE001
+                failed.append(f"{name} [raised {type(exc).__name__}]")
+        if not failed:
+            return {"id": cid, "desc": desc, "score": "SURVIVED", "why": ""}
+        return {"id": cid, "desc": desc, "score": "KILLED",
+                "why": "; ".join(failed[:3])}
+
+
+def main(argv: list[str] | None = None) -> int:
+    argv = sys.argv[1:] if argv is None else argv
+    verify = "--verify" in argv
+    fingerprints = {p: md5(p) for p in (GATE, OUTCOMES, RESOLVER)}
+
+    print("== CONTROL (real tree, unmutated) ==")
+    try:
+        base = observations(GATE)
+    except Exception as exc:  # noqa: BLE001
+        print(f"  CONTROL DID NOT RUN: {type(exc).__name__}: {exc}")
+        print("  Scoring nothing. A matrix whose control cannot run proves "
+              "nothing about its mutants.")
+        return 1
+    control_failed = [n for n, fn in CHECKS if not fn(base)]
+    for name, fn in CHECKS:
+        print(f"  {'ok  ' if fn(base) else 'FAIL'}  {name}")
+    if control_failed:
+        print("\nCONTROL IS NOT GREEN -- refusing to score cells. "
+              "A red control means a kill cannot be attributed to the mutation.")
+        return 1
+    print("  CONTROL GREEN\n")
+
+    print("== CELLS ==")
+    results = [run_cell(c) for c in CELLS]
+    for r in results:
+        print(f"  {r['score']:<9} {r['id']:<4} {r['desc']}")
+        if r["why"]:
+            print(f"                 -> {r['why']}")
+
+    after = {p: md5(p) for p in (GATE, OUTCOMES, RESOLVER)}
+    untouched = fingerprints == after
+    print(f"\nreal tree untouched (md5 before == after): {untouched}")
+    for p in (GATE, OUTCOMES, RESOLVER):
+        print(f"  {p.relative_to(REPO)}: {after[p]}")
+
+    survivors = [r for r in results if r["score"] == "SURVIVED" and r["id"] != "N0"]
+    errors = [r for r in results if r["score"] == "ERROR"]
+    null = next((r for r in results if r["id"] == "N0"), None)
+    null_ok = null is not None and null["score"] == "SURVIVED"
+    killed = sum(1 for r in results if r["score"] == "KILLED")
+    print(f"\nKILLED {killed} | SURVIVED {len(survivors)} (excl. N0) | "
+          f"ERROR {len(errors)} | null mutant survived: {null_ok}")
+    if not null_ok:
+        print("NULL MUTANT WAS KILLED -- the harness, not the code, is what "
+              "these checks are detecting. Every kill above is void.")
+    if verify:
+        bad = survivors or errors or not null_ok or not untouched
+        return 1 if bad else 0
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
