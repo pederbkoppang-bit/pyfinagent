@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-20 | `84cdbfda` | phase-86: file 3 more operator-surfaced items as individual steps (86.146-86.148) |
 | 2026-08-20 | `1fc7b2e6` | phase-90.1: cycle-2 -- fix the two blockers the cycle-1 Q/A found |
 | 2026-08-20 | `085c74e8` | phase-86: file 19 operator-discovered UI/product defects as individual steps (86.127-86.145) |
 | 2026-08-20 | `3bf0b0fe` | phase-90.1: give an attempt row an outcome and a token cost |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-18 | `9521afff` | feat(masterplan): file phase-87 -- stop paying for Main's evidence defects |
 | 2026-08-18 | `5250d5bf` | fix(ledger): backfill 75.11.4's missing PASS -- a CLOSED step read as parked all session |
 | 2026-08-18 | `5218aef2` | phase-86.108: cycle-4 FAIL; I committed the class I had gated an hour earlier |
-| 2026-08-18 | `f7685272` | phase-86.108: refresh the stale regression-sweep capture in BOTH artifacts |
 
 ---
 
