@@ -77,6 +77,7 @@ import datetime
 import glob
 import json
 import os
+import re
 import sys
 from pathlib import Path
 
@@ -94,6 +95,11 @@ OUTCOMES = ("PASS", "CONDITIONAL", "FAIL", "NO_VERDICT", "UNKNOWN")
 
 #: Default join tolerance, seconds. See the module docstring for why 30.
 DEFAULT_TOLERANCE_S = 30
+
+#: The four keys a launch row carries as null placeholders and `--backfill`
+#: fills in. They are the ONLY keys the backfill may write onto an existing row,
+#: and only while that row is unsettled (outcome null or UNKNOWN).
+RESOLUTION_KEYS = frozenset({"outcome", "outcome_reason", "total_tokens", "run_id"})
 
 
 def run_record_root() -> Path:
@@ -284,12 +290,33 @@ def backfill(path: Path | None = None, records: list[dict] | None = None,
     same way, and corrupt lines are passed through verbatim. So this can add
     fields and can never rewrite history -- which is what lets an append-only
     stream be enriched at all.
+
+    phase-90.1 cycle-2, criterion 1 BLOCK -- WHY `RESOLUTION_KEYS` EXISTS.
+    The first version made the two halves of its own commit incompatible. The
+    gate writes a launch row with the four resolution keys PRESENT and null
+    ("completed later by --backfill", which is correct: the outcome genuinely is
+    unknown at PreToolUse). But the projection above then saw `outcome: None`
+    becoming `outcome: "FAIL"` as an existing field CHANGING, and aborted the
+    entire write. The very first launch after that commit -- the cycle-1 Q/A's
+    own row -- made `--backfill` exit 1, so the "re-runnable backfill" criterion
+       1 asks for was falsified within minutes of shipping. Every self-test and
+    matrix fixture seeded the OLD row shape, so the drives stayed green
+    regardless: a fixture that predates the writer cannot detect the writer.
+
+    The rule now distinguishes SETTLED from UNSETTLED rather than PRESENT from
+    ABSENT. A row is unsettled while its `outcome` is null or UNKNOWN, and only
+    then may the four resolution keys be written. Once a row carries a real
+    outcome it is FROZEN and nothing may touch it -- which is the immutability
+    that actually matters, and it is checked separately below. UNKNOWN stays
+    writable on purpose: a launch still in flight has no run record yet, and
+    freezing that answer would make a transient absence permanent.
     """
     path = ledger_path() if path is None else path
     records = load_run_records() if records is None else records
     rows = read_rows(path)
     counts: dict[str, int] = {}
     reasons: dict[str, int] = {}
+    frozen = 0
     enriched: list[str] = []
     resolved = 0
     for r in rows:
@@ -300,17 +327,34 @@ def backfill(path: Path | None = None, records: list[dict] | None = None,
         if parsed.get("type", "attempt") != "attempt":
             enriched.append(r["__raw__"])          # extension rows: verbatim
             continue
+        settled = str(parsed.get("outcome") or "") not in ("", "UNKNOWN")
+        if settled:
+            # FROZEN. A row that already carries a real outcome is history and
+            # is passed through byte-for-byte; it is not even re-resolved.
+            enriched.append(r["__raw__"])
+            counts[parsed["outcome"]] = counts.get(parsed["outcome"], 0) + 1
+            reasons[str(parsed.get("outcome_reason") or "already_settled")] = \
+                reasons.get(str(parsed.get("outcome_reason") or "already_settled"), 0) + 1
+            resolved += 1
+            frozen += 1
+            continue
         res = resolve_row(parsed, records, tolerance_s)
         merged = dict(parsed)
         merged.update(res)
         # --- the additive-only proof, per row -----------------------------
-        projection = {k: merged[k] for k in parsed if k in merged}
-        if projection != parsed:
+        # Everything EXCEPT the four resolution keys must be byte-identical.
+        # Those four are the launch placeholders this pass exists to fill, and
+        # they are only writable while the row is unsettled (checked above).
+        projection = {k: merged[k] for k in parsed
+                      if k in merged and k not in RESOLUTION_KEYS}
+        original = {k: v for k, v in parsed.items() if k not in RESOLUTION_KEYS}
+        if projection != original:
             raise AssertionError(
                 f"backfill would MUTATE an existing field on row ts={parsed.get('ts')!r} "
-                f"step_id={parsed.get('step_id')!r}: {projection!r} != {parsed!r}. "
+                f"step_id={parsed.get('step_id')!r}: {projection!r} != {original!r}. "
                 "Refusing to write; the ledger is append-only and enrichment "
-                "may only ADD keys.")
+                "may only ADD keys or FILL the unsettled resolution keys "
+                f"{sorted(RESOLUTION_KEYS)}.")
         counts[res["outcome"]] = counts.get(res["outcome"], 0) + 1
         reasons[res["outcome_reason"]] = reasons.get(res["outcome_reason"], 0) + 1
         resolved += 1
@@ -322,6 +366,7 @@ def backfill(path: Path | None = None, records: list[dict] | None = None,
         bak.write_text(path.read_text(encoding="utf-8"), encoding="utf-8")
         path.write_text("\n".join(enriched) + "\n", encoding="utf-8")
     return {"rows_total": len(rows), "attempt_rows": resolved,
+            "already_settled_passed_through": frozen,
             "outcome_counts": counts, "reason_counts": reasons,
             "dry_run": dry_run, "ledger": str(path),
             "tolerance_s": tolerance_s}
@@ -347,11 +392,30 @@ def resolved_rows(step_id: str, rows: list[dict],
 
 
 def masterplan_step_ids(path: Path | None = None) -> set[str]:
-    """Every step id in the plan of record, plus its `phase-`-stripped form.
+    """Every id ANYWHERE in the plan of record, plus its `phase-`-stripped form.
 
-    Duplicate-id resolution across the `phase-` prefix is step 90.7's; this is
-    deliberately PERMISSIVE about the prefix so 90.1 cannot silently deny a step
-    that 90.7 has not yet normalised.
+    phase-90.1 cycle-2, criterion 4 BLOCK. The first version walked exactly
+    `phases[].steps[]` and nothing else. The plan of record is NOT that shape
+    everywhere: real steps also live under `phases[].subphases[]`, and the
+    shallow walk missed 123 dotted ids -- among them **10 that are `pending`
+    AND `harness_required`**: 38.13 and 46.0 through 46.8. Because a missing id
+    DENIES, that shipped a gate which blocked ten real pending steps while its
+    own denial text asserted they were "not a step in .claude/masterplan.json".
+    Fail-CLOSED, and the exact opposite of the fail-open discipline the module
+    documents.
+
+    The reason it was not caught is worth keeping: the blast-radius measurement
+    that cleared this change used THE SAME shallow walk, so the control shared
+    the defect it was meant to detect and could only ever agree. A recall check
+    over the plan's own members -- now `assert_membership_recall()` below, and
+    driven by the gate's self-test -- is the check that cannot share it, because
+    it derives its expectation from the file rather than from this function.
+
+    So: recurse over the whole document and collect every `id`. Over-inclusion
+    is the SAFE direction here (it can only ADMIT), which is why this walks
+    everything rather than trying to enumerate the container keys that happen
+    to exist today. Duplicate-id resolution across the `phase-` prefix remains
+    step 90.7's.
     """
     path = masterplan_path() if path is None else path
     try:
@@ -359,15 +423,64 @@ def masterplan_step_ids(path: Path | None = None) -> set[str]:
     except Exception:  # noqa: BLE001
         return set()
     ids: set[str] = set()
-    for ph in mp.get("phases") or []:
-        for s in (ph or {}).get("steps") or []:
-            sid = str((s or {}).get("id") or "").strip()
-            if not sid:
-                continue
-            ids.add(sid)
-            if sid.startswith("phase-"):
-                ids.add(sid[len("phase-"):])
+
+    def walk(node) -> None:
+        if isinstance(node, dict):
+            raw = node.get("id")
+            if isinstance(raw, str) and raw.strip():
+                sid = raw.strip()
+                ids.add(sid)
+                if sid.startswith("phase-"):
+                    ids.add(sid[len("phase-"):])
+            for v in node.values():
+                walk(v)
+        elif isinstance(node, list):
+            for v in node:
+                walk(v)
+
+    walk(mp)
     return ids
+
+
+def assert_membership_recall(path: Path | None = None) -> dict:
+    """Every id the plan contains must be ADMITTED. Derived from the file.
+
+    This is the check the cycle-1 blast-radius measurement could not be: it
+    builds its expectation by re-reading the plan with an INDEPENDENT walk
+    (collect every dotted id, however nested) instead of reusing
+    `masterplan_step_ids`, so the two cannot share a traversal bug. If a real
+    member is not admitted, that is a recall failure and it is loud.
+    """
+    path = masterplan_path() if path is None else path
+    try:
+        mp = json.load(open(path, encoding="utf-8"))
+    except Exception as exc:  # noqa: BLE001
+        return {"ok": False, "error": f"{type(exc).__name__}: {exc}",
+                "members": 0, "missing": []}
+    dotted = re.compile(r"\A[0-9]+(?:\.[0-9]+)*\Z")
+    members: set[str] = set()
+
+    def collect(node) -> None:
+        if isinstance(node, dict):
+            raw = node.get("id")
+            if isinstance(raw, str):
+                sid = raw.strip()
+                if sid.startswith("phase-"):
+                    sid = sid[len("phase-"):]
+                if dotted.match(sid):
+                    members.add(sid)
+            for v in node.values():
+                collect(v)
+        elif isinstance(node, list):
+            for v in node:
+                collect(v)
+
+    collect(mp)
+    known = masterplan_step_ids(path)
+    missing = sorted(members - known,
+                     key=lambda s: [int(p) for p in s.split(".")])
+    return {"ok": not missing, "members": len(members),
+            "missing": missing[:20], "missing_total": len(missing)}
 
 
 def main(argv: list[str] | None = None) -> int:

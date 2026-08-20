@@ -28,6 +28,7 @@ both:
 """
 from __future__ import annotations
 
+import ast
 import hashlib
 import json
 import os
@@ -46,7 +47,7 @@ RESOLVER = REPO / "scripts" / "harness" / "attempt_outcomes.py"
 REAL_SID = "9.1"
 #: Well-formed, dotted-numeric, and in no plan. The `.1` suffix is the exact
 #: bypass this step closes.
-FAKE_SID = "9.1.1"
+FAKE_SID = "9.1.7"
 
 
 def md5(p: Path) -> str:
@@ -70,8 +71,17 @@ def _env(tmp: Path, gate_dir: Path) -> dict:
     """Every output channel redirected into tmp. See the docstring."""
     plan = tmp / "masterplan.json"
     if not plan.is_file():
-        plan.write_text(json.dumps({"phases": [{"id": "phase-9", "steps": [
-            {"id": f"9.{n}"} for n in range(1, 6)]}]}), encoding="utf-8")
+        # NOTE the nested member: the plan of record is not uniformly
+        # phases[].steps[], and the cycle-1 BLOCK was a walk that assumed it
+        # was. `9.9` here lives under subphases[], exactly like the real
+        # 46.0-46.8, so a shallow walk denies it and cell M13 dies.
+        plan.write_text(json.dumps({"phases": [
+            {"id": "phase-9",
+             "steps": [{"id": f"9.{n}"} for n in range(1, 6)],
+             "subphases": [{"id": "phase-9.9",
+                            "steps": [{"id": "9.9.1", "status": "pending",
+                                       "harness_required": True}]}]},
+        ]}), encoding="utf-8")
     esc = tmp / "escalations"
     esc.mkdir(exist_ok=True)
     records = tmp / "records"
@@ -170,7 +180,8 @@ def drive_forge(gate: Path, tmp: Path) -> dict:
 
 
 def _plant_run_record(tmp: Path, step_id: str, ts_iso: str,
-                      offset_ms: int, verdict: str, tokens: int) -> None:
+                      offset_ms: int, verdict: str, tokens: int,
+                      name: str = "wf_planted") -> None:
     """A synthetic Workflow run record offset from the attempt row's ts.
 
     The offset is what exercises the JOIN TOLERANCE. Without a record on disk
@@ -182,8 +193,8 @@ def _plant_run_record(tmp: Path, step_id: str, ts_iso: str,
         tzinfo=datetime.timezone.utc)
     d = tmp / "records" / "sess" / "workflows"
     d.mkdir(parents=True, exist_ok=True)
-    (d / "wf_planted.json").write_text(json.dumps({
-        "runId": "wf_planted", "workflowName": "qa-verdict",
+    (d / (name + ".json")).write_text(json.dumps({
+        "runId": name, "workflowName": "qa-verdict",
         "startTime": int(t.timestamp() * 1000) + offset_ms,
         "timestamp": "2026-08-19T23:59:59.000Z",     # deliberately far away:
                                                      # a join on `timestamp`
@@ -204,6 +215,13 @@ def drive_join(gate: Path, tmp: Path) -> dict:
                                "workflow": "qa-verdict.js"}) + "\n",
                    encoding="utf-8")
     _plant_run_record(tmp, REAL_SID, ts, 900, "FAIL", 4242)
+    # A DECOY for the same step, two hours away. At the shipped 30s tolerance
+    # only the 900ms record matches, so the row resolves uniquely. WIDEN the
+    # tolerance and BOTH match -> ambiguous -> UNKNOWN, which is how M11 dies.
+    # Without this second record every drive saw at most one candidate and the
+    # upper bound was untestable, which is why M11's ancestor survived.
+    _plant_run_record(tmp, REAL_SID, ts, 7_200_000, "PASS", 999999,
+                      name="wf_decoy")
     resolver = gate.parent / "attempt_outcomes.py"
     r = subprocess.run([sys.executable, str(resolver), "--backfill"],
                        capture_output=True, text=True, env=env, timeout=90)
@@ -214,6 +232,72 @@ def drive_join(gate: Path, tmp: Path) -> dict:
     return {"rc": r.returncode, "outcome": row.get("outcome"),
             "reason": row.get("outcome_reason"),
             "tokens": row.get("total_tokens"), "run_id": row.get("run_id")}
+
+
+def drive_nested(gate: Path, tmp: Path) -> dict:
+    """A step id nested under subphases[] must be ADMITTED.
+
+    phase-90.1 cycle-2. The cycle-1 walk read only phases[].steps[] and so
+    DENIED 10 real pending, harness-required steps (38.13, 46.0-46.8) while
+    telling the operator they were "not a step in .claude/masterplan.json".
+    Nothing in the matrix noticed, because every drive used ids the shallow
+    walk happened to reach -- a recall gap, not a precision gap.
+    """
+    return drive_hook(gate, tmp, "9.9.1")
+
+
+def drive_recall(gate: Path, tmp: Path) -> dict:
+    """Every dotted id the plan contains must be admitted -- derived from the file.
+
+    This is the check the cycle-1 blast-radius measurement could not be: it
+    re-reads the plan with an INDEPENDENT walk instead of reusing the function
+    under test, so the two cannot share a traversal bug.
+    """
+    env = _env(tmp, gate.parent)
+    code = (
+        "import importlib.util, json, sys" + chr(10) +
+        f"spec = importlib.util.spec_from_file_location('r', {str(gate.parent / 'attempt_outcomes.py')!r})" + chr(10) +
+        "m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)" + chr(10) +
+        "print(json.dumps(m.assert_membership_recall()))" + chr(10)
+    )
+    r = subprocess.run([sys.executable, "-c", code], capture_output=True,
+                       text=True, env=env, timeout=90)
+    try:
+        return json.loads(r.stdout.strip() or "{}")
+    except json.JSONDecodeError:
+        return {}
+
+
+def drive_launch_row_backfill(gate: Path, tmp: Path) -> dict:
+    """The backfill must survive the row shape the GATE ACTUALLY WRITES.
+
+    phase-90.1 cycle-2, criterion 1 BLOCK. Cycle 1's fixtures all seeded the
+    pre-90.1 row shape -- no resolution keys at all -- so they could never see
+    that the gate now writes those keys present-and-null and that the projection
+    then read null->UNKNOWN as an illegal mutation. The first real launch after
+    the commit broke `--backfill`, and every fixture stayed green. This drive
+    seeds the shape the gate writes, so the two halves are tested together.
+    """
+    env = _env(tmp, gate.parent)
+    led = tmp / "attempts.jsonl"
+    launch_row = {"ts": "2026-08-19T10:00:00Z", "type": "attempt",
+                  "step_id": REAL_SID, "workflow": "qa-verdict.js",
+                  "attempt_number_inclusive": 1,
+                  "outcome": None, "outcome_reason": "unresolved_at_launch",
+                  "total_tokens": None, "run_id": None,
+                  "note": "recorded at launch (PreToolUse)"}
+    led.write_text(json.dumps(launch_row) + "\n", encoding="utf-8")
+    _plant_run_record(tmp, REAL_SID, "2026-08-19T10:00:00Z", 500, "CONDITIONAL", 777)
+    resolver = gate.parent / "attempt_outcomes.py"
+    r = subprocess.run([sys.executable, str(resolver), "--backfill"],
+                       capture_output=True, text=True, env=env, timeout=90)
+    try:
+        after = json.loads(led.read_text(encoding="utf-8").splitlines()[0])
+    except Exception:  # noqa: BLE001
+        after = {}
+    return {"rc": r.returncode, "outcome": after.get("outcome"),
+            "tokens": after.get("total_tokens"),
+            "note_kept": after.get("note") == launch_row["note"]}
 
 
 def drive_backfill(gate: Path, tmp: Path) -> dict:
@@ -275,9 +359,16 @@ def observations(gate: Path) -> dict:
         forge = drive_forge(gate, Path(td))
     with tempfile.TemporaryDirectory() as td:
         join = drive_join(gate, Path(td))
+    with tempfile.TemporaryDirectory() as td:
+        nested = drive_nested(gate, Path(td))
+    with tempfile.TemporaryDirectory() as td:
+        recall = drive_recall(gate, Path(td))
+    with tempfile.TemporaryDirectory() as td:
+        launch = drive_launch_row_backfill(gate, Path(td))
     return {"below": below, "at": at, "unknown": unknown, "preserve": preserve,
             "over": over, "under": under, "drop": drop, "graded": graded,
-            "backfill": backfill, "forge": forge, "join": join}
+            "backfill": backfill, "forge": forge, "join": join,
+            "nested": nested, "recall": recall, "launch": launch}
 
 
 CHECKS = [
@@ -359,6 +450,24 @@ CHECKS = [
      "attempt stream a shared key with the verdict ledger",
      lambda o: o["join"].get("tokens") == 4242
      and o["join"].get("run_id") == "wf_planted"),
+
+    # --- criterion 4 RECALL: the plan's own members must be admitted --------
+    ("a step id nested under subphases[] is ADMITTED -- the plan of record is "
+     "not uniformly phases[].steps[] (cycle-1 BLOCK)",
+     lambda o: o["nested"]["rc"] == 0),
+    ("every dotted id the plan contains is admitted, checked by an INDEPENDENT "
+     "walk of the file rather than by the function under test",
+     lambda o: o["recall"].get("ok") is True
+     and o["recall"].get("members", 0) > 0),
+
+    # --- criterion 1: the backfill survives the row the GATE writes ---------
+    ("--backfill is re-runnable against the row shape the gate ACTUALLY writes "
+     "(resolution keys present-and-null), exiting 0 and filling them",
+     lambda o: o["launch"]["rc"] == 0
+     and o["launch"]["outcome"] == "CONDITIONAL"
+     and o["launch"]["tokens"] == 777),
+    ("and filling them leaves the row's other fields untouched",
+     lambda o: o["launch"]["note_kept"] is True),
 ]
 
 #: (id, target, description, find, replace) -- find must appear exactly once.
@@ -418,12 +527,15 @@ CELLS = [
      "                or self.tokens_used >= self.max_tokens)",
      "        return self.attempts_used >= self.max_attempts"),
 
-    ("M8", RESOLVER, "criterion 1: the additive-only guard is removed, so the "
-                     "backfill may silently rewrite an existing field",
-     "        projection = {k: merged[k] for k in parsed if k in merged}\n"
-     "        if projection != parsed:",
+    # phase-90.1 cycle-2: re-anchored. The BLOCK-2 fix rewrote this block, so
+    # the cycle-1 anchor matched 0 times and the cell scored ERROR -- which is
+    # the ERROR path behaving correctly (a cell that cannot be applied is not a
+    # kill), but an ERROR proves nothing about the guard, so it is re-pointed at
+    # the code that now carries it.
+    ("M8", RESOLVER, "criterion 1: the additive-only guard is disabled, so the "
+                     "backfill may silently rewrite a NON-resolution field",
+     "        if projection != original:",
      "        merged[\"note\"] = \"REWRITTEN BY BACKFILL\"\n"
-     "        projection = {k: merged[k] for k in parsed if k in merged}\n"
      "        if False:"),
 
     ("M9", RESOLVER, "criterion 1: an ambiguous or absent match is GUESSED "
@@ -432,10 +544,48 @@ CELLS = [
      '    if not hits:\n        return {"outcome": "PASS", "outcome_reason": "guessed",\n'
      '                "total_tokens": 0, "run_id": None}'),
 
-    ("M10", RESOLVER, "the join reverts to `timestamp` semantics by widening the "
-                      "tolerance past the measured ambiguity threshold",
+    # phase-90.1 cycle-2, WARN: M10's description said "widening the tolerance"
+    # while the code NARROWED 30 -> 0. Relabelled to what it does, and the two
+    # things it was conflating are now separate cells that both run.
+    ("M10", RESOLVER, "the join tolerance is NARROWED to 0, so a row whose run "
+                      "record is milliseconds away no longer resolves",
      "DEFAULT_TOLERANCE_S = 30",
      "DEFAULT_TOLERANCE_S = 0"),
+
+    ("M11", RESOLVER, "the join tolerance is WIDENED past the measured "
+                      "ambiguity threshold -- the upper bound had no cell at "
+                      "all, and widening collapses token accounting (measured: "
+                      "at 86400s the summed tokens fall to ~9%), which re-opens "
+                      "the ceiling inertness criterion 3 exists to close",
+     "DEFAULT_TOLERANCE_S = 30",
+     "DEFAULT_TOLERANCE_S = 86400"),
+
+    ("M12", RESOLVER, "the join reads `timestamp` (written at COMPLETION) "
+                      "instead of `startTime` (the launch moment)",
+     '        start = d.get("startTime")',
+     '        start = d.get("timestamp")'),
+
+    ("M13", RESOLVER, "the masterplan walk stops at phases[].steps[] -- the "
+                      "cycle-1 BLOCK, which denied 10 pending harness-required "
+                      "steps because their ids live under subphases[]",
+     "    walk(mp)\n    return ids",
+     "    for ph in (mp.get('phases') or []):\n"
+     "        for s in ((ph or {}).get('steps') or []):\n"
+     "            sid = str((s or {}).get('id') or '').strip()\n"
+     "            if sid:\n"
+     "                ids.add(sid)\n"
+     "                if sid.startswith('phase-'):\n"
+     "                    ids.add(sid[len('phase-'):])\n"
+     "    return ids"),
+
+    ("M14", RESOLVER, "the backfill re-freezes on any present key, which is the "
+                      "cycle-1 BLOCK that made --backfill exit 1 the moment the "
+                      "gate wrote a null-placeholder launch row",
+     "        projection = {k: merged[k] for k in parsed\n"
+     "                      if k in merged and k not in RESOLUTION_KEYS}\n"
+     "        original = {k: v for k, v in parsed.items() if k not in RESOLUTION_KEYS}",
+     "        projection = {k: merged[k] for k in parsed if k in merged}\n"
+     "        original = dict(parsed)"),
 ]
 
 
@@ -450,7 +600,18 @@ def run_cell(cell) -> dict:
         if n != 1:
             return {"id": cid, "desc": desc, "score": "ERROR",
                     "why": f"anchor appears {n} times in {target.name}, expected 1"}
-        mutant_file.write_text(src.replace(find, repl, 1), encoding="utf-8")
+        mutated = src.replace(find, repl, 1)
+        mutant_file.write_text(mutated, encoding="utf-8")
+        # phase-90.1 cycle-2, WARN: `subprocess.run` does not raise on a
+        # non-zero exit, so a mutant that could not even be IMPORTED came back
+        # with every check failing and was credited as a KILL. A build failure
+        # is not evidence about the guard. Parse it first; unparseable is ERROR.
+        try:
+            ast.parse(mutated)
+        except SyntaxError as exc:
+            return {"id": cid, "desc": desc, "score": "ERROR",
+                    "why": f"mutant does not parse ({target.name}:{exc.lineno}): "
+                           f"{exc.msg} -- a build failure is not a kill"}
         gate = work / GATE.name
         try:
             obs = observations(gate)

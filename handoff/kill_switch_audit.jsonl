@@ -78,3 +78,4 @@
 {"ts": "2026-08-18T18:07:34.461975+00:00", "event": "sod_snapshot", "nav": 23769.27, "date": "2026-08-18", "provisional": false}
 {"ts": "2026-08-19T18:03:15.740917+00:00", "event": "sod_snapshot", "nav": 23599.4, "date": "2026-08-19", "provisional": true}
 {"ts": "2026-08-20T18:00:03.758719+00:00", "event": "sod_snapshot", "nav": 23559.94, "date": "2026-08-20", "provisional": true}
+{"ts": "2026-08-20T19:43:59.971182+00:00", "event": "sod_snapshot", "nav": 23553.16, "date": "2026-08-20", "provisional": false}

@@ -725,6 +725,25 @@ def _self_test() -> int:
                   "discriminates (dropped=0, verdicts_seen=1)",
                   s6.dropped == 0 and s6.verdicts_seen == 1)
             LEDGER = led
+            # ---- phase-90.1 cycle-2: RECALL, the check cycle 1 lacked -----
+            # Cycle 1 tested only that BAD ids are denied (precision) and never
+            # that GOOD ids are admitted (recall), so a walk that missed
+            # subphases[] shipped and denied 10 real pending steps.
+            from attempt_outcomes import assert_membership_recall  # noqa: PLC0415
+            rec = assert_membership_recall(synthetic_plan)
+            check("every dotted id the plan of record contains is ADMITTED "
+                  "(90.1 c4 RECALL, checked against the file not the function)",
+                  rec["ok"] and rec["members"] > 0)
+            nested_plan = Path(td) / "masterplan_nested.json"
+            nested_plan.write_text(json.dumps({"phases": [{"id": "phase-9",
+                "subphases": [{"id": "phase-9.9", "steps": [{"id": "9.9.1"}]}]}]}),
+                encoding="utf-8")
+            os.environ["ATTEMPT_GATE_MASTERPLAN"] = str(nested_plan)
+            check("a step id nested under subphases[] is ADMITTED -- the plan is "
+                  "NOT uniformly phases[].steps[] (the cycle-1 BLOCK)",
+                  extract_step_id({"args": {"step_id": "9.9.1"}}) == "9.9.1")
+            os.environ["ATTEMPT_GATE_MASTERPLAN"] = str(synthetic_plan)
+
             check("the self-test wrote every escalation into its OWN temp dir "
                   "-- nothing leaked into handoff/current/ (the 9.4 lesson, "
                   "applied to the second channel)",

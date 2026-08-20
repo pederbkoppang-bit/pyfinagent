@@ -133,3 +133,102 @@ $ python3 scripts/harness/attempt_gate.py --status 86.118
 
 `tokens_used` is a real number for the first time; before this step every step
 reported 0. `verdicts_seen` vs `attempts_used` is the gap the old counter could not see.
+
+---
+
+# CYCLE 2 captures -- 2026-08-20
+
+Re-captured after the cycle-1 FAIL. Verbatim, against the REAL repo and plan.
+
+## C2.1 Membership RECALL -- the check cycle 1 did not have
+
+```
+ids admitted by masterplan_step_ids(): 1614
+recall (independent walk of the file): ok | dotted members: 1427 | missing: 0
+
+the 10 steps the cycle-1 walk DENIED (pending + harness_required):
+    38.13 -> ADMITTED
+    46.0 -> ADMITTED
+    46.1 -> ADMITTED
+    46.2 -> ADMITTED
+    46.3 -> ADMITTED
+    46.4 -> ADMITTED
+    46.5 -> ADMITTED
+    46.6 -> ADMITTED
+    46.7 -> ADMITTED
+    46.8 -> ADMITTED
+
+precision unchanged -- the criterion-4 cells:
+    86.118 -> ADMITTED
+    86.118.1 -> DENIED
+    86.1180 -> DENIED
+    999.99 -> DENIED
+```
+
+## C2.2 The backfill is re-runnable and idempotent
+
+```
+$ python3 scripts/harness/attempt_outcomes.py --backfill --dry-run
+{
+  "already_settled_passed_through": 87,
+  "attempt_rows": 92,
+  "dry_run": true,
+  "ledger": "/Users/ford/.openclaw/workspace/pyfinagent/handoff/audit/attempt_budget_audit.jsonl",
+  "outcome_counts": {
+    "CONDITIONAL": 45,
+    "FAIL": 11,
+    "NO_VERDICT": 20,
+    "PASS": 11,
+    "UNKNOWN": 5
+  },
+  "reason_counts": {
+    "completed_without_result": 2,
+    "graded": 67,
+    "no_run_record": 5,
+    "not_an_evaluation": 18
+  },
+  "rows_total": 96,
+  "tolerance_s": 30
+}
+
+UNKNOWN = 5 (used ONLY where no run record matched; an ambiguous match also resolves UNKNOWN and is never guessed)
+```
+
+Exit 0. `already_settled_passed_through` counts rows frozen because they already
+carry a real outcome; re-running moves that number up and leaves the counts identical.
+
+## C2.3 The consumer 90.1 broke, restored
+
+```
+$ python3 scripts/qa/mutation_matrix_86_71.py --verify
+CONTROL green: all 11 behavioural checks hold (below rc=0 rows=1; at-ceiling rc=2)
+exit: 0
+```
+
+## C2.4 A mutant that cannot build scores ERROR, never a kill
+
+```
+MXE2 (injected SyntaxError) -> ERROR  mutant does not parse (attempt_gate.py:475): invalid syntax -- a build failure is not a ki
+MXE1 (nonexistent anchor) -> ERROR  anchor appears 0 times in attempt_gate.py, expected 1
+```
+
+## C2.5 The immutable verification command
+
+```
+$ python3 scripts/harness/attempt_gate.py --self-test && python3 scripts/qa/mutation_matrix_90_1.py --verify
+(exit code 0)
+
+real tree untouched (md5 before == after): True
+  scripts/harness/attempt_gate.py: 85de2e74a186aac33da596ec7bec0285
+  scripts/harness/attempt_budget.py: 5511ac7e6f105b6b0716d4b80812a170
+  scripts/harness/attempt_outcomes.py: 81ebe68b498c63cbc424bf1f01ae02d1
+
+KILLED 14 | SURVIVED 0 (excl. N0) | ERROR 0 | null mutant survived: True
+```
+
+## C2.6 Criterion 6 across the cycle-2 run
+
+```
+BEFORE: fcfe56ad9788f0bc248253aea49e086812ab951c4145ecc5eac2b92c982e3eb2
+AFTER : fcfe56ad9788f0bc248253aea49e086812ab951c4145ecc5eac2b92c982e3eb2
+```

@@ -274,3 +274,163 @@ would have passed either way.
   Neither is a hard guarantee and neither is claimed as one.
 - **The Agent-tool path is still ungated** -- unchanged from 86.71 and restated here so it
   is not mistaken for something this step closed.
+
+---
+
+# CYCLE 2 -- remediation of the cycle-1 FAIL
+
+**Cycle-1 verdict:** FAIL. Run `wf_b7fc2eb5-efd`, transcribed verbatim in
+`handoff/current/evaluator_critique_90.1.md`. Two BLOCKs and three WARNs. **Every one
+was correct.** Both blockers were reproduced independently before any fix was written.
+
+## BLOCK 1 (criterion 4) -- the membership walk denied 10 real pending steps
+
+**Reproduced, and WORSE than reported.** `masterplan_step_ids()` walked only
+`phases[].steps[]`. The Q/A found 14 missed ids; an independent recursive census finds
+**123 dotted ids missed**, and the critical subset is exactly the Q/A's: **10 steps that
+are `pending` AND `harness_required`** -- 38.13 and 46.0 through 46.8. Because a missing
+id DENIES, the shipped gate blocked ten real pending steps while its own denial text
+asserted they were "not a step in `.claude/masterplan.json`". Fail-CLOSED -- the opposite
+of the fail-open discipline the module documents.
+
+**Why cycle 1 could not see it, which is the more important half.** My blast-radius
+measurement -- "617 launches, 531 resolve, 5 don't, zero production evaluations
+affected" -- was computed with **the same shallow walk**. The control shared the defect
+it was supposed to detect, so it could only ever agree. Cycle 1 tested only that BAD ids
+are denied (precision) and never that GOOD ids are admitted (**recall**).
+
+**Fix.** `masterplan_step_ids()` now recurses the whole document. Over-inclusion is the
+safe direction (it can only ADMIT), which is why it collects every `id` rather than
+enumerating the container keys that happen to exist today.
+
+**The check that cannot share the bug:** new `assert_membership_recall()` re-reads the
+plan with an **independent** walk and asserts every dotted member is admitted. It derives
+its expectation from the file, not from the function under test. Run live:
+
+```
+ids now: 1614
+recall ok: True | members: 1427 | missing: 0
+
+  38.13        -> ADMITTED        86.118       -> ADMITTED
+  46.0         -> ADMITTED        86.118.1     -> DENIED
+  46.4         -> ADMITTED        999.99       -> DENIED
+  46.8         -> ADMITTED
+```
+
+Recall restored; precision unchanged. Driven by the gate's own self-test and by matrix
+cells M13 (shallow walk) and the two recall checks.
+
+## BLOCK 2 (criterion 1) -- the backfill was not re-runnable
+
+**Reproduced exactly.** The two halves of my own commit were mutually incompatible: the
+gate writes a launch row with the four resolution keys **present and null**, and
+`backfill()`'s projection read `outcome: None -> "FAIL"` as an existing field CHANGING and
+aborted the entire write. The first launch after the commit -- the cycle-1 Q/A's own row
+at 19:27:19Z -- broke `--backfill`, which then exited 1 and printed no counts.
+
+**Why every fixture stayed green:** all of them seeded the PRE-90.1 row shape, which has
+no resolution keys at all. A fixture that predates the writer cannot detect the writer.
+
+**Fix.** The rule now distinguishes **settled from unsettled**, not present from absent. A
+row is unsettled while `outcome` is null or `UNKNOWN`, and only then may the four
+`RESOLUTION_KEYS` be written. Once a row carries a real outcome it is FROZEN and passed
+through byte-for-byte. `UNKNOWN` stays writable deliberately: a launch still in flight has
+no run record yet, and freezing that answer would make a transient absence permanent.
+
+Re-runnable and idempotent, verbatim:
+
+```
+{"already_settled_passed_through": 84, "attempt_rows": 92, "rows_total": 96,
+ "outcome_counts": {"CONDITIONAL": 45, "FAIL": 11, "NO_VERDICT": 20, "PASS": 11, "UNKNOWN": 5},
+ "reason_counts": {"completed_without_result": 2, "graded": 67, "no_run_record": 5,
+                   "not_an_evaluation": 18}}
+
+immediate re-run: exit 0 | attempt_rows 92 | settled passthrough 87 | counts identical
+```
+
+New matrix cell **M14** mutates the fix back and is KILLED; new drive
+`drive_launch_row_backfill` seeds **the row shape the gate actually writes**, so the two
+halves are now tested together rather than separately.
+
+## WARN 1 -- M10 was mislabelled, and the upper bound had no cell
+
+The Q/A is right: M10's description said "**widening** the tolerance" while the code
+narrowed 30 -> 0, and it ran the real widening mutant through my own harness to show it
+**SURVIVED**. Widening is not equivalent to narrowing: at 86400s the summed tokens
+collapse to ~9%, which re-opens the exact inertness criterion 3 exists to close.
+
+Fixed three ways: M10 relabelled to what it does; **M11** added for widening; **M12** added
+for the `timestamp`-instead-of-`startTime` revert. All three now KILL. They are killable
+because `drive_join` plants a **decoy** run record for the same step two hours away --
+at 30s only the 900ms record matches, at 86400s both match, ambiguity resolves UNKNOWN.
+Without a second candidate the upper bound was untestable, which is why M11's ancestor
+survived.
+
+## WARN 2 -- criterion 5 clause 3 was falsified
+
+Also correct. `subprocess.run` does not raise on a non-zero exit, so a mutant that could
+not even parse came back with every check failing and was credited as a KILL.
+`run_cell` now `ast.parse`s the mutated source first. Verified with the Q/A's own probes:
+
+```
+MXE2 -> ERROR | mutant does not parse (attempt_gate.py:475): invalid syntax -- a build failure is not a kill
+MXE1 -> ERROR | anchor appears 0 times in attempt_gate.py, expected 1
+criterion 5 clause 3: SATISFIED
+```
+
+The path proved itself immediately: M8's anchor had gone stale during the BLOCK-2 rewrite
+and scored **ERROR rather than a false kill**. It was then re-anchored.
+
+## WARN 3 -- 90.1 broke a consumer
+
+Correct and my fault. `scripts/qa/mutation_matrix_86_71.py` drives step id `77.7` against
+the real plan with no override, so 90.1's membership check turned its control permanently
+RED. My "zero production Q/A evaluations affected" claim was scoped to launch history and
+**excluded checker fixtures**; the masterplan notes had explicitly said "fix the fixture,
+do not weaken the check", and I applied that to the gate's self-test but never swept the
+other consumers.
+
+Fixed with the same exemption-by-construction: `ATTEMPT_GATE_MASTERPLAN` pointing at a
+synthetic plan containing `77.7`. Verified:
+
+```
+$ python3 scripts/qa/mutation_matrix_86_71.py --verify
+CONTROL green: all 11 behavioural checks hold (below rc=0 rows=1; at-ceiling rc=2)
+EXIT: 0
+```
+
+## Cycle-2 verification -- verbatim
+
+```
+$ python3 scripts/harness/attempt_gate.py --self-test && python3 scripts/qa/mutation_matrix_90_1.py --verify
+EXIT CODE: 0
+
+KILLED 14 | SURVIVED 0 (excl. N0) | ERROR 0 | null mutant survived: True
+real tree untouched (md5 before == after): True
+```
+
+Self-test now 34 checks including the two recall checks. Matrix grew from 11 cells to 15
+(M11, M12, M13, M14 added; M8 re-anchored; M10 relabelled) and from 21 checks to 25.
+
+Criterion 6 re-verified across the whole cycle-2 run:
+`verdict_ledger.jsonl` sha256 `fcfe56ad…2e3eb2` before and after -- byte-identical.
+
+## What cycle 2 did NOT change
+
+- No criterion was edited, weakened, or reinterpreted.
+- No verdict semantics changed. The cycle-1 FAIL stands as recorded; this is a fix, not
+  an appeal, and the fresh Q/A grades changed evidence.
+- The 92-vs-96 row drift persists and is now larger, for the reason the Q/A itself
+  identified: the gate is live and the ledger grows during evaluation. `attempt_rows` is
+  92 of 96 total rows.
+
+## Still open, disclosed rather than fixed
+
+- **`--operator-extend` does not validate membership.** I found this myself during cycle 1
+  and deliberately did not fix it under the evidence freeze. It means the audited operator
+  path can still create an allowance row for an id no plan contains -- which is how the
+  historical `999.2` rows exist. Arguably correct (an operator may extend a step before
+  filing it) and arguably a hole. Criterion 4 speaks only to `extract_step_id`, so this is
+  disclosed, not silently closed.
+- **The Agent-tool path remains ungated** -- unchanged from 86.71, restated so it is not
+  mistaken for something this step closed.

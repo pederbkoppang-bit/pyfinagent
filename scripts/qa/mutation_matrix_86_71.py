@@ -68,10 +68,22 @@ def drive(gate: Path, tmp: Path, seed_attempts: int,
         vpath.mkdir(exist_ok=True)
     else:
         vpath = tmp / "absent_verdicts.jsonl"
+    # phase-90.1 cycle-2, WARN (consumer-contract-break): 90.1 gave the gate a
+    # masterplan MEMBERSHIP check, and this matrix drives the synthetic step id
+    # `77.7`, which is not in the real plan. Left alone, every drive here would
+    # be DENIED for an unrecognised id and this matrix's control would read
+    # permanently RED -- a checker broken by a change in a different file. The
+    # fix is the same exemption-by-construction 90.1 gave the gate's own
+    # self-test: point the membership check at a synthetic plan that contains
+    # this matrix's ids, so they are real HERE and nowhere else.
+    plan = tmp / "masterplan_86_71.json"
+    plan.write_text(json.dumps({"phases": [{"id": "phase-77", "steps": [
+        {"id": "77.7"}]}]}), encoding="utf-8")
     env = dict(os.environ,
                ATTEMPT_GATE_LEDGER=str(led),
                ATTEMPT_GATE_VERDICT_LEDGER=str(vpath),
                ATTEMPT_GATE_ESCALATION_DIR=str(tmp),
+               ATTEMPT_GATE_MASTERPLAN=str(plan),
                PYTHONPATH=os.pathsep.join([
                    str(REPO / "scripts" / "harness"),
                    str(REPO / "scripts" / "qa"),
