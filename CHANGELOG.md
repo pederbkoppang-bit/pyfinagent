@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-20 | `729dd1d4` | phase-90.2/90.9: contracts, both research gates PASSED (enforced) |
 | 2026-08-20 | `74d9862c` | phase-91: split today's 23-item operator defect batch out of phase-86 |
 | 2026-08-20 | `b5a9b9d6` | phase-90.1: cycle-3 -- close the numbered criterion miss and two illusory guards |
 | 2026-08-20 | `15310603` | phase-86: file the holding-side reeval cooldown defect as 86.149 |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-18 | `4f90a2fe` | ops: WEEKLY MAX BUDGET EXHAUSTED -- resets Aug 20 19:00 Europe/Oslo |
 | 2026-08-18 | `ee319908` | feat(masterplan): file 86.129 + 86.130 -- pipeline-report audit findings |
 | 2026-08-18 | `ae99e311` | phase-86.110: regenerate every stale capture; the internal contradiction now reconciles |
-| 2026-08-18 | `db6db6a2` | chore: split phase-86 out of phase-85's steps array |
 
 ---
 
