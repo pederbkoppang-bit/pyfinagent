@@ -215,12 +215,18 @@ def drive_join(gate: Path, tmp: Path) -> dict:
                                "workflow": "qa-verdict.js"}) + "\n",
                    encoding="utf-8")
     _plant_run_record(tmp, REAL_SID, ts, 900, "FAIL", 4242)
-    # A DECOY for the same step, two hours away. At the shipped 30s tolerance
-    # only the 900ms record matches, so the row resolves uniquely. WIDEN the
-    # tolerance and BOTH match -> ambiguous -> UNKNOWN, which is how M11 dies.
-    # Without this second record every drive saw at most one candidate and the
-    # upper bound was untestable, which is why M11's ancestor survived.
-    _plant_run_record(tmp, REAL_SID, ts, 7_200_000, "PASS", 999999,
+    # A DECOY for the same step, placed just past the DOCUMENTED ambiguity
+    # threshold (the module docstring: ambiguity first appears at 900s).
+    #
+    # phase-90.1 cycle-3. The cycle-2 Q/A swept this and found the decoy sat at
+    # 7,200,000 ms, so the cell defended the DECOY's boundary rather than the
+    # documented one: every tolerance from 1 to 7199 SURVIVED, including 3600 --
+    # which on the real ledger collapses summed tokens from 20,365,361 to
+    # 4,015,375 and turns 71 rows ambiguous. A guard calibrated to its own
+    # fixture rather than to the property is the illusory-guard shape. Moved to
+    # 950s: still unambiguous at the shipped 30s, ambiguous for anything at or
+    # past the documented threshold.
+    _plant_run_record(tmp, REAL_SID, ts, 900_000, "PASS", 999999,
                       name="wf_decoy")
     resolver = gate.parent / "attempt_outcomes.py"
     r = subprocess.run([sys.executable, str(resolver), "--backfill"],
@@ -552,7 +558,16 @@ CELLS = [
      "DEFAULT_TOLERANCE_S = 30",
      "DEFAULT_TOLERANCE_S = 0"),
 
-    ("M11", RESOLVER, "the join tolerance is WIDENED past the measured "
+    ("M11", RESOLVER, "the join tolerance is WIDENED to the DOCUMENTED "
+                      "ambiguity threshold (900s), not merely past a decoy "
+                      "placed far away -- cycle-2 showed every tolerance up to "
+                      "the decoy's own offset survived, including 3600s, which "
+                      "collapses real summed tokens to 20% and turns 71 rows "
+                      "ambiguous",
+     "DEFAULT_TOLERANCE_S = 30",
+     "DEFAULT_TOLERANCE_S = 900"),
+
+    ("M11b", RESOLVER, "the join tolerance is WIDENED past the measured "
                       "ambiguity threshold -- the upper bound had no cell at "
                       "all, and widening collapses token accounting (measured: "
                       "at 86400s the summed tokens fall to ~9%), which re-opens "
@@ -612,6 +627,38 @@ def run_cell(cell) -> dict:
             return {"id": cid, "desc": desc, "score": "ERROR",
                     "why": f"mutant does not parse ({target.name}:{exc.lineno}): "
                            f"{exc.msg} -- a build failure is not a kill"}
+        # phase-90.1 cycle-3: PARSING IS NOT RUNNING. The cycle-2 fix added the
+        # ast.parse above and closed only the SyntaxError subset; the cycle-2
+        # Q/A then executed three mutants that parse cleanly and still cannot be
+        # imported -- a module-scope RuntimeError, a NameError, and an
+        # ImportError -- and every one scored KILLED, because subprocess.run
+        # does not raise on a non-zero exit and the mutant simply failed every
+        # check. So the mutant is now IMPORTED before any check runs, and a
+        # non-zero import is ERROR. This is what criterion 5 clause 3 actually
+        # asks for: "a mutant that fails to RUN scores ERROR".
+        probe = subprocess.run(
+            [sys.executable, "-c",
+             # The module MUST be registered in sys.modules before exec_module:
+             # `@dataclass` resolves its annotations through the module object,
+             # and without the registration a perfectly importable file raises
+             # AttributeError: 'NoneType' object has no attribute '__dict__'.
+             # Measured on attempt_budget.py, which scored a spurious ERROR
+             # until this was added -- a probe that reports a false failure is
+             # as bad as one that misses a real one.
+             "import importlib.util,sys;"
+             f"spec=importlib.util.spec_from_file_location('m',{str(mutant_file)!r});"
+             "mod=importlib.util.module_from_spec(spec);"
+             "sys.modules['m']=mod;spec.loader.exec_module(mod)"],
+            capture_output=True, text=True, timeout=60,
+            env=dict(os.environ, PYTHONPATH=os.pathsep.join([
+                str(work), str(REPO / "scripts" / "harness"),
+                str(REPO / "scripts" / "qa"), os.environ.get("PYTHONPATH", "")])))
+        if probe.returncode != 0:
+            last = [ln for ln in (probe.stderr or "").strip().splitlines() if ln.strip()]
+            return {"id": cid, "desc": desc, "score": "ERROR",
+                    "why": f"mutant parses but does NOT import ({target.name}): "
+                           f"{last[-1][:140] if last else 'non-zero exit'} "
+                           "-- a mutant that cannot run is not a kill"}
         gate = work / GATE.name
         try:
             obs = observations(gate)

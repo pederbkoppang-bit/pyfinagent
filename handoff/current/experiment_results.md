@@ -434,3 +434,126 @@ Criterion 6 re-verified across the whole cycle-2 run:
   disclosed, not silently closed.
 - **The Agent-tool path remains ungated** -- unchanged from 86.71, restated so it is not
   mistaken for something this step closed.
+
+---
+
+# CYCLE 3 -- remediation of the cycle-2 CONDITIONAL
+
+**Cycle-2 verdict:** CONDITIONAL (`wf_7ab71c1d-843`), transcribed verbatim in the critique.
+Both cycle-1 BLOCKs were independently re-derived by the Q/A and confirmed **fixed** --
+it re-ran the recall on the real plan (members 1427, missing 0), re-derived the blast
+radius with the FIXED walk over 621 run records (535 admitted, 5 denied, all 5 already
+shape-refused pre-90.1, **zero new denials**), killed four walk mutants of its own, and
+confirmed the backfill re-runnable and idempotent over three real runs. Criteria 2, 3 and
+6 were independently driven and MET.
+
+Three WARNs remained. **One is a numbered criterion miss and the other two are guards that
+did not guard.** All three are fixed.
+
+## W1 -- criterion 5 clause 3, still falsified (the only numbered criterion miss)
+
+The cycle-2 fix added `ast.parse`, which closes only the **SyntaxError** subset. The Q/A
+then executed three mutants that parse cleanly and cannot be **imported** -- a module-scope
+`RuntimeError`, a `NameError`, an `ImportError` -- and every one scored KILLED. *Parsing is
+not running.* Correct, and the same class the cycle-1 Q/A raised: narrowed, not closed.
+
+**Fix:** `run_cell` now SMOKE-IMPORTS the mutant in a subprocess before any check runs; a
+non-zero import scores ERROR. Verified against the Q/A's own counterexamples plus two
+controls:
+
+```
+MXE3   ERROR     module-scope RuntimeError (parses fine)
+MXE4   ERROR     module-scope NameError (parses fine)
+MXE5   ERROR     module-scope ImportError (parses fine)
+MXE6   ERROR     SyntaxError control -- must ALSO be ERROR
+MXE7   SURVIVED  null control -- must SURVIVE, proving the probe is not blanket-ERROR
+```
+
+The null control matters: a probe that returned ERROR for everything would "satisfy" the
+criterion while destroying the matrix.
+
+**A false-ERROR the probe caused, and its fix.** The first version scored M7 as ERROR --
+`AttributeError: 'NoneType' object has no attribute '__dict__'` on `attempt_budget.py`.
+That was the probe's bug, not the mutant's: `@dataclass` resolves annotations through the
+module object, so the module must be registered in `sys.modules` before `exec_module`. A
+probe that reports a false failure is as bad as one that misses a real one.
+
+## W2 -- criteria-erosion: I dropped a finding, and the guard was a tautology
+
+Both halves correct and both my fault. The cycle-1 verdict carried **six**
+`violation_details`; my cycle-2 disposition table carried **five**, merging two WARNs into
+one row and losing the sixth -- the Circular_Reasoning finding on the self-test containment
+check -- with no fix, no queue entry and no disclosure.
+
+And the check itself was a tautology, exactly as reported:
+`all(p.parent == ESCALATION_DIR for p in ESCALATION_DIR.iterdir())` is True **by
+construction**, since `iterdir()` yields only direct children. It returned True while a
+file sat outside the directory, and True vacuously on an empty one. It asserted a proxy,
+not the property.
+
+**Fix:** the property is "the REAL `handoff/current/` did not change", so that is what is
+asserted now -- a name-set snapshot taken before the redirect, compared after -- plus an
+anti-vacuity clause that the temp dir actually received an escalation.
+
+**Red-first proof it now discriminates.** A mutant that redirects the self-test's writes
+back to the real directory turns both checks RED:
+
+```
+  FAIL  the REAL escalation dir is UNCHANGED by this self-test ...
+  FAIL  ...and the temp dir actually RECEIVED an escalation ...
+self-test result: FAILED (leak caught)
+```
+
+The anti-vacuity clause also went red on first write (I asserted `>= 2` escalations when
+the self-test writes exactly one), which is how a non-tautological check behaves.
+
+## W3 -- illusory-guard: M11 defended its own decoy, not the documented threshold
+
+Correct. `drive_join` planted the decoy 7,200,000 ms away, so the cell's true boundary was
+7200s rather than the 900s the module docstring documents. The Q/A swept it: **every
+tolerance from 1 to 7199 SURVIVED, including 3600** -- which on the real ledger collapses
+summed tokens from 20,365,361 to 4,015,375 and turns 71 rows ambiguous.
+
+**Fix:** the decoy moved to exactly **900s**, the documented threshold, and M11 now mutates
+to 900 (M11b keeps 86400). Sweep re-run through the same harness:
+
+```
+  tol=0       KILLED        tol=900     KILLED
+  tol=1       SURVIVED      tol=1800    KILLED
+  tol=60      SURVIVED      tol=3600    KILLED
+  tol=300     SURVIVED      tol=86400   KILLED
+  tol=899     SURVIVED
+```
+
+3600 now dies. Tolerances 1-899 survive, and that is correct rather than a residual gap:
+they sit **below** the documented ambiguity threshold, so there is no ambiguity for the
+guard to catch. The guard defends the property it names.
+
+(Interim state disclosed: the decoy was first moved to 950s and M11 then SURVIVED at 900,
+because the decoy sat just outside the mutation it claimed to catch. A guard must be
+reachable by the mutation it claims to catch.)
+
+## Cycle-3 verification -- verbatim
+
+```
+$ python3 scripts/harness/attempt_gate.py --self-test && python3 scripts/qa/mutation_matrix_90_1.py --verify
+IMMUTABLE COMMAND EXIT: 0
+
+KILLED 15 | SURVIVED 0 (excl. N0) | ERROR 0 | null mutant survived: True
+real tree untouched (md5 before == after): True
+criterion 6: verdict ledger byte-identical
+```
+
+Matrix: 16 cells (M11b added), 25 checks. Self-test: 36 checks.
+
+## Findings the cycle-2 Q/A raised and RETIRED itself
+
+It nearly filed one more -- that the self-test's flat synthetic plan would not catch the
+shallow walk -- and retired it after trying to evade it: the phase object's own
+`phase-9 -> 9` id is a dotted member the shallow walk never reaches, so the flat plan
+catches it (members 6, missing 1). Recorded because a finding tested and withdrawn is
+evidence too.
+
+It also verified the disclosed `--operator-extend` hole is **INERT by execution**: it
+created an extension row for `999.99` and the subsequent launch claiming that id was still
+DENIED (rc=2). The hole cannot be used to admit a launch. It remains disclosed, not fixed.

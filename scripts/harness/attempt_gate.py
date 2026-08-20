@@ -537,6 +537,10 @@ def _self_test() -> int:
         # extension row in read_ledger's docstring, in a second channel. A
         # self-test must contain EVERY output channel it touches, not the one
         # that happened to be noticed first.
+        # Snapshot the REAL dir BEFORE redirecting, so containment can be
+        # asserted against the thing that actually matters.
+        real_before = ({p.name for p in old_e.iterdir()}
+                       if old_e.is_dir() else set())
         ESCALATION_DIR = Path(td) / "escalations"
         ESCALATION_DIR.mkdir(parents=True, exist_ok=True)
         # phase-90.1, criterion 4's last clause. This self-test's ids -- 9.1
@@ -744,12 +748,32 @@ def _self_test() -> int:
                   extract_step_id({"args": {"step_id": "9.9.1"}}) == "9.9.1")
             os.environ["ATTEMPT_GATE_MASTERPLAN"] = str(synthetic_plan)
 
-            check("the self-test wrote every escalation into its OWN temp dir "
-                  "-- nothing leaked into handoff/current/ (the 9.4 lesson, "
-                  "applied to the second channel)",
-                  ESCALATION_DIR != old_e
-                  and all(p.parent == ESCALATION_DIR
-                          for p in ESCALATION_DIR.iterdir()))
+            # phase-90.1 cycle-3. The cycle-2 Q/A proved this check was a
+            # TAUTOLOGY: `all(p.parent == ESCALATION_DIR for p in
+            # ESCALATION_DIR.iterdir())` is True by construction, because
+            # iterdir() yields only direct children -- it returned True while a
+            # file sat OUTSIDE the dir, and True vacuously on an empty dir. It
+            # asserted a proxy, not the property. The property is "the REAL
+            # handoff/current/ did not change", so that is what is now asserted,
+            # against a snapshot taken before any of this ran.
+            real_after = ({p.name for p in old_e.iterdir()}
+                          if old_e.is_dir() else set())
+            wrote_here = {p.name for p in ESCALATION_DIR.iterdir()}
+            check("the REAL escalation dir is UNCHANGED by this self-test -- "
+                  "compared name-set before vs after, not the tautology of "
+                  "asking a temp dir about its own children (the 9.4 lesson)",
+                  real_after == real_before)
+            # Anti-vacuity: "the real dir is unchanged" is trivially true if
+            # this test wrote nothing anywhere. It must have written SOMEWHERE,
+            # and that somewhere must be the temp dir. (Measured while writing
+            # this: the self-test writes exactly ONE escalation -- the
+            # unknown-step-id record -- because the refusal path deliberately
+            # writes none. The first version of this line asserted >= 2 and went
+            # RED, which is how a non-tautological check behaves.)
+            check("...and the temp dir actually RECEIVED an escalation, so the "
+                  "check above cannot pass by writing nothing at all",
+                  ESCALATION_DIR != old_e and len(wrote_here) >= 1
+                  and all(n.startswith("escalation_") for n in wrote_here))
         finally:
             LEDGER, VERDICT_LEDGER, ESCALATION_DIR = old_l, old_v, old_e
             if old_mp is None:

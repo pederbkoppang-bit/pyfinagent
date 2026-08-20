@@ -1,56 +1,67 @@
 ---
 name: criterion-shape-90-9
-description: Step 90.9 -- the filing's "unrecoverable" corpus figures reproduce EXACTLY once step 90.9 itself is excluded; the unbounded-scope rule is the only genuinely broken one; criterion 4's write-pattern list misses the house idiom
+description: Step 90.9 -- the filing figures reproduce EXACTLY but only at the FILING COMMIT (corpus moved +19 steps 49min later); the unbounded count 44 reproduces as a keyword PROXY while the property test returns 0/155; qa-verdict.js does NOT pass verdict_sequence to the judge
 metadata:
   type: project
 ---
 
-Step 90.9 (classify acceptance-criterion SHAPE at filing time). Measured
-2026-08-20 on the live tree.
+Step 90.9 (classify acceptance-criterion SHAPE at filing time). RE-MEASURED
+2026-08-20 (run 2). Brief: handoff/current/research_brief_90.9.md.
 
-**The filing's rule IS recoverable; the missing variable was the corpus
-TIMESTAMP, not the regex.** Inclusion rule = walk every node with an `id` AND a
-dict `verification`, keep non-empty `verification.success_criteria`. Excluding
-step 90.9 itself reproduces all six figures EXACTLY: 155 steps / 980 criteria /
-403 apparatus / 41.1% / 78 terminal / 1026 of 4670 = 22.0% project-wide. The
-whole delta is 90.9's own 7 criteria (6 apparatus-matching, terminal NOT
-matching, so terminal is invariant at 78). Ratio collapses to **1.87x** with no
-rule change. A first-pass keyword rule reproducing 35.8% is using a DIFFERENT
-inclusion predicate, not a different regex.
+**The figures reproduce EXACTLY -- at a PINNED corpus, not the live tree.**
+Inclusion rule = walk nodes with an `id` AND a dict `verification`, keep
+non-empty `success_criteria`, phases 86-90, EXCLUDE 90.9 itself. At
+`git show 252090a3:.claude/masterplan.json` (the commit that filed 90.9, 20:55):
+155 / 980 / 403 / 41.1% / 78 (50.3%) / 1026 of 4670 = 22.0% / ratio **1.87x** --
+all six to the digit. At HEAD: 174 / 1045 / 414 / 39.6% / 81 / 21.9% / 1.81x.
+The delta is commit `085c74e8` at 21:44 (+19 steps, 86.127-86.145) -- **49
+minutes after filing**. So criterion 1's "reproduces ... on the live tree" is
+already unsatisfiable, and its escape hatch ("correct the RULE") would corrupt a
+correct rule to chase a moved corpus. House precedent for pinning:
+`replay_changelog_rule_86_68.py:34` (`git show <ref>:`) and
+`sweep_absent_verification_paths.py:421` (`--masterplan` arg).
 
-**Why: re-derive, never carry.** [[feedback_url_count_must_be_re_derived]] is the
-same lesson one level up -- a criteria census is a function of (predicate,
-corpus-pin), and the filer measured before their own step object existed.
+**The unbounded count 44 DOES reproduce -- as a PROXY.** v4 =
+`(every|all)` within 80 chars of `(guard|mutation cell|probe|fixture|artifact|
+new test)` gives exactly 44 at BOTH pins; v1 (`every new guard`) = 39 and is a
+strict subset. But v3, the only variant testing self-reference literally
+(`(every|all) ... this step (adds|creates|introduces)`), returns **0 of 155** --
+sampled hits (86.17/86.20/86.22/86.24/86.25/86.27) all read "MUTATION-TEST every
+new guard, including reverting <this step's fix>": the self-reference rides on
+the word `new` plus the surrounding sentence. Reproducing the NUMBER is not
+evidence the RULE is right -- [[feedback_assert_the_property_not_a_proxy]].
 
-**The unbounded-scope count (44) is the only figure that does NOT reproduce.**
-Four keyword variants give 51 / 40 / 0 / 39. The literal self-reference rule
-("every ... this step adds") returns **0 of 155** -- the self-reference is never
-written explicitly, it is IMPLIED by an unbounded quantifier landing on a noun
-class the step is simultaneously growing. So the detector cannot be a
-quantifier-keyword rule; it needs the quantified NOUN CLASS tested against the
-artifact class the step produces. This is a SEMANTIC smell, and semantic smells
-are exactly the ones keyword rules miss (arXiv 2501.04810: syntactic BTA 0.98 vs
-semantic 0.83).
+**CORRECTION to run 1 / to this memory's prior version: qa-verdict.js does NOT
+pass `verdict_sequence`/`attempt_number` into the judge.** `:335-337` is
+`KNOWN_ARG_KEYS`, whose only job is computing `UNKNOWN_ARG_KEYS` for
+silent-input-loss logging (`:330-334`). The judge prompt is `PROMPT` at `:340`
+closing `:437`; `verdict_sequence` never appears in it (the sole `:339-799` hit
+is `:565`, a design comment). `enforceEscalation` runs caller-side at `:824`
+AFTER the verdict and is "returned ALONGSIDE the verdict, never merged into it"
+(`:568-571`). **The channel that IS still open is a SELF-read:** `:430-435`,
+inside the prompt, tells the judge to run `scripts/qa/qa_wip.py <step_id>
+--spawned-at`, which reports `attempt_number`/`prior_attempts`. phase-86.78
+(done) closed the CALLER-authored channel only. So criterion 7's two verbs --
+"never given, and never reads" -- and the second one binds.
 
-**Criterion 4's write-pattern list is under-inclusive in the house's own idiom.**
-It names `open(...,'w')` and `json.dump`. The two scripts/qa scripts that write
-that filename both use `Path.write_text` -- verify_decision_log_86_97.py:274,300
-and prove_archive_provenance_86_29.py:92 (both to a tmp fixture root). A
-classifier could mutate the plan and still pass the source half. Needs AST-level
-resolution of write-capable calls.
+**Criterion 4's write-pattern list still misses the house idiom.** 148
+`Path.write_text` sites in `scripts/qa/*.py`; both scripts writing a
+`masterplan.json` filename use it (`verify_decision_log_86_97.py:274,300`,
+`prove_archive_provenance_86_29.py:92`). Criterion 4 names only `open(...,'w')`
+and `json.dump`. Needs AST-level resolution.
 
-**Criterion 7 is STRICTER than the Q/A rail it cites.** qa-verdict.js:336 DOES
-pass `verdict_sequence` + `attempt_number` into the judge (evidence, trigger
-withheld; derived caller-side at :642-646). 90.9 forbids the classifier from
-receiving them at all -- correct, since a shape classifier has no legitimate use
-for them, but the contract must state the divergence rather than imply parity.
-Because ERRJ=0.000 (arXiv 2604.15224), the test must assert over the INPUT
-surface; output inspection cannot detect the leak.
+**CITATION CORRECTION -- arXiv 2501.04810.** Its BTA 0.98 (syntactic) vs 0.83
+(semantic) measure **LLM traceability performance on requirements containing**
+each smell class (Vogelsang et al., GPT-4o Table IV). The paper does NOT address
+keyword/rule-based detector limits; smelly requirements were manually curated.
+Do NOT reuse it as evidence that "keyword rules miss semantic smells".
+Similarly arXiv 2509.06770's "3-4 iterations" is a paraphrase, not verbatim.
 
-**Best external analogue found:** arXiv 2607.24300 "Self-Authored Verification Is
-Unreliable in Heuristic Self-Improving Agents" -- agent edits both policy.py and
-tests.py; 35/35 cells self-score >0.70 while 15 policies score below random;
-named failure mode "failure to retain: tests evolve to accommodate degraded
-behavior"; proves NO endogenous gate holds low false-accept and low false-reject
-at once. Remedy SEAL = exogenous fixed audit + audit confidentiality + single-bit
-feedback. Brief: handoff/current/research_brief_90.9.md.
+**Best external anchors:** arXiv 2607.24300 (self-authored verification: 35/35
+self-score >=0.70, 15/35 below random, "tests coevolve to validate the degraded
+version", bound `alpha+beta >= 1 - TV(P+,P-)` for ANY endogenous gate, remedy
+SEAL = exogenous audit + confidentiality + single-bit feedback); arXiv
+2604.15224 (58/72 lenient, p<0.001, -9.8pp, ERR_J=0.000, remedy is INPUT-side);
+arXiv 2511.14665 (Solver's Paradox, `psi_S <-> not C_S(psi_S)` -- use as ANALOGY
+only, it is about SAT classifiers); arXiv 2404.11106 (12-category smell taxonomy,
+41 tools, **no product/apparatus axis exists in the RE literature**).

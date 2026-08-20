@@ -70,6 +70,17 @@ scoped is still unscoped, and my own battery found two more (an emptied
 the 81.0 verdict-gate-dark defect; `_safe_target` returning `dest` clobbers prior archived
 evidence) — which is exactly what an unscoped global claim under an N-cell matrix hides.
 
+**Sixth instance -- COUNT THE `violation_details`, NOT THE DISPOSITION ROWS (phase-90.1
+cycle 2, 2026-08-20).** The cycle-1 verdict carried **six** `violation_details`; the
+cycle-2 disposition table carried **five** rows, and the spawn prompt said "2 BLOCKs and 3
+WARNs ... fixed all five". The table also MERGED two distinct WARNs into one
+`illusory-guard` row, which is what made 6 look like 5. The missing one was a
+`Circular_Reasoning` WARN on a self-test containment clause; the code was unchanged and I
+re-proved the tautology by execution. It appeared in no disposition row, no remediation
+section, and no "still open" list -- and the cycle-1 prose it refuted stood uncorrected
+beside the verdict. **Parse the prior verdict's structured array yourself and match each
+element to a disposition; a merged row hides an item without ever deleting one.**
+
 **How to apply:** before grading a cycle-N≥2 handoff, grep the critique for the prior
 cycle's numbered remediation section, list every item AND every file:line it names, and
 mark each closed/open by execution. State the open ones by number in your verdict so the

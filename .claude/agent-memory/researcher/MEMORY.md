@@ -2,7 +2,7 @@
 
 - [Severity routing 90.2](project_severity_routing_90_2.md) — re-deriving severity from judge prose is WORSE than a constant (40.0% vs 56.7%, kappa 0.129); 71% of BLOCK mentions are negated; 0/969 rows carry a severity key
 - [Attempt accounting 90.1](project_attempt_accounting_90_1.md) — run records have NO `outcome` key (617/617); the token ceiling is INERT; one counter serves TWO budgets; `tool-ralph` uncorroborated
-- [Criterion shape 90.9](project_criterion_shape_90_9.md) — filing figures reproduce EXACTLY once 90.9 excludes ITSELF; only the unbounded rule is broken (literal self-ref = 0/155); crit-4 misses `Path.write_text`
+- [Criterion shape 90.9](project_criterion_shape_90_9.md) — figures reproduce ONLY at the filing commit (corpus moved +19 steps in 49min); 44 reproduces as a PROXY (literal self-ref 0/155); qa-verdict.js does NOT pass verdict_sequence to the judge
 - [Terminal outcome vocabularies](reference_terminal_outcome_vocabularies.md) — k8s `Ignore`/`Count` + `DisruptionTarget`, Temporal's 6 closed statuses, OTel overflow bucket, and the live 2026 exclude-vs-score-zero split
 - [Local LLM 74.0](project_local_llm_74_0.md) — 80% halluc is UNGROUNDED recall; same class is 5.7% grounded; a dry round from an exhausted search budget is a FALSE dry
 
