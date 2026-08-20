@@ -422,20 +422,32 @@ files (the `archive-handoff` hook handles the rotation).
   reads it. Step 75.5 carries `retry_count: 3, max_retries: 3, status: done`
   -- it reached its ceiling and closed anyway.
   **The bound is therefore CUMULATIVE and lives in
-  `scripts/harness/attempt_budget.py` — but READ THIS FIRST: that module is
-  NOT YET WIRED.** Measured 2026-08-13 with a positive-controlled repo-wide
-  search: it has **no runtime caller** (references exist only in this file,
-  in handoff artifacts, in its own test and its own mutation matrix) and
-  **no persistence** (`json.dumps` to a string; no open-for-write, no
-  `json.load`), so it cannot count across sessions — and the Layer-3 loop
-  runs across sessions. **The live per-step bound is the Q/A-side
-  3rd-CONDITIONAL counter in `.claude/agents/qa.md`**, which as of
+  `scripts/harness/attempt_budget.py`, and it IS WIRED** (corrected
+  2026-08-20; this paragraph previously said "NOT YET WIRED", "no runtime
+  caller", and "wiring ... is pending step **86.71**" — all three were
+  measured false on that date and are replaced, not accompanied). What is
+  actually on disk: `.claude/settings.json:39` runs
+  `scripts/harness/attempt_gate.py` as a **PreToolUse** hook at the Workflow
+  origin seam; that file imports the module at
+  `scripts/harness/attempt_gate.py:84`; the ledger
+  `handoff/audit/attempt_budget_audit.jsonl` carries **93 rows** as of
+  2026-08-20; and step **86.71 is `done`**. The 2026-08-13 measurement was
+  correct when taken — 86.71 shipped the wiring after it. **The live
+  per-step bound is now BOTH** that cumulative gate **and** the Q/A-side
+  3rd-CONDITIONAL counter in `.claude/agents/qa.md`, which as of
   phase-86.75 counts prior spawns via `python scripts/qa/qa_wip.py <step_id>`
   rather than by grepping `handoff/harness_log.md` (LOG runs AFTER EVALUATE,
-  so the log never contains the in-flight cycle). Wiring the cumulative
-  budget is pending step **86.71**. Until then, do not read the paragraphs
-  below as a termination guarantee this harness actually has — they describe
-  the intended design:
+  so the log never contains the in-flight cycle).
+  **But do not read the paragraphs below as a termination guarantee yet**,
+  for a DIFFERENT and narrower reason than the retired one — measured
+  2026-08-20 and owned by pending step **90.1**: an attempt row carries no
+  `outcome` and no token field, so the gate cannot tell a graded attempt from
+  a rail drop, and `DEFAULT_MAX_TOKENS = 1_200_000` is structurally inert —
+  every escalation file prints `tokens used : 0 / 1,200,000` verbatim while
+  18 steps exceeded 1.2M without it firing. The **attempt** ceiling does
+  fire (2 real denials to date: 75.11.4 and 86.47). The four
+  non-functional metrics this section does not track remain owned by pending
+  step **87.11**. The design below is otherwise accurate:
   - It increments on **ATTEMPT, not OUTCOME**. A dropped/errored spawn costs
     full tokens and returns no verdict, so a verdict-keyed counter is blind
     to it -- measured between 8.6% (513 runs, all-time) and 29.2% (24 runs,

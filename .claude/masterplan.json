@@ -2,7 +2,7 @@
   "$schema": "masterplan-v1",
   "project": "pyfinagent",
   "goal": "Ship an Intelligence Engine trading system that maximizes Net System Alpha = Profit - (Risk Exposure + Compute Burn) by dynamically shifting capital to the highest-earning strategy, recursively self-improving under hard risk caps, within a 15-slot daily Claude-routine budget.",
-  "updated_at": "2026-07-31T21:00:00Z",
+  "updated_at": "2026-08-20T19:04:56Z",
   "phases": [
     {
       "id": "phase-0",
@@ -26832,7 +26832,7 @@
         {
           "id": "87.9",
           "priority": "P1",
-          "status": "pending",
+          "status": "superseded",
           "harness_required": true,
           "name": "make the product-vs-evidence split a mechanical rule, not cultural practice -- 75% of CONDITIONAL verdicts report ZERO unmet criteria, yet each one still triggers a median 286-line, mean 465-line remediation and a fresh Q/A spawn",
           "audit_basis": "Filed 2026-08-18 from research_brief_87.6.md (gate_passed=true). MEASURED: of 32 CONDITIONAL critiques in handoff/current/ (last verdict token = CONDITIONAL), 24 (75%) contain ZERO occurrences of the string 'NOT MET' -- the judge granted every immutable criterion and returned CONDITIONAL anyway, on residual quality observations (examples with MET/NOT-MET counts: 86.108 11/0, 86.110 9/0, 86.29 12/0, 85.5.1 15/0, 82.10 12/0, 85.4 12/0). Yet CONDITIONAL is treated as non-terminal, triggering a fresh remediation cycle: across the 8 highest-cycle steps (n=80 remediation commits), insertion counts have a median of 286 and mean of 465 lines, with 45% >=300 lines and 10 commits >=1,000 lines -- not targeted fixes but fresh feature-sized bodies of code and prose, closing observations that in three of four cases came attached to no unmet criterion at all. This directly contradicts Anthropic's own harness-design prescription ('the one-feature-at-a-time approach... worked well for scope management', 'decomposing the build into tractable chunks', read in full) and CR-Bench's measured tradeoff (arXiv:2603.11078v1, read in full): adding a reflexion/critic loop raised recall 27.01%->32.76% but collapsed signal-to-noise 5.11->1.95 -- 'a steep cost in signal integrity', which is exactly pyfinagent's 75% zero-unmet-criterion CONDITIONAL rate. This step FORMALIZES, with a mechanical trigger, doctrine that already exists culturally in this project's own memory (feedback_queue_discovered_defects_in_masterplan; feedback_product_fix_vs_evidence_churn, the operator's 2026-08-17 PRODUCT-vs-EVIDENCE ruling) but has not stopped the pattern because it has no enforcement mechanism tied to it.",
@@ -26847,7 +26847,13 @@
             "command": "bash -c 'grep -L \"NOT MET\" handoff/current/evaluator_critique_*.md 2>/dev/null | wc -l'",
             "live_check": "live_check_87.9.md: the documented rule, the retroactive demonstration on 2 named CONDITIONALs, and (if built) the enforcement mechanism's mutation-test transcript"
           },
-          "notes": "Filed 2026-08-18 from research_brief_87.6.md. This is the step that most directly answers the operator's original complaint ('fix it fix it fix it... burning lots of tokens under QA') -- but per 87.6's finding, apply it knowing 75% of that burn is evidence/apparatus-class, not product-code-class. Cross-ref 87.6 (run after or alongside), 87.10 (the PLAN-side complement to this EVALUATE-side rule)."
+          "notes": "Filed 2026-08-18 from research_brief_87.6.md. This is the step that most directly answers the operator's original complaint ('fix it fix it fix it... burning lots of tokens under QA') -- but per 87.6's finding, apply it knowing 75% of that burn is evidence/apparatus-class, not product-code-class. Cross-ref 87.6 (run after or alongside), 87.10 (the PLAN-side complement to this EVALUATE-side rule).",
+          "superseded_by": [
+            "90.2",
+            "90.9"
+          ],
+          "superseded_at": "2026-08-20T19:04:56Z",
+          "superseded_reason": "SUPERSEDED 2026-08-20 by 90.2 and 90.9. MEASURED over 436 qa-verdict Workflow run records (~/.claude/projects/-Users-ford--openclaw-workspace-pyfinagent/*/workflows/*.json; 393 returned a result): 87.9's trigger predicate -- 'the Q/A critique's violated_criteria list is EMPTY' -- fires on ZERO of the authoritative returns. Empty violated_criteria occurs on 106 of 107 PASS runs and on 0 of 219 CONDITIONAL and 0 of 66 FAIL runs. The empties 87.9 was filed against live only in Main's TRANSCRIPTION of the verdict (the critique corpus declares empty in a large share of its declarations -- 183 of 207 by a loose matcher over 988 critique files, 78 of 274 by the audit's stricter one; both agree the critique population contains empties the return population never does). So 87.9 would have built a mechanical gate on a population authored by the very actor it gates, and on the authoritative population it is inert. The replacement routes the severity the judge ALREADY emits, parsed caller-side from the return (90.2), and attacks the fuel by classifying criterion SHAPE at filing time (90.9). Note also that 87.9's criterion 1 is the 'typed blocking/non-blocking findings' design the 2026-08-20 goal rejects on measurement: 0 of 28 FAIL and 1 of 75 CONDITIONAL notes cite a production file:line, so under that rule everything types non-blocking and refused work PASSES -- reopening the door test_a_fail_stays_a_fail_under_every_flag_combination shuts."
         },
         {
           "id": "87.10",
@@ -26904,7 +26910,7 @@
         {
           "id": "89.1",
           "priority": "P0",
-          "status": "pending",
+          "status": "superseded",
           "harness_required": true,
           "name": "an attempt that changes no evidence must not be admitted -- give the attempt gate a progress requirement, not just a ceiling",
           "audit_basis": "MECHANISM SOURCE: packages/compaction/compaction-basic/src/index.ts:191-222 in deepseek-harness @ 99f6f02. The plugin snapshots `agent.session.surface.replaceGeneration`, attempts recovery, and then admits a retry ONLY when that counter advanced: `if (signal.aborted || agent.session.surface.replaceGeneration <= generation) return next()` -- otherwise 'the original request error remains authoritative'. Two independent bounds with different jobs: a count cap (`maxOverflowRetries`) says you may not go around forever, and the generation check says you may not go around AT ALL without having changed something. Their error path honours it too: a model-free prune that landed before a later phase threw still counts, because 'that durable reduction is sufficient retry proof'. THE GAP HERE: CLAUDE.md's cycle-2 doctrine forbids 'spawning a fresh Q/A to overturn a verdict on unchanged evidence' and calls it second-opinion-shopping -- and that rule is enforced by nothing but Main's honesty. VERIFIED 2026-08-18 by reading scripts/harness/attempt_gate.py end to end: it attributes a launch to a step and appends one row per ATTEMPT (correct, and the right call given dropped spawns return no verdict), but it carries no hash, digest, or evidence concept of any kind. So the gate can distinguish 5 attempts from 4 and cannot distinguish a genuine fix-and-regrade from a byte-identical resubmission. MEASURED CONTEXT from handoff/verdict_ledger.jsonl: 134 verdicts across 30 steps, mean 4.47 cycles per step, max 12, only 3 of 30 closed in one cycle. THE SECOND BENEFIT, and the reason this is P0 rather than a nicety: a digest makes CONVERGENCE provable, which is the missing half of the 3rd-CONDITIONAL rule. That rule currently parks any step reaching three CONDITIONALs regardless of whether each round genuinely advanced -- see project_third_conditional_rule_parks_converging_steps -- because nothing distinguishes a loop from progress. An evidence digest supplies exactly that discriminator.",
@@ -26922,7 +26928,12 @@
             "command": "python3 -c \"import ast,sys; src=open('scripts/harness/attempt_gate.py').read(); ast.parse(src); sys.exit(0 if 'digest' in src.lower() else 1)\"",
             "live_check": "live_check_89.1.md: a verbatim capture of two consecutive launches for one step id -- the first admitted with its digest recorded, the second (unchanged evidence) denied -- plus the escalation artifact the denial wrote, and the red-first observation showing the check disabled admits what enabled denies"
           },
-          "notes": "Do not run concurrently with 89.3; both edit scripts/harness/attempt_gate.py. Complements phase-87 rather than overlapping it: 87.3 closes the gap where a verdict is never WRITTEN, this closes the gap where an attempt changes NOTHING. Read packages/guard/repeat-tool-reminder/README.md before implementing -- its chain semantics solve the same problem from the other side and name two rules worth copying: untracked bookkeeping calls are transparent to the chain so they cannot launder a loop, and denied calls still count."
+          "notes": "Do not run concurrently with 89.3; both edit scripts/harness/attempt_gate.py. Complements phase-87 rather than overlapping it: 87.3 closes the gap where a verdict is never WRITTEN, this closes the gap where an attempt changes NOTHING. Read packages/guard/repeat-tool-reminder/README.md before implementing -- its chain semantics solve the same problem from the other side and name two rules worth copying: untracked bookkeeping calls are transparent to the chain so they cannot launder a loop, and denied calls still count.",
+          "superseded_by": [
+            "90.3"
+          ],
+          "superseded_at": "2026-08-20T19:04:56Z",
+          "superseded_reason": "SUPERSEDED 2026-08-20 by 90.3 on direct operator instruction. 90.3 is the corrected form of the same progress-gate mechanism and its audit_basis records the two measured defects in 89.1's criteria: (a) criterion 2 denies the doctrine-mandated post-drop retry -- 14 of 16 NO_VERDICT rows in handoff/verdict_ledger.jsonl were followed by a same-step retry and 8 of the 11 affected steps later PASSED, and a drop produces nothing to fix so the evidence is byte-identical by necessity; (b) the digest fires on none of the real loops -- 86.118, 86.116 and 86.108 each committed a fresh critique and fresh experiment_results every cycle (digest-advanced TRUE) and all three still ended FAIL at 5/5, because a digest measures CHANGE, not progress. 90.3 keeps the mechanism, exempts rail drops, compares against the full digest SET rather than only the previous attempt, and constrains the digest so it may only DENY and may never be read as proof of convergence. Do NOT re-file 89.1's text; 90.3 carries it."
         },
         {
           "id": "89.2",
