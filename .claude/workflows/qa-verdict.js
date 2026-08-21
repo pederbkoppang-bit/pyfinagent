@@ -797,6 +797,164 @@ function enforceResearchRouting(verdict) {
   }
 }
 
+// phase-90.2 -- THE SEVERITY LEG, routed by the CALLER after the verdict is in
+// hand, exactly as the escalation and the re-research routing are (score inside,
+// routing outside). Pure by necessity (no filesystem in the Workflow runtime) and
+// by design: a plain function the checker drives via temp re-export, so the
+// checker drives the REAL function and never a copy.
+//
+// WHAT THIS DOES NOT DO, AND WHY -- stated so a later reader does not "simplify"
+// it back:
+//
+//  1. IT ASKS THE JUDGE FOR NOTHING NEW. VERDICT_SCHEMA is
+//     `additionalProperties: false`, so a judge-emitted severity key is
+//     IMPOSSIBLE until the schema gains one -- and what the judge may emit is
+//     step 86.98's, whose criterion 7 requires an operator sign-off. So the
+//     judge-emitted branch below is forward-compatible and INERT on arrival:
+//     MEASURED 0 of 978 `violation_details` rows carry a `severity` key over the
+//     live corpus (2026-08-21).
+//
+//  2. IT NEVER MOVES THE VERDICT. `route` is `queue_residual` ONLY when
+//     `verdict === 'CONDITIONAL'`. PASS and FAIL cannot reach it. That is
+//     STRUCTURAL, not a restatement of an observation: on the pinned corpus all
+//     41 candidate runs happen to be CONDITIONAL and ZERO of the 66 FAILs are
+//     all-WARN/NOTE, but "never observed" is not "cannot happen", and the guard
+//     is what makes the safety property hold.
+//
+//  3. IT READS A SYNTACTIC TAG, NOT A SEMANTIC ONE -- and the first draft of this
+//     function got that wrong. The research brief measures prose-derived severity
+//     at near-chance (40.0% agreement, kappa 0.129 against a 56.7% majority
+//     baseline) and attributes it to NEGATION ("no BLOCK, no WARN fired" contains
+//     both tokens). The obvious remedy -- a proximity negation filter -- was
+//     drafted, MEASURED, AND DISCARDED: over `violated_criteria` at the pinned
+//     corpus it moved exactly 6 runs out of `queue_residual`, and inspecting all
+//     6 showed every one carried a GENUINE trailing tag whose negator belonged to
+//     the finding's own prose -- e.g. "relocates file paths but not the HTTP
+//     client to :8000 (WARN)" and "the phrase was never contiguous in the pre-fix
+//     source [WARN]". 6 of 6 false positives. The brief's kappa is about
+//     re-deriving severity from WHOLE-RECORD prose; this function reads only
+//     `violated_criteria`, where severity is written as a DELIMITED TAG in 185 of
+//     ~197 occurrences. Syntax is decidable; sentiment is not.
+const SEVERITY_TOKEN =
+  /(?<![A-Za-z0-9_])(BLOCK(?:ING|S)?|WARN(?:ING|S)?|NOTE[SD]?)(?![A-Za-z0-9_])/g
+// An IMMEDIATE negator only ("no WARN", "zero BLOCKs") -- at most one intervening
+// word, so it cannot reach across a clause and swallow a real trailing tag. This
+// is the narrow survivor of the discarded proximity filter above.
+const IMMEDIATE_NEGATOR = /\b(no|zero|none|without|neither|nor)\s+(?:\w+\s+){0,1}$/i
+
+// A severity token counts as a TAG only in a delimiter position: inside brackets
+// or parens, followed by `:` or a dash, or at the very start of the entry.
+// `WARN_provenance_control_x` is an identifier and is not a tag -- the lookarounds
+// above already exclude it.
+function severityTags (entry) {
+  const out = []
+  SEVERITY_TOKEN.lastIndex = 0
+  let m
+  while ((m = SEVERITY_TOKEN.exec(entry)) !== null) {
+    const before = entry.slice(0, m.index)
+    const after = entry.slice(m.index + m[0].length)
+    const delimited = /[([][^)\]]{0,6}$/.test(before) && /^[^([]{0,45}?[)\]]/.test(after)
+    const punctuated = /^\s*[:(]/.test(after) || /^\s*[-–—]{1,2}\s/.test(after)
+    const initial = before.trim() === ''
+    if (!(delimited || punctuated || initial)) continue
+    if (IMMEDIATE_NEGATOR.test(before)) continue
+    const t = m[1]
+    out.push(t.startsWith('BLOCK') ? 'BLOCK' : (t.startsWith('WARN') ? 'WARN' : 'NOTE'))
+  }
+  return out
+}
+
+// BLOCK dominates. An entry carrying no tag is UNTAGGED and is NEVER silently a
+// NOTE -- absence gets a NAME, the null-never-zero idiom this file already uses
+// for `sequence_status`. An UNTAGGED entry forces `remediate`, which is what
+// makes a run mixing one WARN with one untagged finding route to remediate.
+function deriveSeverity (entry) {
+  const t = severityTags(entry)
+  if (t.includes('BLOCK')) return 'BLOCK'
+  if (t.includes('WARN')) return 'WARN'
+  if (t.includes('NOTE')) return 'NOTE'
+  return 'UNTAGGED'
+}
+
+function enforceSeverityRouting (verdict) {
+  const entries = Array.isArray(verdict.violated_criteria)
+    ? verdict.violated_criteria.filter(e => typeof e === 'string')
+    : []
+  const details = Array.isArray(verdict.violation_details) ? verdict.violation_details : []
+
+  // The 86.98 branch: if the judge ever emits its OWN severity, that governs --
+  // "severity is taken from the judge's own classification rather than
+  // re-derived". Cannot fire today (additionalProperties: false).
+  const emitted = details.map(d =>
+    (d && typeof d === 'object' && typeof d.severity === 'string') ? d.severity.toUpperCase() : null)
+  const anyEmitted = emitted.some(s => s !== null)
+
+  const derived = entries.map((e, i) => ({ index: i, severity: deriveSeverity(e) }))
+  const derivedOnly = derived.map(d => d.severity)
+  const governing = anyEmitted ? emitted.map(s => s === null ? 'UNTAGGED' : s) : derivedOnly
+
+  // null -- not false -- when there is nothing to compare, and when the two
+  // arrays are not index-comparable at all. Recording an absence as a value is
+  // how a rule gets inverted.
+  const comparable = anyEmitted && derived.length > 0 && emitted.length === derived.length
+  const disagreed = comparable
+    ? governing.some((s, i) => derivedOnly[i] !== s)
+    : null
+
+  const allResidual = governing.length > 0
+    && governing.every(s => s === 'WARN' || s === 'NOTE')
+
+  // THE VERDICT GUARD. Structural: PASS and FAIL are unreachable.
+  const route = (verdict.verdict === 'CONDITIONAL' && allResidual)
+    ? 'queue_residual'
+    : 'remediate'
+
+  return {
+    route,
+    severity_source: anyEmitted
+      ? 'judge_emitted'
+      : (entries.length ? 'derived_from_prose' : 'ABSENT'),
+    derived_severities: derived,
+    governing_severities: governing,
+    disagreed,
+    disagreement_status: comparable
+      ? 'compared'
+      : (anyEmitted ? 'not_index_comparable' : 'nothing_emitted_to_compare'),
+    // The derivation's reliability travels WITH it, so no consumer can read it as
+    // authoritative. Figures are attributed to whoever measured them.
+    reliability: anyEmitted ? null : {
+      derivation_is_authoritative: false,
+      what_is_read: 'a DELIMITED severity tag in violated_criteria -- a syntactic '
+        + 'property, decidable -- never sentiment inferred from the finding\'s prose',
+      measured_by_this_step: {
+        corpus: 'qa-verdict Workflow run records pinned at startTime <= '
+          + '2026-08-18T12:33:57.731Z: 441 startsWith / 436 exact / 393 parseable '
+          + '/ 392 carrying a verdict / 285 non-PASS',
+        all_warn_note_conditional_runs: 41,
+        remainder_routed_remediate: 244,
+        agreement_with_the_filings_token_anywhere_matcher: 'EXACT -- identical run '
+          + 'sets, zero disagreement in either direction',
+        discarded_alternative: 'a proximity negation filter moved 6 runs and all 6 '
+          + 'were false positives on inspection',
+      },
+      measured_by_the_research_brief: {
+        agreement_pct: 40.0, cohens_kappa: 0.129, majority_class_baseline_pct: 56.7,
+        scope: 'whole-record prose, which is a different and harder problem than '
+          + 'reading a delimited tag out of violated_criteria; carried as the '
+          + 'brief\'s measurement, not re-attributed to this step',
+      },
+    },
+    next_action_on_queue_residual: route === 'queue_residual'
+      ? ('FILE the residual as its own masterplan step carrying its own immutable '
+        + 'verification command. Do NOT fix it in place and do NOT spawn a fresh '
+        + 'Q/A -- both are the re-cycle this routing exists to end. The parent '
+        + 'step\'s close is refused while the filed residual is absent or does not '
+        + 'parse (scripts/qa/residual_close_gate.mjs). Read `reliability` before '
+        + 'acting: this route was derived, not emitted by the judge.')
+      : null,
+  }
+}
+
 const verdict = await agentRetryingDrops(PROMPT, {
   label: 'qa-verdict:' + stepId,
   phase: 'QA',
@@ -832,7 +990,9 @@ const escalation = enforceEscalation(verdict, args?.verdict_sequence, {
 })
 // phase-86.72: the re-research routing, beside the verdict like escalation.
 const research_routing = enforceResearchRouting(verdict)
-const merged = { ...verdict, escalation, research_routing }
+// phase-90.2: the severity routing, beside the verdict like the other two.
+const severity_routing = enforceSeverityRouting(verdict)
+const merged = { ...verdict, escalation, research_routing, severity_routing }
 // Exactly ONE returned key may come from the escalation object, and it must be the
 // nested one. If a future edit spreads it, this throws rather than silently shipping
 // caller fields as judge fields.
@@ -851,6 +1011,22 @@ const leakedR = Object.keys(research_routing)
 if (leakedR.length > 0) {
   throw new Error('phase-86.72 invariant violated: research_routing fields leaked '
     + 'into the verdict object as top-level siblings: ' + leakedR.join(', '))
+}
+// phase-90.2: the SAME never-merged invariant, EXTENDED to the third sibling
+// rather than reinvented as a fourth kind of check (criterion 1 says "the
+// existing sibling-leak invariants are extended"). NOTE THE ONE DELIBERATE
+// DIFFERENCE from the research_routing guard directly above: that one carves out
+// `research_needed` / `research_brief_spec`, because the JUDGE authors those
+// inside the verdict and their presence there is legitimate. NOTHING in
+// severity_routing is judge-authored -- every key is invented by the caller --
+// so there is no carve-out, which makes this check strictly stronger than its
+// sibling rather than a copy of it. If a future 86.98 schema edit gives the
+// judge a `severity` key, that key still never appears at THIS level; it lives
+// inside violation_details rows.
+const leakedS = Object.keys(severity_routing).filter(k => k !== 'severity_routing' && k in merged)
+if (leakedS.length > 0) {
+  throw new Error('phase-90.2 invariant violated: severity_routing fields leaked '
+    + 'into the verdict object as top-level siblings: ' + leakedS.join(', '))
 }
 // Computed, not attested. The cycle-1 Q/A noted that a hardcoded `true` would still
 // read true if the verdict HAD been modified, which is an attestation, not a check.
