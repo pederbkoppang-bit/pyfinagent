@@ -37,7 +37,7 @@ const VERDICT_LEDGER = path.join(REPO, 'handoff/verdict_ledger.jsonl')
 
 // Bumped deliberately when a check is added. If the loop stops covering things,
 // this is what turns a silent pass into a loud failure.
-const EXPECTED_CHECKS = 79
+const EXPECTED_CHECKS = 100
 
 const results = []
 const check = (label, ok, detail = '') => {
@@ -200,6 +200,91 @@ const V = (verdict, entries, details = []) => ({
 
 const enforceSeverityRoutingKeysProbe = { route: 'remediate', severity_source: 'ABSENT' }
 
+// Every key that may EVER be an array in the return. A key that is an array on any
+// shape and is absent here fails the union check above -- which is how a
+// branch-conditional field is caught rather than escaping between probes.
+const ARRAY_CAPABLE = ['derived_severities', 'emitted_severities', 'governing_severities']
+
+// The FAMILY. Each shape varies the INPUT, not the field list: arity, whether the
+// judge-emitted list is index-comparable, and the empty case. The 90.14 criteria
+// name these four explicitly.
+function familyShapes () {
+  const W = (n) => Array.from({ length: n }, (_, i) => '(WARN) finding ' + i)
+  return [
+    { id: 'S1-wide', // >= 4 findings: the arity-gated drop lives here
+      input: V('CONDITIONAL', W(5)),
+      arrays: ['derived_severities', 'governing_severities'],
+      content: { derived_severities: ['WARN', 'WARN', 'WARN', 'WARN', 'WARN'],
+        governing_severities: ['WARN', 'WARN', 'WARN', 'WARN', 'WARN'] } },
+    { id: 'S2-comparable', // emitted lines up with the findings: it GOVERNS
+      input: V('CONDITIONAL', W(2), [{ severity: 'WARN' }, { severity: 'NOTE' }]),
+      arrays: ['derived_severities', 'emitted_severities', 'governing_severities'],
+      content: { derived_severities: ['WARN', 'WARN'],
+        emitted_severities: ['WARN', 'NOTE'],
+        governing_severities: ['WARN', 'NOTE'] } },
+    { id: 'S3-mismatched', // emitted exists but does NOT line up: derivation governs
+      input: V('CONDITIONAL', W(2),
+        [{ severity: 'WARN' }, { severity: 'NOTE' }, { severity: 'BLOCK' }]),
+      arrays: ['derived_severities', 'emitted_severities', 'governing_severities'],
+      content: { derived_severities: ['WARN', 'WARN'],
+        emitted_severities: ['WARN', 'NOTE', 'BLOCK'],
+        governing_severities: ['WARN', 'WARN'] } },
+    { id: 'S4-empty', // no findings at all
+      input: V('CONDITIONAL', []),
+      arrays: ['derived_severities', 'governing_severities'],
+      content: { derived_severities: [], governing_severities: [] } },
+  ]
+}
+
+// One deliberately-broken wrapper per shape. Each wraps the REAL function and
+// alters exactly ONE thing, gated on a condition only its own shape produces -- so
+// "caught by exactly one shape" is a claim about the family, not about the wrapper.
+function attributionMutants (f) {
+  return [
+    { id: 'A1 arity-gated drop', onlyShape: 'S1-wide',
+      why: 'only a shape with >= 4 findings can see a drop gated on arity',
+      fn: (v) => { const o = f(v)
+        return o.derived_severities.length >= 4
+          ? { ...o, derived_severities: o.derived_severities.slice(0, -1) } : o } },
+    { id: 'A2 comparable-only drop', onlyShape: 'S2-comparable',
+      why: 'only an index-aligned judge-emitted list reaches the governing branch',
+      fn: (v) => { const o = f(v)
+        return o.severity_source === 'judge_emitted'
+          ? { ...o, governing_severities: o.governing_severities.slice(1) } : o } },
+    { id: 'A3 mismatched-only drop', onlyShape: 'S3-mismatched',
+      why: 'only an emitted list that does NOT line up exercises the fallback, where '
+        + 'emitted_severities is the sole channel carrying the judge\'s own severities',
+      fn: (v) => { const o = f(v)
+        return (Array.isArray(o.emitted_severities)
+          && o.severity_source !== 'judge_emitted')
+          ? { ...o, emitted_severities: o.emitted_severities.slice(1) } : o } },
+    { id: 'A4 empty-only fabrication', onlyShape: 'S4-empty',
+      why: 'only the zero-findings shape can see a fabricated entry appear from nowhere',
+      fn: (v) => { const o = f(v)
+        return o.derived_severities.length === 0
+          ? { ...o, derived_severities: [{ index: 0, severity: 'UNTAGGED' }] } : o } },
+  ]
+}
+
+// Which SHAPES catch a given routing function? Pure, so the attribution table below
+// costs nothing but function calls.
+function shapesThatCatch (f) {
+  const arrayKeysOf = (o) => Object.keys(o).filter(k => Array.isArray(o[k])).sort()
+  const caught = []
+  for (const sh of familyShapes()) {
+    let out
+    try { out = f(sh.input) } catch { caught.push(sh.id); continue }
+    let bad = arrayKeysOf(out).join(',') !== sh.arrays.join(',')
+    for (const [key, want] of Object.entries(sh.content)) {
+      const got = key === 'derived_severities'
+        ? (out[key] || []).map(x => x.severity) : (out[key] || [])
+      if (!Array.isArray(out[key]) || got.join(',') !== want.join(',')) bad = true
+    }
+    if (bad) caught.push(sh.id)
+  }
+  return caught
+}
+
 async function runChecks (mod) {
   const { enforceSeverityRouting: f, deriveSeverity: d } = mod
 
@@ -318,49 +403,72 @@ async function runChecks (mod) {
     + 'judge-emitted',
     three.governing_severities.every((s, i) => s === three.derived_severities[i].severity))
 
-  section('E1b. EVERY ARRAY IN THE RETURN IS COVERED, AND A NEW ONE FAILS LOUDLY')
-  // THIS CHECK EXISTS BECAUSE ONE CRITERION RELOCATED THREE TIMES IN THREE CYCLES.
-  // Criterion 6 clause 2 -- "a mutant silently dropping ANY reported finding from
-  // the return must also be KILLED" -- was satisfied for `derived_severities`
-  // (cycle 1), then found unguarded on `governing_severities` (cycle 2), then found
-  // unguarded on `emitted_severities` -- the field the cycle-2 FIX introduced
-  // (cycle 3). Adding a fourth per-field assertion would buy exactly one more cycle.
+  section('E1b. COVERAGE IS PARAMETERISED OVER A FAMILY OF PROBE SHAPES (90.14)')
+  // THIS EXISTS BECAUSE ONE CRITERION RELOCATED FOUR TIMES, AND THE FOURTH TIME IT
+  // CROSSED DIMENSIONS. Criterion 6 clause 2 -- "a mutant silently dropping ANY
+  // reported finding from the return must also be KILLED" -- was satisfied for
+  // `derived_severities`, then found unguarded on `governing_severities`, then on
+  // `emitted_severities` (the field the previous fix introduced). The third fix
+  // enumerated every array-valued key in the return, which closed the FIELD
+  // dimension -- and it STILL failed, because every expectation was computed from
+  // ONE probe input (2 findings / 3 detail rows). An arity-gated drop
+  // (`derived.length >= 4 ? derived.slice(0,-1) : derived`) walked straight
+  // through, and it is not equivalent: on this checker's own fixture set it
+  // silently drops a real finding from wf_fc420eba-820 with the route unchanged, so
+  // every route assertion is structurally blind to it.
   //
-  // So the coverage is enumerated over the RETURN OBJECT ITSELF: every array-valued
-  // key must appear in COVERED_ARRAYS with an expected length and content, and the
-  // SET of array keys must match exactly. A future edit that adds a fifth array
-  // field FAILS THIS CHECK until it is covered -- which turns "the next cycle finds
-  // the next field" into "the checker refuses the next field".
-  const probe = f(V('CONDITIONAL', ['(WARN) a', '(WARN) b'],
-    [{ severity: 'WARN' }, { severity: 'NOTE' }, { severity: 'BLOCK' }]))
-  const COVERED_ARRAYS = {
-    derived_severities: { len: 2, content: ['WARN', 'WARN'], get: v => v.map(x => x.severity) },
-    governing_severities: { len: 2, content: ['WARN', 'WARN'], get: v => v },
-    emitted_severities: { len: 3, content: ['WARN', 'NOTE', 'BLOCK'], get: v => v },
+  // A COVERAGE CLAIM IS ONLY AS WIDE AS THE INPUTS IT WAS COMPUTED OVER. Enumerating
+  // the output surface while holding the input fixed moves the blind spot rather
+  // than closing it. So the family below varies the INPUT, and every expectation is
+  // asserted per shape. `attributionTable()` then proves each shape earns its place
+  // by killing something no other shape kills.
+  const SHAPES = familyShapes()
+  const arrayKeysOf = (o) => Object.keys(o).filter(k => Array.isArray(o[k])).sort()
+  const seenArrayKeys = new Set()
+  for (const sh of SHAPES) {
+    const out = f(sh.input)
+    const keys = arrayKeysOf(out)
+    keys.forEach(k => seenArrayKeys.add(k))
+    check('[' + sh.id + '] the array-valued key SET is exactly what this shape declares',
+      keys.join(',') === sh.arrays.join(','),
+      'found [' + keys.join(',') + '] want [' + sh.arrays.join(',') + ']')
+    for (const [key, want] of Object.entries(sh.content)) {
+      const got = key === 'derived_severities'
+        ? (out[key] || []).map(x => x.severity) : (out[key] || [])
+      check('[' + sh.id + '] `' + key + '` carries every element, in order',
+        Array.isArray(out[key]) && got.join(',') === want.join(','),
+        Array.isArray(out[key]) ? got.join(',') : 'ABSENT')
+    }
   }
-  const arrayKeys = Object.keys(probe).filter(k => Array.isArray(probe[k])).sort()
-  check('the SET of array-valued keys in the return is exactly the covered set -- a '
-    + 'NEW array field fails here until it is given a length and a content assertion',
-    arrayKeys.join(',') === Object.keys(COVERED_ARRAYS).sort().join(','),
-    'found [' + arrayKeys.join(',') + '] covered ['
-      + Object.keys(COVERED_ARRAYS).sort().join(',') + ']')
-  for (const [key, spec] of Object.entries(COVERED_ARRAYS)) {
-    const got = Array.isArray(probe[key]) ? spec.get(probe[key]) : null
-    check('array `' + key + '` carries every element it was given -- length',
-      got !== null && got.length === spec.len,
-      got === null ? 'ABSENT' : 'n=' + got.length + ' want ' + spec.len)
-    check('array `' + key + '` carries every element it was given -- content in order',
-      got !== null && got.join(',') === spec.content.join(','),
-      got === null ? 'ABSENT' : got.join(','))
+  check('every ARRAY-CAPABLE key is exercised as an array by at least one shape, and '
+    + 'NO key outside that declared set is ever an array -- this is what catches a '
+    + 'field that is an array only on a branch one probe never reaches',
+    [...seenArrayKeys].sort().join(',') === ARRAY_CAPABLE.join(','),
+    'seen [' + [...seenArrayKeys].sort().join(',') + '] declared ['
+      + ARRAY_CAPABLE.join(',') + ']')
+  check('the family really does vary arity -- otherwise an arity-gated drop hides in '
+    + 'the gap between shapes',
+    new Set(SHAPES.map(sh => (sh.input.violated_criteria || []).length)).size >= 3,
+    SHAPES.map(sh => (sh.input.violated_criteria || []).length).join(','))
+
+  section('E1c. EACH SHAPE EARNS ITS PLACE (90.14 criterion 4)')
+  // A family is only worth its cost if every member catches something no other
+  // member catches. Otherwise it is four probes doing one probe's work, and the
+  // next relocation slips between them exactly as the last one did.
+  const ATTRIB = attributionMutants(f)
+  console.log('  mutant                         caught by')
+  let uniqueOk = 0
+  for (const a of ATTRIB) {
+    const caught = shapesThatCatch(a.fn)
+    console.log('  ' + a.id.padEnd(30) + (caught.join(', ') || 'NOTHING'))
+    const unique = caught.length === 1 && caught[0] === a.onlyShape
+    if (unique) uniqueOk++
+    check('[' + a.onlyShape + '] is NECESSARY: ' + a.why, unique,
+      'caught by ' + (caught.join(', ') || 'NOTHING'))
   }
-  // The probe must be shown to be capable of failing: this fixture is deliberately
-  // NOT index-comparable (2 findings, 3 detail rows), which is the only shape where
-  // all three arrays carry different lengths and a truncation cannot hide behind a
-  // length-1 fixture.
-  check('...and the probe fixture makes the three arrays DIFFERENT lengths, so no '
-    + 'truncation can hide behind a length-1 case',
-    new Set([probe.derived_severities.length, probe.emitted_severities.length]).size === 2,
-    probe.derived_severities.length + ' vs ' + probe.emitted_severities.length)
+  check('every shape in the family is necessary -- none is redundant with another',
+    uniqueOk === ATTRIB.length && ATTRIB.length === familyShapes().length,
+    uniqueOk + '/' + ATTRIB.length + ' unique, ' + familyShapes().length + ' shapes')
 
   section('E2. THE 86.98 BRANCH CANNOT FILE AN UNCLASSIFIED FINDING AWAY')
   // Both of these are unreachable today (additionalProperties: false), and both were
@@ -680,6 +788,18 @@ const MUTANTS = [
     apply: s => s.replace('return returned', 'return { ...returned, ...severity_routing }') },
   { id: 'M19', expect: 'KILLED', why: 'phase-90.15: a caller key belonging to NO named sibling is spread into the return -- the case none of the three per-object filters can see, and the only cell the positive-completeness guard alone can kill',
     apply: s => s.replace('return returned', "return { ...returned, caller_note: 'x' }") },
+  { id: 'M20', expect: 'KILLED', why: '90.14 criterion 2: an ARITY-GATED drop from derived_severities -- invisible to any probe with fewer than 4 findings, and the mutant that FAILED step 90.2 at cycle 4',
+    apply: s => s.replace('    derived_severities: derived,',
+      '    derived_severities: derived.length >= 4 ? derived.slice(0, -1) : derived,') },
+  { id: 'M21', expect: 'KILLED', why: '90.14 criterion 2: a BRANCH-GATED drop (drop-last on the comparable branch only)',
+    apply: s => s.replace('    derived_severities: derived,',
+      '    derived_severities: comparable ? derived.slice(0, -1) : derived,') },
+  { id: 'M22', expect: 'KILLED', why: '90.14 criterion 2: the other branch-gated shape (drop-first on the comparable branch only)',
+    apply: s => s.replace('    derived_severities: derived,',
+      '    derived_severities: comparable ? derived.slice(1) : derived,') },
+  { id: 'M23', expect: 'KILLED', why: '90.14 criterion 3: a NEW array-valued field that is an array only on a branch a single probe never reaches -- the case that defeated the cycle-4 set-equality check',
+    apply: s => s.replace('    derived_severities: derived,',
+      '    findings_digest: comparable ? entries.slice(0, -1) : null,\n    derived_severities: derived,') },
   { id: 'QX', expect: 'ERROR', why: 'ERROR CONTROL: a call site is renamed, so the code cannot RESOLVE A NAME and never runs. It must score ERROR, never a kill.',
     apply: s => s.replace('severity: deriveSeverity(e)', 'severity: deriveSeverity_v2(e)') },
 ]
