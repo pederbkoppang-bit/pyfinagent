@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-21 | `f4188124` | phase-90.1: record that 90.12 CLOSED the blocker that failed this step |
 | 2026-08-21 | `6720cb5e` | phase-90.3: research gate PASSED -- it caught a vacuous-by-construction digest pre-build |
 | 2026-08-21 | `9061d45a` | phase-90.12/90.15: replace the skip-the-gate justifications in both artifacts |
 | 2026-08-21 | `e601f09d` | phase-90.12/90.15: research gates run retroactively -- both found real defects |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-21 | `c09bd96b` | phase-90.2: route the judge's WARN/NOTE severity caller-side, as a sibling |
 | 2026-08-21 | `b09b937b` | phase-90.1: cycle-5 FAIL transcribed, budget exhausted 5/5, escalated -- NOT flipped |
 | 2026-08-21 | `2ba0d787` | phase-91: file 3 confirmed follow-ups from 91.13/91.22's research (91.24-91.26) |
-| 2026-08-20 | `c3ce6bf8` | phase-91.9,91.13,91.22: three operator-reported UI defects fixed, PASS, done |
 
 ---
 
