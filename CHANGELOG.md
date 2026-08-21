@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-21 | `8860ee76` | phase-90.14: live_check + artifacts from the post-research build |
 | 2026-08-21 | `36236292` | phase-90.14: research gate REVISED the design -- it caught a fifth relocation pre-ship |
 | 2026-08-21 | `d4d27b50` | phase-90.14: parameterise coverage over a FAMILY of probe shapes (PROVISIONAL, pre-research) |
 | 2026-08-21 | `36ca16e1` | phase-90.12: make the ERROR discriminator able to FIRE -- read the type, not the shape |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-20 | `3a885852` | docs(memory): record phase-90 state and the research findings |
 | 2026-08-20 | `a252b025` | phase-90.1: cycle-4 fixes, file the residuals, stop the loop on operator instruction |
 | 2026-08-20 | `729dd1d4` | phase-90.2/90.9: contracts, both research gates PASSED (enforced) |
-| 2026-08-20 | `74d9862c` | phase-91: split today's 23-item operator defect batch out of phase-86 |
 
 ---
 
