@@ -1,5 +1,6 @@
 # Researcher Agent Memory Index
 
+- [Progress gate 90.3](project_progress_gate_90_3.md) — the digest file set contains the gate's OWN output (self-vacuous); 90.1's backfill already ran while 90.1 is pending; hash signals are the WEAK ones (44.6-84.6% vs 0-50.8%)
 - [Error discriminator 90.12](project_error_discriminator_90_12.md) — exclusion is settled in 3 tool ecosystems; exception TYPE is INCOMPLETE (TypeError hole, subclass names don't inherit); the handler already puts the type on the wire; caplog inapplicable
 - [Phase-tag in UI 91.9](project_phase_tag_in_ui_91_9.md) — naive grep over-reports ~20:1 (60 raw -> 1 real); a "grep returns zero" criterion is unsatisfiable (57 hits are REQUIRED provenance comments); OWASP assigns NO severity here
 
