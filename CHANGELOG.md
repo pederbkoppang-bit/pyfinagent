@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-21 | `d4ff4d57` | phase-90.15: close the sibling-leak seam -- guards now inspect the object returned |
 | 2026-08-21 | `173b48fe` | phase-91: file 5 defects from investigating the MRNA buy rationale (91.27-91.31) |
 | 2026-08-21 | `4165e67d` | phase-90.9: GENERATE only -- built and self-verified, deliberately NOT evaluated |
 | 2026-08-21 | `d564ad58` | phase-90.2: cycle-4 FAIL transcribed, budget exhausted 5/5, escalated -- NOT flipped |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-20 | `15310603` | phase-86: file the holding-side reeval cooldown defect as 86.149 |
 | 2026-08-20 | `84cdbfda` | phase-86: file 3 more operator-surfaced items as individual steps (86.146-86.148) |
 | 2026-08-20 | `1fc7b2e6` | phase-90.1: cycle-2 -- fix the two blockers the cycle-1 Q/A found |
-| 2026-08-20 | `085c74e8` | phase-86: file 19 operator-discovered UI/product defects as individual steps (86.127-86.145) |
 
 ---
 
