@@ -18,9 +18,21 @@ apparatus fixes in group A first, then everything else costs what it should.
 
 | tag | meaning |
 |---|---|
-| `grade-built` | code + artifacts are on disk and committed; needs ONE Q/A (or one `--operator-extend` + one Q/A where the budget is at 5/5). Do not rebuild. |
+| `grade-built` | code + artifacts are on disk and committed; needs ONE Q/A -- run under the venv (or one `--operator-extend` + one Q/A where the budget is at 5/5). Do not rebuild. |
 | `build` | research gate -> contract -> GENERATE -> one Q/A. |
 | `operator` | needs a decision the operator has to type; do not spend a cycle on it. |
+
+## Run every immutable command under the venv (found 2026-08-21 12:22, commit 2ae9c7b0)
+
+`source .venv/bin/activate` first, always. System python 3.13+ colorizes tracebacks and the
+agent runtime injects `FORCE_COLOR=3`, so stderr carries `\x1b[1;35mNameError\x1b[0m:` and a
+literal type-name match silently fails -- direction is fail-DANGEROUS (an ERROR scores as a
+KILL). Measured: 90.12 and 90.9 were RED under the venv while reported green. The four
+matrices that match stderr type names (90.1, 90.3, 90.9, 90.12) now decolorize and drive
+with `NO_COLOR`/`PYTHON_COLORS=0`; a sweep of the other `scripts/qa/mutation_matrix_*` /
+`verify_*` files found no further stderr type-name matches (86.20/86.21/86.71 and the 90.12
+verifier match source text or the gate's own plain print lines). Any `EXIT 0` recorded in a
+phase-90 artifact before 2ae9c7b0 is unverified until re-run under the venv.
 
 ## Collision groups -- never two in flight from the same group
 
@@ -36,7 +48,7 @@ apparatus fixes in group A first, then everything else costs what it should.
 
 | # | step | state | what to do |
 |---|---|---|---|
-| 1 | 90.15 | grade-built (1/5 used) | LIVE hole on every Q/A spawn; gate + build landed in d4ff4d57. One Q/A. |
+| 1 | 90.15 | grade-built (1/5 used) | LIVE hole on every Q/A spawn; gate + build landed in d4ff4d57. One Q/A. The Q/A WILL find the mutation seam (`returned.caller_note='x'` after all four guards survives 100/100; M18/M19 die to a text scan) -- that is 90.16, already filed; put that in the spawn evidence so it routes as a filed residual instead of re-cycling 90.15. |
 | 2 | 90.16 | build | residual of 90.15 (mutation seam). Same file -- do right after #1. |
 | 3 | 90.2 | grade-built (5/5) | `python3 scripts/harness/attempt_gate.py --operator-extend 90.2` then ONE Q/A on the tree as it stands. 90.14 finished its criterion 6. |
 | 4 | 90.14 | grade-built | shares 90.2's immutable command; grade right after #3. |
@@ -47,7 +59,7 @@ apparatus fixes in group A first, then everything else costs what it should.
 | 9 | 90.3 | built-partial | gate PASSED; contract/results/live_check + mutation matrix committed (ae29f25a, "DEFAULT-OFF, ungraded"). Finish + ONE Q/A. After 90.1 and 90.5. |
 | 10 | 90.6 | build | research-gate launches must not consume the Q/A attempt ceiling. After 90.1. |
 | 11 | 89.3 | build | Agent-tool spawns get a correlation contract so the attempt gate sees them. |
-| 12 | 90.9 | grade-built | criterion-shape classifier built and self-verified (4165e67d). A Q/A was IN FLIGHT at 12:00 on 2026-08-21 (verdict_wip_90.9__20260821T095922Z.md) -- read its outcome before spawning another. |
+| 12 | 90.9 | build (cycle 2) | cycle-1 Q/A returned FAIL (wf_fae0a8c6-4c1, 2026-08-21 12:22, budget 3/5): criteria 1,3,4,5,6 MET; 2 and 7 NOT MET. Criterion 7's consequence scan is non-transitive (a ledger read moved into an unlisted helper survives) -- needs a transitive call-graph walk or a runtime open() assertion. That is a build, not a patch. |
 | 13 | 86.98 | build + operator | verdict as a function of the criteria; criterion 7 needs an operator sign-off -- ask for it in the contract. |
 
 ### B. Diagnostic before any 87.x remediation -- 1 step
