@@ -901,17 +901,41 @@ function enforceSeverityRouting (verdict) {
 
   const derived = entries.map((e, i) => ({ index: i, severity: deriveSeverity(e) }))
   const derivedOnly = derived.map(d => d.severity)
-  const governing = anyEmitted ? emitted.map(s => s === null ? 'UNTAGGED' : s) : derivedOnly
 
   // null -- not false -- when there is nothing to compare, and when the two
   // arrays are not index-comparable at all. Recording an absence as a value is
   // how a rule gets inverted.
   const comparable = anyEmitted && derived.length > 0 && emitted.length === derived.length
+
+  // THE JUDGE'S OWN SEVERITY GOVERNS *ONLY WHEN IT IS INDEX-COMPARABLE* TO THE
+  // FINDINGS. `emitted` is indexed by `violation_details`; `derived` is indexed by
+  // `violated_criteria`. Those are DIFFERENT ARRAYS and nothing makes them the
+  // same length. The first version let `governing` be the emitted list regardless,
+  // and the 90.2 cycle-2 Q/A drove two consequences on the 86.98 branch:
+  //   (a) two UNTAGGED blockers + one NOTE detail row -> governing = ['NOTE'] ->
+  //       queue_residual. Two unclassified blockers filed away as residual.
+  //   (b) an EMPTY violated_criteria list + one NOTE detail row -> queue_residual,
+  //       which is exactly what checker section C and matrix cell M7 forbid on the
+  //       derived branch.
+  // Both are unreachable TODAY -- VERDICT_SCHEMA is additionalProperties:false so
+  // no `severity` key can arrive -- but this is the branch step 86.98 exists to
+  // switch on, and "unreachable today" is not a property, it is a schema. So: the
+  // emitted list governs when it lines up with the findings, and otherwise the
+  // derivation governs and the fallback is NAMED.
+  const governing = comparable ? emitted.map(s => s === null ? 'UNTAGGED' : s) : derivedOnly
   const disagreed = comparable
     ? governing.some((s, i) => derivedOnly[i] !== s)
     : null
 
-  const allResidual = governing.length > 0
+  // `entries.length > 0` sits in ADDITION to `governing.length > 0`. Under the
+  // `comparable` gate above it is PROVABLY REDUNDANT -- when the arrays do not line
+  // up `governing` IS `derivedOnly`, and `comparable` itself requires
+  // `derived.length > 0` -- and I measured that rather than assuming it: a mutation
+  // cell removing this clause is an EQUIVALENT mutant, reported as such rather than
+  // padded into the matrix as a kill it cannot make. It is kept as the second line
+  // of defence if a future edit relaxes `comparable`. No findings is never a
+  // residual, and that must hold on every branch, not just the one reachable today.
+  const allResidual = entries.length > 0 && governing.length > 0
     && governing.every(s => s === 'WARN' || s === 'NOTE')
 
   // THE VERDICT GUARD. Structural: PASS and FAIL are unreachable.
@@ -921,18 +945,25 @@ function enforceSeverityRouting (verdict) {
 
   return {
     route,
-    severity_source: anyEmitted
+    severity_source: comparable
       ? 'judge_emitted'
-      : (entries.length ? 'derived_from_prose' : 'ABSENT'),
+      : (anyEmitted
+        ? 'judge_emitted_not_index_comparable_falling_back_to_derivation'
+        : (entries.length ? 'derived_from_prose' : 'ABSENT')),
     derived_severities: derived,
     governing_severities: governing,
     disagreed,
     disagreement_status: comparable
       ? 'compared'
-      : (anyEmitted ? 'not_index_comparable' : 'nothing_emitted_to_compare'),
+      : (anyEmitted
+        ? 'not_index_comparable -- violation_details and violated_criteria are '
+          + 'different arrays and did not line up, so the DERIVATION governs and '
+          + 'the judge-emitted list is reported but not used'
+        : 'nothing_emitted_to_compare'),
+    emitted_severities: anyEmitted ? emitted : null,
     // The derivation's reliability travels WITH it, so no consumer can read it as
     // authoritative. Figures are attributed to whoever measured them.
-    reliability: anyEmitted ? null : {
+    reliability: comparable ? null : {
       derivation_is_authoritative: false,
       what_is_read: 'a DELIMITED severity tag in violated_criteria -- a syntactic '
         + 'property, decidable -- never sentiment inferred from the finding\'s prose',

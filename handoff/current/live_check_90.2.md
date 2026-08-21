@@ -1,20 +1,24 @@
 # live_check -- step 90.2
 
 **Step:** 90.2 -- route the WARN/NOTE severity the judge already emits, caller-side.
-**Date:** 2026-08-21 (CYCLE 2 -- regenerated after the cycle-1 FAIL).
+**Date:** 2026-08-21 (CYCLE 3 -- regenerated after the cycle-2 CONDITIONAL).
 **Contract:** `handoff/current/contract_90.2.md`.
 
 The live_check the masterplan asks for: *"the verbatim 41/247 replay table over real run
 ids, the strict-match 32/256 table beside it, and the FAIL-immunity cell output."*
 
-**CYCLE-1 CORRECTION, STATED FIRST because it changed the headline number.** Cycle 1 of
-this file printed **41 / 244** and claimed the filed 247 "does not reproduce". That was
-wrong: the replay had narrowed the corpus to an exact `workflowName === 'qa-verdict'`
-match, dropping 5 records (3 non-PASS) under the variant names
-`qa-verdict-writefirst-82-5` and `-82-7`. Masterplan 90.2's `audit_basis` names *"441
-`qa-verdict` Workflow run records"* -- **441 is the `startsWith` count**. On that derived
-population **41 and 247 both reproduce exactly.** Found by the cycle-1 Q/A
-(`wf_0e5b781a-bf9`).
+**Two corrections carried at the top, because both changed a printed number.**
+
+1. **Cycle 1** printed **41 / 244** and claimed the filed 247 "does not reproduce". The
+   replay had narrowed the corpus to an exact `workflowName === 'qa-verdict'` match,
+   dropping 5 records (3 non-PASS). Masterplan 90.2's `audit_basis` names *"441 `qa-verdict`
+   Workflow run records"* -- **441 is the `startsWith` count**. On that derived population
+   **41 and 247 both reproduce exactly.**
+2. **The LIVE (unpinned) row drifts between captures by construction** -- 451 -> 452 -> 453
+   records across three runs in one session -- because the corpus grows every time a Q/A
+   launches, including the ones evaluating this step. It is printed here ONCE, from one
+   run, and is deliberately not duplicated into `experiment_results_90.2.md`. **The PINNED
+   row is the load-bearing one.**
 
 ---
 
@@ -28,7 +32,6 @@ IMMUTABLE COMMAND EXIT: 0
 Red-first baseline, captured BEFORE any of this code existed (2026-08-21):
 
 ```
-$ bash -c 'node --check .claude/workflows/qa-verdict.js && node scripts/qa/verify_severity_routing_90_2.mjs --self-test'
 Error: Cannot find module '.../scripts/qa/verify_severity_routing_90_2.mjs'  (MODULE_NOT_FOUND)
 EXIT 1
 ```
@@ -93,10 +96,10 @@ PINNED @ 2026-08-18T12:33:57.731Z
 
 LIVE (no pin)
   POPULATION (DERIVED from masterplan 90.2 audit_basis, "441 qa-verdict Workflow run records"): workflowName.startsWith('qa-verdict')
-  DENOMINATORS: startsWith=452 (exact-match=447, +5 under variant names ["qa-verdict-writefirst-82-7","qa-verdict-writefirst-82-5"]) parseable=409 with_verdict=408 non-PASS=296
-  verdict mix: {"CONDITIONAL":226,"FAIL":70,"PASS":112}
-  A. the FILING's matcher (token anywhere)  queue_residual=41  remediate=255
-  B. the SHIPPED matcher (delimited tag)    queue_residual=41  remediate=255
+  DENOMINATORS: startsWith=453 (exact-match=448, +5 under variant names ["qa-verdict-writefirst-82-7","qa-verdict-writefirst-82-5"]) parseable=410 with_verdict=409 non-PASS=297
+  verdict mix: {"CONDITIONAL":227,"FAIL":70,"PASS":112}
+  A. the FILING's matcher (token anywhere)  queue_residual=42  remediate=255
+  B. the SHIPPED matcher (delimited tag)    queue_residual=42  remediate=255
   DISAGREEMENT  A-only=0 []  B-only=0 []
   FAILs routed to queue_residual by the shipped matcher: 0  (structurally impossible, printed to show it)
 
@@ -123,8 +126,8 @@ LIVE (no pin)
 
 ### The strict table, beside it (criterion 4)
 
-Four plausible readings of "strict", each measured at the same pin, and measured under
-**both** populations with identical results:
+Four plausible readings of "strict", measured at the same pin and under **both**
+populations with identical results:
 
 | definition | matcher | queue_residual |
 |---|---|---|
@@ -133,14 +136,12 @@ Four plausible readings of "strict", each measured at the same pin, and measured
 | starts-with, bare | `e.startswith('WARN'|'NOTE')` | 11 |
 | starts-with, with a separator | `^(WARN|NOTE)\s*[:\-—]` | 4 |
 
-**The filed "strict = 32" reproduces under none of them.** It is stated, not edited. The
-filed pair was "32 vs 41"; 41 reproduces exactly and 32 does not.
+**The filed "strict = 32" reproduces under none of them.** Stated, not edited.
 
 ## 3. FAIL immunity, verbatim (criterion 2)
 
-From the self-test, section A -- and note the fixture is CONSTRUCTED, because
-**0 of the 67 FAILs at the pin are all-WARN/NOTE**. That is exactly why the guard has to be
-structural: "never observed" is not "cannot happen".
+The fixture is CONSTRUCTED, because **0 of the 67 FAILs at the pin are all-WARN/NOTE**.
+That absence is exactly why the guard has to be structural.
 
 ```
 A. THE VERDICT GUARD IS STRUCTURAL (criterion 2)
@@ -149,30 +150,11 @@ A. THE VERDICT GUARD IS STRUCTURAL (criterion 2)
   [PASS] the SAME entries under CONDITIONAL route to queue_residual -- so the guard DISCRIMINATES rather than always denying -- route=queue_residual
 ```
 
-And over the corpus, printed on every replay run:
-
 ```
   FAILs routed to queue_residual by the shipped matcher: 0  (structurally impossible, printed to show it)
 ```
 
-## 4. The leak guard, DRIVEN (criterion 1 -- added in cycle 2)
-
-Cycle 1 covered criterion 1's THROW clause with four regexes over the workflow file. The
-cycle-1 Q/A neutered the guard two ways in memory and **all four checks stayed GREEN**. The
-guard is now lifted into a callable and executed, and both neutering mutants are matrix
-cells L1 and L2:
-
-```
-  [PASS] the leak guard is EXTRACTABLE and callable -- a deleted if/throw is caught here, not merely missed by a regex -- function
-  [PASS] ...it does NOT throw on the correct sibling shape -- no throw
-  [PASS] ...it DOES throw when the routing object is FLATTENED into the verdict
-  [PASS] ...and when a JUDGE field collides with a routing key ("route")
-  [PASS] ...and it does not throw on an empty routing object (no false positive)
-  ok   L1   KILLED    expected KILLED
-  ok   L2   KILLED    expected KILLED
-```
-
-## 5. The full self-test, verbatim
+## 4. The full self-test, verbatim (77 checks, floor 66, 16 mutation cells)
 
 ```
 
@@ -217,7 +199,7 @@ D. ABSENCE IS NAMED, NEVER VALUED
   [PASS] a judge-emitted severity GOVERNS over the caller derivation (86.98 branch) -- source=judge_emitted route=remediate
   [PASS] ...and the disagreement with the derivation is reported, not hidden
   [PASS] ...and reliability is null on that branch (nothing was derived to qualify)
-  [PASS] non-index-comparable arrays yield disagreed=null with a named status
+  [PASS] non-index-comparable arrays yield disagreed=null with a named status -- not_index_comparable -- violation_detail
 
 ==========================================================================
 E. NOTHING IS DROPPED, AND THE DERIVATION CARRIES ITS UNRELIABILITY
@@ -225,6 +207,29 @@ E. NOTHING IS DROPPED, AND THE DERIVATION CARRIES ITS UNRELIABILITY
   [PASS] every reported finding survives into derived_severities -- n=3
   [PASS] ...aligned to violated_criteria BY INDEX
   [PASS] ...with the per-entry classes intact -- WARN,UNTAGGED,NOTE
+  [PASS] every reported finding survives into governing_severities too -- n=3
+  [PASS] ...with its per-entry classes intact -- WARN,UNTAGGED,NOTE
+  [PASS] ...and it agrees with derived_severities index-for-index when nothing was judge-emitted
+
+==========================================================================
+E2. THE 86.98 BRANCH CANNOT FILE AN UNCLASSIFIED FINDING AWAY
+==========================================================================
+  [PASS] a judge-emitted list that does NOT line up with the findings cannot file two untagged blockers away as residual -- route=remediate
+  [PASS] ...and the fallback to the derivation is NAMED, not silent -- judge_emitted_not_index_comparable_falling_back_to_derivation
+  [PASS] ...and the judge-emitted list is still REPORTED rather than discarded
+  [PASS] an EMPTY findings list cannot reach queue_residual on the emitted branch either -- no findings is never a residual -- route=remediate
+  [PASS] a judge-emitted list that DOES line up still governs (86.98 is satisfied, not pre-empted)
+
+==========================================================================
+E3. THE NEGATOR IS NARROW BY MEASUREMENT, AND THE NARROWNESS IS PINNED
+==========================================================================
+  [PASS] a negator three words back does NOT kill a genuine trailing tag (verbatim from wf_7fa0e5d6-c50, the run a 45-char window moves) -- got WARN
+  [PASS] ...while an IMMEDIATE negator still does, so the rule is narrow, not absent
+  [PASS] an empty findings list cannot reach queue_residual under ANY branch -- derived, emitted-comparable, or emitted-mismatched
+
+==========================================================================
+E4. RELIABILITY TRAVELS WITH THE DERIVATION
+==========================================================================
   [PASS] the derivation is labelled NON-authoritative
   [PASS] ...and carries the brief's figures attributed to the BRIEF, not to this step
   [PASS] queue_residual carries the FILE-don't-fix instruction
@@ -299,6 +304,12 @@ K. MUTATION MATRIX (criterion 6) -- control observed GREEN first
          the immediate-negator check is removed, so "no WARN fired" reads as a WARN tag
   ok   M9   KILLED    expected KILLED
          the judge-emitted branch is ignored, so 86.98's "severity comes from the judge" is silently unimplementable
+  ok   M11  KILLED    expected KILLED
+         criterion 6 clause 2, NAMED: a reported finding is silently dropped from `governing_severities` IN THE RETURN LITERAL -- the cycle-2 survivor. M3 mutates the shared source array and cannot reach this site.
+  ok   M12  KILLED    expected KILLED
+         the judge-emitted list governs even when it does not line up with the findings, so untagged blockers and an empty findings list reach queue_residual on the 86.98 branch
+  ok   M14  KILLED    expected KILLED
+         IMMEDIATE_NEGATOR is widened back to the 45-char proximity window this step measured and discarded -- survived cycle 2 while moving one real run out of queue_residual
   ok   L1   KILLED    expected KILLED
          criterion 1, NAMED: the leak guard is made unreachable (`if (false && ...)`) while its literal text survives -- the illusory-guard shape the source scans could not see
   ok   L2   KILLED    expected KILLED
@@ -319,7 +330,7 @@ L. THE RUN CHANGED NOTHING IT SHOULD NOT HAVE
 ==========================================================================
 SUMMARY
 ==========================================================================
-  checks run: 66 (floor 55)
+  checks run: 77 (floor 66)
   failed:     0
 
 ```

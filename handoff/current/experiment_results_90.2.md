@@ -166,7 +166,16 @@ On the derived population, every filed figure reproduces:
 | census | records | parseable | with_verdict | mix | non-PASS | queue_residual | remediate |
 |---|---|---|---|---|---|---|---|
 | PINNED @ 2026-08-18T12:33:57.731Z | **441** | **398** | **397** | PASS 109 / COND 221 / FAIL 67 | **288** | **41** | **247** |
-| LIVE (no pin) | 451 | 408 | 407 | -- | 295 | 41 | 254 |
+| LIVE (no pin) | *drifts by construction -- see below* | | | | | | |
+
+**The LIVE row is deliberately not transcribed into this document.** It is regenerated on
+every `--replay` run and changes between captures: across three runs in a single session
+the record count went **451 -> 452 -> 453** and the routed pair went 41/254 -> 41/255 ->
+42/255, because the corpus grows every time a Q/A launches -- including the ones evaluating
+this step. Cycle 2 printed one capture here and a later capture in `live_check_90.2.md`,
+and a reader comparing the two same-cycle artifacts saw a contradiction that was really
+just a clock. The PINNED row is the load-bearing one and is stable; whatever LIVE was at
+capture time is in `live_check_90.2.md` §2, printed once, from one run.
 
 The brief's denominators -- 441 / 436 / 398 / 397 -- were right all along. Full table with
 every run id in `handoff/current/live_check_90.2.md`.
@@ -257,7 +266,7 @@ cells are constructed fixtures. An unfired guard earns its place only if you say
   after the whole run, captured both times, and the routing object cannot express a verdict
   value (`ok`/`verdict` are absent from it by construction).
 - The judge is asked for nothing new; the `judge_emitted` branch is inert today
-  (**0 of 978** `violation_details` rows carry a `severity` key).
+  (**0 of 969** `violation_details` rows carry a `severity` key).
 
 ## 4. Verification, verbatim
 
@@ -316,3 +325,49 @@ criterion-1 section above. Cells L1 and L2 are the Q/A's own mutants, now in the
   nothing in the shipped code depends on it; the load-bearing measurement is the 41/247
   replay, which is re-runnable. Stating the discrepancy rather than quietly reprinting my
   own numbers.
+
+
+---
+
+# CYCLE 3 -- what the cycle-2 CONDITIONAL changed
+
+Verdict `wf_546d7764-9c6`: **CONDITIONAL**. Both cycle-1 blockers confirmed fixed and
+independently re-derived -- the 41/247 replay reproduced with **zero symmetric difference**
+against a matcher the Q/A wrote from scratch (identical membership, not just cardinality),
+and the leak guard survived four neutering shapes it applied itself. Capped by two WARNs
+and three NOTEs, **all five real, all five acted on**. Full verdict verbatim in
+`handoff/current/evaluator_critique_90.2.md`.
+
+| finding | disposition |
+|---|---|
+| **WARN** `governing_severities` truncation survives all 66 checks | FIXED: three assertions mirrored onto it + cell **M11** at the return-literal site M3 cannot reach |
+| **WARN** `allResidual` reads `governing` without requiring `comparable` | FIXED: the emitted list governs only when index-comparable; named fallback + `emitted_severities`; cell **M12** |
+| **NOTE** the 969 correction reached `:186` but not `:260` | FIXED at both sites |
+| **NOTE** LIVE row disagrees between the two artifacts | FIXED by removing the class: the LIVE row is no longer transcribed here at all |
+| **NOTE** the negator's narrowness is unguarded and behaviour-changing | FIXED: verbatim fixture from `wf_7fa0e5d6-c50` + cell **M14** |
+
+**The lesson that repeats, and it is the same one in three places.** A guard is only tested
+where it is the ONLY thing standing between the input and the outcome. Cycle 1: my
+identifier and "no WARN fired" fixtures never reached the delimiter and negator branches, so
+M5 and M8 survived. Cycle 2: `derived_severities` was guarded and `governing_severities` was
+not, while one matrix cell mutating their shared source made it look like both were. Cycle
+2 again: the negator was pinned against *removal* but not against *widening*, and widening
+was the change that moved a real run. **Coverage of a symbol is not coverage of a branch.**
+
+**One finding of my own, reported rather than padded.** The `entries.length > 0` clause I
+added to `allResidual` is provably redundant under the `comparable` gate, and I found that
+by writing a mutation cell for it and watching the cell fail to kill. The clause stays as
+defence-in-depth and is disclosed in the code as redundant; the cell is removed rather than
+kept as a kill it cannot make. **A cell that cannot fail is not coverage, it is decoration.**
+
+**Verification after the cycle-3 fixes:**
+
+```
+$ bash -c 'node --check .claude/workflows/qa-verdict.js && node scripts/qa/verify_severity_routing_90_2.mjs --self-test'
+  checks run: 77 (floor 66)
+  failed:     0
+IMMUTABLE COMMAND EXIT: 0
+
+16 cells: N0 SURVIVED | M1-M9, M11, M12, M14, L1, L2 KILLED | QX ERROR
+PINNED replay unchanged: 41 queue_residual / 247 remediate, zero disagreement between matchers
+```

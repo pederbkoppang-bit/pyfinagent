@@ -37,7 +37,7 @@ const VERDICT_LEDGER = path.join(REPO, 'handoff/verdict_ledger.jsonl')
 
 // Bumped deliberately when a check is added. If the loop stops covering things,
 // this is what turns a silent pass into a loud failure.
-const EXPECTED_CHECKS = 55
+const EXPECTED_CHECKS = 66
 
 const results = []
 const check = (label, ok, detail = '') => {
@@ -254,7 +254,8 @@ async function runChecks (mod) {
   const lenMismatch = f(V('CONDITIONAL', ['(WARN) a'], [{ severity: 'WARN' }, { severity: 'WARN' }]))
   check('non-index-comparable arrays yield disagreed=null with a named status',
     lenMismatch.disagreed === null
-      && lenMismatch.disagreement_status === 'not_index_comparable')
+      && /not_index_comparable/.test(lenMismatch.disagreement_status),
+    String(lenMismatch.disagreement_status).slice(0, 40))
 
   section('E. NOTHING IS DROPPED, AND THE DERIVATION CARRIES ITS UNRELIABILITY')
   const three = f(V('CONDITIONAL', ['(WARN) a', 'untagged b', '[NOTE] c']))
@@ -265,6 +266,76 @@ async function runChecks (mod) {
   check('...with the per-entry classes intact',
     three.derived_severities.map(x => x.severity).join(',') === 'WARN,UNTAGGED,NOTE',
     three.derived_severities.map(x => x.severity).join(','))
+  // GUARD EVERY RETURNED ARRAY, NOT JUST THE ONE THE MATRIX HAPPENS TO REACH.
+  // The 90.2 cycle-2 Q/A truncated `governing_severities` in the RETURN LITERAL and
+  // it SURVIVED all 66 checks: section E asserted length, alignment and content on
+  // `derived_severities` only, and matrix cell M3 mutates the shared source array
+  // `derived`, which feeds BOTH fields -- so one kill LOOKED like coverage of two
+  // return sites while only one was guarded. `governing_severities` is the array
+  // `route` is computed from, and it becomes the authoritative one under 86.98.
+  check('every reported finding survives into governing_severities too',
+    three.governing_severities.length === 3, 'n=' + three.governing_severities.length)
+  check('...with its per-entry classes intact',
+    three.governing_severities.join(',') === 'WARN,UNTAGGED,NOTE',
+    three.governing_severities.join(','))
+  check('...and it agrees with derived_severities index-for-index when nothing was '
+    + 'judge-emitted',
+    three.governing_severities.every((s, i) => s === three.derived_severities[i].severity))
+
+  section('E2. THE 86.98 BRANCH CANNOT FILE AN UNCLASSIFIED FINDING AWAY')
+  // Both of these are unreachable today (additionalProperties: false), and both were
+  // reachable in cycle 2's code. "Unreachable today" is a schema, not a property.
+  const emittedMismatch = f(V('CONDITIONAL',
+    ['an UNTAGGED blocker A', 'an UNTAGGED blocker B'], [{ severity: 'NOTE' }]))
+  check('a judge-emitted list that does NOT line up with the findings cannot file '
+    + 'two untagged blockers away as residual',
+    emittedMismatch.route === 'remediate', 'route=' + emittedMismatch.route)
+  check('...and the fallback to the derivation is NAMED, not silent',
+    /not_index_comparable/.test(emittedMismatch.severity_source),
+    emittedMismatch.severity_source)
+  check('...and the judge-emitted list is still REPORTED rather than discarded',
+    Array.isArray(emittedMismatch.emitted_severities)
+      && emittedMismatch.emitted_severities[0] === 'NOTE')
+  const emittedNoFindings = f(V('CONDITIONAL', [], [{ severity: 'NOTE' }]))
+  check('an EMPTY findings list cannot reach queue_residual on the emitted branch '
+    + 'either -- no findings is never a residual',
+    emittedNoFindings.route === 'remediate', 'route=' + emittedNoFindings.route)
+  check('a judge-emitted list that DOES line up still governs (86.98 is satisfied, '
+    + 'not pre-empted)',
+    f(V('CONDITIONAL', ['(WARN) a', '(WARN) b'], [{ severity: 'BLOCK' }, { severity: 'WARN' }]))
+      .severity_source === 'judge_emitted')
+
+  section('E3. THE NEGATOR IS NARROW BY MEASUREMENT, AND THE NARROWNESS IS PINNED')
+  // The cycle-2 Q/A widened IMMEDIATE_NEGATOR back to the 45-char proximity window
+  // this step measured and discarded, and it SURVIVED the whole checker while
+  // changing real behaviour: 1 of 906 entries reclassified, and run wf_7fa0e5d6-c50
+  // moved out of queue_residual (41 -> 40). Cell M8 kills REMOVING the rule; nothing
+  // pinned how far it may reach. This fixture is that pin -- taken verbatim from the
+  // run the widening moved.
+  const wideCase = "universal 'run_friday_promotion has no caller anywhere' (WARN)"
+  check('a negator three words back does NOT kill a genuine trailing tag '
+    + '(verbatim from wf_7fa0e5d6-c50, the run a 45-char window moves)',
+    d(wideCase) === 'WARN', 'got ' + d(wideCase))
+  check('...while an IMMEDIATE negator still does, so the rule is narrow, not absent',
+    d('no WARN: nothing fired') === 'UNTAGGED')
+
+  // DISCLOSED, because an unfired clause earns its place only if you say so.
+  // `allResidual` carries `entries.length > 0` in ADDITION to `governing.length > 0`.
+  // Under the current `comparable` gate that clause is PROVABLY REDUNDANT: when the
+  // arrays do not line up, `governing` IS `derivedOnly`, and `comparable` itself
+  // requires `derived.length > 0`, so a non-empty `governing` already implies
+  // non-empty findings. I MEASURED this rather than assuming it -- a mutation cell
+  // removing the clause was an EQUIVALENT mutant and is reported here instead of
+  // being padded into the matrix as a kill it cannot make. The clause is kept as the
+  // second line of defence if a future edit relaxes `comparable`, and the assertion
+  // below pins the behaviour either way.
+  check('an empty findings list cannot reach queue_residual under ANY branch -- '
+    + 'derived, emitted-comparable, or emitted-mismatched',
+    ['remediate'].includes(f(V('CONDITIONAL', [])).route)
+      && f(V('CONDITIONAL', [], [{ severity: 'NOTE' }])).route === 'remediate'
+      && f(V('CONDITIONAL', [], [])).route === 'remediate')
+
+  section('E4. RELIABILITY TRAVELS WITH THE DERIVATION')
   check('the derivation is labelled NON-authoritative',
     three.reliability && three.reliability.derivation_is_authoritative === false)
   check('...and carries the brief\'s figures attributed to the BRIEF, not to this step',
@@ -445,13 +516,23 @@ const MUTANTS = [
     apply: s => s.replace('  const disagreed = comparable\n    ? governing.some((s, i) => derivedOnly[i] !== s)\n    : null',
       '  const disagreed = comparable\n    ? governing.some((s, i) => derivedOnly[i] !== s)\n    : false') },
   { id: 'M7', expect: 'KILLED', why: 'an EMPTY findings list counts as all-residual, so a CONDITIONAL with no findings is filed away',
-    apply: s => s.replace('  const allResidual = governing.length > 0\n    && governing.every',
-      '  const allResidual = governing.every') },
+    apply: s => s.replace('  const allResidual = entries.length > 0 && governing.length > 0\n    && governing.every(s => s === \'WARN\' || s === \'NOTE\')',
+      '  const allResidual = governing.every(s => s === \'WARN\' || s === \'NOTE\')') },
   { id: 'M8', expect: 'KILLED', why: 'the immediate-negator check is removed, so "no WARN fired" reads as a WARN tag',
     apply: s => s.replace('    if (IMMEDIATE_NEGATOR.test(before)) continue\n', '') },
   { id: 'M9', expect: 'KILLED', why: 'the judge-emitted branch is ignored, so 86.98\'s "severity comes from the judge" is silently unimplementable',
     apply: s => s.replace('  const anyEmitted = emitted.some(s => s !== null)',
       '  const anyEmitted = false') },
+  { id: 'M11', expect: 'KILLED', why: 'criterion 6 clause 2, NAMED: a reported finding is silently dropped from `governing_severities` IN THE RETURN LITERAL -- the cycle-2 survivor. M3 mutates the shared source array and cannot reach this site.',
+    apply: s => s.replace('    governing_severities: governing,',
+      '    governing_severities: governing.length > 1 ? governing.slice(1) : governing,') },
+  { id: 'M12', expect: 'KILLED', why: 'the judge-emitted list governs even when it does not line up with the findings, so untagged blockers and an empty findings list reach queue_residual on the 86.98 branch',
+    apply: s => s.replace('  const governing = comparable ? emitted.map(s => s === null ? \'UNTAGGED\' : s) : derivedOnly',
+      '  const governing = anyEmitted ? emitted.map(s => s === null ? \'UNTAGGED\' : s) : derivedOnly') },
+  { id: 'M14', expect: 'KILLED', why: 'IMMEDIATE_NEGATOR is widened back to the 45-char proximity window this step measured and discarded -- survived cycle 2 while moving one real run out of queue_residual',
+    apply: s => s.replace(
+      "const IMMEDIATE_NEGATOR = /\\b(no|zero|none|without|neither|nor)\\s+(?:\\w+\\s+){0,1}$/i",
+      "const IMMEDIATE_NEGATOR = /\\b(no|zero|none|without|neither|nor)\\b[\\s\\S]{0,45}$/i") },
   { id: 'L1', expect: 'KILLED', why: 'criterion 1, NAMED: the leak guard is made unreachable (`if (false && ...)`) while its literal text survives -- the illusory-guard shape the source scans could not see',
     apply: s => s.replace('if (leakedS.length > 0) {', 'if (false && leakedS.length > 0) {') },
   { id: 'L2', expect: 'KILLED', why: 'criterion 1, NAMED: the if/throw is DELETED and the invariant message left behind in a comment, so every regex still matches',
