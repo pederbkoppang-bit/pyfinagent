@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-21 | `c09bd96b` | phase-90.2: route the judge's WARN/NOTE severity caller-side, as a sibling |
 | 2026-08-21 | `b09b937b` | phase-90.1: cycle-5 FAIL transcribed, budget exhausted 5/5, escalated -- NOT flipped |
 | 2026-08-21 | `2ba0d787` | phase-91: file 3 confirmed follow-ups from 91.13/91.22's research (91.24-91.26) |
 | 2026-08-20 | `c3ce6bf8` | phase-91.9,91.13,91.22: three operator-reported UI defects fixed, PASS, done |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-20 | `37080397` | docs(goal): add 90.9 to the 2026-08-20 goal prompt, refresh commit ref |
 | 2026-08-20 | `252090a3` | feat(masterplan): file 90.9 -- the criteria themselves are the loop's fuel |
 | 2026-08-20 | `cfa77375` | fix(masterplan): correct the 87.9 claim in phase-90 -- critique and return disagree |
-| 2026-08-20 | `7abb9792` | feat(masterplan): file phase-90 from the Q/A re-cycle-loop forensic audit |
 
 ---
 
