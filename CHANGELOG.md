@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-21 | `4956a453` | chore(masterplan): harness-readiness audit -- 23 supersessions, 38-step ordered queue, policy-confli |
 | 2026-08-21 | `18395ba3` | chore: session-end record for phase-90 (state, blockers, the six-gate result) |
 | 2026-08-21 | `43b3bb17` | phase-90.3: harness_log cycle 201 + session summary |
 | 2026-08-21 | `ae29f25a` | phase-90.3: GENERATE -- progress digest built, DEFAULT-OFF, ungraded |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-21 | `049544b0` | phase-90.2: regenerate live_check from the cycle-4 run (87 checks, 19 cells) |
 | 2026-08-21 | `91626e61` | phase-90.2: cycle-4 -- stop criterion 6 clause 2 relocating, by guarding the CLASS |
 | 2026-08-21 | `f4f103c6` | phase-90.2: cycle-3 -- fix the two WARNs and three NOTEs from the cycle-2 CONDITIONAL |
-| 2026-08-21 | `ca656466` | phase-90.2: cycle-2 -- fix the two blockers the cycle-1 Q/A found |
 
 ---
 
