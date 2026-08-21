@@ -690,8 +690,13 @@ console.log('\n[8] CALLER-SIDE ROUTING -- consequence recorder + re-research leg
   // merged return must THROW the phase-86.72 invariant, never ship caller
   // fields as judge fields.
   {
-    const from = 'const merged = { ...verdict, escalation, research_routing }'
-    const to = 'const merged = { ...verdict, escalation, ...research_routing }'
+    // ANCHOR UPDATED phase-90.15. It read `{ ...verdict, escalation, research_routing }`,
+    // which stopped matching when phase-90.2 added `severity_routing` to the same line.
+    // The anchor-uniqueness guard below caught it as `found 0` rather than silently
+    // running a no-op cell -- which is the whole point of that guard, and is why this
+    // checker must be re-run whenever qa-verdict.js's merge line changes.
+    const from = 'const merged = { ...verdict, escalation, research_routing, severity_routing }'
+    const to = 'const merged = { ...verdict, escalation, ...research_routing, severity_routing }'
     const n = qsrc.split(from).length - 1
     if (n !== 1) { check('[8] LG-1 leak-guard: anchor unique', false, `found ${n}`) }
     else {

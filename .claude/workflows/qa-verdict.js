@@ -1039,10 +1039,33 @@ const research_routing = enforceResearchRouting(verdict)
 // phase-90.2: the severity routing, beside the verdict like the other two.
 const severity_routing = enforceSeverityRouting(verdict)
 const merged = { ...verdict, escalation, research_routing, severity_routing }
+// Computed, not attested. The phase-86.78 cycle-1 Q/A noted that a hardcoded `true`
+// would still read true if the verdict HAD been modified, which is an attestation,
+// not a check.
+const untouched = Object.keys(verdict).every(k => merged[k] === verdict[k])
+
+// ── phase-90.15: THE GUARDS INSPECT THE OBJECT THAT IS ACTUALLY RETURNED ────────
+// This block used to end `return { ...merged, verdict_unmodified: untouched }`, and
+// all three leak guards below were evaluated against `merged` -- a DIFFERENT object,
+// one construction step upstream. Anything spread in at that final statement
+// therefore never reached any guard. MEASURED 2026-08-21 by the step 90.2 cycle-4
+// Q/A and reproduced by execution: with the guards on `merged`,
+// `return { ...merged, ...severity_routing, verdict_unmodified }` exits 0 with 87
+// checks and ZERO failures, surfacing caller-authored fields as top-level siblings
+// of `ok`/`verdict` in the object Main transcribes VERBATIM -- the doer/judge blur
+// these guards exist to prevent, and the exact QA-F shape the 86.78 cycle-1 Q/A
+// found. The hole was INHERITED: escalation (86.78) and research_routing (86.72)
+// carried the identical seam and ran on every spawn.
+//
+// The remedy is not a fourth guard. It is to remove the seam: `returned` is built
+// ONCE, every guard runs against it, and it is returned unchanged. There is no
+// second construction step to sit past.
+const returned = { ...merged, verdict_unmodified: untouched }
+
 // Exactly ONE returned key may come from the escalation object, and it must be the
 // nested one. If a future edit spreads it, this throws rather than silently shipping
 // caller fields as judge fields.
-const leaked = Object.keys(escalation).filter(k => k !== 'escalation' && k in merged)
+const leaked = Object.keys(escalation).filter(k => k !== 'escalation' && k in returned)
 if (leaked.length > 0) {
   throw new Error('phase-86.78 invariant violated: escalation fields leaked into the '
     + 'verdict object as top-level siblings: ' + leaked.join(', '))
@@ -1053,7 +1076,7 @@ if (leaked.length > 0) {
 // derived fields from surfacing as judge output.
 const leakedR = Object.keys(research_routing)
   .filter(k => k !== 'research_routing' && k !== 'research_needed'
-    && k !== 'research_brief_spec' && k in merged)
+    && k !== 'research_brief_spec' && k in returned)
 if (leakedR.length > 0) {
   throw new Error('phase-86.72 invariant violated: research_routing fields leaked '
     + 'into the verdict object as top-level siblings: ' + leakedR.join(', '))
@@ -1069,12 +1092,29 @@ if (leakedR.length > 0) {
 // sibling rather than a copy of it. If a future 86.98 schema edit gives the
 // judge a `severity` key, that key still never appears at THIS level; it lives
 // inside violation_details rows.
-const leakedS = Object.keys(severity_routing).filter(k => k !== 'severity_routing' && k in merged)
+const leakedS = Object.keys(severity_routing).filter(k => k !== 'severity_routing' && k in returned)
 if (leakedS.length > 0) {
   throw new Error('phase-90.2 invariant violated: severity_routing fields leaked '
     + 'into the verdict object as top-level siblings: ' + leakedS.join(', '))
 }
-// Computed, not attested. The cycle-1 Q/A noted that a hardcoded `true` would still
-// read true if the verdict HAD been modified, which is an attestation, not a check.
-const untouched = Object.keys(verdict).every(k => merged[k] === verdict[k])
-return { ...merged, verdict_unmodified: untouched }
+// POSITIVE COMPLETENESS, and it runs LAST on purpose. The three filters above each
+// answer "did MY keys leak?" and give a specific diagnosis naming the object; none of
+// them can see a spread of some FUTURE caller object. This asserts the whole key set
+// instead, so any unexpected top-level key -- from any source, named or not yet
+// invented -- fails loudly. ORDER MATTERS: running it first would swallow the
+// specific 86.78/86.72/90.2 messages that name which object leaked, and a sibling
+// checker asserts on exactly those strings. Specific diagnosis first, catch-all last.
+const ALLOWED_CALLER_KEYS = ['escalation', 'research_routing', 'severity_routing',
+  'verdict_unmodified']
+const unexpected = Object.keys(returned)
+  .filter(k => !(k in verdict) && !ALLOWED_CALLER_KEYS.includes(k))
+if (unexpected.length > 0) {
+  throw new Error('phase-90.15 invariant violated: the returned object carries '
+    + 'top-level keys that are neither the judge\'s own nor a named caller sibling: '
+    + unexpected.join(', ') + '. A caller field presented as judge output is the '
+    + 'doer/judge blur; nest it under a named sibling instead.')
+}
+
+// Returned UNCHANGED -- no spread, no second construction step. Every guard above
+// inspected THIS object.
+return returned

@@ -37,7 +37,7 @@ const VERDICT_LEDGER = path.join(REPO, 'handoff/verdict_ledger.jsonl')
 
 // Bumped deliberately when a check is added. If the loop stops covering things,
 // this is what turns a silent pass into a loud failure.
-const EXPECTED_CHECKS = 74
+const EXPECTED_CHECKS = 79
 
 const results = []
 const check = (label, ok, detail = '') => {
@@ -118,7 +118,32 @@ function extractLeakGuard (src) {
     else if (src[i] === '}') { depth--; if (depth === 0) break }
   }
   if (depth !== 0) return null
-  return 'function leakGuard (merged, severity_routing) {\n'
+  return 'function leakGuard (returned, severity_routing) {\n'
+    + src.slice(start, i + 1) + '\n}'
+}
+
+/**
+ * phase-90.15: the POSITIVE completeness guard, lifted the same way. The three
+ * per-object filters each answer only "did MY keys leak?", so none of them can see
+ * a spread of some future caller object. This one asserts the whole top-level key
+ * set, and it is driven rather than grepped for the same reason the leak guard is.
+ */
+function extractCompletenessGuard (src) {
+  const start = src.indexOf('const unexpected = Object.keys(returned)')
+  if (start < 0) return null
+  const ifAt = src.indexOf('if (unexpected.length > 0)', start)
+  if (ifAt < 0) return null
+  let depth = 0
+  let i = src.indexOf('{', ifAt)
+  if (i < 0) return null
+  for (; i < src.length; i++) {
+    if (src[i] === '{') depth++
+    else if (src[i] === '}') { depth--; if (depth === 0) break }
+  }
+  if (depth !== 0) return null
+  const allowed = src.slice(src.indexOf('const ALLOWED_CALLER_KEYS'),
+    src.indexOf(']', src.indexOf('const ALLOWED_CALLER_KEYS')) + 1)
+  return 'function completenessGuard (returned, verdict) {\n' + allowed + '\n'
     + src.slice(start, i + 1) + '\n}'
 }
 
@@ -134,16 +159,25 @@ async function load (sourceOverride) {
   const guardSrc = extractLeakGuard(src)
   if (guardSrc) parts.push(guardSrc)
   else parts.push('const leakGuard = null')
+  const compSrc = extractCompletenessGuard(src)
+  if (compSrc) parts.push(compSrc)
+  else parts.push('const completenessGuard = null')
   const body = parts.join('\n\n')
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'qa902_'))
   const tmp = path.join(dir, 'wf.mjs')
   fs.writeFileSync(tmp,
-    body + '\nexport { enforceSeverityRouting, deriveSeverity, severityTags, leakGuard }\n')
+    body + '\nexport { enforceSeverityRouting, deriveSeverity, severityTags, leakGuard, completenessGuard }\n')
   const mod = await import(pathToFileURL(tmp).href)
   if (typeof mod.enforceSeverityRouting !== 'function') {
     throw new Error('extraction produced no enforceSeverityRouting')
   }
-  return mod
+  // Carry the SUBJECT SOURCE with the module. Section I's source scans previously
+  // read the tracked file from disk, which made them blind to EVERY mutant -- cells
+  // M18/M19 (a spread at the final return) survived the whole checker for exactly
+  // that reason, and it was masked for one run by a red control that made every cell
+  // look killed. A scan that always reads the unmutated file tests the repository,
+  // not the subject.
+  return Object.assign({ __src: src }, mod)
 }
 
 const sha = (p) => crypto.createHash('sha256').update(fs.readFileSync(p)).digest('hex')
@@ -163,6 +197,8 @@ const V = (verdict, entries, details = []) => ({
   harness_compliance_ok: true,
   notes: '',
 })
+
+const enforceSeverityRoutingKeysProbe = { route: 'remediate', severity_source: 'ABSENT' }
 
 async function runChecks (mod) {
   const { enforceSeverityRouting: f, deriveSeverity: d } = mod
@@ -495,7 +531,7 @@ async function runChecks (mod) {
     rReal.allowed === true, 'filed=' + rReal.filed.join(',') + ' over ' + rReal.checked + ' steps')
 
   section('I. THE SIBLING INVARIANT IS EXTENDED, NOT REINVENTED (criterion 1)')
-  const wfSrc = fs.readFileSync(WORKFLOW, 'utf8')
+  const wfSrc = mod.__src ?? fs.readFileSync(WORKFLOW, 'utf8')
   check('severity_routing is spread as a NAMED SIBLING of the judge object',
     /const merged = \{ \.\.\.verdict, escalation, research_routing, severity_routing \}/.test(wfSrc))
   check('...and never flattened into it',
@@ -503,7 +539,13 @@ async function runChecks (mod) {
   check('a phase-90.2 leak guard exists at the same throw-site as its two siblings',
     /phase-90\.2 invariant violated: severity_routing fields leaked/.test(wfSrc))
   check('...and it has NO carve-out, unlike the research_routing guard (strictly stronger)',
-    /const leakedS = Object\.keys\(severity_routing\)\.filter\(k => k !== 'severity_routing' && k in merged\)/.test(wfSrc))
+    /const leakedS = Object\.keys\(severity_routing\)\.filter\(k => k !== 'severity_routing' && k in returned\)/.test(wfSrc))
+  // phase-90.15: the object the guards inspect must BE the object returned. Pinned as
+  // source too, because the behavioural drives above cannot see a THIRD construction
+  // step added after the guards -- only "return returned, unchanged" rules that out.
+  check('the rail returns the guarded object UNCHANGED -- no second construction step',
+    /\nreturn returned\n/.test(wfSrc) || /\nreturn returned$/.test(wfSrc),
+    'return returned')
   // DRIVEN, NOT GREPPED. Each of these fails if the guard is neutered, which the
   // four source scans above provably do not catch.
   const g = mod.leakGuard
@@ -533,6 +575,35 @@ async function runChecks (mod) {
     check('...it DOES throw when the routing object is FLATTENED into the verdict', false, 'guard absent')
     check('...and when a JUDGE field collides with a routing key ("route")', false, 'guard absent')
     check('...and it does not throw on an empty routing object (no false positive)', false, 'guard absent')
+  }
+
+  // phase-90.15 -- DRIVEN. The seam this closes is the one where all three filters
+  // ran against an object one construction step upstream of the one returned.
+  const cg = mod.completenessGuard
+  check('the phase-90.15 completeness guard is EXTRACTABLE and callable',
+    typeof cg === 'function', typeof cg)
+  if (typeof cg === 'function') {
+    const jv = V('CONDITIONAL', ['(WARN) x'])
+    const ok = { ...jv, escalation: {}, research_routing: {}, severity_routing: {},
+      verdict_unmodified: true }
+    let e1 = null
+    try { cg(ok, jv) } catch (e) { e1 = e.message }
+    check('...it does NOT throw on the exact shape the rail returns', e1 === null,
+      e1 || 'no throw')
+    let e2 = null
+    try { cg({ ...ok, caller_note: 'x' }, jv) } catch (e) { e2 = e.message }
+    check('...it DOES throw on a caller key that belongs to NO named sibling -- the '
+      + 'case none of the three per-object filters can see',
+      e2 !== null && /phase-90\.15 invariant violated/.test(e2),
+      (e2 || 'NO THROW').slice(0, 60))
+    let e3 = null
+    try { cg({ ...ok, ...enforceSeverityRoutingKeysProbe }, jv) } catch (e) { e3 = e.message }
+    check('...and on a flattened routing object', e3 !== null, (e3 || 'NO THROW').slice(0, 60))
+  } else {
+    check('...it does NOT throw on the exact shape the rail returns', false, 'guard absent')
+    check('...it DOES throw on a caller key that belongs to NO named sibling -- the '
+      + 'case none of the three per-object filters can see', false, 'guard absent')
+    check('...and on a flattened routing object', false, 'guard absent')
   }
 
   const routingKeys = Object.keys(condAllWarn)
@@ -605,6 +676,10 @@ const MUTANTS = [
     apply: s => s.replace(
       "if (leakedS.length > 0) {\n  throw new Error('phase-90.2 invariant violated: severity_routing fields leaked '\n    + 'into the verdict object as top-level siblings: ' + leakedS.join(', '))\n}",
       "// phase-90.2 invariant violated: severity_routing fields leaked into the verdict object as top-level siblings") },
+  { id: 'M18', expect: 'KILLED', why: 'phase-90.15: the routing object is FLATTENED at the FINAL return, one construction step past where the guards used to run -- the mutant that survived the whole checker before the seam was removed',
+    apply: s => s.replace('return returned', 'return { ...returned, ...severity_routing }') },
+  { id: 'M19', expect: 'KILLED', why: 'phase-90.15: a caller key belonging to NO named sibling is spread into the return -- the case none of the three per-object filters can see, and the only cell the positive-completeness guard alone can kill',
+    apply: s => s.replace('return returned', "return { ...returned, caller_note: 'x' }") },
   { id: 'QX', expect: 'ERROR', why: 'ERROR CONTROL: a call site is renamed, so the code cannot RESOLVE A NAME and never runs. It must score ERROR, never a kill.',
     apply: s => s.replace('severity: deriveSeverity(e)', 'severity: deriveSeverity_v2(e)') },
 ]
