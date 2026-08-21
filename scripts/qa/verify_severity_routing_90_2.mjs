@@ -37,7 +37,7 @@ const VERDICT_LEDGER = path.join(REPO, 'handoff/verdict_ledger.jsonl')
 
 // Bumped deliberately when a check is added. If the loop stops covering things,
 // this is what turns a silent pass into a loud failure.
-const EXPECTED_CHECKS = 66
+const EXPECTED_CHECKS = 74
 
 const results = []
 const check = (label, ok, detail = '') => {
@@ -282,6 +282,50 @@ async function runChecks (mod) {
     + 'judge-emitted',
     three.governing_severities.every((s, i) => s === three.derived_severities[i].severity))
 
+  section('E1b. EVERY ARRAY IN THE RETURN IS COVERED, AND A NEW ONE FAILS LOUDLY')
+  // THIS CHECK EXISTS BECAUSE ONE CRITERION RELOCATED THREE TIMES IN THREE CYCLES.
+  // Criterion 6 clause 2 -- "a mutant silently dropping ANY reported finding from
+  // the return must also be KILLED" -- was satisfied for `derived_severities`
+  // (cycle 1), then found unguarded on `governing_severities` (cycle 2), then found
+  // unguarded on `emitted_severities` -- the field the cycle-2 FIX introduced
+  // (cycle 3). Adding a fourth per-field assertion would buy exactly one more cycle.
+  //
+  // So the coverage is enumerated over the RETURN OBJECT ITSELF: every array-valued
+  // key must appear in COVERED_ARRAYS with an expected length and content, and the
+  // SET of array keys must match exactly. A future edit that adds a fifth array
+  // field FAILS THIS CHECK until it is covered -- which turns "the next cycle finds
+  // the next field" into "the checker refuses the next field".
+  const probe = f(V('CONDITIONAL', ['(WARN) a', '(WARN) b'],
+    [{ severity: 'WARN' }, { severity: 'NOTE' }, { severity: 'BLOCK' }]))
+  const COVERED_ARRAYS = {
+    derived_severities: { len: 2, content: ['WARN', 'WARN'], get: v => v.map(x => x.severity) },
+    governing_severities: { len: 2, content: ['WARN', 'WARN'], get: v => v },
+    emitted_severities: { len: 3, content: ['WARN', 'NOTE', 'BLOCK'], get: v => v },
+  }
+  const arrayKeys = Object.keys(probe).filter(k => Array.isArray(probe[k])).sort()
+  check('the SET of array-valued keys in the return is exactly the covered set -- a '
+    + 'NEW array field fails here until it is given a length and a content assertion',
+    arrayKeys.join(',') === Object.keys(COVERED_ARRAYS).sort().join(','),
+    'found [' + arrayKeys.join(',') + '] covered ['
+      + Object.keys(COVERED_ARRAYS).sort().join(',') + ']')
+  for (const [key, spec] of Object.entries(COVERED_ARRAYS)) {
+    const got = Array.isArray(probe[key]) ? spec.get(probe[key]) : null
+    check('array `' + key + '` carries every element it was given -- length',
+      got !== null && got.length === spec.len,
+      got === null ? 'ABSENT' : 'n=' + got.length + ' want ' + spec.len)
+    check('array `' + key + '` carries every element it was given -- content in order',
+      got !== null && got.join(',') === spec.content.join(','),
+      got === null ? 'ABSENT' : got.join(','))
+  }
+  // The probe must be shown to be capable of failing: this fixture is deliberately
+  // NOT index-comparable (2 findings, 3 detail rows), which is the only shape where
+  // all three arrays carry different lengths and a truncation cannot hide behind a
+  // length-1 fixture.
+  check('...and the probe fixture makes the three arrays DIFFERENT lengths, so no '
+    + 'truncation can hide behind a length-1 case',
+    new Set([probe.derived_severities.length, probe.emitted_severities.length]).size === 2,
+    probe.derived_severities.length + ' vs ' + probe.emitted_severities.length)
+
   section('E2. THE 86.98 BRANCH CANNOT FILE AN UNCLASSIFIED FINDING AWAY')
   // Both of these are unreachable today (additionalProperties: false), and both were
   // reachable in cycle 2's code. "Unreachable today" is a schema, not a property.
@@ -336,6 +380,19 @@ async function runChecks (mod) {
       && f(V('CONDITIONAL', [], [])).route === 'remediate')
 
   section('E4. RELIABILITY TRAVELS WITH THE DERIVATION')
+  // The THIRD branch -- emitted, not index-comparable, derivation governing -- had
+  // no reliability assertion anywhere: section D covered the comparable branch and
+  // E4 the nothing-emitted branch. Reverting the cycle-3 gate `comparable ? null`
+  // back to `anyEmitted ? null` therefore survived, shipping a DERIVED route with
+  // no unreliability label -- the exact property this section names.
+  check('reliability travels with the derivation on the NOT-index-comparable branch '
+    + 'too, where the derivation is what governs',
+    emittedMismatch.reliability !== null
+      && emittedMismatch.reliability.derivation_is_authoritative === false,
+    emittedMismatch.reliability === null ? 'NULL' : 'object')
+  check('...and is null ONLY when the judge-emitted list actually governs',
+    f(V('CONDITIONAL', ['(WARN) a'], [{ severity: 'WARN' }])).reliability === null)
+
   check('the derivation is labelled NON-authoritative',
     three.reliability && three.reliability.derivation_is_authoritative === false)
   check('...and carries the brief\'s figures attributed to the BRIEF, not to this step',
@@ -529,6 +586,15 @@ const MUTANTS = [
   { id: 'M12', expect: 'KILLED', why: 'the judge-emitted list governs even when it does not line up with the findings, so untagged blockers and an empty findings list reach queue_residual on the 86.98 branch',
     apply: s => s.replace('  const governing = comparable ? emitted.map(s => s === null ? \'UNTAGGED\' : s) : derivedOnly',
       '  const governing = anyEmitted ? emitted.map(s => s === null ? \'UNTAGGED\' : s) : derivedOnly') },
+  { id: 'M15', expect: 'KILLED', why: 'criterion 6 clause 2, THIRD RELOCATION: a reported finding is dropped from `emitted_severities` in the return literal (drop-first shape) -- the field the cycle-2 fix introduced',
+    apply: s => s.replace('    emitted_severities: anyEmitted ? emitted : null,',
+      '    emitted_severities: anyEmitted ? (emitted.length > 1 ? emitted.slice(1) : emitted) : null,') },
+  { id: 'M16', expect: 'KILLED', why: 'the same drop from the OTHER end (drop-last), which removes a judge-emitted BLOCK -- a length-1 fixture cannot see either shape',
+    apply: s => s.replace('    emitted_severities: anyEmitted ? emitted : null,',
+      '    emitted_severities: anyEmitted ? (emitted.length > 1 ? emitted.slice(0, -1) : emitted) : null,') },
+  { id: 'M17', expect: 'KILLED', why: 'the cycle-3 reliability gate reverts to the pre-cycle-3 `anyEmitted`, so a DERIVED route ships with reliability=null and no unreliability label',
+    apply: s => s.replace('    reliability: comparable ? null : {',
+      '    reliability: anyEmitted ? null : {') },
   { id: 'M14', expect: 'KILLED', why: 'IMMEDIATE_NEGATOR is widened back to the 45-char proximity window this step measured and discarded -- survived cycle 2 while moving one real run out of queue_residual',
     apply: s => s.replace(
       "const IMMEDIATE_NEGATOR = /\\b(no|zero|none|without|neither|nor)\\s+(?:\\w+\\s+){0,1}$/i",
@@ -597,8 +663,20 @@ async function scoreAgainstCells (mod) {
   const saved = results.length
   const savedLog = console.log
   console.log = () => {}
-  try { await runChecks(mod) } finally { console.log = savedLog }
-  const produced = results.splice(saved)
+  // THE SPLICE MUST BE IN THE `finally`. It was not, and a mutant whose runChecks
+  // THREW midway left its partial results in the shared `results` array: the
+  // exception propagated to runMatrix's catch, the cell scored correctly, and the
+  // mutant's failing checks then appeared in the CONTROL's summary. Observed live --
+  // 127 checks reported where ~87 ran, with 7 "failures" that were mutant output.
+  // A harness that cannot keep a mutant's results out of the control's tally can
+  // report a red control for a green tree.
+  let produced = []
+  try {
+    await runChecks(mod)
+  } finally {
+    console.log = savedLog
+    produced = results.splice(saved)
+  }
   return produced.filter(r => !r[1]).length
 }
 

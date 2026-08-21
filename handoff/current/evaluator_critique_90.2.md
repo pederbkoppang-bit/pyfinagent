@@ -411,3 +411,181 @@ That distinction between a survivor and a finding is the same one I had to make 
 
 **Result: 77 checks over a floor of 66, 16 mutation cells, control GREEN first, immutable
 command exit 0, and the pinned 41/247 unchanged.**
+
+
+---
+
+## Cycle 3 -- Q/A verdict, TRANSCRIBED VERBATIM
+
+Run `wf_53391320-765`, 231,611 tokens, 803s, 46 tool calls. `harness_compliance_ok: true`.
+Verdict **CONDITIONAL**. All five cycle-2 findings confirmed fixed and independently
+re-derived; criteria 1-5 MET. Capped by two WARNs, both surviving mutants the Q/A executed
+with proven behavioural differentials.
+
+```json
+{
+  "ok": false,
+  "verdict": "CONDITIONAL",
+  "reason": "All five cycle-2 findings are genuinely fixed and I reproduced each independently rather than reading them: M11 kills the governing_severities return-literal truncation and I attributed the kill to exactly the three new section-E assertions; M12 kills the non-comparable emitted-list branch; M14 is killed by EXACTLY the E3 negator fixture, whose phrase I verified is verbatim in wf_7fa0e5d6-c50; both 969 sites are corrected; the LIVE row is removed from experiment_results, not patched. Immutable command exit 0, 77 checks over a floor of 66, 0 failed, 16 cells, null mutant SURVIVED and a real-kill control KILLED on the same run (I re-ran both through my own driver). Criteria 1-5 all MET and independently re-derived. CAPPED AT CONDITIONAL by two WARN findings, both surviving mutants I executed with proven behavioural differentials: (S1) criterion 6 clause 2 recurs on `emitted_severities` -- the field THIS cycle added as the F2 fix -- where truncating the array in the return literal SURVIVES all 77 checks in both the drop-first and drop-last shapes, because the checker touches that field at exactly ONE site (verify:296-298) against a LENGTH-1 fixture asserting only Array.isArray + [0]==='NOTE'; the differential shows control [\"WARN\",\"NOTE\",\"BLOCK\"] vs mutant [\"NOTE\",\"BLOCK\"] on a queue_residual run, where that field is the ONLY channel carrying a non-comparable judge-emitted BLOCK to the caller, and the checker's own comment at verify:269 says \"GUARD EVERY RETURNED ARRAY, NOT JUST THE ONE THE MATRIX HAPPENS TO REACH\". (S2) the cycle-3 line `reliability: comparable ? null : {...}` reverts to `anyEmitted ? null` and SURVIVES all 77 checks, shipping a derived-governed route with reliability=null -- the exact property section E4 says must travel with the derivation. Neither changes routing and both sit on the inert 86.98 branch, but that is the same \"unreachable today is a schema, not a property\" standard Main invoked to justify fixing F2.",
+  "violated_criteria": [
+    "WARN criterion-6-clause-2: emitted_severities truncation in the return literal SURVIVES (QX1 drop-first and QX1b drop-last, 77/77 green)",
+    "WARN criterion-6-mutation-coverage: the cycle-3 reliability gate change (comparable vs anyEmitted) has no covering check -- QX6 restores the pre-cycle-3 behaviour and SURVIVES 77/77"
+  ],
+  "violation_details": [
+    {
+      "violation_type": "Overgeneralization",
+      "action": "Applied `emitted_severities: anyEmitted ? (emitted.length > 1 ? emitted.slice(1) : emitted) : null` (QX1) and the .slice(0,-1) variant (QX1b) to .claude/workflows/qa-verdict.js:963 via an fs.readFileSync monkeypatch, driving the SHIPPED checker as oracle; controls run first (null mutant SURVIVED 77/77 with 0 failed; verdict-guard-removed KILLED with 6 real failures).",
+      "state": "BOTH mutants SURVIVED: `checks run: 77 (floor 66) / failed: 0`. Proof by enumeration as well: `emitted_severities` is referenced in scripts/qa/verify_severity_routing_90_2.mjs at exactly ONE assertion, :296-298, against the length-1 fixture `[{severity:'NOTE'}]`, testing only `Array.isArray(...) && [0] === 'NOTE'` -- any mutant preserving length-1 arrays is invisible. Behavioural differential (NOT an equivalent mutant), fixture CONDITIONAL / findings ['(WARN) a','(WARN) b'] / details [{WARN},{NOTE},{BLOCK}] (3 != 2, so not index-comparable and the derivation governs): control emitted_severities=[\"WARN\",\"NOTE\",\"BLOCK\"] route=queue_residual; QX1 emitted_severities=[\"NOTE\",\"BLOCK\"] route=queue_residual; QX1b drops the trailing element, i.e. the judge's BLOCK. Route unchanged, so this is reporting-completeness, not routing -- but on a queue_residual run this field is the ONLY channel by which a non-comparable judge-emitted BLOCK reaches the caller. Control QX2 (the same shape on `derived_severities`) is KILLED with 4 named failures, and QX7 (`emitted_severities: null`) is KILLED, so the field is guarded for EXISTENCE only, never for CONTENT. This is the cycle-2 WARN F1 shape reproduced on the field the cycle-2 fix introduced -- third instance of one class in three cycles.",
+      "constraint": "Immutable criterion 6: \"a mutant silently dropping ANY reported finding from the return must also be KILLED\"; and the shipped checker's own stated universal at verify_severity_routing_90_2.mjs:269, \"GUARD EVERY RETURNED ARRAY, NOT JUST THE ONE THE MATRIX HAPPENS TO REACH\"."
+    },
+    {
+      "violation_type": "Missing_Assumption",
+      "action": "Applied `reliability: comparable ? null : {` -> `reliability: anyEmitted ? null : {` (QX6) -- the exact line cycle 3 changed, per `git diff ca656466..f4f103c6 -- .claude/workflows/qa-verdict.js` -- and ran the shipped checker.",
+      "state": "SURVIVED: `checks run: 77 (floor 66) / failed: 0`. Differential on the emitted-but-not-index-comparable branch (the branch cycle 3's F2 fix created, where the DERIVATION governs): control reliability = OBJECT(derivation_is_authoritative=false), QX6 reliability = null, route and severity_source identical. NOT an equivalent mutant. Cause: section D asserts `reliability === null` only on the comparable branch and section E4 asserts the object only on the nothing-emitted branch; the third branch -- emitted, not comparable, derivation governing -- has no reliability assertion anywhere, so a consumer would receive a derived route with no unreliability label.",
+      "constraint": "Section E4's stated property, asserted in the shipped source at qa-verdict.js:964-965: \"The derivation's reliability travels WITH it, so no consumer can read it as authoritative.\" A behaviour changed by this cycle must carry a guard that fails when it is reverted (qa.md 4c: name the concrete mutation that makes the guard fail)."
+    }
+  ],
+  "certified_fallback": false,
+  "checks_run": [
+    "harness_compliance_audit_5_items",
+    "immutable_verification_command",
+    "syntax_node_check_all_changed_js_mjs",
+    "derived_diff_scope_from_git",
+    "python_lint_gate_NA_zero_py_in_scope",
+    "frontend_lint_typecheck_NA_zero_frontend_in_scope",
+    "backend_runtime_smoke_NA_zero_backend_in_scope",
+    "live_ui_capture_NA_no_ui_claim",
+    "independent_mutation_matrix_9_cells_own_driver",
+    "mutation_kill_attribution_M11_M14",
+    "control_green_first_and_null_mutant",
+    "fixture_provenance_24_of_24_byte_identical_to_run_records",
+    "independent_replay_third_operationalization_symmetric_difference",
+    "real_population_mixed_run_routing_drive",
+    "verbatim_claim_audit_969_LIVE_row_E3_fixture",
+    "contract_criteria_verbatim_string_equality",
+    "consumer_grep_for_routing_fields",
+    "residual_close_gate_clause_by_clause_read",
+    "prior_attempt_and_verdict_sequence_evidence",
+    "code_review_heuristics",
+    "evaluator_critique_cycle1_cycle2_read",
+    "git_head_recheck_and_working_tree_scope"
+  ],
+  "harness_compliance_ok": true,
+  "notes": "SEQUENCE: `qa_wip.py 90.2 --spawned-at 2026-08-21T07:50:52Z` -> source_present=true, attempt_number=3 (attempt_number_status='ok', attempt_number_is_lower_bound=true), prior_attempts=2, prior_records=[verdict_wip_90.2__20260821T073230Z.md, verdict_wip_90.2__20260821T071422Z.md], records_retained=3 (gauge, not a counter; records_pruned_known=null; is_verdict=false). `verdict_history_86_21.py --step 90.2 --evidence-only` -> status=no_rows_for_step, verdicts=(none). CROSS-CHECK: prior_attempts (2) > the ledger's verdict count (0), so THE LEDGER IS STALE for this step -- sequence: UNKNOWN. harness_log `grep -cF \"phase=90.2\"` = 0 and masterplan status is still \"pending\" (log-last honoured). Main's cycle-1/cycle-2 disclosures are advisory only and I did not treat them as the sequence.\n\nHARNESS COMPLIANCE (all 5 clean): (1) research_brief_90.2.md envelope brief_status=COMPLETE, external_sources_read_in_full=7, snippet_only=10, urls_collected=17, recency_scan_performed=true with a dedicated \"## Recency scan (2024-2026)\" section, gate_passed=true. (2) mtime order brief 08-20T21:39:19 < contract 08-20T21:52:18 < qa-verdict.js 08-21T09:48:49 < experiment_results 09:50:23; all SIX criteria appear VERBATIM in contract_90.2.md by string equality against masterplan.json. (3) experiment_results_90.2.md present, CYCLE 3 section at :332. (4) not logged, not flipped. (5) evidence CHANGED (f4f103c6: qa-verdict.js +43/-16, verify script +89, experiment_results +59, evaluator_critique +232, live_check 97 lines) -- documented fresh-respawn, not verdict-shopping. HEAD 69500b8f re-checked at the end, unchanged; git status shows only append-only handoff/audit and away_ops jsonl plus my own WIP file. NO unintended production change.\n\nGATE SCOPE, derived not typed: `git diff --name-only c09bd96b~1 HEAD` -> ZERO *.py, zero frontend/**, zero backend/** -- so qa.md gates 1a (ruff), 1b (eslint/tsc), 1c (live UI capture) and 1d (backend smoke) are N/A on this diff, not omitted. The step makes no UI claim. `node --check` exits 0 on qa-verdict.js, verify_severity_routing_90_2.mjs and residual_close_gate.mjs.\n\nWHAT I ATTACKED AND FOUND SOUND (so Main does not re-litigate). Criterion 1: the leak guard is DRIVEN, not grepped -- extractLeakGuard lifts the real if/throw into a callable, and L1 (`if (false && ...)`) and L2 (delete-and-leave-a-comment) are both KILLED; no routing key collides with a judge field. Criterion 2: I reproduced M1 myself (verdict guard removed -> 6 real failures, FAIL and PASS both reach queue_residual), and the guard DISCRIMINATES rather than always denying; 0 of 67 real FAILs route to queue_residual. Criterion 3: all 24 fixture returns are byte-identical to the on-disk run records on verdict + violated_criteria + violation_details (I verified against 637 records), spanning PASS 6 / FAIL 6 / CONDITIONAL 12, and the guard is NON-vacuous -- my QX3 (routing mutates the verdict in place) is KILLED with \"6/24 by string equality\" and \"18 mutated\". Criterion 4: the replay reproduces 41 queue_residual / 247 remediate at the pin on the DERIVED population (441 startsWith / 436 exact + 5 variant / 398 parseable / 397 verdicts / CONDITIONAL 221 + PASS 109 + FAIL 67 / 288 non-PASS), A-vs-B confusion table with zero disagreement in either direction, 41 run ids printed, 0 FAILs routed; I drove the shipped function over the real corpus myself and ALL 20 real runs mixing a tagged WARN/NOTE with an UNTAGGED finding route to remediate; the 32-vs-41 difference is stated with four measured strict definitions (41/26/11/4) and explicitly NOT edited to match. Criterion 5: the gate is fail-closed on every path (unparseable plan, absent residual, residual that grades nothing, neighbour-id 90.10-for-90.1, parent-as-its-own-residual), allows a properly filed residual and a `remediate` route, is driven against the REAL masterplan, and QX5 (change the instruction from FILE to fix-in-place) is KILLED; its NOT-WIRED status is disclosed prominently at source and the criterion asks for \"a checker\", which this is.\n\nFOUR NOTES, non-blocking. N1: EXPECTED_CHECKS is still 66 while the suite is 77 -- cycles 1/2 raised the floor in lockstep (50 -> 55 -> 66, suite exactly at the floor) and cycle 3 did not, so 11 checks including all four new F1/F2/negator ones could be deleted with the cardinality guard still green, against its own stated rationale that a checker covering nothing \"exits 0 and looks identical to success\". N2: section J's VERDICT_SCHEMA source scan uses a hardcoded 2200-char window against a schema whose span I measured at 2273 chars -- the last 73 chars are unscanned. N3: criterion 4's confusion table carries run ids for queue_residual and for both disagreement directions but not for the 247-run remediate bucket; acceptable. N4: residual_close_gate.mjs is behaviourally driven by 8 section-H fixtures (each clause has a fixture with the opposite expected outcome) but appears in NO mutation cell.\n\nTHREE CANDIDATE FINDINGS OF MY OWN THAT I RETIRED. (R1) My independently written third-operationalization matcher gave 40 against the shipped 41, symmetric difference exactly one run, wf_9b398d19-fa8, entry \"illusory-guard (WARN, shape #2): ...\" -- MY rule required the token to be immediately followed by the closing bracket while the shipped `delimited` rule allows up to 45 chars inside; the shipped matcher is RIGHT and mine was the defective control. Reported as a residual rather than averaged away. (R2) Main's `entries.length > 0` equivalent-mutant disclosure is CORRECT and I proved it rather than accepting it: derivedOnly.length === entries.length and `comparable` itself requires derived.length > 0, so governing.length > 0 implies entries.length > 0. That is honest disclosure, not padding. (R3) The `k !== 'severity_routing'` clause in the leakedS filter is a defensive no-op, and `k in merged` walking the prototype chain makes the guard MORE likely to throw rather than less -- neither is a finding.\n\nMETHOD DISCLOSURE: all mutants were applied IN MEMORY via an fs.readFileSync monkeypatch on the WORKFLOW path, driving the SHIPPED checker as oracle, with a null-mutant control observed GREEN (77 checks, 0 failed) and a known-kill control observed RED on the same driver before any finding was scored. No file in the repo was modified. Write-first record at /Users/ford/.openclaw/workspace/pyfinagent/.claude/agent-memory/qa/verdicts/verdict_wip_90.2__20260821T075052Z.md, flipped to COMPLETE. No write was attempted outside that path and nothing was blocked.",
+  "escalation": {
+    "sequence_supplied": null,
+    "sequence_status": "not_supplied",
+    "consecutive_conditionals": null,
+    "would_auto_fail": null,
+    "attempt_number": null,
+    "budget_exhausted": null,
+    "max_attempts": 5,
+    "burden_on": "the party departing from the computed escalation",
+    "override": null,
+    "override_reason": null,
+    "judge_was_told_consequence": false,
+    "judge_was_told_consequence_evidence": null
+  },
+  "research_routing": {
+    "research_needed": null,
+    "research_brief_spec": null,
+    "next_action_on_research_needed": null
+  },
+  "severity_routing": {
+    "route": "queue_residual",
+    "severity_source": "derived_from_prose",
+    "derived_severities": [
+      {
+        "index": 0,
+        "severity": "WARN"
+      },
+      {
+        "index": 1,
+        "severity": "WARN"
+      }
+    ],
+    "governing_severities": [
+      "WARN",
+      "WARN"
+    ],
+    "disagreed": null,
+    "disagreement_status": "nothing_emitted_to_compare",
+    "emitted_severities": null,
+    "reliability": {
+      "derivation_is_authoritative": false,
+      "what_is_read": "a DELIMITED severity tag in violated_criteria -- a syntactic property, decidable -- never sentiment inferred from the finding's prose",
+      "measured_by_this_step": {
+        "corpus": "the DERIVED population -- workflowName.startsWith(\"qa-verdict\"), which is what masterplan 90.2 audit_basis names -- pinned at startTime <= 2026-08-18T12:33:57.731Z: 441 records (436 exact-match + 5 under variant names) / 398 parseable / 397 carrying a verdict / 288 non-PASS (221 CONDITIONAL + 67 FAIL)",
+        "all_warn_note_conditional_runs": 41,
+        "remainder_routed_remediate": 247,
+        "scope_note": "an exact-match narrowing drops 5 records, 3 of them non-PASS, and turns 247 into 244. The population is DERIVED from the filing, never chosen.",
+        "agreement_with_the_filings_token_anywhere_matcher": "EXACT -- identical run sets, zero disagreement in either direction",
+        "discarded_alternative": "a proximity negation filter moved 6 runs and all 6 were false positives on inspection"
+      },
+      "measured_by_the_research_brief": {
+        "agreement_pct": 40,
+        "cohens_kappa": 0.129,
+        "majority_class_baseline_pct": 56.7,
+        "scope": "whole-record prose, which is a different and harder problem than reading a delimited tag out of violated_criteria; carried as the brief's measurement, not re-attributed to this step"
+      }
+    },
+    "next_action_on_queue_residual": "FILE the residual as its own masterplan step carrying its own immutable verification command. Do NOT fix it in place and do NOT spawn a fresh Q/A -- both are the re-cycle this routing exists to end. The parent step's close is refused while the filed residual is absent or does not parse (scripts/qa/residual_close_gate.mjs). Read `reliability` before acting: this route was derived, not emitted by the judge."
+  },
+  "verdict_unmodified": true
+}
+```
+
+## Cycle 3 -- Main's follow-up (fix record, NOT a re-grading)
+
+**Both findings are correct, and together they are the third instance of ONE class in
+three cycles.** That is what the fix had to address.
+
+### The class, named
+
+Criterion 6 clause 2 -- *"a mutant silently dropping ANY reported finding from the return
+must also be KILLED"* -- has now relocated **three times**:
+
+| cycle | field found unguarded | how it was found |
+|---|---|---|
+| 1 | `derived_severities` | covered from the start; M3 killed it |
+| 2 | `governing_severities` | Q/A truncated it in the return literal -- SURVIVED 66 checks |
+| 3 | **`emitted_severities`** -- *the field the cycle-2 fix introduced* | Q/A truncated it -- SURVIVED 77 checks, in both drop-first and drop-last shapes |
+
+**A fourth per-field assertion buys exactly one more cycle.** So the fix is enumerated over
+the RETURN OBJECT rather than over a field list: section **E1b** collects every
+array-valued key in the returned routing object, requires each to appear in
+`COVERED_ARRAYS` with a length and an ordered content expectation, **and asserts the SET of
+array keys matches exactly**. A future edit that adds a fifth array field **fails this
+check until it is covered.** That converts "the next cycle finds the next field" into "the
+checker refuses the next field".
+
+The probe fixture is deliberately **not index-comparable** -- 2 findings against 3 detail
+rows -- so the three arrays carry three different lengths and no truncation can hide behind
+a length-1 case, which is exactly how the cycle-2 fix's single assertion went blind. That
+property is itself asserted. Cells **M15** (drop-first) and **M16** (drop-last, which
+removes the judge's BLOCK) are both KILLED.
+
+### WARN S2 -- the branch this cycle created had no reliability assertion
+
+`reliability: comparable ? null : Ellipsis` was changed in cycle 3, and nothing covered the
+**third** branch it created: emitted, not index-comparable, derivation governing. Section D
+asserted `reliability === null` on the comparable branch and E4 asserted the object on the
+nothing-emitted branch. Reverting to `anyEmitted ? null` therefore survived, shipping a
+DERIVED route with no unreliability label -- the exact property E4 names. Fixed with two
+assertions on that branch, and cell **M17** is KILLED.
+
+**A behaviour changed by a cycle must carry a guard that fails when it is reverted.** I
+changed that line and did not write its guard.
+
+### A defect in my own harness, found by the run itself
+
+Adding the new cells made the control report **127 checks and 7 failures** on a tree whose
+checks all pass. Cause: `scoreAgainstCells` spliced a mutant's results off the shared array
+*after* the try/finally. A mutant whose `runChecks` **threw** midway left its partial
+results behind -- the cell still scored correctly via `runMatrix`'s catch, but the mutant's
+failing checks then appeared in the **control's** summary. The splice is now inside the
+`finally`. **A harness that cannot keep a mutant's results out of the control's tally can
+report a red control for a green tree** -- and it did, for about ten minutes.
+
+**Result: 87 checks over a floor of 74, 19 mutation cells, control GREEN first, immutable
+command exit 0, pinned replay unchanged at 41/247 with zero disagreement between matchers.**

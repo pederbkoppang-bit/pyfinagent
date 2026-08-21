@@ -371,3 +371,47 @@ IMMUTABLE COMMAND EXIT: 0
 16 cells: N0 SURVIVED | M1-M9, M11, M12, M14, L1, L2 KILLED | QX ERROR
 PINNED replay unchanged: 41 queue_residual / 247 remediate, zero disagreement between matchers
 ```
+
+
+---
+
+# CYCLE 4 -- what the cycle-3 CONDITIONAL changed
+
+Verdict `wf_53391320-765`: **CONDITIONAL**. All five cycle-2 findings confirmed fixed and
+independently re-derived -- M11, M12, M14 kills each attributed to the specific new
+assertion, the E3 negator phrase verified verbatim in `wf_7fa0e5d6-c50`, both 969 sites
+corrected, the LIVE row removed rather than patched. **Criteria 1-5 MET.** Capped by two
+WARNs, both surviving mutants the Q/A executed with proven behavioural differentials.
+
+**Both are the same class, and it is the third instance in three cycles.** Criterion 6
+clause 2 relocated `derived_severities` -> `governing_severities` -> `emitted_severities`,
+the last being *the field the cycle-2 fix introduced*. A fourth per-field assertion buys one
+more cycle, so the fix is enumerated over the **return object** instead:
+
+- **E1b** collects every array-valued key in the routing object, requires each to carry a
+  length and an ordered content expectation, and **asserts the SET of array keys matches
+  the covered set exactly** -- so a fifth array field fails the checker until it is covered.
+- The probe fixture is deliberately **not index-comparable** (2 findings, 3 detail rows), so
+  the three arrays have three different lengths and no truncation can hide behind a length-1
+  case -- which is precisely how the cycle-2 fix went blind. That property is asserted too.
+- Cells **M15** (drop-first) and **M16** (drop-last, removing the judge's BLOCK) are KILLED.
+- **WARN S2:** the reliability gate I changed in cycle 3 created a third branch with no
+  assertion on it. Two assertions added; cell **M17** KILLED. *A behaviour changed by a
+  cycle must carry a guard that fails when it is reverted.*
+
+**A defect in my own harness, surfaced by the fix.** The new cells made the control report
+**127 checks and 7 failures** on a green tree: `scoreAgainstCells` spliced a mutant's
+results off the shared array *after* the try/finally, so a mutant whose `runChecks` threw
+left its partial failures in the control's tally. The splice is now inside the `finally`.
+**A harness that cannot keep a mutant's results out of the control's tally can report a red
+control for a green tree.**
+
+```
+$ bash -c 'node --check .claude/workflows/qa-verdict.js && node scripts/qa/verify_severity_routing_90_2.mjs --self-test'
+  checks run: 87 (floor 74)
+  failed:     0
+IMMUTABLE COMMAND EXIT: 0
+
+19 cells: N0 SURVIVED | M1-M9, M11, M12, M14-M17, L1, L2 KILLED | QX ERROR
+PINNED replay unchanged: 41 queue_residual / 247 remediate, zero disagreement
+```
