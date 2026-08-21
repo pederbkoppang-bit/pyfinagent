@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-21 | `2ae9c7b0` | phase-90.9: cycle-1 FAIL -- and it invalidates green results I reported across four steps |
 | 2026-08-21 | `0d59de57` | chore(masterplan): harness queue follow-up -- 90.3 matrix was already committed (ae29f25a), 90.9 Q/A |
 | 2026-08-21 | `4956a453` | chore(masterplan): harness-readiness audit -- 23 supersessions, 38-step ordered queue, policy-confli |
 | 2026-08-21 | `18395ba3` | chore: session-end record for phase-90 (state, blockers, the six-gate result) |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-21 | `4165e67d` | phase-90.9: GENERATE only -- built and self-verified, deliberately NOT evaluated |
 | 2026-08-21 | `d564ad58` | phase-90.2: cycle-4 FAIL transcribed, budget exhausted 5/5, escalated -- NOT flipped |
 | 2026-08-21 | `049544b0` | phase-90.2: regenerate live_check from the cycle-4 run (87 checks, 19 cells) |
-| 2026-08-21 | `91626e61` | phase-90.2: cycle-4 -- stop criterion 6 clause 2 relocating, by guarding the CLASS |
 
 ---
 
