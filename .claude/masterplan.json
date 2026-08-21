@@ -27345,6 +27345,48 @@
             "live_check": "live_check_90.13.md: the verbatim wf_a0efaee5-1fd caller_text with the matched span, the old-vs-new corpus replay table with run ids and the pin, and the 10-item negative set"
           },
           "notes": "FILED 2026-08-21 by step 90.1 cycle 5. Self-reported: the prompt that exposed this was written by Main. This step fixes the DETECTOR; the rule violation itself is a Main-discipline matter and is recorded in handoff/current/evaluator_critique_90.1.md under 'Cycle 5 -- Main's record'. Touches the same file as 90.2 (.claude/workflows/qa-verdict.js) -- do not run them concurrently."
+        },
+        {
+          "id": "90.14",
+          "priority": "P1",
+          "status": "pending",
+          "harness_required": true,
+          "name": "a completeness check bound to ONE probe input shape is not completeness -- coverage must be parameterised over a FAMILY of shapes, and the 90.2 claim that it was is retracted",
+          "audit_basis": "MEASURED 2026-08-21 by the step 90.2 cycle-4 Q/A (wf_01b37b7d-fd2, verdict FAIL) and REPRODUCED INDEPENDENTLY by Main in a shadow tree before filing. scripts/qa/verify_severity_routing_90_2.mjs section E1b enumerates every array-valued key in the routing return and asserts the SET of array keys matches a covered set exactly -- which closes the FIELD dimension after that one criterion relocated across three fields in three cycles (derived_severities -> governing_severities -> emitted_severities). It does NOT close the INPUT-SHAPE dimension: `arrayKeys` and every length/content expectation are computed from a SINGLE probe return (2 findings / 3 detail rows / non-comparable). Measured consequences, both by execution against the SHIPPED checker: (a) `derived_severities: derived.length >= 4 ? derived.slice(0,-1) : derived` exits 0 with 87 checks and 0 failures, and is NOT equivalent -- on the checker's own 24-return fixture set 2 returns differ, including wf_fc420eba-820 (FAIL, 4 entries) where the verbatim entry 'WARN illusory-guard: test_nightly_default_documented_off OR-escape-hatch satisfiable by a comment' is silently dropped with the route unchanged, so every route assertion is structurally blind; the branch-gated forms `comparable ? derived.slice(0,-1) : derived` and `comparable ? derived.slice(1) : derived` also survive. (b) a NEW array-valued key that is an array only on a branch the probe does not exercise (`findings_digest: comparable ? entries.slice(0,-1) : null`) survives the set-equality check outright. THE CLAIM IS RETRACTED, NOT SOFTENED: experiment_results_90.2.md CYCLE 4 states without qualification that 'a fifth array field fails the checker until it is covered'. It does not. THE GENERAL SHAPE, which is why this is filed as a class and not a patch: a coverage claim is only as wide as the INPUTS it was computed over, and enumerating the output surface while holding the input fixed moves the blind spot rather than closing it.",
+          "verification": {
+            "success_criteria": [
+              "the completeness check is parameterised over a FAMILY of probe shapes -- at minimum one with >= 4 findings, one index-aligned (comparable) input, one emitted-but-mismatched input, and one with zero findings -- and the array-key SET plus per-array length and ORDERED content are asserted on each shape independently",
+              "the arity-gated drop is KILLED: `derived_severities: derived.length >= N ? derived.slice(0,-1) : derived` must fail the checker for every N the family covers, and the two branch-gated forms must be KILLED too",
+              "a branch-conditional array field is KILLED: a key that is null on one probe shape and an array on another must fail the set-equality check rather than escaping it",
+              "the family is shown to be NECESSARY rather than decorative: for each shape, name at least one mutant that survives every OTHER shape and dies only on that one -- a shape that kills nothing uniquely is dropped or its redundancy is stated",
+              "red-first: each new mutant is shown SURVIVING against the pre-fix checker and KILLED after, with both verbatim cell tables printed side by side, and the control observed GREEN first",
+              "a mutant that fails to RESOLVE A NAME scores ERROR and never counts as a kill, including a failure swallowed by a fail-open handler rather than surfacing as a traceback (step 90.12)"
+            ],
+            "command": "bash -c 'node --check .claude/workflows/qa-verdict.js && node scripts/qa/verify_severity_routing_90_2.mjs --self-test'",
+            "live_check": "live_check_90.14.md: the before/after cell tables for the arity-gated and branch-gated drops, the per-shape kill attribution table required by criterion 4, and the retraction of the 90.2 cycle-4 completeness claim"
+          },
+          "notes": "FILED 2026-08-21 by step 90.2 cycle 4 rather than fixed in place: 90.2's attempt budget is exhausted at 5 of 5 (attempt_gate --status reports disposition ESCALATE), so no Q/A could grade a fix. Shares the immutable command with 90.2 by design -- this step finishes 90.2's criterion 6 clause 2. Do NOT run concurrently with 90.15 (same file)."
+        },
+        {
+          "id": "90.15",
+          "priority": "P0",
+          "status": "pending",
+          "harness_required": true,
+          "name": "all three sibling-leak guards compute one seam UPSTREAM of the object actually returned, so a spread at the final return bypasses every one of them -- live on every Q/A spawn",
+          "audit_basis": "MEASURED 2026-08-21 by the step 90.2 cycle-4 Q/A (wf_01b37b7d-fd2) and REPRODUCED INDEPENDENTLY by Main both by reading and by execution. In .claude/workflows/qa-verdict.js the three leak guards are evaluated against `merged`: `const leaked = Object.keys(escalation)...k in merged` (phase-86.78), `const leakedR = Object.keys(research_routing)...` (phase-86.72), `const leakedS = Object.keys(severity_routing)...` (phase-90.2). The function then RETURNS a DIFFERENT object -- the spread of `merged` plus `verdict_unmodified` -- at a later line. Anything spread in at that final statement never reaches any guard. Measured: flattening severity_routing at the final return exits 0 with 87 checks and 0 failures, as does spreading a single routing key. THIS IS INHERITED AND IT IS LIVE. The escalation and research_routing guards carry the identical seam and run on EVERY Q/A spawn today, so the hole is not specific to 90.2 and does not wait on it. The consequence is precisely what those guards exist to prevent: caller-authored fields surfacing as top-level siblings of `ok`/`verdict` in the object Main transcribes VERBATIM into evaluator_critique -- caller output presented as judge output, the doer/judge blur, and the exact QA-F shape the phase-86.78 cycle-1 Q/A found when it flattened the escalation object. The 90.2 Q/A rated it WARN because 90.2 inherited rather than introduced it; it is filed P0 because 'inherited' describes its origin, not its blast radius. SUGGESTED SHAPE (not binding): evaluate the three filters against the object actually returned, or fold `verdict_unmodified` into `merged` before the guards so there is only one object and no seam to sit past.",
+          "verification": {
+            "success_criteria": [
+              "every sibling-leak guard is evaluated against the object the function ACTUALLY RETURNS, not against an intermediate, and a test proves there is exactly one construction seam by asserting the returned object is the one the guards inspected",
+              "all three guards are covered, not only severity_routing: flattening `escalation`, `research_routing` and `severity_routing` at the FINAL return each fails the checker, and spreading a SINGLE key from each fails too",
+              "the judge-authored carve-outs still hold: research_needed and research_brief_spec may legitimately appear inside the verdict and must NOT trip the guard, proven by a cell that would fire if the carve-out were dropped",
+              "red-first: each flatten mutant is shown SURVIVING against the current code and THROWING after the fix, with the verbatim before/after output printed, and the control observed GREEN first",
+              "the guards are DRIVEN, never source-scanned: the check executes the guard and observes a throw, and a mutant that neuters the throw while leaving its literal text intact is KILLED (the phase-90.2 cycle-1 finding)",
+              "verdict semantics untouched: the judge's own fields are byte-identical before and after, and sha256 of handoff/verdict_ledger.jsonl is unchanged across the whole run"
+            ],
+            "command": "bash -c 'node --check .claude/workflows/qa-verdict.js && node scripts/qa/verify_escalation_86_78.mjs && node scripts/qa/verify_severity_routing_90_2.mjs --self-test'",
+            "live_check": "live_check_90.15.md: the verbatim survive-then-throw output for all six flatten mutants (three objects x flatten-all and flatten-one-key), and the carve-out cell"
+          },
+          "notes": "FILED 2026-08-21 by step 90.2 cycle 4. P0 because the defect is LIVE on every Q/A spawn via the phase-86.78 and phase-86.72 guards, independently of whether 90.2 ever closes. Touches .claude/workflows/qa-verdict.js -- do NOT run concurrently with 90.2, 90.13 or 90.14. NOTE the fix changes what the Q/A rail returns, so re-run scripts/qa/verify_escalation_86_78.mjs and scripts/qa/verify_research_gate_workflow.mjs as part of it, not afterwards."
         }
       ]
     },

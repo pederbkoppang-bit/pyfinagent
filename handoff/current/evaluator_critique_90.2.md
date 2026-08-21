@@ -589,3 +589,211 @@ report a red control for a green tree** -- and it did, for about ten minutes.
 
 **Result: 87 checks over a floor of 74, 19 mutation cells, control GREEN first, immutable
 command exit 0, pinned replay unchanged at 41/247 with zero disagreement between matchers.**
+
+
+---
+
+## Cycle 4 -- Q/A verdict, TRANSCRIBED VERBATIM
+
+Run `wf_01b37b7d-fd2`, 231,151 tokens, 754s, 51 tool calls. `harness_compliance_ok: true`.
+Verdict **FAIL**. **Attempt 5 of 5 -- the cumulative budget is now exhausted for this step**
+(`attempt_gate.py --status 90.2` reports `attempts_used: 5, max_attempts: 5, disposition:
+ESCALATE`).
+
+```json
+{
+  "ok": false,
+  "verdict": "FAIL",
+  "reason": "Criterion 6 clause 2 is falsified BY EXECUTION. Immutable command EXIT=0 (87 checks, floor 74, 19 cells, control green first) and criteria 1-5 are MET on my own re-derivation. But a mutant that silently drops a reported finding from the return SURVIVES the entire checker: `derived_severities: derived,` -> `derived_severities: derived.length >= 4 ? derived.slice(0, -1) : derived,` exits 0 with zero failing checks, and is non-equivalent on the checker's OWN 24-return fixture set (2 of 24 differ) -- on wf_fc420eba-820 (FAIL, 4 entries) derived_severities goes 4->3, dropping the verbatim entry \"WARN illusory-guard: test_nightly_default_documented_off OR-escape-hatch satisfiable by a comment\", with route unchanged (remediate->remediate) so every route assertion is structurally blind. The branch-gated forms `comparable ? derived.slice(0,-1) : derived` and `comparable ? derived.slice(1) : derived` also survive. The cycle-4 completeness claim itself fails a known-member recall test: a NEW array-valued key that is an array only on the comparable branch (`findings_digest: comparable ? entries.slice(0,-1) : null`) survives E1b's set-equality check, because `arrayKeys` is computed from ONE probe return. Root cause: cycle 4 generalised along the FIELD dimension (per-key-set enumeration) but coverage is still bound to ONE probe input shape (2 findings / 3 detail rows / non-comparable), so any drop conditioned on a shape outside that probe escapes. FIX: parameterise E1b over a FAMILY of probe shapes -- at minimum >=4 findings, an index-aligned (comparable) input, and an emitted-but-mismatched input -- and assert the array-key SET plus per-array length/ordered content on each. Second, independent WARN on criterion 1: `leakedS` is computed on `merged`, one seam upstream of the script's actual final statement `return { ...merged, verdict_unmodified: untouched }` (qa-verdict.js:1080); mutants `{ ...merged, ...severity_routing, verdict_unmodified }` and `{ ...merged, route: severity_routing.route, verdict_unmodified }` both survive with zero failing checks, surfacing caller fields as top-level siblings of ok/verdict in the object Main transcribes VERBATIM -- the 86.78 QA-F shape criterion 1 names. Inherited (the escalation and research_routing filters share the seam), hence WARN. Harness compliance clean 5/5; no unintended production change (HEAD aebd1602 unchanged, tree clean but for append-only audit streams).",
+  "violated_criteria": [
+    "criterion 6 -- a mutant silently dropping any reported finding from the return must also be KILLED: SURVIVED at the `derived_severities` return literal (arity-gated and branch-gated forms), demonstrated on 2 of the checker's own 24 real fixture returns",
+    "criterion 6 -- the cycle-4 completeness claim 'a fifth array field fails the checker until it is covered' is falsified: a branch-conditional array field survives E1b's set-equality check",
+    "WARN criterion 1 -- the extended sibling-leak invariant is computed on `merged`, one seam upstream of the script's actual final return; two flatten mutants at qa-verdict.js:1080 survive"
+  ],
+  "violation_details": [
+    {
+      "violation_type": "Threshold_Not_Met",
+      "action": "shadow-repo mutation: `derived_severities: derived,` -> `derived_severities: derived.length >= 4 ? derived.slice(0, -1) : derived,` in .claude/workflows/qa-verdict.js, then ran the SHIPPED scripts/qa/verify_severity_routing_90_2.mjs --self-test end to end",
+      "state": "exit=0, 'checks run: 87 (floor 74) / failed: 0'. Non-equivalent: on the checker's own fixture set 2 of 24 returns differ -- wf_fc420eba-820 (FAIL, 4 entries) derived_severities n=4 ['UNTAGGED','UNTAGGED','UNTAGGED','WARN'] -> n=3, dropping the verbatim entry 'WARN illusory-guard: test_nightly_default_documented_off OR-escape-hatch satisfiable by a comment'; wf_82381b7e-58c (FAIL, 5 entries) n=5 -> n=4. route remediate -> remediate in both, so section A/C/G route assertions cannot see it. Branch-gated variants `comparable ? derived.slice(0,-1) : derived` and `comparable ? derived.slice(1) : derived` also exit 0. Controls run first in the same harness: N0 (unchanged source) exit 0; KC (verdict guard removed) exit 1 with 6 failing checks.",
+      "constraint": "immutable criterion 6: 'mutation-tested with the control observed GREEN first: ... a mutant silently dropping any reported finding from the return must also be KILLED'"
+    },
+    {
+      "violation_type": "Overgeneralization",
+      "action": "known-member recall test against E1b's set-equality check: added a NEW array-valued return key that is an array only on a branch the probe does not exercise -- `findings_digest: comparable ? entries.slice(0, -1) : null` -- and ran the shipped checker",
+      "state": "exit=0, zero failing checks. E1b computes `arrayKeys` from a SINGLE probe return (2 findings / 3 detail rows / non-comparable), so a key that is null on that probe and an array elsewhere never enters the covered set. experiment_results_90.2.md CYCLE 4 states without qualification: 'asserts the SET of array keys matches the covered set exactly -- so a fifth array field fails the checker until it is covered'.",
+      "constraint": "qa.md 4b: a COMPLETENESS claim must locate all known members of the population it claims to cover; a scan that cannot is a FAILED gate, not a partial pass"
+    },
+    {
+      "violation_type": "Missing_Assumption",
+      "action": "shadow-repo mutation at qa-verdict.js:1080: `return { ...merged, verdict_unmodified: untouched }` -> `return { ...merged, ...severity_routing, verdict_unmodified: untouched }`, and separately -> `return { ...merged, route: severity_routing.route, verdict_unmodified: untouched }`",
+      "state": "both exit=0 with zero failing checks. `const leakedS = Object.keys(severity_routing).filter(k => k !== 'severity_routing' && k in merged)` is evaluated on `merged`, not on the object actually returned, so routing keys spread in at the final statement never reach the guard. Section I's source scans pass because the `const merged = {...}` line is untouched and the anti-flatten regex is anchored on `{ ...verdict,`. WARN not BLOCK: the escalation and research_routing filters share the same seam, so the shape is inherited rather than introduced here. FIX: evaluate the three leak filters against the returned object, or fold `verdict_unmodified` into `merged` before the guards.",
+      "constraint": "immutable criterion 1: 'returns a routing object ALONGSIDE the judge's fields, never merged into them, and the existing sibling-leak invariants are extended to THROW if any of its keys appear inside the judge's own object'"
+    }
+  ],
+  "certified_fallback": false,
+  "checks_run": [
+    "read_qa_md_from_disk",
+    "write_first_wip_record",
+    "harness_compliance_audit_5_items",
+    "research_gate_envelope_verified",
+    "mtime_order_research_lt_contract_lt_code_lt_results",
+    "log_last_masterplan_pending_and_no_harness_log_row",
+    "immutable_verification_command_exit_0_bare",
+    "node_check_syntax",
+    "git_status_no_unintended_production_change",
+    "python_lint_gate_not_triggered_zero_py_in_diff",
+    "frontend_gate_not_triggered_zero_frontend_in_diff",
+    "criterion_4_replay_rerun_independently",
+    "fixture_authenticity_24_of_24_verbatim_vs_real_run_records",
+    "adversarial_mutation_matrix_shadow_repo",
+    "null_and_kill_controls_run_first",
+    "criterion_1_leak_guard_carveout_mutant",
+    "criterion_1_flatten_at_merge_mutant",
+    "criterion_1_flatten_at_final_return_mutants",
+    "criterion_3_input_mutation_mutants",
+    "criterion_5_residual_close_gate_4_mutants",
+    "criterion_6_drop_mutants_arity_and_branch_gated",
+    "e1b_set_equality_known_member_recall_test",
+    "behavioural_differential_on_surviving_mutants",
+    "kill_mechanism_attribution_check",
+    "code_review_heuristics",
+    "prior_attempt_evidence_qa_wip",
+    "verdict_ledger_evidence_only",
+    "evaluator_critique_prior_cycles"
+  ],
+  "harness_compliance_ok": true,
+  "research_needed": false,
+  "notes": "SEQUENCE: UNKNOWN. `verdict_history_86_21.py --step 90.2 --evidence-only` returns status=no_rows_for_step, verdicts=(none). `qa_wip.py 90.2 --spawned-at 2026-08-21T08:07:25Z` returns source_present=true, attempt_number=4 (status ok, is_lower_bound=true), prior_attempts=3, records_retained=4 (a GAUGE, not a counter), records_pruned_known=null. prior_attempts (3) > ledger verdict count (0), so THE LEDGER IS STALE for this step and its sequence is unreliable. `grep phase=90.2 handoff/harness_log.md` returns 0 rows (secondary source only). evaluator_critique_90.2.md carries three Main-transcribed cycle headers (Cycle 1/2/3) -- advisory only, Main is the constrained party. I did not infer verdicts from record bodies. I applied no threshold or escalation; that is the caller's after my return.\n\nMETHOD: every mutation was run in a mkdtemp SHADOW repo (mutated copy of qa-verdict.js or residual_close_gate.mjs plus copies of the REAL checker, gate, fixtures, masterplan and ledger), driving the SHIPPED checker end to end. Controls ran FIRST in every batch: unchanged source -> exit 0, verdict-guard-removed -> exit 1 with 6 failing checks. NOTHING in the repository was written or modified; HEAD was aebd1602 at the start and end, and `git status --short` shows only append-only handoff/audit/*.jsonl plus my own write-first record at .claude/agent-memory/qa/verdicts/verdict_wip_90.2__20260821T080725Z.md. No write was blocked.\n\nKILL-MECHANISM HONESTY: two further mutants of mine (governing_severities and emitted_severities drops) exited non-zero ONLY because my replacement text collided with the M11 / M15 / M16 `apply` strings and turned those cells into NO-OPs. That is a harness self-check artifact, not detection of the dropped finding, and I did not count it as coverage in either direction.\n\nWHAT IS GENUINELY STRONG, stated so the fix is not over-scoped: criteria 1-5 all reproduce on independent re-derivation. Criterion 3's fixture set is real -- all 24 run_ids resolve in the run-record corpus and every fixture key is byte-identical to the record's parsed result (24/24, 0 mismatches). Criterion 4's replay reproduces 41/247 exactly under BOTH matchers with zero disagreement in either direction, prints the run ids, prints 0 FAILs routed to queue_residual, and states the 32-vs-41 difference under four measured strict definitions (41/26/11/4) without editing the number. Criterion 5's close gate killed 4 of 4 of my own mutants, each by its specifically-named assertion. Criterion 2's guard is structural and my own guard-removal control reproduces its kill.\n\nNOTES (do not cap the verdict): (a) STALE PROSE -- `## 1. What was built` still says \"66 checks over a floor of 55, a 13-cell mutation matrix\" and `### Criterion 6` says \"11 cells\" over an 11-row table, while the current state is 87 / 74 / 19; the CYCLE 4 addendum is correct but the base sections are unlabelled cycle-1 text (and were already internally inconsistent at cycle 1: \"13-cell\" vs 11 rows). (b) The CYCLE 4 prose says the probe \"makes the three arrays DIFFERENT lengths\"; measured lengths are 2 / 2 / 3 -- two distinct values, and the checker's own assertion compares only two of the three (`new Set([derived.length, emitted.length]).size === 2`). (c) Disclosed and accepted as scope bounds: violation_details prose severity is never scored, the immediate-negator rule fires on zero pinned entries, and residual_close_gate.mjs is not wired into any close path -- all three are stated plainly at source.\n\nLint gates 1a/1b/1d were NOT run because their trigger conditions are absent: `git diff --name-only ca656466~1 HEAD` contains zero *.py, zero frontend/**, zero backend/**. JS syntax is covered by `node --check` inside the immutable command. No UI claims, so gate 1c does not apply and no Playwright capture was needed.",
+  "escalation": {
+    "sequence_supplied": null,
+    "sequence_status": "not_supplied",
+    "consecutive_conditionals": null,
+    "would_auto_fail": null,
+    "attempt_number": null,
+    "budget_exhausted": null,
+    "max_attempts": 5,
+    "burden_on": "the party departing from the computed escalation",
+    "override": null,
+    "override_reason": null,
+    "judge_was_told_consequence": false,
+    "judge_was_told_consequence_evidence": null
+  },
+  "research_routing": {
+    "research_needed": false,
+    "research_brief_spec": null,
+    "next_action_on_research_needed": null
+  },
+  "severity_routing": {
+    "route": "remediate",
+    "severity_source": "derived_from_prose",
+    "derived_severities": [
+      {
+        "index": 0,
+        "severity": "UNTAGGED"
+      },
+      {
+        "index": 1,
+        "severity": "UNTAGGED"
+      },
+      {
+        "index": 2,
+        "severity": "WARN"
+      }
+    ],
+    "governing_severities": [
+      "UNTAGGED",
+      "UNTAGGED",
+      "WARN"
+    ],
+    "disagreed": null,
+    "disagreement_status": "nothing_emitted_to_compare",
+    "emitted_severities": null,
+    "reliability": {
+      "derivation_is_authoritative": false,
+      "what_is_read": "a DELIMITED severity tag in violated_criteria -- a syntactic property, decidable -- never sentiment inferred from the finding's prose",
+      "measured_by_this_step": {
+        "corpus": "the DERIVED population -- workflowName.startsWith(\"qa-verdict\"), which is what masterplan 90.2 audit_basis names -- pinned at startTime <= 2026-08-18T12:33:57.731Z: 441 records (436 exact-match + 5 under variant names) / 398 parseable / 397 carrying a verdict / 288 non-PASS (221 CONDITIONAL + 67 FAIL)",
+        "all_warn_note_conditional_runs": 41,
+        "remainder_routed_remediate": 247,
+        "scope_note": "an exact-match narrowing drops 5 records, 3 of them non-PASS, and turns 247 into 244. The population is DERIVED from the filing, never chosen.",
+        "agreement_with_the_filings_token_anywhere_matcher": "EXACT -- identical run sets, zero disagreement in either direction",
+        "discarded_alternative": "a proximity negation filter moved 6 runs and all 6 were false positives on inspection"
+      },
+      "measured_by_the_research_brief": {
+        "agreement_pct": 40,
+        "cohens_kappa": 0.129,
+        "majority_class_baseline_pct": 56.7,
+        "scope": "whole-record prose, which is a different and harder problem than reading a delimited tag out of violated_criteria; carried as the brief's measurement, not re-attributed to this step"
+      }
+    },
+    "next_action_on_queue_residual": null
+  },
+  "verdict_unmodified": true
+}
+```
+
+## Cycle 4 -- Main's record (NOT a re-grading, and NOT a fix cycle)
+
+**Both findings reproduced by execution before transcription, in a shadow tree.**
+
+**Finding 1 -- I generalised along the wrong dimension.** Cycle 4's E1b enumerates every
+array-valued key in the return, which closes the FIELD dimension. But coverage is still
+bound to **one probe input shape** -- 2 findings, 3 detail rows, non-comparable -- so a drop
+conditioned on a shape the probe never produces walks straight through:
+
+```
+MUTANT A applied (arity-gated drop from derived_severities)
+  derived_severities: derived.length >= 4 ? derived.slice(0, -1) : derived,
+  checks run: 87 (floor 74)
+  failed:     0
+MUTANT A exit: 0  (0 == SURVIVED)
+```
+
+And it is not equivalent: on the checker's **own** 24-return fixture set, 2 returns differ.
+On `wf_fc420eba-820` (FAIL, 4 entries) `derived_severities` goes 4 -> 3, silently dropping
+the verbatim entry *"WARN illusory-guard: test_nightly_default_documented_off OR-escape-hatch
+satisfiable by a comment"*, with the route unchanged -- so every route assertion is
+structurally blind to it. The same reasoning kills my E1b completeness claim: `arrayKeys` is
+computed from ONE probe return, so a key that is `null` on that probe and an array on
+another branch never enters the covered set, and the CYCLE 4 write-up asserts without
+qualification that "a fifth array field fails the checker until it is covered". **It does
+not.** *That claim is retracted here, not annotated.*
+
+**Finding 2 (WARN) -- the leak guards sit one seam upstream of the actual return.**
+Confirmed by reading and by execution. All three guards compute on `merged`
+(`qa-verdict.js:1045`, `:1054`, `:1072`) while the function actually returns the spread of
+`merged` plus `verdict_unmodified` at **`:1080`**:
+
+```
+MUTANT B applied (flatten severity_routing at the FINAL return, one seam past the guard)
+  checks run: 87 (floor 74)
+  failed:     0
+MUTANT B exit: 0  (0 == SURVIVED)
+```
+
+**This is INHERITED and it is LIVE.** The `escalation` (phase-86.78) and `research_routing`
+(phase-86.72) guards share the identical seam, and they run on **every Q/A spawn today**. A
+spread at `:1080` would surface caller-authored fields as top-level siblings of `ok` /
+`verdict` in the object Main transcribes VERBATIM -- the exact doer/judge blur those guards
+exist to prevent, and the exact QA-F shape phase-86.78 cycle-1 found. The Q/A rated it WARN
+because 90.2 inherited rather than introduced it. **I am filing it P0 anyway, because
+"inherited" describes its origin, not its blast radius.**
+
+## Terminal disposition
+
+**Verdict sequence: FAIL -> CONDITIONAL -> CONDITIONAL -> FAIL. Budget 5 of 5. 90.2 stays
+`pending`.**
+
+Every cycle's findings were correct and every cycle's fix was correct. Criteria 1-5 were
+MET and independently re-derived by the cycle-3 and cycle-4 Q/A. **Criterion 6 clause 2 has
+now relocated FOUR times** -- `derived_severities` -> `governing_severities` ->
+`emitted_severities` -> *the probe-shape dimension underneath all three of them*. This is
+the same fixed point step 90.9 describes, observed on a second step, and this time the
+relocation crossed from "which field" to "which input shape", which is why the class-level
+fix in cycle 4 did not hold either.
+
+- No fix was attempted: the budget denies the spawn that would grade it, and an ungraded fix
+  to apparatus a Q/A has just failed is the shipped-fix-that-never-ran pattern.
+- Filed **90.14** (probe-shape family + the retracted completeness claim) and **90.15**
+  (the inherited leak seam, P0, live on all three guards).
+- Escalation: `handoff/current/operator_escalation_90.2.md`.

@@ -37012,3 +37012,46 @@ argument told the judge "Attempt budget stands at 4 of 5 ... a 6th launch will b
 I put a positional claim in a spawn prompt (the standing rule forbids it) AND the detector
 could not see it. The verdict returned FAIL -- the harsher direction -- and both findings
 reproduce independently, but that is an observation, not a defence. Detector gap = 90.13.
+
+
+## Cycle 199 -- 2026-08-21 -- phase=90.2 result=FAIL (terminal: attempt budget exhausted 5/5)
+
+Four Q/A cycles on the Workflow rail: `wf_0e5b781a-bf9` FAIL, `wf_546d7764-9c6` CONDITIONAL,
+`wf_53391320-765` CONDITIONAL, `wf_01b37b7d-fd2` FAIL. `harness_compliance_ok: true` on every
+one. Immutable command exits 0 (87 checks over a floor of 74, 19 mutation cells, control
+GREEN first). `attempt_gate.py --status 90.2` reports `attempts_used: 5, max_attempts: 5,
+disposition: ESCALATE`.
+
+**Criteria 1-5 MET and independently re-derived** by the cycle-3 and cycle-4 Q/A. The replay
+reproduces the filing **exactly -- 41 / 247** on the derived population, with zero symmetric
+difference against the filing's own matcher AND against a third matcher an evaluator wrote
+from scratch. The filed "strict = 32" reproduces under none of four definitions and is
+stated, never edited. No `VERDICT_SCHEMA` edit, so 86.98's operator gate is not bypassed.
+
+**Criterion 6 clause 2 relocated FOUR times:** `derived_severities` ->
+`governing_severities` -> `emitted_severities` (the field the previous fix introduced) ->
+**the probe-shape dimension underneath all three**. Cycle 4 generalised over the FIELD
+dimension -- enumerate every array key in the return, require the key SET to match exactly --
+and it still failed, because every expectation was computed from ONE probe input. An
+arity-gated drop (`derived.length >= 4 ? derived.slice(0,-1) : derived`) survives all 87
+checks and silently drops a real finding from `wf_fc420eba-820` with the route unchanged, so
+every route assertion is blind to it. **A coverage claim is only as wide as the INPUTS it was
+computed over; enumerating the output surface while holding the input fixed moves the blind
+spot rather than closing it.** Main's cycle-4 claim that "a fifth array field fails the
+checker until it is covered" is **RETRACTED at source**.
+
+**Second finding, WARN but filed P0 -- inherited and LIVE.** All three sibling-leak guards
+(`escalation` 86.78, `research_routing` 86.72, `severity_routing` 90.2) compute on `merged`
+while the function returns a *different* object one line later. A spread at that final
+statement bypasses all three, surfacing caller fields as top-level siblings of `ok`/`verdict`
+in the object Main transcribes VERBATIM. Reproduced by execution. This runs on **every Q/A
+spawn today** and does not wait on 90.2.
+
+**Disposition -- 90.2 stays `pending`.** No fix attempted: the budget denies the spawn that
+would grade it. Filed **90.14** (parameterise coverage over a family of probe shapes, P1) and
+**90.15** (the leak seam, P0). Four verdict-ledger rows backfilled. Operator escalation with
+three options at `handoff/current/operator_escalation_90.2.md`.
+
+**Two steps are now at the budget's designed terminal state on the same day (90.1, 90.2), and
+in both the PRODUCT was verified while an EVIDENCE criterion kept relocating.** That is
+exactly the fixed point step 90.9 exists to describe, now observed twice.
