@@ -70,9 +70,12 @@ verdict-ledger source for the PASS exception, same caveat.
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import re
+import shutil
+import subprocess
 import sys
 import datetime
 from pathlib import Path
@@ -379,6 +382,191 @@ def write_escalation(state: BudgetState,
     return p
 
 
+# ---------------------------------------------------------------------------
+# phase-90.3 -- THE PROGRESS DIGEST, and what it is NOT
+# ---------------------------------------------------------------------------
+#
+# This corrects step 89.1, whose mechanism was measured to fire on NONE of the
+# real loops (the cycle-2 flow mandates updating the artifacts, so the digest
+# advances every round by construction) and to DENY the doctrine-mandated
+# post-drop retry (14 of 16 NO_VERDICT rows were followed by a retry; 8 of the
+# 11 affected steps later reached PASS).
+#
+# THE HAZARD THE 90.3 RESEARCH GATE CAUGHT BEFORE ANY CODE EXISTED, and it is
+# why the allowlist below is the load-bearing part rather than a detail:
+# criterion 1's file set is `declared masterplan paths UNION git diff HEAD UNION
+# untracked`, and MEASURED on this repo that union resolves to
+# handoff/audit/attempt_budget_audit.jsonl -- TRACKED, and written BY THIS GATE
+# on every launch -- plus handoff/audit/pre_tool_use_audit.jsonl, written on
+# every tool call, plus .claude/agent-memory/ files written by the agents
+# themselves. Without the exclusions, THE DIGEST ADVANCES BY CONSTRUCTION and
+# the check is vacuous: 89.1's defect through a different door, in the step
+# built to correct 89.1.
+#
+# ("declared masterplan paths" resolves to the empty set: measured, 0 of 1222
+# steps carry a `files` or `paths` key. The union is well-defined without it and
+# the absence is reported rather than silently dropped.)
+#
+# WHAT THIS INSTRUMENT IS, STATED SO NO CONSUMER OVERREADS IT. A byte-digest is
+# the WEAKEST of the three published stagnation signals: CUDABeaver measures
+# SHA-256 duplicate_code at 0-50.8% and code_cycle at 0.7-3.8%, against SEMANTIC
+# no_progress at 44.6-84.6%. It is built because it is deterministic and cheap.
+# IT DETECTS AN EXACT REPEAT AND AN A->B->A OSCILLATION, AND NOTHING ELSE.
+# It is NOT evidence of progress, of convergence, or of quality, and criterion 5
+# forbids any consumer from reading it that way -- optimal-stopping work
+# (arXiv 2608.10729) triggers on an ABSOLUTE score, explicitly not on
+# inter-iteration change.
+
+#: Roots whose contents count as a step's evidence.
+DIGEST_ALLOWED_ROOTS = ("handoff/current/", "scripts/", "backend/", "frontend/",
+                        "docs/", ".claude/")
+#: Roots EXCLUDED because they are written by the instrument, by every tool
+#: call, or by the agents -- see the hazard note above. Longest match wins, so
+#: these override DIGEST_ALLOWED_ROOTS.
+DIGEST_EXCLUDED_ROOTS = ("handoff/audit/", "handoff/logs/", ".claude/agent-memory/",
+                         ".claude/masterplan.json.bak")
+
+#: DEFAULT-OFF. This adds a new DENY path to a PreToolUse hook that runs on every
+#: Workflow launch, and it has NOT been graded by a Q/A. An ungraded deny-capable
+#: gate that misfires blocks the whole harness, so it stays dark on the live rail
+#: until an operator enables it deliberately. The self-test and the mutation matrix
+#: both set this, so the mechanism is fully exercised while the live rail is
+#: untouched -- the same discipline as a feature flag, and the reason it is stated
+#: here rather than in a commit message nobody reads at 3am.
+DIGEST_ENABLED = os.environ.get("ATTEMPT_GATE_PROGRESS_DIGEST", "") == "1"
+
+DIGEST_STATUS_OK = "ok"
+DIGEST_STATUS_INPUTS_INCOMPLETE = "inputs_incomplete"
+DIGEST_STATUS_UNAVAILABLE = "unavailable"
+
+
+def _git_lines(*args: str) -> list[str]:
+    out = subprocess.run(["git", *args], cwd=REPO, capture_output=True, text=True,
+                         timeout=30)
+    if out.returncode != 0:
+        raise RuntimeError(f"git {' '.join(args)} failed: {out.stderr[:200]}")
+    return [ln for ln in out.stdout.splitlines() if ln.strip()]
+
+
+def digest_inputs() -> list[str]:
+    """The evidence file set, allowlisted and with the instrument excluded.
+
+    Repo-relative, sorted, de-duplicated. NEVER inferred from critique prose --
+    criterion 1 forbids it, and prose is full of line-wrapped path fragments.
+
+    `ATTEMPT_GATE_DIGEST_INPUTS` (os.pathsep-separated) replaces the git-derived
+    set. It exists so the WIRING can be driven where git cannot answer -- a
+    sandbox is not a repo, and without it the hook-drive cells silently fell into
+    the unavailable branch and tested nothing. The DERIVATION is covered
+    separately by the allowlist/exclusion cells, so the two halves are tested
+    apart rather than one of them not at all. The override is still filtered by
+    the same allowlist below: a test seam that skips the exclusions would be a way
+    to smuggle the instrument back into its own digest.
+    """
+    injected = os.environ.get("ATTEMPT_GATE_DIGEST_INPUTS", "")
+    if injected:
+        seen = {x for x in injected.split(os.pathsep) if x.strip()}
+    else:
+        seen = set(_git_lines("diff", "--name-only", "HEAD"))
+        seen |= set(_git_lines("ls-files", "--others", "--exclude-standard"))
+    keep = []
+    for rel in sorted(seen):
+        if any(rel.startswith(x) for x in DIGEST_EXCLUDED_ROOTS):
+            continue
+        if not any(rel.startswith(x) for x in DIGEST_ALLOWED_ROOTS):
+            continue
+        keep.append(rel)
+    return keep
+
+
+def compute_digest(paths: list[str]) -> tuple[str | None, str, list[str]]:
+    """(digest, status, missing).
+
+    CONTENT ONLY -- no mtime, no size, no inode. A cell that os.utime()s every
+    input without changing a byte must still produce the same digest, and
+    therefore must still DENY.
+
+    A MISSING declared input is `inputs_incomplete`, not a silent skip: a digest
+    computed over a subset of its inputs is not the digest it claims to be.
+    """
+    h = hashlib.sha256()
+    missing = []
+    for rel in paths:
+        f = REPO / rel
+        try:
+            data = f.read_bytes()
+        except (FileNotFoundError, IsADirectoryError, PermissionError):
+            missing.append(rel)
+            continue
+        h.update(rel.encode("utf-8"))
+        h.update(b"\0")
+        h.update(hashlib.sha256(data).digest())
+    if missing:
+        return None, DIGEST_STATUS_INPUTS_INCOMPLETE, missing
+    return h.hexdigest(), DIGEST_STATUS_OK, []
+
+
+def digest_exempt(step_id: str, rows: list[dict]) -> str | None:
+    """Why the digest check is SKIPPED for this launch, or None.
+
+    A drop produces NOTHING TO FIX, so a byte-identical relaunch after one is
+    correct rather than suspicious -- Temporal's definition of a permanent
+    failure is one that "requires a change to your input", and a dropped rail
+    supplies no such change. Measured on the real ledger: 14 of 16 NO_VERDICT
+    rows were followed by a retry and 8 of the 11 affected steps later PASSED.
+    89.1 would have denied all 14.
+    """
+    verdicts = []
+    try:
+        for line in VERDICT_LEDGER.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                r = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if str(r.get("step_id")) == str(step_id):
+                verdicts.append(r)
+    except (FileNotFoundError, IsADirectoryError, PermissionError):
+        # FAIL-CLOSED FOR THE EXEMPTION: an unreadable verdict ledger grants NO
+        # exemption, so the digest check still runs. That direction can only ever
+        # deny more, never allow more -- the same asymmetry the PASS-exception
+        # read already uses a few lines above in build_state.
+        return None
+    if not verdicts:
+        return "no verdict row exists for this step -- nothing to compare against"
+    if str(verdicts[-1].get("verdict")) == "NO_VERDICT":
+        return ("the most recent verdict row is NO_VERDICT -- a dropped rail "
+                "produces nothing to fix, so a byte-identical relaunch is correct")
+    prior_attempts = [r for r in rows
+                      if r.get("type") == "attempt" and str(r.get("step_id")) == str(step_id)]
+    if prior_attempts:
+        last_attempt_ts = str(prior_attempts[-1].get("ts") or "")
+        newer = [v for v in verdicts if str(v.get("recorded_at") or v.get("date") or "") > last_attempt_ts]
+        if not newer:
+            return ("no verdict row postdates the previous attempt -- the prior "
+                    "launch produced no graded outcome to respond to")
+    return None
+
+
+def prior_digests(step_id: str, rows: list[dict]) -> list[str]:
+    """EVERY digest recorded for this step, not just the previous one.
+
+    Criterion 3: pairwise comparison lets an A->B->A revert oscillate forever.
+    Rows are appended on DENY as well as on allow, so the third launch of an
+    oscillation is compared against BOTH prior states and denied.
+    """
+    out = []
+    for r in rows:
+        if str(r.get("step_id")) != str(step_id):
+            continue
+        d = r.get("evidence_digest")
+        if isinstance(d, str) and d:
+            out.append(d)
+    return out
+
+
 def handle_hook() -> int:
     try:
         payload = json.load(sys.stdin)
@@ -442,8 +630,81 @@ def handle_hook() -> int:
                 f"--by 1 --reason \"...\"",
                 file=sys.stderr)
             return 2
+        # ── phase-90.3: the progress digest ────────────────────────────────
+        # Runs AFTER the attempt-budget decision, so a step that is already at
+        # its ceiling is denied for the ceiling and not for a digest -- a denial
+        # must name the reason that actually bound.
+        digest, dstatus, dmissing = None, DIGEST_STATUS_UNAVAILABLE, []
+        exempt = (None if DIGEST_ENABLED
+                  else "progress digest is DISABLED (set ATTEMPT_GATE_PROGRESS_DIGEST=1 "
+                       "to enable; default-off until graded)")
+        if exempt is None:
+            exempt = digest_exempt(sid, rows)
+        if exempt is None:
+            try:
+                inputs = digest_inputs()
+                digest, dstatus, dmissing = compute_digest(inputs)
+            except Exception as exc:  # noqa: BLE001
+                # A CRASH is not a DENY. Criterion 4 keeps these distinct: the
+                # launch proceeds (fail-open, per the hook contract), but the row
+                # records digest=null with an explicit unavailable status, so the
+                # NEXT launch has no comparable baseline and cannot be compared
+                # against a phantom.
+                print(f"[attempt-gate] progress-digest UNAVAILABLE -- "
+                      f"{type(exc).__name__}: {exc} -- allowing this launch and "
+                      "recording no baseline", file=sys.stderr)
+                digest, dstatus, dmissing = None, DIGEST_STATUS_UNAVAILABLE, []
+            if dstatus == DIGEST_STATUS_INPUTS_INCOMPLETE:
+                append_row({
+                    "ts": _now(), "type": "attempt", "step_id": sid,
+                    "workflow": workflow_label(tool_input),
+                    "tool_use_id": payload.get("tool_use_id") or "",
+                    "session_id": payload.get("session_id") or "",
+                    "attempt_number_inclusive": state.attempts_used + 1,
+                    "outcome": None, "outcome_reason": "denied_at_launch",
+                    "total_tokens": None, "run_id": None,
+                    "evidence_digest": None,
+                    "evidence_digest_status": DIGEST_STATUS_INPUTS_INCOMPLETE,
+                    "note": "DENIED: declared digest inputs are missing",
+                })
+                print("[attempt-gate] DENIED: reason=inputs_incomplete -- these "
+                      "declared evidence inputs could not be read: "
+                      + ", ".join(dmissing[:5])
+                      + ". A digest computed over a SUBSET of its inputs is not the "
+                        "digest it claims to be, so this is a denial and not a "
+                        "silent skip. This is NOT a gate crash (a crash fails open) "
+                        "and a denial is NOT a verdict.", file=sys.stderr)
+                return 2
+            if dstatus == DIGEST_STATUS_OK and digest in prior_digests(sid, rows):
+                append_row({
+                    "ts": _now(), "type": "attempt", "step_id": sid,
+                    "workflow": workflow_label(tool_input),
+                    "tool_use_id": payload.get("tool_use_id") or "",
+                    "session_id": payload.get("session_id") or "",
+                    "attempt_number_inclusive": state.attempts_used + 1,
+                    "outcome": None, "outcome_reason": "denied_at_launch",
+                    "total_tokens": None, "run_id": None,
+                    "evidence_digest": digest,
+                    "evidence_digest_status": DIGEST_STATUS_OK,
+                    "note": "DENIED: evidence digest already seen for this step",
+                })
+                print(f"[attempt-gate] DENIED: reason=no_new_evidence -- step {sid} "
+                      f"has already been launched with this exact evidence "
+                      f"(digest {digest[:16]}). Comparison is against EVERY digest "
+                      "recorded for the step, not just the previous one, so an "
+                      "A->B->A revert is caught on the third launch. NOTE WHAT THIS "
+                      "DOES NOT SAY: a CHANGED digest is not evidence of progress. "
+                      "This check detects an exact repeat and an oscillation, and "
+                      "nothing else. A denial is not a verdict.", file=sys.stderr)
+                return 2
+        else:
+            print(f"[attempt-gate] progress-digest SKIPPED: {exempt}", file=sys.stderr)
+
         append_row({
             "ts": _now(), "type": "attempt", "step_id": sid,
+            "evidence_digest": digest,
+            "evidence_digest_status": (DIGEST_STATUS_UNAVAILABLE if exempt
+                                       else dstatus),
             "workflow": workflow_label(tool_input),
             "tool_use_id": payload.get("tool_use_id") or "",
             "session_id": payload.get("session_id") or "",
@@ -796,6 +1057,174 @@ def _self_test() -> int:
                 os.environ.pop("ATTEMPT_GATE_MASTERPLAN", None)
             else:
                 os.environ["ATTEMPT_GATE_MASTERPLAN"] = old_mp
+
+    # ── phase-90.3: the progress digest, DRIVEN (criterion 8) ───────────────
+    # These assert behavioural outcomes of the real functions, not the presence
+    # of a token in the source. Contained: every path below is a temp dir.
+    import tempfile as _tf
+    with _tf.TemporaryDirectory() as _td:
+        _root = Path(_td)
+        (_root / "a.txt").write_text("alpha", encoding="utf-8")
+        (_root / "b.txt").write_text("beta", encoding="utf-8")
+        _old_repo = globals()["REPO"]
+        globals()["REPO"] = _root
+        try:
+            d1, st1, miss1 = compute_digest(["a.txt", "b.txt"])
+            check("the digest is computed and reports ok over readable inputs",
+                  st1 == DIGEST_STATUS_OK and isinstance(d1, str) and len(d1) == 64
+                  and miss1 == [])
+            # criterion 1: CONTENT ONLY. Touching every input must not move it.
+            import os as _os
+            for _f in ("a.txt", "b.txt"):
+                _os.utime(_root / _f, (0, 0))
+            d2, _, _ = compute_digest(["a.txt", "b.txt"])
+            check("os.utime on EVERY input does not change the digest -- content "
+                  "only, so a touched-but-unchanged relaunch still DENIES (c1)",
+                  d2 == d1)
+            (_root / "a.txt").write_text("ALPHA", encoding="utf-8")
+            d3, _, _ = compute_digest(["a.txt", "b.txt"])
+            check("...but changing one BYTE does move it, so the digest is not a "
+                  "constant", d3 != d1)
+            d4, st4, miss4 = compute_digest(["a.txt", "gone.txt"])
+            check("a MISSING declared input is inputs_incomplete with the file "
+                  "named -- not a silent skip over a subset (c4)",
+                  st4 == DIGEST_STATUS_INPUTS_INCOMPLETE and d4 is None
+                  and miss4 == ["gone.txt"])
+            # criterion 1: the ALLOWLIST must exclude the instrument. This is the
+            # hazard the research gate caught: the gate's own audit stream is in
+            # the diff on every launch, so without the exclusion the digest
+            # advances by construction and the check is vacuous.
+            check("handoff/audit/ is EXCLUDED -- the gate writes it on every "
+                  "launch, so including it would make the digest advance by "
+                  "construction (the 90.3 gate's finding)",
+                  any(x == "handoff/audit/" for x in DIGEST_EXCLUDED_ROOTS))
+            check("...as is .claude/agent-memory/, which the agents write "
+                  "themselves",
+                  any(x == ".claude/agent-memory/" for x in DIGEST_EXCLUDED_ROOTS))
+            check("...and the exclusions are not vacuous: a path under an excluded "
+                  "root is dropped even though its root is also allowlisted",
+                  ".claude/" in DIGEST_ALLOWED_ROOTS
+                  and any(".claude/agent-memory/x".startswith(e)
+                          for e in DIGEST_EXCLUDED_ROOTS))
+        finally:
+            globals()["REPO"] = _old_repo
+
+        # criterion 3: comparison is against the SET, so A->B->A denies on the third
+        _rows = [
+            {"type": "attempt", "step_id": "9.1", "ts": "t1", "evidence_digest": "AAA"},
+            {"type": "attempt", "step_id": "9.1", "ts": "t2", "evidence_digest": "BBB"},
+            {"type": "attempt", "step_id": "9.2", "ts": "t3", "evidence_digest": "CCC"},
+        ]
+        check("prior_digests returns EVERY digest for the step, not just the last "
+              "-- which is what makes an A->B->A revert deny on the third launch (c3)",
+              prior_digests("9.1", _rows) == ["AAA", "BBB"])
+        check("...and it does not leak another step's digests",
+              "CCC" not in prior_digests("9.1", _rows))
+
+        # criterion 2: the drop exemption, from the ledger rather than a heuristic
+        _vl = _root / "vl.jsonl"
+        _old_v2 = VERDICT_LEDGER
+        VERDICT_LEDGER = _vl
+        try:
+            _vl.write_text(json.dumps({"step_id": "9.1", "verdict": "NO_VERDICT",
+                                       "recorded_at": "2026-01-01T00:00:00Z"}) + "\n",
+                           encoding="utf-8")
+            check("a most-recent NO_VERDICT row EXEMPTS the check, so a "
+                  "byte-identical relaunch after a dropped rail is ADMITTED (c2)",
+                  (digest_exempt("9.1", []) or "").startswith("the most recent verdict"))
+            _vl.write_text(json.dumps({"step_id": "9.1", "verdict": "CONDITIONAL",
+                                       "recorded_at": "2026-01-02T00:00:00Z"}) + "\n",
+                           encoding="utf-8")
+            check("...while a graded CONDITIONAL that POSTDATES the last attempt "
+                  "does NOT exempt it -- the exemption is for drops, not for "
+                  "verdicts (c2)",
+                  digest_exempt("9.1", [{"type": "attempt", "step_id": "9.1",
+                                         "ts": "2026-01-01T00:00:00Z"}]) is None)
+            check("...and when no verdict postdates the previous attempt the check "
+                  "is skipped, because the prior launch produced nothing to respond to",
+                  (digest_exempt("9.1", [{"type": "attempt", "step_id": "9.1",
+                                          "ts": "2026-01-03T00:00:00Z"}]) or ""
+                   ).startswith("no verdict row postdates"))
+        finally:
+            VERDICT_LEDGER = _old_v2
+
+
+    # ── phase-90.3: DRIVE THE HOOK, not just the pure functions ─────────────
+    # Found by mutation cell QX: renaming a name used ONLY inside handle_hook's
+    # digest branch SURVIVED the whole self-test, because every cell above calls
+    # decide()/compute_digest() directly and nothing executed the WIRING. A
+    # mechanism whose functions are tested and whose wiring is not is a mechanism
+    # that can be disconnected without a single check going red.
+    with _tf.TemporaryDirectory() as _td2:
+        _t = Path(_td2)
+        (_t / "esc").mkdir()
+        import attempt_outcomes as _ao  # noqa: PLC0415
+        shutil.copy2(_ao.masterplan_path(), _t / "mp.json")
+        (_t / "led.jsonl").write_text("", encoding="utf-8")
+        (_t / "vl.jsonl").write_text("", encoding="utf-8")
+        _env = dict(os.environ,
+                    ATTEMPT_GATE_PROGRESS_DIGEST="1",
+                    ATTEMPT_GATE_LEDGER=str(_t / "led.jsonl"),
+                    ATTEMPT_GATE_VERDICT_LEDGER=str(_t / "vl.jsonl"),
+                    ATTEMPT_GATE_ESCALATION_DIR=str(_t / "esc"),
+                    ATTEMPT_GATE_MASTERPLAN=str(_t / "mp.json"),
+                    ATTEMPT_GATE_DIGEST_INPUTS=os.pathsep.join(
+                        ["scripts/harness/attempt_gate.py"]))
+        _stdin = json.dumps({"tool_name": "Workflow",
+                             "tool_input": {"args": {"step_id": "9.1"}},
+                             "session_id": "selftest"})
+
+        def _hook(env=_env):
+            r = subprocess.run([sys.executable, str(Path(__file__).resolve())],
+                               input=_stdin, capture_output=True, text=True,
+                               env=env, timeout=120)
+            # SURFACE THE NESTED STDERR. These drives are a subprocess inside a
+            # subprocess, and an outer observer -- the mutation matrix -- sees only
+            # what reaches THIS process. Cell QX renames a name used in the hook's
+            # digest branch; the resulting NameError is caught by the production
+            # fail-open handler, printed as one line INSIDE the nested drive, and
+            # was invisible out here, so the mutant scored KILLED where the ERROR
+            # discipline (phase-90.12) requires ERROR. That is the same swallowed
+            # -signal defect 90.12 fixed, one process boundary further out: a
+            # discriminator can only read what it is given.
+            for _ln in (r.stderr or "").splitlines():
+                if "INTERNAL ERROR" in _ln or "Traceback" in _ln:
+                    print(f"    [nested hook drive] {_ln}", file=sys.stderr)
+            return r.returncode, r.stderr
+
+        _rc1, _e1 = _hook()
+        check("hook drive 1: allowed, and the digest is SKIPPED because no verdict "
+              "row exists yet (c2)",
+              _rc1 == 0 and "progress-digest SKIPPED" in _e1)
+        # a graded verdict that POSTDATES the attempt makes the check apply
+        _later = (datetime.datetime.now(datetime.timezone.utc)
+                  + datetime.timedelta(seconds=30)).strftime("%Y-%m-%dT%H:%M:%SZ")
+        (_t / "vl.jsonl").write_text(json.dumps(
+            {"step_id": "9.1", "verdict": "CONDITIONAL", "date": "2026-08-21",
+             "recorded_at": _later}) + "\n", encoding="utf-8")
+        _rc2, _e2 = _hook()
+        check("hook drive 2: a graded verdict now postdates the attempt, so the "
+              "digest is COMPUTED and this first sighting is allowed",
+              _rc2 == 0 and "progress-digest SKIPPED" not in _e2)
+        _rc3, _e3 = _hook()
+        check("hook drive 3: the SAME evidence is now DENIED with reason "
+              "no_new_evidence -- the wiring is exercised, not just the functions (c8)",
+              _rc3 == 2 and "no_new_evidence" in _e3)
+        _rows_now = read_ledger(_t / "led.jsonl")
+        check("...and a row is appended on the DENY as well as on the allows, which "
+              "is what makes an A->B->A revert deny on the third launch (c3)",
+              len(_rows_now) == 3
+              and "DENIED" in str(_rows_now[-1].get("note") or ""))
+        check("...and the denial did not touch the verdict ledger -- a denial is not "
+              "a verdict (c7)",
+              (_t / "vl.jsonl").read_text(encoding="utf-8").count("\n") == 1)
+        _env_off = dict(_env)
+        _env_off["ATTEMPT_GATE_PROGRESS_DIGEST"] = ""
+        _rc4, _e4 = _hook(_env_off)
+        check("...and with the flag OFF (the shipped default) the same launch is "
+              "ALLOWED -- the mechanism is dark on the live rail until enabled",
+              _rc4 == 0 and "DISABLED" in _e4)
+
     print("SELF-TEST", "PASSED" if ok else "FAILED")
     return 0 if ok else 1
 
