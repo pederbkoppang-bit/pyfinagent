@@ -94,11 +94,28 @@ produce -- and both findings reproduce under my own hands, so I have no reason t
 moved this verdict. That reasoning is not available in general, which is why the rule
 exists, and saying it is not a defence. The detector gap is filed as **step 90.13**.
 
+## 6b. WHAT CHANGED SINCE THIS ESCALATION WAS WRITTEN (2026-08-21, later the same day)
+
+**The blocker is fixed.** The criterion-5-clause-3 defect was filed as step **90.12**, and
+90.12 has since been built and landed: the discriminator now reads the exception TYPE
+wherever it appears -- traceback or fail-open one-liner. **The Q/A's own three cells
+(QA1/QA1b/QA1c) now score ERROR where they scored KILLED**, measured against a pre-fix
+baseline extracted from git rather than retyped. A `UnboundLocalError` blind spot found by
+90.12's research gate is closed too. 90.1's immutable command still exits 0.
+
+**This changes what option A means.** It no longer buys a cycle to fix an open defect and
+hope; it buys a cycle to *grade a closed blocker*. Two harness repairs behind it (90.12 and
+90.15) also mean that cycle would run on a materially sounder rail than the five before it.
+
+**It is still not a PASS**, and I am not treating it as one. Criterion 5 clause 3 has
+relocated four times on this step, and on the sibling step 90.2 a research gate found a
+FIFTH relocation in work I had already called verified. A sixth is possible.
+
 ## 7. The decision I need from you
 
 | Option | What it means |
 |---|---|
-| **A. Extend the budget** | `python3 scripts/harness/attempt_gate.py --operator-extend 90.1 --by 1 --reason "<reason>"` re-opens exactly one attempt. I would then fix the discriminator (90.12's substance) inside 90.1 and spawn a sixth Q/A. Risk: on the record, this criterion has relocated four times; a fifth is a live possibility. |
+| **A. Extend the budget** (now the strongest option, see 6b) | `python3 scripts/harness/attempt_gate.py --operator-extend 90.1 --by 1 --reason "<reason>"` re-opens exactly one attempt. **The blocker is already fixed and instrumented** -- the cycle would grade a closed defect, not chase an open one, and it would run on a rail with 90.12 and 90.15 landed behind it. Risk, unchanged and real: this criterion has relocated four times, and a fifth was found on the sibling step. |
 | **B. Close 90.1 on criteria 1-4 and 6, with clause 3 carried by 90.12** (my recommendation) | The step's PRODUCT -- the `outcome` field, the token ceiling that now fires, the reason-named escalations, the membership check -- is verified and independently re-derived. What remains is the EVIDENCE apparatus, and it is filed with its own command. This requires your explicit sign-off because **a step has never been closed without a PASS** and I will not do it on my own authority. |
 | **C. Leave it parked** | 90.1 stays `pending` and 90.3, which needs the `outcome` field, stays blocked behind it. |
 

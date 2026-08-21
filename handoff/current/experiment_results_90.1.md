@@ -658,3 +658,75 @@ spawn is theirs to schedule. Attempt budget stands at **4 of 5**, 955,467 of 1,2
 
 **90.1 is NOT being flipped to `done`.** A step is never closed without a PASS verdict, and
 self-evaluation is forbidden. It stays `pending` with this record.
+
+
+---
+
+# CYCLE 6 -- the blocker that FAILED this step is now CLOSED (no re-grade, no spawn)
+
+**This is the Main-side half of the documented cycle-2 flow: fix the blocker and update the
+handoff files. The other half -- spawn a fresh Q/A on the changed evidence -- is NOT done
+here, because the attempt budget is exhausted at 5/5 and a sixth launch is denied by the
+gate. Nothing below is a verdict, and 90.1 is NOT flipped.**
+
+## What changed
+
+The cycle-5 Q/A FAILED this step on **criterion 5 clause 3** -- *"a mutant that fails to run
+scores ERROR and never counts as a kill"* -- because `_drive_traceback` required a literal
+`Traceback (most recent call last)` while `attempt_gate.handle_hook`'s fail-open handler
+prints one line and no traceback. The three cells it authored (QA1 / QA1b / QA1c, single
+call-site renames inside `handle_hook`) scored **KILLED** where the criterion requires
+**ERROR**.
+
+**That defect was filed as step 90.12 and has now been fixed and landed.** The discriminator
+reads the exception TYPE wherever it appears -- traceback or fail-open one-liner -- and is
+renamed `_drive_unresolvable`, because the old name described the mechanism it used rather
+than the question it answers.
+
+## Measured, on the current tree
+
+```
+  cell   BEFORE (traceback-only)    AFTER (typed)              expected
+  QA1    not-ERROR                  ERROR                      ERROR
+  QA1b   not-ERROR                  ERROR                      ERROR
+  QA1c   not-ERROR                  ERROR                      ERROR
+  QX2    ERROR                      ERROR                      ERROR
+  UBL    not-ERROR                  ERROR                      ERROR
+  DOM    not-ERROR                  not-ERROR                  KILL
+  N0     not-ERROR                  not-ERROR                  KILL_NONE
+```
+
+The BEFORE column is not a retyping: `verify_error_discriminator_90_12.py` **extracts the
+pre-fix discriminator from git** at `d564ad58` and scores each mutant with both
+implementations from a **single** observation pass.
+
+- **QA1 / QA1b / QA1c** are the Q/A's own three cells. All three now score ERROR.
+- **QX2** (definition rename) scored ERROR before and after -- the pre-fix scan already
+  caught that sub-class, which is why the cycle-4 fix looked complete. It stays in the table
+  to show the fix closed a *different* sub-class.
+- **DOM** raises an `AssertionError` through the *same* fail-open handler and stays a KILL,
+  so the probe did not become over-eager -- the failure mode that silently deleted a cell in
+  cycle 4.
+- **UBL** was found by 90.12's research gate, after the fix: `UnboundLocalError` subclasses
+  `NameError` but its printed name does not contain that substring, and the scan matches
+  type names as strings. A real blind spot, now closed.
+
+## And this step's own immutable command still passes
+
+```
+$ python3 scripts/harness/attempt_gate.py --self-test && python3 scripts/qa/mutation_matrix_90_1.py --verify
+90.1 IMMUTABLE EXIT: 0
+```
+
+## What this does and does not mean
+
+**It does NOT mean 90.1 passes.** No Q/A has graded this evidence. Criterion 5 clause 3 has
+relocated four times on this step, and the honest reading of that record is that a fifth
+seam is possible -- 90.14's gate found exactly such a fifth seam on the sibling step, one
+dimension over, on work I had already called verified.
+
+**It does mean the operator's decision is now different from the one in the escalation.**
+When that escalation was written, option A ("extend by one attempt") meant spending a cycle
+to fix an open defect and hope. The defect is now fixed and independently instrumented, so
+option A now means spending a cycle to *grade* a closed blocker. That is a materially better
+bet, and the record should say so rather than leave a stale framing in place.
