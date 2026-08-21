@@ -37055,3 +37055,33 @@ three options at `handoff/current/operator_escalation_90.2.md`.
 **Two steps are now at the budget's designed terminal state on the same day (90.1, 90.2), and
 in both the PRODUCT was verified while an EVIDENCE criterion kept relocating.** That is
 exactly the fixed point step 90.9 exists to describe, now observed twice.
+
+
+## Cycle 200 -- 2026-08-21 -- phase=90.15 result=NO VERDICT (repair landed, deliberately ungraded)
+
+**No Q/A spawned and no research gate.** The operator stopped the evaluation cadence
+mid-session: running cycles while the harness's own filed defects are unfixed makes each
+cycle re-discover them at full cost -- measured today at 5 spawns and ~1.13M subagent
+tokens across 90.1 and 90.2, both ending at budget exhaustion with the PRODUCT verified and
+an EVIDENCE criterion relocating. 90.15 IS one of those defects and was the only one **live
+on every Q/A spawn**, so it is landed as a repair. The step stays `pending` and ungraded.
+
+All three sibling-leak guards computed against `merged` while the function returned a
+different object one line later. RED-FIRST at `d564ad58`: flattening the routing object at
+the final return exits 0 with 87 checks and 0 failures -- SURVIVED. The fix removes the
+seam (`returned` built once, guarded, returned unchanged) and adds a positive-completeness
+guard on the whole key set, ordered LAST so the specific 86.78/86.72/90.2 diagnoses are not
+swallowed. Post-fix those are cells M18/M19 and both die.
+
+Whole rail re-verified green: the 90.2 immutable command (92 checks, floor 79, 21 cells),
+`verify_escalation_86_78`, `verify_research_gate_workflow`, `verify_prompt_render_86_90`,
+`verify_workflow_args_boundary`, `verify_rail_retry`.
+
+**Two defects of Main's own, surfaced by this work and recorded rather than smoothed:**
+`verify_prompt_render_86_90` had been RED since 90.2 landed hours earlier -- its cell
+anchors the `const merged` line, 90.2 changed that line, and Main never re-ran the checkers
+that anchor on a shared file. And during the co-change a red control briefly made cells
+M18/M19 report KILLED while they genuinely SURVIVED: **a red control does not merely
+invalidate a run, it manufactures kills.** Root cause of the latter: section I's source
+scans read the tracked file from disk and were therefore blind to every mutant -- they
+tested the repository, not the subject. `load()` now carries the subject source.
