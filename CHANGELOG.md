@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-21 | `36ca16e1` | phase-90.12: make the ERROR discriminator able to FIRE -- read the type, not the shape |
 | 2026-08-21 | `67dcfe55` | phase-90.15: harness_log entry -- repair landed, no verdict, step stays pending |
 | 2026-08-21 | `d4ff4d57` | phase-90.15: close the sibling-leak seam -- guards now inspect the object returned |
 | 2026-08-21 | `173b48fe` | phase-91: file 5 defects from investigating the MRNA buy rationale (91.27-91.31) |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-20 | `74d9862c` | phase-91: split today's 23-item operator defect batch out of phase-86 |
 | 2026-08-20 | `b5a9b9d6` | phase-90.1: cycle-3 -- close the numbered criterion miss and two illusory guards |
 | 2026-08-20 | `15310603` | phase-86: file the holding-side reeval cooldown defect as 86.149 |
-| 2026-08-20 | `84cdbfda` | phase-86: file 3 more operator-surfaced items as individual steps (86.146-86.148) |
 
 ---
 
