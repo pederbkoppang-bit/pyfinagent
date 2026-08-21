@@ -58,7 +58,7 @@ VERDICT_LEDGER = REPO / "handoff" / "verdict_ledger.jsonl"
 #: the tree the 90.1 cycle-5 Q/A actually evaluated.
 PRE_FIX_REV = "d564ad58"
 
-EXPECTED_CHECKS = 20
+EXPECTED_CHECKS = 23
 
 results: list[tuple[str, bool, str]] = []
 
@@ -125,6 +125,20 @@ def _rename_def(name: str):
     return apply
 
 
+def _plant_unbound_local(src: str) -> str:
+    """A binding used BEFORE assignment inside the hook -- raises UnboundLocalError.
+
+    The research gate's finding, and it was a live blind spot: UnboundLocalError
+    SUBCLASSES NameError, but the printed name is "UnboundLocalError:", which does
+    not contain the substring "NameError". This scan matches type names as STRINGS,
+    so subclass relationships do not carry, and the mutant was scored KILLED.
+    """
+    a = "        claim = extract_step_id_claim(tool_input)"
+    if src.count(a) != 1:
+        raise SystemExit(f"ANCHOR NOT UNIQUE: {a}")
+    return src.replace(a, "        _later = _later + 1\n        _later = 0\n" + a)
+
+
 def _plant_domain_error(src: str) -> str:
     """A DOMAIN exception raised INSIDE the hook's try block, so it reaches
     stderr through the SAME fail-open handler as a NameError. This is the cell
@@ -145,6 +159,9 @@ CELLS = [
      _rename_call_site("extract_step_id")),
     ("QX2", "DEFINITION rename: def handle_hook -> handle_hook_v2 (the control "
             "the pre-fix scan already caught)", "ERROR", _rename_def("handle_hook")),
+    ("UBL", "a binding used before assignment -- UnboundLocalError, whose printed "
+            "name does NOT contain 'NameError' despite subclassing it", "ERROR",
+     _plant_unbound_local),
     ("DOM", "a DOMAIN exception (AssertionError) raised inside the hook's try "
             "block, reaching stderr through the SAME fail-open handler", "KILL",
      _plant_domain_error),
@@ -204,6 +221,18 @@ def main(argv=None) -> int:
 
     section("C. CRITERION 2 -- CALL-SITE renames score ERROR, and the DEFINITION "
             "control still does")
+    check("UBL scores ERROR -- UnboundLocalError subclasses NameError but its printed "
+          "name does not contain that substring, and this scan matches type names as "
+          "STRINGS, so the subclass relationship does not carry (research gate 90.12)",
+          by["UBL"][4] == "ERROR", by["UBL"][5][:90])
+    check("...and it scored NOT-ERROR before the type list was widened, so the gap was "
+          "real rather than theoretical", by["UBL"][3] == "not-ERROR")
+    check("TypeError is DELIBERATELY absent from the type list: cosmic-ray issue #310 is "
+          "this defect in the wild in reverse, where a TypeError -- a legitimate domain "
+          "error -- was classed non-viable and the mutant mis-scored. A false positive "
+          "here silently DELETES a cell",
+          "TypeError" not in __import__("mm901").UNRESOLVABLE_ERRORS)
+
     for cid in ("QA1", "QA1b", "QA1c"):
         r = by[cid]
         check(f"{cid} scores ERROR after the fix -- {r[1]}", r[4] == "ERROR", r[5][:90])

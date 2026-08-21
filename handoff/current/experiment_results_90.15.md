@@ -13,6 +13,44 @@
 
 **Step:** 90.15 -- all three sibling-leak guards compute one seam UPSTREAM of the object
 actually returned. **Date:** 2026-08-21.
+**Research gate: PASSED (enforced)** -- `wf_7af57a73-cd4`, 9 sources read in full, 37 URLs,
+`self_report_disagreed: false`, brief `handoff/current/research_brief_90.15.md`. **Run AFTER
+this build, on the operator's instruction, and it found an open residual -- see section 0.**
+
+## 0. THE GATE FOUND A RESIDUAL THIS BUILD DOES NOT CLOSE (filed as 90.16)
+
+**The fix closes the RECONSTRUCTION seam and not the MUTATION seam.** Reproduced by me in a
+shadow tree before filing:
+
+```
+MUTANT: a post-guard MUTATION of the returned object; `return returned` left intact
+  returned.caller_note = 'x'
+  return returned
+  checks run: 100 (floor 100)
+  failed:     0
+exit: 0  (0 == SURVIVED -- the residual is real)
+```
+
+**And the part that matters more:** cells **M18 and M19 look like they cover this and do
+not.** They die to the SOURCE SCAN `/\nreturn returned\n/`, **not to any guard firing** --
+because no checker observes the object the module actually returns. The behavioural drives
+exercise an *extracted* guard against hand-built objects, which is a different thing. So the
+matrix reports two kills for a property that is not behaviourally covered at all.
+
+**What the literature says about the shape:** this is textbook **CWE-367** time-of-check /
+time-of-use -- *"access() and fopen() operate on filenames rather than on file handles"* --
+and CWE-367's preferred remedy is to **remove the window, not police it**, which is what
+construct-once did for the reconstruction half. **CWE-441** supplies the provenance rule for
+judge pipelines: *"the immutability of the identity of the initiator must be maintained."*
+**OWASP** prescribes exactly the allowlist/denylist pairing this file now has -- the three
+per-object filters are denylists, the key-set guard is the allowlist, with the allowlist
+primary. **RFC 9457 dissents**: consumers MUST ignore unknown members, so the
+producer/consumer split is worth stating rather than assuming away.
+
+**Not fixed here, deliberately.** The obvious remedy is to seal or freeze the returned
+object -- and that **changes what the Q/A rail returns on every spawn**. Landing it ungraded
+would be the shipped-fix-that-never-ran pattern on the live rail. Filed as **90.16** with its
+own immutable command.
 
 ---
 

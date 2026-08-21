@@ -1,5 +1,6 @@
 # Researcher Agent Memory Index
 
+- [Error discriminator 90.12](project_error_discriminator_90_12.md) — exclusion is settled in 3 tool ecosystems; exception TYPE is INCOMPLETE (TypeError hole, subclass names don't inherit); the handler already puts the type on the wire; caplog inapplicable
 - [Phase-tag in UI 91.9](project_phase_tag_in_ui_91_9.md) — naive grep over-reports ~20:1 (60 raw -> 1 real); a "grep returns zero" criterion is unsatisfiable (57 hits are REQUIRED provenance comments); OWASP assigns NO severity here
 
 - [Glow emphasis 91.13](project_glow_emphasis_91_13.md) — `.alpha-score-glow` is named after DEAD code (0 render sites); both live sites are 1-of-N UNIFORM rows; 1 of 5 infinite animations is motion-guarded

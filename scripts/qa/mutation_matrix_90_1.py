@@ -346,8 +346,30 @@ def drive_backfill(gate: Path, tmp: Path) -> dict:
 #: -- i.e. it never ran -- as distinct from a domain exception the code raises
 #: on purpose (AssertionError, ValueError), which is a mutant RUNNING and
 #: misbehaving and must stay a KILL.
+#
+# phase-90.12, AFTER the research gate. Three things the literature changed here:
+#
+# 1. UnboundLocalError WAS MISSING, and it is a live blind spot rather than a
+#    tidy-up. It subclasses NameError, but the printed name is "UnboundLocalError:",
+#    which does NOT contain the substring "NameError" -- and this scan matches TYPE
+#    NAMES AS STRINGS, so subclass relationships do not carry. A mutant that moves a
+#    binding after its use raises it and was being scored KILLED.
+# 2. TypeError is DELIBERATELY ABSENT. cosmic-ray issue #310 is this exact defect in
+#    the wild, in reverse: a TypeError -- a legitimate domain error -- was classed
+#    non-viable and the mutant mis-scored. Adding it would trade a false negative for
+#    a false positive, and a false positive here silently DELETES a cell.
+# 3. Excluding non-viable mutants from the score is settled prior art, not a local
+#    invention: Stryker excludes them from the denominator (score = detected/valid),
+#    PIT has a NON_VIABLE status, cosmic-ray calls them "incompetent". The published
+#    risk is the ORACLE'S PRECISION, not the doctrine -- so the false-exclusion rate
+#    is MEASURED on a labelled sample in verify_error_discriminator_90_12.py rather
+#    than assumed to be zero.
+#
+# TYPE IS RUNG 4 OF A LADDER, not the whole instrument: parse -> import -> run ->
+# type. Each rung catches what the one before it cannot, and the type test is the
+# last resort precisely because string-matched type names are the weakest of the four.
 UNRESOLVABLE_ERRORS = ("ModuleNotFoundError", "ImportError", "NameError",
-                       "AttributeError")
+                       "UnboundLocalError", "AttributeError")
 
 
 def _drive_unresolvable(obs: dict) -> str | None:
