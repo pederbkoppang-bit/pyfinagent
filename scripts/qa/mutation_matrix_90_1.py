@@ -420,6 +420,12 @@ def _drive_unresolvable(obs: dict) -> str | None:
     for key in ("below", "at", "unknown", "over", "under", "nested",
                 "backfill", "launch", "join"):
         err = (obs.get(key) or {}).get("stderr") or ""
+        # Python 3.13+ colorizes tracebacks and the runtime injects FORCE_COLOR, so
+        # the type name arrives wrapped in ANSI and a literal match silently fails --
+        # turning an ERROR into a KILL, which INFLATES the score. Found by the 90.9
+        # cycle-1 Q/A on a sibling matrix; stripped here too rather than left as a
+        # difference between two files that do the same job.
+        err = re.sub(r"\x1b\[[0-9;]*m", "", err)
         if not err.strip():
             continue
         # (a) an UNHANDLED traceback: the type is the last line's prefix.

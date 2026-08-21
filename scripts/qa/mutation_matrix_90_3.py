@@ -28,6 +28,8 @@ well as from a traceback, because a fail-open handler emits one line and none.
 from __future__ import annotations
 
 import hashlib
+import os
+import re
 import shutil
 import subprocess
 import sys
@@ -51,6 +53,21 @@ def sha256(p: Path) -> str:
     return hashlib.sha256(p.read_bytes()).hexdigest() if p.exists() else "ABSENT"
 
 
+#: phase-90.9 cycle-1 Q/A: Python 3.13+ COLORIZES tracebacks, and the agent runtime
+#: injects FORCE_COLOR=3, so a subprocess stderr carries
+#: '\x1b[1;35mNameError\x1b[0m: ' and a literal `"NameError:" in stderr` NEVER
+#: matches. Measured: the same command exits 0 on system python3 3.9.6 and 1 under
+#: the project venv (3.14.4), and the direction is FAIL-DANGEROUS -- it turns ERROR
+#: into KILLED and INFLATES the kill count. Strip the formatting before reading the
+#: type, and drive with colour disabled as well; belt and braces, because either one
+#: alone is a bet on an environment.
+_ANSI = re.compile(r"\x1b\[[0-9;]*m")
+
+
+def decolorize(s: str) -> str:
+    return _ANSI.sub("", s or "")
+
+
 def score_error(observed: str) -> str | None:
     """The exception TYPE if the drive failed to RESOLVE A NAME (phase-90.12).
 
@@ -58,7 +75,7 @@ def score_error(observed: str) -> str | None:
     because a fail-open handler prints one line and no traceback.
     """
     for t in UNRESOLVABLE:
-        if f"{t}:" in observed:
+        if f"{t}:" in decolorize(observed):
             return t
     return None
 
@@ -103,7 +120,9 @@ def sandbox(src: str) -> Path:
 
 def drive(root: Path) -> tuple[int, str]:
     out = subprocess.run([sys.executable, "scripts/harness/attempt_gate.py", "--self-test"],
-                         cwd=root, capture_output=True, text=True, timeout=600)
+                         cwd=root, capture_output=True, text=True, timeout=600,
+                         env={**os.environ, "NO_COLOR": "1", "PYTHON_COLORS": "0",
+                              "FORCE_COLOR": ""})
     return out.returncode, out.stdout + "\n" + out.stderr
 
 

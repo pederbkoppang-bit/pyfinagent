@@ -58,7 +58,9 @@ VERDICT_LEDGER = REPO / "handoff" / "verdict_ledger.jsonl"
 #: the tree the 90.1 cycle-5 Q/A actually evaluated.
 PRE_FIX_REV = "d564ad58"
 
-EXPECTED_CHECKS = 23
+_DIRTY_AT_START: set = set()
+
+EXPECTED_CHECKS = 24
 
 results: list[tuple[str, bool, str]] = []
 
@@ -188,6 +190,12 @@ def main(argv=None) -> int:
         return 0
 
     vl_before = sha256(VERDICT_LEDGER)
+    global _DIRTY_AT_START
+    _DIRTY_AT_START = {ln.split(" -> ")[-1].strip().strip('"')
+                       for ln in (l[3:] for l in subprocess.run(
+                           ["git", "status", "--porcelain", "--", "scripts/harness",
+                            "scripts/qa"], cwd=REPO, capture_output=True,
+                           text=True).stdout.splitlines() if l.strip())}
     gate_md5_before = hashlib.md5(GATE.read_bytes()).hexdigest()
     mm = load_matrix()
     pre_fix, pre_fix_src = extract_pre_fix_discriminator()
@@ -238,9 +246,20 @@ def main(argv=None) -> int:
         check(f"{cid} scores ERROR after the fix -- {r[1]}", r[4] == "ERROR", r[5][:90])
         check(f"...and scored NOT-ERROR before it, so the cell is RED-FIRST rather "
               f"than already covered ({cid})", r[3] == "not-ERROR")
-    check("QX2 (definition rename) scored ERROR BEFORE and AFTER -- the pre-fix scan "
-          "caught this sub-class, which is exactly why the fix looked complete",
-          by["QX2"][3] == "ERROR" and by["QX2"][4] == "ERROR")
+    # CORRECTED after the 90.9 cycle-1 Q/A. This check used to assert that QX2 scored
+    # ERROR in BOTH columns, on the reasoning that the pre-fix scan already caught the
+    # definition-rename sub-class. That was measured on system python3 3.9.6. Under the
+    # project venv (3.14.4) with the runtime's FORCE_COLOR, the pre-fix scan is blind to
+    # QX2 as well -- its `tail.startswith("NameError")` cannot match a tail that begins
+    # with an ANSI escape. So the BEFORE column is INTERPRETER-DEPENDENT and asserting a
+    # value for it was asserting a property of my shell. What must hold, and does, is
+    # the AFTER column.
+    check("QX2 (definition rename) scores ERROR AFTER the fix",
+          by["QX2"][4] == "ERROR", by["QX2"][5][:80])
+    check("...and its BEFORE value is reported, not asserted -- it depends on whether "
+          "the interpreter colorizes tracebacks, which is exactly the defect the 90.9 "
+          "Q/A found in the sibling matrices",
+          by["QX2"][3] in ("ERROR", "not-ERROR"), "BEFORE=" + by["QX2"][3])
 
     section("D. CRITERION 3 -- IT STILL DISCRIMINATES (the over-eager failure mode)")
     check("a DOMAIN exception through the SAME fail-open handler is NOT scored ERROR "
@@ -282,11 +301,14 @@ def main(argv=None) -> int:
     # NOT a source grep for write verbs: that probe would match its own literal
     # list, which is the self-referential vacuity that broke the first version of
     # the equivalent check in criteria_shape_90_9.py. Measured empirically instead.
+    # COMPARE THE RUN AGAINST ITSELF, not against a hardcoded list. The first version
+    # pinned an expected-dirty set, which went red the moment this session legitimately
+    # edited a different file -- so it was measuring "has anything changed today",
+    # not "did THIS RUN write anything". The baseline is captured at the top of main().
     dirty = subprocess.run(["git", "status", "--porcelain", "--",
                             "scripts/harness", "scripts/qa"],
                            cwd=REPO, capture_output=True, text=True).stdout
-    expected_dirty = {"scripts/qa/mutation_matrix_90_1.py",
-                      "scripts/qa/verify_error_discriminator_90_12.py"}
+    expected_dirty = _DIRTY_AT_START
     # NOT `stdout.strip()` then `ln[3:]`: stripping the whole blob removes the
     # leading space of the FIRST porcelain line only, so a fixed-width slice eats
     # one character of exactly one path and reports 'cripts/qa/...'. Parse each
