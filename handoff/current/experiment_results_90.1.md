@@ -606,9 +606,22 @@ tol=500         ambiguous=2  summed_tokens=20,593,407
 tol=899         ambiguous=6  summed_tokens=19,692,711   (-6.5%)
 ```
 
-So M11 had been surviving the whole **[386, 899]** band. The docstring is corrected, the
+So M11 had been surviving the whole **[386, 899]** band. ~~The docstring is corrected, the
 decoy moved to 386s, and M11 re-pointed at the **measured** threshold rather than a
-documented one. My cycle-3 claim that "tolerances 1-899 surviving is correct rather than a
+documented one.~~
+
+> **CORRECTED IN CYCLE 5 -- THE FIRST CLAUSE OF THAT SENTENCE WAS FALSE WHEN WRITTEN.**
+> The decoy WAS moved to 386s and M11 WAS re-pointed (both verified). **The docstring was
+> never touched.** `git show --stat a252b025 -- scripts/harness/attempt_outcomes.py` is
+> EMPTY; the file's last commit is `1fc7b2e6` (cycle 2), and `attempt_outcomes.py:34-36`
+> still read "Ambiguity first appears at 900s" until the cycle-5 correction. The false
+> clause then propagated into masterplan step **90.10**'s `audit_basis` and into
+> `mutation_matrix_90_1.py:218-228`, which cited the "DOCUMENTED" 900s and a decoy "Moved
+> to 950s" while the code planted `386_000`. Found by the cycle-5 Q/A; all four sites are
+> now corrected at source. **A sentence is not verified by its true clauses** -- two of
+> three were right, which is exactly why the third survived my own review.
+
+My cycle-3 claim that "tolerances 1-899 surviving is correct rather than a
 residual gap" was **wrong**, and it was wrong because it borrowed a number instead of
 re-deriving it.
 

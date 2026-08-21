@@ -215,17 +215,28 @@ def drive_join(gate: Path, tmp: Path) -> dict:
                                "workflow": "qa-verdict.js"}) + "\n",
                    encoding="utf-8")
     _plant_run_record(tmp, REAL_SID, ts, 900, "FAIL", 4242)
-    # A DECOY for the same step, placed just past the DOCUMENTED ambiguity
-    # threshold (the module docstring: ambiguity first appears at 900s).
+    # A DECOY for the same step, placed exactly at the MEASURED ambiguity
+    # threshold -- 386s, re-derived from the live ledger, NOT read off a
+    # docstring.
     #
     # phase-90.1 cycle-3. The cycle-2 Q/A swept this and found the decoy sat at
     # 7,200,000 ms, so the cell defended the DECOY's boundary rather than the
-    # documented one: every tolerance from 1 to 7199 SURVIVED, including 3600 --
-    # which on the real ledger collapses summed tokens from 20,365,361 to
-    # 4,015,375 and turns 71 rows ambiguous. A guard calibrated to its own
-    # fixture rather than to the property is the illusory-guard shape. Moved to
-    # 950s: still unambiguous at the shipped 30s, ambiguous for anything at or
-    # past the documented threshold.
+    # real one: every tolerance from 1 to 7199 SURVIVED, including 3600 -- which
+    # on the real ledger collapses summed tokens and turns most rows ambiguous
+    # (measured 2026-08-21 over 106 attempt rows: 23,170,826 -> 4,015,422 and 83
+    # ambiguous at 3600s; the cycle-3 figures were 20,365,361 -> 4,015,375 and 71
+    # ambiguous over 89 rows -- the ledger grows, so the numbers move and the
+    # corpus must be stated with them). A guard calibrated to its own fixture
+    # rather than to the property is the illusory-guard shape.
+    #
+    # CORRECTED phase-90.1 cycle 5. This comment previously said "the DOCUMENTED
+    # ambiguity threshold (the module docstring: ambiguity first appears at
+    # 900s)" and "Moved to 950s", while the line below has planted 386_000 since
+    # cycle 4. Both halves were stale: the docstring's 900s was itself the
+    # un-corrected claim (see attempt_outcomes.py), and 950s never matched the
+    # code. Measured 2026-08-21: 385s -> 0 ambiguous, 386s -> 1. The decoy sits
+    # AT 386s -- unambiguous at the shipped 30s, ambiguous at or past the
+    # measured threshold.
     _plant_run_record(tmp, REAL_SID, ts, 386_000, "PASS", 999999,
                       name="wf_decoy")
     resolver = gate.parent / "attempt_outcomes.py"

@@ -27,13 +27,28 @@ can last 15+ minutes (observed durationMs 1,002,277), so it is useless as a
 launch key. `startTime` (epoch ms) is the launch moment and matches the
 PreToolUse row's `ts` almost exactly.
 
-Measured over the real 89 attempt rows: joining on
-`(args.step_id, |startTime - row.ts| <= tol)` resolves 83 of 89 UNIQUELY with
-ZERO ambiguous matches at every tolerance from 30s to 300s; nearest-match
-|delta| is min 0.021s, p50 0.464s, max 1.007s. The same join on `timestamp`
-resolves 9 of 89 -- the field is the bug, not the key. Ambiguity first appears
-at 900s, which is why the default tolerance is 30s: 30x headroom over the
-observed worst case and still an order of magnitude short of ambiguity.
+EVERY FIGURE BELOW IS CORPUS-DEPENDENT AND DRIFTS. State the corpus with the
+number or do not state the number. Re-derive with
+`python3 scripts/harness/attempt_outcomes.py --backfill --dry-run`; the sweep
+that produces the ambiguity threshold is step 90.10's to make re-runnable.
+
+Measured 2026-08-21 over 106 attempt rows and 635 run records: joining on
+`(args.step_id, |startTime - row.ts| <= tol)` resolves 101 of 106 UNIQUELY with
+ZERO ambiguous matches at every tolerance from 30s through 385s; the 5 that miss
+are the synthetic `999.2` pipetest rows, which have no run record at all. The
+same join on `timestamp` resolves 2 of 106 -- the field is the bug, not the key.
+**Ambiguity first appears at 386s** (386s -> 1 ambiguous, 387s -> 2, 899s -> 11),
+which is why the default tolerance is 30s: ~13x headroom over the observed worst
+case and still an order of magnitude short of ambiguity.
+
+CORRECTED phase-90.1 cycle 5. This paragraph previously read "resolves 83 of 89
+... resolves 9 of 89 ... Ambiguity first appears at 900s". The 900s figure was
+re-measured as 386s during cycle 4 and the cycle-4 record CLAIMED this docstring
+had been corrected; `git show --stat a252b025 -- scripts/harness/attempt_outcomes.py`
+is EMPTY -- the commit never touched this file, and the stale 900s then propagated
+into masterplan step 90.10's audit_basis and into the mutation-matrix comment.
+The `timestamp` figure did not reproduce either (9 filed, 2 measured today, 1
+measured by the cycle-1 Q/A). Both numbers are REPLACED here, not annotated.
 
 An ambiguous or absent match resolves to UNKNOWN. It is never guessed.
 
