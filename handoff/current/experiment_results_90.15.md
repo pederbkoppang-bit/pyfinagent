@@ -1,15 +1,18 @@
 # Experiment Results -- step 90.15
 
-> **STATUS: BUILT, VERIFIED DETERMINISTICALLY, NOT EVALUATED. NOT CLOSEABLE.**
-> No research gate and no Q/A were spawned. The operator's instruction of 2026-08-21 was
-> to stop spending evaluation cycles while the harness's own known defects are unfixed;
-> this step IS one of those defects, and it is the only one that was **live on every Q/A
-> spawn**. It is landed as a repair so the next evaluation runs on a sound rail. Nothing
-> here has been independently graded, and the step stays `pending`.
+> **STATUS: BUILT AND VERIFIED, GATE RUN AFTER THE FACT, NOT EVALUATED. NOT CLOSEABLE.**
+> The repair was landed because this defect was **live on every Q/A spawn** and the
+> operator had directed that evaluation cycles stop while the harness's own filed defects
+> were unfixed. No Q/A was spawned; the step stays `pending`, ungraded.
 >
-> **Why no research gate:** the diagnosis was produced by an independent evaluator
-> (`wf_01b37b7d-fd2`) and reproduced by me twice by execution. Research exists to stop
-> building from assumption; there is no assumption here to test.
+> **CORRECTED.** This header previously read *"No research gate and no Q/A were spawned"*
+> and justified the skip: *"the diagnosis was produced by an independent evaluator and
+> reproduced by me twice by execution ... there is no assumption here to test."* **The
+> operator overruled that reasoning and the gate then refuted it in one run** -- it found
+> an open residual this build does not close (section 0). The gate was run at
+> `wf_7af57a73-cd4` and PASSED. The old justification is replaced, not annotated, because
+> it was wrong: a reproduced diagnosis tells you the defect is real, **not that the fix is
+> the right shape.**
 
 **Step:** 90.15 -- all three sibling-leak guards compute one seam UPSTREAM of the object
 actually returned. **Date:** 2026-08-21.

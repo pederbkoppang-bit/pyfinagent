@@ -1,11 +1,16 @@
 # Experiment Results -- step 90.12
 
-> **STATUS: BUILT, VERIFIED DETERMINISTICALLY, NOT EVALUATED. NOT CLOSEABLE.**
-> No research gate and no Q/A. Landed as a harness repair under the operator's
-> 2026-08-21 instruction to stop spending evaluation cycles while the harness's own
-> filed defects are unfixed. The diagnosis came from an independent evaluator
-> (`wf_a0efaee5-1fd`) and I reproduced it twice by execution -- there is no assumption
-> left for a research gate to test. **The step stays `pending` and ungraded.**
+> **STATUS: BUILT AND VERIFIED, GATE RUN AFTER THE FACT, NOT EVALUATED. NOT CLOSEABLE.**
+> No Q/A. Landed as a harness repair under the operator's 2026-08-21 instruction to stop
+> spending evaluation cycles while the harness's own filed defects are unfixed. **The step
+> stays `pending` and ungraded.**
+>
+> **CORRECTED.** This header previously justified skipping the research gate: *"the
+> diagnosis came from an independent evaluator and I reproduced it twice by execution --
+> there is no assumption left for a research gate to test."* The operator overruled that,
+> the gate was run at `wf_69d5b66e-684` (**PASSED**, 8 sources read in full, 26 URLs), and
+> it found a **live blind spot** -- see section 8. The justification is replaced, not
+> annotated.
 
 **Step:** 90.12 -- the mutation matrix's ERROR discriminator is vacuous over the production
 fail-open handler. **Date:** 2026-08-21.
@@ -110,3 +115,45 @@ EXIT 0      # step 90.1's own immutable command, unaffected
 - **No Q/A verdict.** Not closeable, not flipped.
 - `AttributeError` remains in `UNRESOLVABLE_ERRORS` and *can* legitimately be a domain
   error. That is pre-existing, unchanged here, and stated rather than quietly inherited.
+
+
+## 8. What the research gate returned, after the fact
+
+**Gate:** `wf_69d5b66e-684`, PASSED (enforced), 8 sources read in full, 26 URLs, recency
+scan performed, `self_report_disagreed: false`. Brief:
+`handoff/current/research_brief_90.12.md`.
+
+**A LIVE BLIND SPOT IT FOUND, now closed.** `UnboundLocalError` was missing from
+`UNRESOLVABLE_ERRORS`. It **subclasses** `NameError` — but the printed name is
+`UnboundLocalError:`, which does **not contain** the substring `NameError`, and this scan
+matches type names **as strings**, so the subclass relationship does not carry. A mutant
+that moves a binding after its use raises it and was scored KILLED. New cell **UBL**:
+`not-ERROR` before, **ERROR** after.
+
+**A deliberate exclusion it justified.** `TypeError` stays out of the list, and now with a
+reason on the record: **cosmic-ray issue #310** is this defect in the wild *in reverse* — a
+`TypeError`, a legitimate domain error, was classed non-viable and the mutant mis-scored.
+Adding it would trade a false negative for a false positive, and a false positive here
+**silently deletes a cell**.
+
+**The doctrine is settled prior art, not a local invention.** Excluding non-viable mutants
+from the score **denominator** is what Stryker does (score = detected/valid), what PIT calls
+`NON_VIABLE`, what cosmic-ray calls "incompetent", and what Google frames as
+unproductive/arid nodes. So the ERROR bucket is standard practice.
+
+**The published risk is the ORACLE's precision, not the doctrine.** The best equivalent-mutant
+detector reaches 94.33% precision; Google validated arid-node suppression on 100 labelled
+nodes (99 correct). The field's discipline is to **measure the false-exclusion rate on a
+labelled sample** — which is why exception type is **rung 4 of a parse → import → run → type
+ladder** rather than the whole instrument, and why that laddering is now stated in the source.
+
+**Corroboration of the exact failure mode.** cosmic-ray issue #310 is the mirror case in a
+real tool: a non-viable mutant scored SURVIVED because *the crash landed outside the
+observation window* — precisely what a fail-open handler manufactures.
+
+**A gap the gate reports honestly:** no source treats fail-open-handler testing as a named
+methodology problem. This is not covered territory, and the brief says so rather than
+padding a citation.
+
+**Not done:** the labelled-sample false-exclusion rate is **not** measured over a sample large
+enough to quote a percentage. Seven labelled cells is a smoke test, not an oracle validation.
