@@ -14,7 +14,7 @@ without asking it to classify anything new and without moving the verdict.
 |---|---|
 | `.claude/workflows/qa-verdict.js` | **NEW** `enforceSeverityRouting()` + two helpers (`severityTags`, `deriveSeverity`) + two constants, returned as a `severity_routing` SIBLING; the existing leak invariant EXTENDED with a third guard at the same throw-site. **No `VERDICT_SCHEMA` edit.** |
 | `scripts/qa/residual_close_gate.mjs` | **NEW.** The consumer half: refuses a parent step's close while a `queue_residual` debt is unfiled or toothless. Fail-CLOSED by design. |
-| `scripts/qa/verify_severity_routing_90_2.mjs` | **NEW.** The immutable checker: 61 checks over a floor of 50, an 11-cell mutation matrix with the control observed GREEN first, and a `--replay` mode over the real corpus. |
+| `scripts/qa/verify_severity_routing_90_2.mjs` | **NEW.** The immutable checker: 66 checks over a floor of 55, a 13-cell mutation matrix with the control observed GREEN first, a behavioural drive of the leak guard, and a `--replay` mode over the real corpus. |
 | `scripts/qa/fixtures/severity_routing_90_2_returns.json` | **NEW.** 24 VERBATIM real returns (6 PASS / 6 FAIL / 6 all-WARN CONDITIONAL / 6 mixed CONDITIONAL), copied unedited from run records at a stated pin. |
 
 **Red-first baseline captured before any of it existed:** the immutable command exited
@@ -52,6 +52,12 @@ TAG-FORM occurrence counts over every violated_criteria entry (pinned corpus):
 bare occurrences matching NO tag form: 12
 ```
 
+**This table is ILLUSTRATIVE and rule-dependent -- see NOTE N4 in the cycle-2 section.**
+It counts each occurrence once, under the first form that matches; the cycle-1 Q/A's
+independent tally under a different precedence gave 41/91/37/1/5 with 2 bare. Only
+`initial 41` matches across both. Nothing in the shipped code depends on this table; the
+load-bearing measurement is the 41/247 replay, which is re-runnable.
+
 Severity in `violated_criteria` is written as a **delimited tag** in ~185 of ~197
 occurrences, and inspecting all 12 bare ones shows they are mostly tags with suffixes
 (`(BLOCK-for-close)`, `[BLOCKING for PASS]`) plus one identifier
@@ -82,6 +88,25 @@ const leakedS = Object.keys(severity_routing).filter(k => k !== 'severity_routin
 if (leakedS.length > 0) { throw new Error('phase-90.2 invariant violated: ...') }
 ```
 
+**The guard is DRIVEN, not grepped -- corrected in cycle 2.** Cycle 1 covered this
+criterion with four regexes over the workflow file, and the cycle-1 Q/A showed that was
+**sole-coverage vacuity**: it applied two neutering mutants in memory --
+`if (false && leakedS.length > 0)`, and deleting the if/throw while leaving the invariant
+message behind in a comment -- and **all four checks stayed GREEN**. The guard span is now
+lifted into a callable the same way `severityTags` is extracted, and exercised:
+
+```
+[PASS] the leak guard is EXTRACTABLE and callable -- a deleted if/throw is caught here, not merely missed by a regex
+[PASS] ...it does NOT throw on the correct sibling shape -- no throw
+[PASS] ...it DOES throw when the routing object is FLATTENED into the verdict
+[PASS] ...and when a JUDGE field collides with a routing key ("route")
+[PASS] ...and it does not throw on an empty routing object (no false positive)
+```
+
+Both of the Q/A's own neutering mutants are now matrix cells **L1** and **L2**, and both
+are **KILLED**. A guard that is only ever matched, never executed, is the illusory-guard
+shape: the literal survives while the behaviour is stripped.
+
 **One deliberate difference, and it makes this guard strictly stronger than its sibling.**
 The `research_routing` guard carves out `research_needed` / `research_brief_spec`, because
 the JUDGE authors those inside the verdict. **Nothing in `severity_routing` is
@@ -104,7 +129,7 @@ The third line matters: without it the first two pass vacuously for a function t
 returns `remediate`.
 
 **The fixture is CONSTRUCTED, and I am stating that rather than implying a natural
-instance.** I searched: **0 of the 66 FAILs at the pin have every entry WARN/NOTE-tagged.**
+instance.** I searched: **0 of the 67 FAILs at the pin have every entry WARN/NOTE-tagged** (67 on the derived population; cycle 1 quoted 66 from the narrowed one).
 That absence is the whole argument for a structural guard -- "never observed" is not
 "cannot happen". Mutant **M1** removes the guard and is KILLED.
 
@@ -123,28 +148,44 @@ three verdict values (floor: 20):
 The second assertion is not decoration: a function that *replaced* the verdict with an
 identical-looking copy would pass the first and fail the second.
 
-### Criterion 4 -- the replay, with the filed counts STATED rather than resolved
+### Criterion 4 -- the replay reproduces 41 AND 247 exactly (CORRECTED in cycle 2)
 
-Full table in `handoff/current/live_check_90.2.md`. Summary, **denominator named with
-every ratio**:
+**Cycle 1 got this wrong and the correction REPLACES it.** I filtered the corpus on an
+exact `workflowName === 'qa-verdict'` match, published **41 / 244**, and wrote a confident
+paragraph explaining why the filed **247** "does not reproduce" -- blaming a 43-of-436
+`result: null` gap, which explains the 436 -> 393 **parseable** gap, a different gap
+entirely. The scope was **chosen, not derived.** Masterplan 90.2's `audit_basis` names
+*"441 `qa-verdict` Workflow run records"*, and **441 is the `startsWith` count**; the exact
+match is 436. The 5 excluded records run under variant names
+`qa-verdict-writefirst-82-5` (x3) and `-82-7` (x2), **3 of them non-PASS** -- which is
+precisely 247 - 3 = 244. Found by the cycle-1 Q/A, which re-derived the whole census
+independently.
 
-| census | startsWith | exact | parseable | with_verdict | non-PASS | queue_residual | remediate |
+On the derived population, every filed figure reproduces:
+
+| census | records | parseable | with_verdict | mix | non-PASS | queue_residual | remediate |
 |---|---|---|---|---|---|---|---|
-| PINNED @ 2026-08-18T12:33:57.731Z | 441 | 436 | 393 | 392 | 285 | **41** | **244** |
-| LIVE (no pin) | 451 | 446 | 403 | 402 | 292 | **41** | 251 |
+| PINNED @ 2026-08-18T12:33:57.731Z | **441** | **398** | **397** | PASS 109 / COND 221 / FAIL 67 | **288** | **41** | **247** |
+| LIVE (no pin) | 451 | 408 | 407 | -- | 295 | 41 | 254 |
 
-- **"41" reproduces EXACTLY** at the pin, under both matchers, with identical run sets, and
-  is stable across the 10 records the corpus gained in between.
-- **"247" does not reproduce.** The filing's population was 288 = 221 CONDITIONAL + 67 FAIL
-  out of 397 verdicts. The pin that reproduces 441/436 yields **392** verdicts (219 + 66 =
-  285 non-PASS), 5 fewer, so the remainder is **244**. The gap lives in `parseable`: **43
-  of the 436 pinned records carry `result: null`** (39 `failed`, 2 `killed`, 3
-  `completed`-without-result). The number is not edited to match.
-- **"32" does not reproduce under any of four strict definitions** (41 / 26 / 11 / 4). The
-  filing's strict definition is not recoverable from its text.
+The brief's denominators -- 441 / 436 / 398 / 397 -- were right all along. Full table with
+every run id in `handoff/current/live_check_90.2.md`.
+
+- **"41" reproduces exactly**, under both matchers, with identical run sets, at both
+  censuses.
+- **"247" reproduces exactly** on the derived population.
+- **"32" does not reproduce** under any of four strict definitions (41 / 26 / 11 / 4),
+  measured under **both** populations. The filing's strict definition is not recoverable
+  from its text, and the number is not edited to match.
 - **"any run mixing a WARN entry with an untagged finding must route to remediate"** --
   asserted directly and enforced by making UNTAGGED force `remediate`; mutant **M2**
   (UNTAGGED silently becomes NOTE) is KILLED.
+
+**Every supporting count in this step is now on the derived population**, because the
+narrowing had leaked into them too: `violation_details` rows carrying a judge-emitted
+`severity` = **0 of 969** (was quoted as 0 of 978), and all-WARN/NOTE FAILs = **0 of 67**
+(was 0 of 66). The substance -- zero in both cases -- is unchanged; the denominators are
+corrected at the source rather than in a footnote.
 
 ### Criterion 5 -- the consumer that makes `queue_residual` oblige something
 
@@ -222,9 +263,56 @@ cells are constructed fixtures. An unfired guard earns its place only if you say
 
 ```
 $ bash -c 'node --check .claude/workflows/qa-verdict.js && node scripts/qa/verify_severity_routing_90_2.mjs --self-test'
-  checks run: 61 (floor 50)
+  checks run: 66 (floor 55)
   failed:     0
 IMMUTABLE COMMAND EXIT: 0
 ```
 
 Full output in `handoff/current/live_check_90.2.md`.
+
+
+---
+
+# CYCLE 2 -- what the cycle-1 FAIL changed
+
+Verdict `wf_0e5b781a-bf9`: **FAIL**, two blockers, both correct, both reproduced by me
+before I touched anything. Criteria 2, 3, 5 and 6 were MET, harness compliance clean, and
+the Q/A explicitly retired two of its own candidate findings after a behavioural
+differential showed they were equivalent mutants. Full verdict verbatim in
+`handoff/current/evaluator_critique_90.2.md`.
+
+**Blocker 1 -- criterion 4's 247 reproduces; my claim that it did not was wrong.** See the
+corrected criterion-4 section above. The lesson is narrow and worth keeping: *I derived a
+denominator I liked and then explained the discrepancy instead of questioning the
+denominator.* The explanation I gave was itself checkable and did not check out -- it
+described the parseable gap, not the verdict gap. **An explanation that survives because
+nobody tested it is not evidence.**
+
+**Blocker 2 -- the leak guard was source-scanned, never executed.** See the corrected
+criterion-1 section above. Cells L1 and L2 are the Q/A's own mutants, now in the matrix.
+
+## The Q/A's five NOTEs, three of which I have acted on
+
+- **N1 -- the close gate is not wired.** DISCLOSED at source: `residual_close_gate.mjs`
+  now states plainly that no close path invokes it, that its only caller today is this
+  step's own checker, and that wiring it into `auto-commit-and-push.sh` changes what breaks
+  when it errors and therefore needs its own step and its own red-first proof.
+- **N2 -- `violation_details` content is never scored.** DISCLOSED at source in
+  `qa-verdict.js`: the routing reads `violated_criteria` only, plus a judge-emitted
+  `severity` key. 3 of the 41 carry detail rows with no matching tagged entry and all three
+  read "SEVERITY NOTE", so there is no live counterexample -- the bound is real and is now
+  stated rather than left to be discovered.
+- **N5 -- supporting counts inherited the same narrowing.** FIXED at source: 0 of **969**
+  detail rows, 0 of **67** FAILs.
+- **N3 -- a kill-switch finding sits inside the 41** (`wf_555a4380-3e8`). Recorded for the
+  operator. All three of its entries are judge-tagged `[WARN]`, so the routing is faithful
+  to "severity comes from the judge"; the point is that a money-path finding CAN land in
+  the residual queue, and an operator should know that before the routing obliges anything.
+- **N4 -- the tag-form table publishes no reproducing command.** Acknowledged, not fixed.
+  My tally was 41/88/29/20/7 with 12 bare; the Q/A's independent tally was 41/91/37/1/5
+  with 2 bare. **"initial 41" matches exactly and the rest depends on an unpublished
+  precedence rule** -- mine counts each occurrence once under the first form that matches,
+  theirs evidently does not. The table is ILLUSTRATIVE of why severity is delimited, and
+  nothing in the shipped code depends on it; the load-bearing measurement is the 41/247
+  replay, which is re-runnable. Stating the discrepancy rather than quietly reprinting my
+  own numbers.

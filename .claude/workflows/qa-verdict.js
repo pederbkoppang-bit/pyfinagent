@@ -811,15 +811,25 @@ function enforceResearchRouting(verdict) {
 //     IMPOSSIBLE until the schema gains one -- and what the judge may emit is
 //     step 86.98's, whose criterion 7 requires an operator sign-off. So the
 //     judge-emitted branch below is forward-compatible and INERT on arrival:
-//     MEASURED 0 of 978 `violation_details` rows carry a `severity` key over the
-//     live corpus (2026-08-21).
+//     MEASURED 0 of 969 `violation_details` rows carry a `severity` key over the
+//     PINNED corpus (2026-08-21). Every count in this block is on the DERIVED
+//     population -- workflowName.startsWith('qa-verdict'), which is what
+//     masterplan 90.2's audit_basis names -- never an exact-match narrowing.
 //
 //  2. IT NEVER MOVES THE VERDICT. `route` is `queue_residual` ONLY when
 //     `verdict === 'CONDITIONAL'`. PASS and FAIL cannot reach it. That is
 //     STRUCTURAL, not a restatement of an observation: on the pinned corpus all
-//     41 candidate runs happen to be CONDITIONAL and ZERO of the 66 FAILs are
+//     41 candidate runs happen to be CONDITIONAL and ZERO of the 67 FAILs are
 //     all-WARN/NOTE, but "never observed" is not "cannot happen", and the guard
 //     is what makes the safety property hold.
+//
+//  2b. IT SCORES `violated_criteria` ONLY. `violation_details` is read for a
+//     judge-emitted `severity` and for nothing else, so a detail row whose text
+//     carries a severity the matching criteria entry does not is INVISIBLE to the
+//     routing. Measured at the pin: 3 of the 41 queue_residual runs carry detail
+//     rows with no matching tagged entry, and all three read "SEVERITY NOTE", so
+//     there is no live counterexample -- but the bound is real and is stated here
+//     rather than left for a reader to discover.
 //
 //  3. IT READS A SYNTACTIC TAG, NOT A SEMANTIC ONE -- and the first draft of this
 //     function got that wrong. The research brief measures prose-derived severity
@@ -927,11 +937,16 @@ function enforceSeverityRouting (verdict) {
       what_is_read: 'a DELIMITED severity tag in violated_criteria -- a syntactic '
         + 'property, decidable -- never sentiment inferred from the finding\'s prose',
       measured_by_this_step: {
-        corpus: 'qa-verdict Workflow run records pinned at startTime <= '
-          + '2026-08-18T12:33:57.731Z: 441 startsWith / 436 exact / 393 parseable '
-          + '/ 392 carrying a verdict / 285 non-PASS',
+        corpus: 'the DERIVED population -- workflowName.startsWith("qa-verdict"), '
+          + 'which is what masterplan 90.2 audit_basis names -- pinned at startTime '
+          + '<= 2026-08-18T12:33:57.731Z: 441 records (436 exact-match + 5 under '
+          + 'variant names) / 398 parseable / 397 carrying a verdict / 288 non-PASS '
+          + '(221 CONDITIONAL + 67 FAIL)',
         all_warn_note_conditional_runs: 41,
-        remainder_routed_remediate: 244,
+        remainder_routed_remediate: 247,
+        scope_note: 'an exact-match narrowing drops 5 records, 3 of them non-PASS, '
+          + 'and turns 247 into 244. The population is DERIVED from the filing, '
+          + 'never chosen.',
         agreement_with_the_filings_token_anywhere_matcher: 'EXACT -- identical run '
           + 'sets, zero disagreement in either direction',
         discarded_alternative: 'a proximity negation filter moved 6 runs and all 6 '

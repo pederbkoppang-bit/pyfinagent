@@ -34,6 +34,17 @@
  *
  * This module NEVER writes. It takes the masterplan as a string or an object and
  * returns a verdict object; it opens no file and mutates nothing.
+ *
+ * NOT YET WIRED -- SAY SO PLAINLY (disclosed after the 90.2 cycle-1 Q/A asked for
+ * it). Criterion 5 says "a checker refuses the parent step's close", and this
+ * checker does exactly that when called. But NOTHING IN AN ACTUAL CLOSE PATH
+ * CALLS IT YET: `.claude/hooks/auto-commit-and-push.sh` does not invoke it, and
+ * neither does any masterplan-flip hook. Today its only caller is
+ * `scripts/qa/verify_severity_routing_90_2.mjs`. So the honest description is
+ * "a checker that refuses a close, exercised by the step's own verification
+ * command", not "a live gate on every close". Wiring it into the auto-commit hook
+ * changes what breaks when it errors and needs its own step and its own red-first
+ * proof -- it is not smuggled in here.
  */
 
 /** Does this step object look like a filed residual for `parentStepId`? */

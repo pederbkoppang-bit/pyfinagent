@@ -37,7 +37,7 @@ const VERDICT_LEDGER = path.join(REPO, 'handoff/verdict_ledger.jsonl')
 
 // Bumped deliberately when a check is added. If the loop stops covering things,
 // this is what turns a silent pass into a loud failure.
-const EXPECTED_CHECKS = 50
+const EXPECTED_CHECKS = 55
 
 const results = []
 const check = (label, ok, detail = '') => {
@@ -91,6 +91,37 @@ function extractConst (src, name) {
   return src.slice(start, end)
 }
 
+/**
+ * The phase-90.2 leak guard is a TOP-LEVEL STATEMENT BLOCK, not a function, so it
+ * cannot be extracted the way severityTags is. It is lifted into a callable
+ * instead, so the checker DRIVES it rather than grepping for it.
+ *
+ * WHY THIS EXISTS: the first version of section I was four regexes over the
+ * workflow file. The 90.2 cycle-1 Q/A applied two neutering mutants in memory --
+ * `if (false && leakedS.length > 0)`, and deleting the if/throw while leaving the
+ * message in a comment -- and ALL FOUR checks stayed GREEN. A guard that is only
+ * ever matched, never executed, is the illusory-guard shape (sole-coverage
+ * vacuity): the literal survives while the behaviour is stripped. Returns null
+ * when the guard is absent, so its absence is a NAMED check failure rather than
+ * an exception that might be mistaken for a broken harness.
+ */
+function extractLeakGuard (src) {
+  const start = src.indexOf('const leakedS =')
+  if (start < 0) return null
+  const ifAt = src.indexOf('if (leakedS.length > 0)', start)
+  if (ifAt < 0) return null
+  let depth = 0
+  let i = src.indexOf('{', ifAt)
+  if (i < 0) return null
+  for (; i < src.length; i++) {
+    if (src[i] === '{') depth++
+    else if (src[i] === '}') { depth--; if (depth === 0) break }
+  }
+  if (depth !== 0) return null
+  return 'function leakGuard (merged, severity_routing) {\n'
+    + src.slice(start, i + 1) + '\n}'
+}
+
 async function load (sourceOverride) {
   const src = sourceOverride ?? fs.readFileSync(WORKFLOW, 'utf8')
   const parts = [
@@ -100,11 +131,14 @@ async function load (sourceOverride) {
     extractSpan(src, 'function deriveSeverity ('),
     extractSpan(src, 'function enforceSeverityRouting ('),
   ]
+  const guardSrc = extractLeakGuard(src)
+  if (guardSrc) parts.push(guardSrc)
+  else parts.push('const leakGuard = null')
   const body = parts.join('\n\n')
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'qa902_'))
   const tmp = path.join(dir, 'wf.mjs')
   fs.writeFileSync(tmp,
-    body + '\nexport { enforceSeverityRouting, deriveSeverity, severityTags }\n')
+    body + '\nexport { enforceSeverityRouting, deriveSeverity, severityTags, leakGuard }\n')
   const mod = await import(pathToFileURL(tmp).href)
   if (typeof mod.enforceSeverityRouting !== 'function') {
     throw new Error('extraction produced no enforceSeverityRouting')
@@ -342,6 +376,37 @@ async function runChecks (mod) {
     /phase-90\.2 invariant violated: severity_routing fields leaked/.test(wfSrc))
   check('...and it has NO carve-out, unlike the research_routing guard (strictly stronger)',
     /const leakedS = Object\.keys\(severity_routing\)\.filter\(k => k !== 'severity_routing' && k in merged\)/.test(wfSrc))
+  // DRIVEN, NOT GREPPED. Each of these fails if the guard is neutered, which the
+  // four source scans above provably do not catch.
+  const g = mod.leakGuard
+  check('the leak guard is EXTRACTABLE and callable -- a deleted if/throw is caught '
+    + 'here, not merely missed by a regex', typeof g === 'function', typeof g)
+  if (typeof g === 'function') {
+    const sr = condAllWarn
+    const judge = V('CONDITIONAL', ['(WARN) x'])
+    let threw = null
+    try { g({ ...judge, escalation: {}, research_routing: {}, severity_routing: sr }, sr) }
+    catch (e) { threw = e.message }
+    check('...it does NOT throw on the correct sibling shape', threw === null, threw || 'no throw')
+    let flat = null
+    try { g({ ...judge, ...sr, severity_routing: sr }, sr) } catch (e) { flat = e.message }
+    check('...it DOES throw when the routing object is FLATTENED into the verdict',
+      flat !== null && /phase-90\.2 invariant violated/.test(flat), (flat || 'NO THROW').slice(0, 70))
+    let coll = null
+    try { g({ ...judge, route: 'remediate', severity_routing: sr }, sr) } catch (e) { coll = e.message }
+    check('...and when a JUDGE field collides with a routing key ("route")',
+      coll !== null && /route/.test(coll), (coll || 'NO THROW').slice(0, 70))
+    let empty = null
+    try { g({ ...judge, severity_routing: {} }, {}) } catch (e) { empty = e.message }
+    check('...and it does not throw on an empty routing object (no false positive)',
+      empty === null, empty || 'no throw')
+  } else {
+    check('...it does NOT throw on the correct sibling shape', false, 'guard absent')
+    check('...it DOES throw when the routing object is FLATTENED into the verdict', false, 'guard absent')
+    check('...and when a JUDGE field collides with a routing key ("route")', false, 'guard absent')
+    check('...and it does not throw on an empty routing object (no false positive)', false, 'guard absent')
+  }
+
   const routingKeys = Object.keys(condAllWarn)
   const judgeKeys = Object.keys(V('CONDITIONAL', []))
   const collide = routingKeys.filter(k => judgeKeys.includes(k))
@@ -387,6 +452,12 @@ const MUTANTS = [
   { id: 'M9', expect: 'KILLED', why: 'the judge-emitted branch is ignored, so 86.98\'s "severity comes from the judge" is silently unimplementable',
     apply: s => s.replace('  const anyEmitted = emitted.some(s => s !== null)',
       '  const anyEmitted = false') },
+  { id: 'L1', expect: 'KILLED', why: 'criterion 1, NAMED: the leak guard is made unreachable (`if (false && ...)`) while its literal text survives -- the illusory-guard shape the source scans could not see',
+    apply: s => s.replace('if (leakedS.length > 0) {', 'if (false && leakedS.length > 0) {') },
+  { id: 'L2', expect: 'KILLED', why: 'criterion 1, NAMED: the if/throw is DELETED and the invariant message left behind in a comment, so every regex still matches',
+    apply: s => s.replace(
+      "if (leakedS.length > 0) {\n  throw new Error('phase-90.2 invariant violated: severity_routing fields leaked '\n    + 'into the verdict object as top-level siblings: ' + leakedS.join(', '))\n}",
+      "// phase-90.2 invariant violated: severity_routing fields leaked into the verdict object as top-level siblings") },
   { id: 'QX', expect: 'ERROR', why: 'ERROR CONTROL: a call site is renamed, so the code cannot RESOLVE A NAME and never runs. It must score ERROR, never a kill.',
     apply: s => s.replace('severity: deriveSeverity(e)', 'severity: deriveSeverity_v2(e)') },
 ]
@@ -459,7 +530,7 @@ const PIN_MS = 1787056437731 // 2026-08-18T12:33:57.731Z -- the brief's last rec
 function loadCorpus (pinMs) {
   const base = path.join(os.homedir(), '.claude/projects/-Users-ford--openclaw-workspace-pyfinagent')
   const out = []
-  const census = { startsWith: 0, exact: 0, parseable: 0, withVerdict: 0 }
+  const census = { startsWith: 0, exact: 0, parseable: 0, withVerdict: 0, variantNames: new Set() }
   if (!fs.existsSync(base)) return { out, census }
   for (const d of fs.readdirSync(base)) {
     const wd = path.join(base, d, 'workflows')
@@ -470,9 +541,17 @@ function loadCorpus (pinMs) {
       try { rec = JSON.parse(fs.readFileSync(path.join(wd, fn), 'utf8')) } catch { continue }
       if (pinMs !== null && (rec.startTime || 0) > pinMs) continue
       const wn = rec.workflowName || ''
-      if (typeof wn === 'string' && wn.startsWith('qa-verdict')) census.startsWith++
-      if (wn !== 'qa-verdict') continue
-      census.exact++
+      if (!(typeof wn === 'string' && wn.startsWith('qa-verdict'))) continue
+      census.startsWith++
+      if (wn === 'qa-verdict') census.exact++
+      else census.variantNames.add(wn)
+      // THE POPULATION IS DERIVED, NOT CHOSEN. masterplan 90.2's audit_basis names
+      // "441 `qa-verdict` Workflow run records", and 441 is the startsWith count;
+      // the exact-match count is 436. The first version of this replay filtered on
+      // `wn !== 'qa-verdict'`, which DROPPED 5 records -- 3 of them non-PASS -- and
+      // turned the filing's 247 into 244. I then wrote a paragraph explaining why
+      // 247 "does not reproduce". It reproduces exactly; the scope was mine.
+      // Caught by the 90.2 cycle-1 Q/A.
       let r = rec.result
       if (typeof r === 'string') { try { r = JSON.parse(r) } catch { r = null } }
       if (!r || typeof r !== 'object') continue
@@ -506,8 +585,14 @@ async function replay () {
     const onlyShipped = shipped.queue_residual.filter(r => !filing.queue_residual.includes(r))
     const onlyFiling = filing.queue_residual.filter(r => !shipped.queue_residual.includes(r))
     console.log(`\n${label}`)
-    console.log(`  DENOMINATORS: startsWith=${census.startsWith} exact=${census.exact} `
+    console.log(`  POPULATION (DERIVED from masterplan 90.2 audit_basis, "441 qa-verdict `
+      + `Workflow run records"): workflowName.startsWith('qa-verdict')`)
+    console.log(`  DENOMINATORS: startsWith=${census.startsWith} (exact-match=${census.exact}, `
+      + `+${census.startsWith - census.exact} under variant names `
+      + `${JSON.stringify([...census.variantNames])}) `
       + `parseable=${census.parseable} with_verdict=${census.withVerdict} non-PASS=${nonPass.length}`)
+    console.log(`  verdict mix: ` + JSON.stringify(out.reduce((a, x) => {
+      a[x.ret.verdict] = (a[x.ret.verdict] || 0) + 1; return a }, {})))
     console.log(`  A. the FILING's matcher (token anywhere)  queue_residual=${filing.queue_residual.length}  remediate=${filing.remediate.length}`)
     console.log(`  B. the SHIPPED matcher (delimited tag)    queue_residual=${shipped.queue_residual.length}  remediate=${shipped.remediate.length}`)
     console.log(`  DISAGREEMENT  A-only=${onlyFiling.length} ${JSON.stringify(onlyFiling)}  B-only=${onlyShipped.length} ${JSON.stringify(onlyShipped)}`)
@@ -521,18 +606,24 @@ async function replay () {
     }
   }
   console.log(`
-  THE FILED COUNTS, STATED RATHER THAN RESOLVED (criterion 4):
+  THE FILED COUNTS (criterion 4):
     "41"  REPRODUCES EXACTLY at the pin, under BOTH matchers, with identical run sets.
-    "247" DOES NOT reproduce. At the pin the non-PASS population is 285 (219 CONDITIONAL
-          + 66 FAIL) and the remainder is 244. The filing's 288 = 221 + 67 comes from a
-          census of 397 verdicts; the pin that reproduces 441 startsWith / 436 exact
-          yields 392 verdicts, 5 fewer. 43 of the 436 pinned records carry result=null
-          (39 failed, 2 killed, 3 completed-without-result), which is where the parseable
-          gap lives. The number is NOT edited to match.
+    "247" REPRODUCES EXACTLY at the pin, on the DERIVED population. 441 records ->
+          397 verdicts (PASS 109 / CONDITIONAL 221 / FAIL 67) -> 288 non-PASS ->
+          41 queue_residual + 247 remediate.
+          CORRECTED: the first version of this replay filtered on an exact
+          workflowName match, dropping 5 records under the variant names
+          qa-verdict-writefirst-82-5 (x3) and -82-7 (x2). Three of those are
+          non-PASS, which is exactly 247 - 3 = 244, and I published 244 together
+          with a paragraph asserting that 247 "does not reproduce" and blaming a
+          43-of-436 result:null gap -- which explains the 436->393 PARSEABLE gap,
+          a different gap entirely. The scope was CHOSEN, not derived; the filing
+          names 441, and 441 is the startsWith count.
     "32"  (strict) DOES NOT reproduce under any of four plausible strict definitions:
           token-anywhere 41, bracketed-anywhere 26, starts-with-bare 11,
-          starts-with-separator 4. The filing's strict definition is not recoverable
-          from its text. The number is NOT edited to match.`)
+          starts-with-separator 4. Measured under BOTH populations. The filing's
+          strict definition is not recoverable from its text, and that number is
+          NOT edited to match either.`)
 }
 
 // ---------------------------------------------------------------------------
