@@ -32,6 +32,7 @@ import ast
 import hashlib
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -349,7 +350,7 @@ UNRESOLVABLE_ERRORS = ("ModuleNotFoundError", "ImportError", "NameError",
                        "AttributeError")
 
 
-def _drive_traceback(obs: dict) -> str | None:
+def _drive_unresolvable(obs: dict) -> str | None:
     """The first unhandled traceback any drive produced, or None.
 
     Scored BEFORE the checks, because a mutant that crashed on every drive
@@ -370,15 +371,49 @@ def _drive_traceback(obs: dict) -> str | None:
     # to RESOLVE A NAME: the function, module or attribute it needs is not
     # there. A mutant that runs and misbehaves raises a DOMAIN exception the
     # code itself chose to raise.
+    # phase-90.12 -- THE FOURTH RELOCATION OF THIS SEAM, and the one that FAILED
+    # step 90.1 at cycle 5: parse -> import -> run -> RUNS BUT IS SWALLOWED.
+    #
+    # This scan used to require the literal string "Traceback (most recent call
+    # last)". `attempt_gate.handle_hook` ends in a blanket `except Exception` that
+    # prints ONE LINE -- "[attempt-gate] INTERNAL ERROR -- NameError: name 'x' is
+    # not defined -- failing OPEN ..." -- and returns 0. That handler is CORRECT and
+    # must stay: a broken gate must not break the harness. But it means NO failure
+    # raised inside the hook's try block ever produces a traceback, so this scan
+    # returned None for the entire class and the mutants scored KILLED.
+    #
+    # Measured: renaming ONE call site (attempt_gate.py:393,
+    # extract_step_id_claim -> ..._v2) yields exit 0, that one-line stderr, and
+    # traceback count ZERO. The Q/A authored three such cells and all three scored
+    # KILLED where criterion 5 clause 3 requires ERROR -- while QA1b defeats no
+    # guard and fails 7 of 25 checks, so a build that never runs green-washed
+    # criteria 2, 3 and 4 at once.
+    #
+    # THE FIX IS TO READ THE TYPE, NOT THE SHAPE. A traceback is one way an
+    # exception type reaches stderr; a fail-open handler that formats it into a
+    # message is another. Neither is the property. The property is: did the code
+    # fail to RESOLVE A NAME? That is still typed, so a DOMAIN exception -- the
+    # AssertionError M14 exists to reintroduce -- stays a KILL either way, whether
+    # it arrives as a traceback or through the same handler.
     for key in ("below", "at", "unknown", "over", "under", "nested",
                 "backfill", "launch", "join"):
         err = (obs.get(key) or {}).get("stderr") or ""
-        if "Traceback (most recent call last)" not in err:
+        if not err.strip():
             continue
-        last = [ln for ln in err.strip().splitlines() if ln.strip()]
-        tail = last[-1] if last else ""
-        if any(tail.lstrip().startswith(x) for x in UNRESOLVABLE_ERRORS):
-            return f"{key} drive: {tail[:130]}"
+        # (a) an UNHANDLED traceback: the type is the last line's prefix.
+        if "Traceback (most recent call last)" in err:
+            last = [ln for ln in err.strip().splitlines() if ln.strip()]
+            tail = last[-1] if last else ""
+            if any(tail.lstrip().startswith(x) for x in UNRESOLVABLE_ERRORS):
+                return f"{key} drive [traceback]: {tail[:130]}"
+        # (b) a SWALLOWED exception the fail-open handler formatted into a line.
+        # Anchored on "<Type>:" so it cannot fire on prose merely containing the
+        # word, and typed so a domain exception through the same handler is not
+        # mistaken for a mutant that could not run.
+        for t in UNRESOLVABLE_ERRORS:
+            m = re.search(rf"\b{t}: [^\n]+", err)
+            if m:
+                return f"{key} drive [swallowed by the fail-open handler]: {m.group(0)[:130]}"
     return None
 
 
@@ -731,7 +766,7 @@ def run_cell(cell) -> dict:
         # while all 16 shipped cells produce none. Note what does NOT work: a
         # benign-path smoke (`--status 9.1`) returns rc=0 for those mutants,
         # because the mutation sits on the hook branch only.
-        broken = _drive_traceback(obs)
+        broken = _drive_unresolvable(obs)
         if broken:
             return {"id": cid, "desc": desc, "score": "ERROR",
                     "why": f"mutant imports but does NOT run: {broken} "
