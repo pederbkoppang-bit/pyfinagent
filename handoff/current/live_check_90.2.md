@@ -1,7 +1,7 @@
 # live_check -- step 90.2
 
 **Step:** 90.2 -- route the WARN/NOTE severity the judge already emits, caller-side.
-**Date:** 2026-08-21 (CYCLE 3 -- regenerated after the cycle-2 CONDITIONAL).
+**Date:** 2026-08-21 (CYCLE 4 -- regenerated after the cycle-3 CONDITIONAL).
 **Contract:** `handoff/current/contract_90.2.md`.
 
 The live_check the masterplan asks for: *"the verbatim 41/247 replay table over real run
@@ -96,10 +96,10 @@ PINNED @ 2026-08-18T12:33:57.731Z
 
 LIVE (no pin)
   POPULATION (DERIVED from masterplan 90.2 audit_basis, "441 qa-verdict Workflow run records"): workflowName.startsWith('qa-verdict')
-  DENOMINATORS: startsWith=453 (exact-match=448, +5 under variant names ["qa-verdict-writefirst-82-7","qa-verdict-writefirst-82-5"]) parseable=410 with_verdict=409 non-PASS=297
-  verdict mix: {"CONDITIONAL":227,"FAIL":70,"PASS":112}
-  A. the FILING's matcher (token anywhere)  queue_residual=42  remediate=255
-  B. the SHIPPED matcher (delimited tag)    queue_residual=42  remediate=255
+  DENOMINATORS: startsWith=454 (exact-match=449, +5 under variant names ["qa-verdict-writefirst-82-7","qa-verdict-writefirst-82-5"]) parseable=411 with_verdict=410 non-PASS=298
+  verdict mix: {"CONDITIONAL":228,"FAIL":70,"PASS":112}
+  A. the FILING's matcher (token anywhere)  queue_residual=43  remediate=255
+  B. the SHIPPED matcher (delimited tag)    queue_residual=43  remediate=255
   DISAGREEMENT  A-only=0 []  B-only=0 []
   FAILs routed to queue_residual by the shipped matcher: 0  (structurally impossible, printed to show it)
 
@@ -141,7 +141,6 @@ populations with identical results:
 ## 3. FAIL immunity, verbatim (criterion 2)
 
 The fixture is CONSTRUCTED, because **0 of the 67 FAILs at the pin are all-WARN/NOTE**.
-That absence is exactly why the guard has to be structural.
 
 ```
 A. THE VERDICT GUARD IS STRUCTURAL (criterion 2)
@@ -154,7 +153,7 @@ A. THE VERDICT GUARD IS STRUCTURAL (criterion 2)
   FAILs routed to queue_residual by the shipped matcher: 0  (structurally impossible, printed to show it)
 ```
 
-## 4. The full self-test, verbatim (77 checks, floor 66, 16 mutation cells)
+## 4. The full self-test, verbatim (87 checks, floor 74, 19 mutation cells)
 
 ```
 
@@ -212,6 +211,18 @@ E. NOTHING IS DROPPED, AND THE DERIVATION CARRIES ITS UNRELIABILITY
   [PASS] ...and it agrees with derived_severities index-for-index when nothing was judge-emitted
 
 ==========================================================================
+E1b. EVERY ARRAY IN THE RETURN IS COVERED, AND A NEW ONE FAILS LOUDLY
+==========================================================================
+  [PASS] the SET of array-valued keys in the return is exactly the covered set -- a NEW array field fails here until it is given a length and a content assertion -- found [derived_severities,emitted_severities,governing_severities] covered [derived_severities,emitted_severities,governing_severities]
+  [PASS] array `derived_severities` carries every element it was given -- length -- n=2 want 2
+  [PASS] array `derived_severities` carries every element it was given -- content in order -- WARN,WARN
+  [PASS] array `governing_severities` carries every element it was given -- length -- n=2 want 2
+  [PASS] array `governing_severities` carries every element it was given -- content in order -- WARN,WARN
+  [PASS] array `emitted_severities` carries every element it was given -- length -- n=3 want 3
+  [PASS] array `emitted_severities` carries every element it was given -- content in order -- WARN,NOTE,BLOCK
+  [PASS] ...and the probe fixture makes the three arrays DIFFERENT lengths, so no truncation can hide behind a length-1 case -- 2 vs 3
+
+==========================================================================
 E2. THE 86.98 BRANCH CANNOT FILE AN UNCLASSIFIED FINDING AWAY
 ==========================================================================
   [PASS] a judge-emitted list that does NOT line up with the findings cannot file two untagged blockers away as residual -- route=remediate
@@ -230,6 +241,8 @@ E3. THE NEGATOR IS NARROW BY MEASUREMENT, AND THE NARROWNESS IS PINNED
 ==========================================================================
 E4. RELIABILITY TRAVELS WITH THE DERIVATION
 ==========================================================================
+  [PASS] reliability travels with the derivation on the NOT-index-comparable branch too, where the derivation is what governs -- object
+  [PASS] ...and is null ONLY when the judge-emitted list actually governs
   [PASS] the derivation is labelled NON-authoritative
   [PASS] ...and carries the brief's figures attributed to the BRIEF, not to this step
   [PASS] queue_residual carries the FILE-don't-fix instruction
@@ -308,6 +321,12 @@ K. MUTATION MATRIX (criterion 6) -- control observed GREEN first
          criterion 6 clause 2, NAMED: a reported finding is silently dropped from `governing_severities` IN THE RETURN LITERAL -- the cycle-2 survivor. M3 mutates the shared source array and cannot reach this site.
   ok   M12  KILLED    expected KILLED
          the judge-emitted list governs even when it does not line up with the findings, so untagged blockers and an empty findings list reach queue_residual on the 86.98 branch
+  ok   M15  KILLED    expected KILLED
+         criterion 6 clause 2, THIRD RELOCATION: a reported finding is dropped from `emitted_severities` in the return literal (drop-first shape) -- the field the cycle-2 fix introduced
+  ok   M16  KILLED    expected KILLED
+         the same drop from the OTHER end (drop-last), which removes a judge-emitted BLOCK -- a length-1 fixture cannot see either shape
+  ok   M17  KILLED    expected KILLED
+         the cycle-3 reliability gate reverts to the pre-cycle-3 `anyEmitted`, so a DERIVED route ships with reliability=null and no unreliability label
   ok   M14  KILLED    expected KILLED
          IMMEDIATE_NEGATOR is widened back to the 45-char proximity window this step measured and discarded -- survived cycle 2 while moving one real run out of queue_residual
   ok   L1   KILLED    expected KILLED
@@ -330,7 +349,7 @@ L. THE RUN CHANGED NOTHING IT SHOULD NOT HAVE
 ==========================================================================
 SUMMARY
 ==========================================================================
-  checks run: 77 (floor 66)
+  checks run: 87 (floor 74)
   failed:     0
 
 ```
