@@ -27879,6 +27879,99 @@
             "live_check": "Playwright interaction trace (or manual testing notes) showing an attempt to hover from a chart series onto its own tooltip, and the observed result"
           },
           "notes": "Filed 2026-08-21 as a queued follow-up from 91.22's research. Deliberately filed as a confirm-first candidate, not an asserted bug -- the research flagged this as 'plausibly unmet', explicitly not measured. Do not skip the confirm step and jump to a fix."
+        },
+        {
+          "id": "91.27",
+          "name": "lite-path report detail page renders a false \"nothing was captured\" message even when a real justification exists in analysis.reason -- the frontend only reads final_synthesis, which lite-path reports never populate",
+          "status": "pending",
+          "priority": "P1",
+          "harness_required": true,
+          "audit_basis": "SURFACED 2026-08-21 from an operator report that the MRNA report page looked broken/uninformative (\"my hypothesis feels its a light report\"). Live-reproduced via Playwright behind the auth wall: clicking the MRNA row in Reports history (onRowClick, frontend/src/app/reports/page.tsx:362-365) navigates correctly to /reports/MRNA?date=..., no console errors, no crash -- the bug is what renders after navigation, not the click itself. Curled the live report (GET /api/reports/MRNA?date=2026-08-20T18:56:25.922897Z): analysis_path=='lite', full_report_json has NO final_synthesis key at all -- the lite-path shape nests real content under analysis.reason instead. frontend/src/app/reports/[ticker]/page.tsx:88-91 computes hasFullReport from final_synthesis only (line 136: Boolean(report?.recommendation?.action)), so a lite-path report always falls into the degraded branch (page.tsx:196-220), which renders ONLY the score badge + a hardcoded message: \"No justification, pillar scores, summary, or risks were captured for this run -- only the score and recommendation above were persisted.\" That message is FALSE for this report: full_report_json.analysis.reason contains a complete, real justification (\"Momentum thresholds are strongly met (20d +150%, 60d +184%, cap $54B), but the +150%/+184% moves and P/E of 0.0 are anomalous enough to warrant a smaller position size and confirmation before scaling in.\"). The frontend never reads analysis.reason/analysis.confidence anywhere. Distinct from step 91.2 (adds a Lite badge to the reports list, cosmetic) -- this is a deeper defect on the detail page itself: real content loss in the UI plus an actively false claim.",
+          "verification": {
+            "command": "curl -s \"localhost:8000/api/reports/MRNA?date=<a lite-path date>\" | python3 -c \"import json,sys; d=json.load(sys.stdin); print(bool(d['full_report_json'].get('analysis',{}).get('reason')))\"",
+            "success_criteria": [
+              "the command above confirms the lite-path row's full_report_json.analysis.reason is non-empty (backend contract, already true today)",
+              "frontend/src/app/reports/[ticker]/page.tsx renders that reason text (or an equivalent lite-path summary) instead of the generic \"nothing was captured\" message when final_synthesis is absent but analysis.reason exists",
+              "the hardcoded \"No justification, pillar scores, summary, or risks were captured\" string is never shown for a report that actually has a reason/justification field populated",
+              "a live Playwright screenshot of a lite-path report detail page shows the real justification text, not the false degraded message"
+            ],
+            "live_check": "Playwright screenshot of /reports/MRNA?date=<that date> (or an equivalent lite-path report) showing the real justification text rendered"
+          },
+          "notes": "Filed 2026-08-21 from an operator bug report, confirmed by read-only investigation (live curl + Playwright reproduction) before filing. Cross-reference 91.2 (Lite badge) and 91.30 (lite-path enrichment gap) -- three distinct fixes on the same lite-path surface, not duplicates of each other."
+        },
+        {
+          "id": "91.28",
+          "name": "signal_attribution.py truncates every trade's signal rationale text to 500 chars AT WRITE TIME before it's persisted to BigQuery -- unrecoverable, permanent content loss on every single trade, not just Risk Judge",
+          "status": "pending",
+          "priority": "P0",
+          "harness_required": true,
+          "audit_basis": "SURFACED 2026-08-21 from an operator report that the Risk Judge's rationale text was cut off mid-sentence in the Agent Rationale drawer (\"...P/E of 0.0 signals non-meaningful/negative trailing earnings typical of ...\"). Curled the live rationale (GET /api/paper-trading/trades/acd54227-cbc4-49df-b9b9-6f4c4dea0173/rationale): the RiskJudge signal's rationale field is EXACTLY 500 characters, ending in the literal truncation. Confirmed this is not a frontend rendering issue -- AgentRationaleDrawer.tsx applies no CSS truncation/clamp/max-height to this text (whitespace-pre-wrap, unbounded). Confirmed not an LLM max_tokens cutoff either. Exact site: backend/services/signal_attribution.py:49-54, `_trim(text, limit=500)`: `s = s[:limit-3] + \"...\"` when len(s) > 500, called at :246 (`risk_rationale = _trim(reasoning) or f\"Decision: {decision}\"`) inside extract_signals_from_analysis(). This function is called from backend/services/portfolio_manager.py:259,269 AT TRADE-CREATION TIME, and the resulting signals list is JSON-serialized straight into BigQuery (backend/services/paper_trader.py:437,627) -- so the truncation happens BEFORE persistence and is PERMANENT; the original full reasoning is never recoverable from BQ afterward. The rationale endpoint's ?full=1 query param only controls which agent LAYERS are returned, not this per-field character cap. The same _trim(limit=500) call also clips Analyst/Trader/Bull/Bear/Quant/SignalStack rationales identically (signal_attribution.py lines 137,160,173,180,202,303,341) -- the operator happened to notice it on Risk Judge specifically because that's the safety-relevant text they were reading carefully, but this affects all 7 signal layers on every trade.",
+          "verification": {
+            "command": "python3 -c \"import backend.services.signal_attribution as sa; import inspect; print(inspect.getsource(sa._trim))\"",
+            "success_criteria": [
+              "the 500-char _trim() cap is removed from the write-time path (portfolio_manager.py -> extract_signals_from_analysis -> BQ write), OR raised to a limit that does not truncate realistic full-length agent reasoning (measure actual rationale lengths across recent trades to pick a real ceiling, not an arbitrary round number)",
+              "a live BUY/SELL trade's /rationale response shows a RiskJudge (and other signal-layer) rationale longer than 500 chars when the underlying LLM reasoning was longer than 500 chars",
+              "if display-time truncation is still desired for UI compactness, it must be applied ONLY at render time (with an expand control), never before the BigQuery write -- the persisted record must always carry the full text",
+              "mutation-test: reverting the fix makes a test asserting rationale length > 500 for a known-long input go red"
+            ],
+            "live_check": "BQ row (or curl of /rationale) from a fresh trade showing a signal rationale field longer than 500 characters, matching the underlying agent's actual full reasoning length"
+          },
+          "notes": "Filed 2026-08-21 from an operator bug report, confirmed by direct API/code inspection before filing. P0: this is unrecoverable data loss on the audit trail for every single paper trade, and can hide risk-relevant reasoning (position-sizing caveats, reject rationale) from the operator, not just a cosmetic truncation."
+        },
+        {
+          "id": "91.29",
+          "name": "meta-scorer's conviction_reason claims \"no disclosed news\" on every candidate regardless of real news -- it reads a news_signal field that is never populated anywhere in the codebase, and the real news pipeline's output is dropped for any ticker already surfaced by momentum",
+          "status": "pending",
+          "priority": "P1",
+          "harness_required": true,
+          "audit_basis": "SURFACED 2026-08-20/21 from an operator report that MRNA's autonomous BUY (analysis_date 2026-08-20T18:56:25Z) claimed \"no disclosed news\" one day after Moderna/Merck announced Phase 3 melanoma vaccine trial success (2026-08-19, stock +177% same day, volume 185.1M vs 9.6M 3-mo avg, wall-to-wall coverage: STAT News, CNN, Bloomberg, Axios) plus an FDA approval of Moderna's mFLUSIVA flu vaccine the same week -- confirmed via live WebSearch against primary news sources, not assumed from the operator's claim. This is canonical, unambiguous, market-moving pharma news that any financial news pipeline should trivially catch; the operator's premise holds up completely. Root cause confirmed by repo-wide grep: backend/services/meta_scorer.py:76 reads c.get('news_signal') (singular) -- ZERO call sites anywhere in the codebase (outside meta_scorer.py itself) ever set this key; it is a dead/orphaned field. The scorer's own prompt (meta_scorer.py:129) instructs the LLM: '\"news_signal: none\" means no catalyst -- score accordingly. Do not invent catalysts.' -- so the false 'no disclosed news' claim is STRUCTURALLY GUARANTEED on every candidate scored, independent of what real news exists. The actual news pipeline (backend/services/news_screen.py::fetch_news_signals, RSS feeds incl. Yahoo Finance/CNBC/BBC + Claude Haiku extraction, wired via backend/services/autonomous_loop.py:990 rank_candidates(news_signals=...)) DOES produce real signals, but under different key names entirely (backend/tools/screener.py:428-429 sets news_event_type/news_rationale) -- and ONLY for tickers not already present via momentum screening (screener.py:415-419, 'if ticker in existing_tickers: continue'). MRNA was a momentum-driven pick (composite_score 166.4, 6M momentum +166%), so even a correctly-firing news_screen.py hit would have been dropped by this merge-skip logic before reaching the scorer. meta_scorer.py never reads news_event_type/news_rationale under any circumstance -- confirmed via grep, only signal_attribution.py (frontend drawer rendering) reads those keys.",
+          "verification": {
+            "command": "grep -n 'news_signal' backend/services/meta_scorer.py backend/tools/screener.py backend/services/autonomous_loop.py",
+            "success_criteria": [
+              "meta_scorer.py's candidate-block formatter reads a news field that IS actually populated for momentum-sourced candidates -- either screener.py stops skipping already-surfaced tickers when merging news_event_type/news_rationale, or meta_scorer.py is changed to read news_event_type/news_rationale instead of the dead news_signal key (or both)",
+              "a candidate with a real, positive-or-negative-polarity news_screen hit no longer produces a conviction_reason claiming 'no catalyst' / 'no disclosed news'",
+              "a candidate genuinely lacking any news_screen hit still correctly reports no news -- the fix must not fabricate news where none was found",
+              "mutation-test: reverting the field-name wiring fix makes a test asserting a known news hit appears in conviction_reason go red"
+            ],
+            "live_check": "next autonomous cycle's meta-scored candidate set for a ticker with a confirmed news_screen hit (news_event_type != null) shows that event reflected in conviction_reason, not 'no disclosed news' -- BQ row or handoff artifact from paper_trades/strategy_decisions showing the candidate dict passed into meta_score_candidates carrying a non-empty news field"
+          },
+          "notes": "Filed 2026-08-21 from an operator bug report, confirmed via live WebSearch fact-check (real Moderna news existed and was major) plus repo-wide grep (root cause is a dead field name, not a data-freshness/lookback-window issue). Systemic -- affects every candidate the meta-scorer evaluates, not MRNA-specific."
+        },
+        {
+          "id": "91.30",
+          "name": "the lite-path fallback (triggered by a per-ticker Critic 180s timeout, not just weekly-quota exhaustion) silently skips ALL Step-6/7 enrichment signals -- insider activity, options flow, patents, sentiment -- and the resulting analysis is used to commit real capital with no disclosure that those checks were skipped",
+          "status": "pending",
+          "priority": "P1",
+          "harness_required": true,
+          "audit_basis": "SURFACED 2026-08-21 while fact-checking an operator's belief that a large MRNA insider transaction should have been flagged. CONFIRMED via SEC EDGAR (primary source, form4.xml fetched directly): CEO Stephane Bancel filed a Form 4 on 2026-08-05 (accession 000168285226000153) exercising options for 499,246 shares then selling ~$28.7M under a pre-arranged Rule 10b5-1(c) plan -- roughly 8x the next-largest MRNA insider transaction in the same window (President Hoge, 2026-07-15, ~$3.6M), confirmed against every other Form 4 filed by MRNA insiders in the period as a baseline. The 2026-08-20 MRNA report (curl localhost:8000/api/reports/MRNA?date=2026-08-20, BUY, score 7.0) has insider_signal=='' (empty), enrichment_signals_summary=='{}' , key_risks=='' , and full_report_json._path=='lite' with _fallback_reason=='TimeoutError: Critic timed out after 180s' (the 180s budget is set at backend/agents/orchestrator.py:425; the lite-report construction sites are backend/services/autonomous_loop.py:2517,3266,3518). The lite-path fallback bypasses the ENTIRE 15-step full orchestrator pipeline -- including Step 7 Insider Activity (backend/tools/sec_insider.py + backend/agents/skills/insider_agent.md) and every other enrichment agent (options, patents, sentiment) -- running only a 2-call Gemini/Claude momentum+risk wrapper instead. The BUY rationale (analysis.reason) cites only momentum/cap/P/E/sector data; insider activity, SEC filings, or Bancel's sale appear nowhere in the report the autonomous loop actually acted on with real (paper) capital. This is a DIFFERENT trigger than the already-filed 91.5/86.131 rail-exhaustion gap (that one is about weekly Claude-quota exhaustion specifically); this one fires on a routine per-request 180s Critic timeout, independent of quota state, and is a documented RECURRING pattern per masterplan step 91.2's own notes on lite-path reports.",
+          "verification": {
+            "command": "curl -s localhost:8000/api/reports/MRNA?date=2026-08-20 | python3 -c \"import json,sys; d=json.load(sys.stdin); print(d['full_report_json'].get('_path'), d.get('insider_signal'))\"",
+            "success_criteria": [
+              "a lite-path report either (a) still runs a cheap/fast insider-activity check (and ideally the other Step-6/7 enrichment signals) before finalizing the trade decision, so real material events like a large Form 4 filing are not silently missed, or (b) explicitly labels the decision rationale as 'enrichment signals unavailable (lite path, Critic timeout)' rather than presenting a momentum-only assessment as if it were a complete analysis",
+              "the lite-path decision rationale text no longer silently omits insider/options/patent/sentiment data -- it either includes a fast version of them or names them as skipped, visible to whoever reviews the trade",
+              "the fix does not change the Critic timeout threshold itself or attempt to fix why the Critic times out (that is a separate performance question) -- this step is about what happens to the DECISION when the fallback fires"
+            ],
+            "live_check": "BQ/API row from a real lite-path fallback occurring after the fix, showing either populated fast-enrichment fields or an explicit degraded-analysis disclosure in the rationale used for the trade decision"
+          },
+          "notes": "Filed 2026-08-21 from an operator bug report, confirmed via SEC EDGAR primary-source fact-check plus direct API inspection of the live report before filing. Priority P1: this affects real (paper) capital-allocation decisions made on silently-incomplete analysis, and the Critic-timeout fallback is a recurring, not one-off, pattern. Cross-reference 91.2 (Lite badge, cosmetic), 91.27 (frontend mis-renders what data does exist), and 91.5/86.131 (a related but distinct rail-exhaustion trigger for the same class of degraded-report problem)."
+        },
+        {
+          "id": "91.31",
+          "name": "sec_insider.py classifies an option-exercise transaction (Form 4 code M) as a \"BUY\" with price hardcoded to $0.00, losing the real dollar materiality of the transaction",
+          "status": "pending",
+          "priority": "P2",
+          "harness_required": true,
+          "audit_basis": "SURFACED 2026-08-21 as a secondary finding while fact-checking a large MRNA insider transaction (CEO Bancel's 2026-08-05 Form 4: exercised 499,246 options at a $19.15 strike, then sold ~$28.7M worth of the resulting shares under a Rule 10b5-1(c) plan). backend/tools/sec_insider.py:112-121 classifies the derivative-transaction code 'M' (option exercise) as txn_type=='BUY' with `price` hardcoded to 0.0. This did not affect the MRNA report itself (the insider agent never ran on that report, per 91.30 -- it was a lite-path fallback), but is a real, distinct, confirmed data-accuracy defect: any FULL-pipeline report that does encounter an option-exercise Form 4 would show a $0-value 'buy' leg, silently losing the strike-price cost basis and understating the transaction's real financial materiality (an exercise-and-hold or exercise-and-sell can be a large capital event even though the exercise price itself may be far below market).",
+          "verification": {
+            "command": "grep -n 'txn_type\\|price = 0' backend/tools/sec_insider.py",
+            "success_criteria": [
+              "a code-M (option exercise) transaction records its actual strike/exercise price (from the Form 4 XML's transactionPricePerShare or equivalent field) rather than a hardcoded 0.0",
+              "if the exercise price is genuinely unavailable in a given filing, the field is left null/marked unknown rather than defaulting to 0.0, which reads as 'this transaction had no cost basis' -- a materially different and misleading claim",
+              "a test using a real or representative Form 4 XML with a code-M transaction asserts the parsed price matches the filing's stated price, not 0.0"
+            ],
+            "live_check": "a real SEC Form 4 with a code-M transaction, parsed through sec_insider.py, shows the correct non-zero price in the resulting insider_signal output"
+          },
+          "notes": "Filed 2026-08-21 as a secondary discovered defect while investigating 91.30. Low priority/low blast-radius on its own (didn't affect the specific report investigated, since the insider agent never ran), but a real data-accuracy bug worth fixing whenever sec_insider.py is next touched."
         }
       ]
     }
