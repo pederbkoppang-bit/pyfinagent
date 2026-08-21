@@ -27740,6 +27740,62 @@
             "live_check": "BQ query showing paper_positions.last_analysis_date updates after a HOLD-outcome cycle in the running system, plus harness_log evidence of reeval_tickers count dropping on the next 1-2 cycles after the fix ships"
           },
           "notes": "Filed 2026-08-20 from an operator bug report, confirmed via read-only investigation with live BigQuery evidence before filing. P1: amplifies the already-P1 91.5 rail-exhaustion problem by inflating LLM call volume on unchanged holdings, and directly explains the operator-observed pattern of NTAP/DELL/MRVL getting fresh reports 'several days running' with no new catalyst."
+        },
+        {
+          "id": "91.24",
+          "name": "app/performance/page.tsx:178 has the same alpha-score-glow misapplication as 91.13 -- a Win Rate card gets a permanent decorative glow in an otherwise-uniform card row",
+          "status": "pending",
+          "priority": "P2",
+          "harness_required": true,
+          "audit_basis": "SURFACED 2026-08-20 during 91.13's research (research_brief_91.13.md's internal code inventory): `app/performance/page.tsx:178` applies `<BentoCard glow>` to the Win Rate card, `col-span-12 md:col-span-4`, using the SAME `text-5xl` type scale and grid span as its Avg Return sibling at `:189`/`:193` -- i.e. the glow is the only differentiator in an otherwise-uniform row, exactly the pattern 91.13 fixed at CostDashboard.tsx:85. Deliberately NOT folded into 91.13 (different file, different immutable criteria scope) and confirmed still present post-91.13 by 91.13's own cycle-2 Q/A re-derivation (verdict transcribed in evaluator_critique_91.13.md cycle-2 notes: 'performance/page.tsx:178 still carries <BentoCard glow>'). Same external research applies (research_brief_91.13.md, gate_passed=true, 7 sources): a uniform card row should not carry per-card decorative motion; emphasis belongs in position/size/contrast, not animation.",
+          "verification": {
+            "command": "grep -c 'BentoCard glow' frontend/src/app/performance/page.tsx",
+            "success_criteria": [
+              "the command above returns 0 after the fix (glow prop removed), OR the Win Rate card is made visually consistent with its siblings by deliberate, documented design (matching 91.13's OR-branch pattern)",
+              "a live Playwright screenshot of the /performance page's card row shows uniform styling across Win Rate and its siblings",
+              "no change to BentoCard.tsx or globals.css -- this is a single call-site fix, same as 91.13"
+            ],
+            "live_check": "Playwright screenshot of the /performance page card row showing consistent styling"
+          },
+          "notes": "Filed 2026-08-21 as a queued follow-up from 91.13's research and Q/A re-derivation. Deliberately kept separate from 91.13 to preserve that step's clean, narrow immutable criteria."
+        },
+        {
+          "id": "91.25",
+          "name": "4 of 4 infinite CSS animations in globals.css lack a prefers-reduced-motion guard -- WCAG 2.2 SC 2.2.2 exposure across shimmer, pulse-glow, spin-slow, and gemini-bounce",
+          "status": "pending",
+          "priority": "P2",
+          "harness_required": true,
+          "audit_basis": "SURFACED 2026-08-20 during 91.13's research (research_brief_91.13.md finding 6 + application note 4): globals.css defines `pulse-glow` (`:61-68`, 3s infinite) with no `prefers-reduced-motion` guard. 91.13's cycle-1 Q/A independently measured the full picture and corrected the count (verdict transcribed in evaluator_critique_91.13.md): globals.css has exactly 4 `infinite` animations -- `shimmer` (:56 area), `pulse-glow` (:61), `spin-slow` (:76), `gemini-bounce` (:94-area, confirmed by grep) -- and ALL FOUR are unguarded; the only existing `prefers-reduced-motion` rule in the whole frontend (`globals.css:178-183`) covers the NumberFlow tint, which is a 900ms one-shot, not infinite, so it doesn't offset any of the 4. WCAG 2.2 SC 2.2.2 (Pause, Stop, Hide) requires a mechanism for the user to pause/stop/hide any auto-starting, >5s, non-essential animation presented in parallel with other content -- source: W3C normative text read in full during 91.13's research (https://www.w3.org/WAI/WCAG22/Understanding/pause-stop-hide.html). The project already has the correct fix pattern in-repo (`globals.css:178-183`'s `@media (prefers-reduced-motion: reduce) { animation: none !important }` block) -- this step is applying that existing pattern to the other 4 animations, not inventing a new one.",
+          "verification": {
+            "command": "grep -n 'prefers-reduced-motion' frontend/src/app/globals.css",
+            "success_criteria": [
+              "all 4 infinite animations (shimmer, pulse-glow, spin-slow, gemini-bounce) are covered by a prefers-reduced-motion: reduce override that disables or reduces the animation, matching the existing NumberFlow-tint pattern",
+              "a test or manual check confirms the override actually applies to all 4 animation class names, not just a subset",
+              "no visual regression for users without the reduced-motion preference set -- the animations still run normally by default",
+              "verified live via Playwright with emulated prefers-reduced-motion: reduce (or equivalent) showing the animations disabled"
+            ],
+            "live_check": "Playwright capture (or equivalent DevTools emulation) showing at least one of the 4 animations stopped under prefers-reduced-motion: reduce"
+          },
+          "notes": "Filed 2026-08-21 as a queued follow-up from 91.13's research and Q/A. Broader than any single card's fix -- touches shared globals.css, not a single component."
+        },
+        {
+          "id": "91.26",
+          "name": "Recharts tooltips (hover-triggered, vanish on pointer-out) are plausibly non-compliant with WCAG 2.2 SC 1.4.13 (hoverable/dismissible/persistent content-on-hover) -- flagged by research, never actually measured",
+          "status": "pending",
+          "priority": "P2",
+          "harness_required": true,
+          "audit_basis": "SURFACED 2026-08-20 during 91.22's research (research_brief_91.22.md finding 8): 'Recharts 2.x tooltips are hover-triggered and vanish on pointer-out; source 2's Hoverable and Dismissible requirements are plausibly unmet. Out of scope for 91.22 (which is a contrast step) -- flag for a follow-up step, do not silently widen.' Source 2 (https://www.w3.org/WAI/WCAG22/Understanding/content-on-hover-or-focus.html, read in full) establishes that additional content appearing on hover/focus (Recharts tooltips are a named example class) must be Dismissible (without moving pointer/focus), Hoverable (pointer can move onto the additional content without it disappearing), and Persistent (remains visible until hover/focus is removed, dismissed, or no longer valid) unless an exception applies. THIS IS A FLAGGED CANDIDATE, NOT A CONFIRMED DEFECT -- 91.22's research explicitly did not measure Recharts' actual behavior against these three sub-criteria (it was out of scope for a contrast-focused step), so the FIRST verification action here must be to determine whether Recharts' tooltip behavior actually violates SC 1.4.13 before any fix is designed. Do not assume a defect exists; confirm or refute first, matching this project's standing discipline for hedged findings (cf. masterplan step 91.10/formerly 86.136's candidate-regression pattern).",
+          "verification": {
+            "command": "grep -rn '<Tooltip' frontend/src/components/*.tsx frontend/src/app/**/*.tsx | wc -l",
+            "success_criteria": [
+              "FIRST: determine via live testing (mouse-hover a chart tooltip, then attempt to move the pointer onto the tooltip content itself) whether Recharts' tooltip actually disappears on any pointer movement (violating Hoverable) or requires the exact hover position to be maintained with no tolerance (violating Dismissible/Persistent) -- report the measured behavior, not an assumption",
+              "if a real violation is confirmed: propose and implement a fix (e.g. a delay/tolerance zone, or an alternative non-hover-only way to access the same information) and re-verify",
+              "if NO violation is confirmed (Recharts' default hover handling already tolerates reasonable pointer movement): close this step with that measured finding as the evidence -- an honest 'not a defect' is a valid, complete outcome, not a failure to find one",
+              "either outcome must be based on actual interaction testing, not code reading alone"
+            ],
+            "live_check": "Playwright interaction trace (or manual testing notes) showing an attempt to hover from a chart series onto its own tooltip, and the observed result"
+          },
+          "notes": "Filed 2026-08-21 as a queued follow-up from 91.22's research. Deliberately filed as a confirm-first candidate, not an asserted bug -- the research flagged this as 'plausibly unmet', explicitly not measured. Do not skip the confirm step and jump to a fix."
         }
       ]
     }
