@@ -44,10 +44,10 @@ apparatus fixes in group A first, then everything else costs what it should.
 | 6 | 90.1 | grade-built (5/5) | `--operator-extend 90.1`; 90.12 closed the blocker that failed cycle 5 (commit f4188124). ONE Q/A. |
 | 7 | 90.12 | grade-built | ERROR discriminator now reads the type (36ca16e1); retro gate found UnboundLocalError and it was added. ONE Q/A. |
 | 8 | 90.5 | build | rebuild the verdict ledger from run records; prereq for 90.3 (absorbs 87.3). |
-| 9 | 90.3 | built-partial | gate PASSED; contract/results/live_check committed; mutation matrix committed by the audit. Finish + ONE Q/A. After 90.1 and 90.5. |
+| 9 | 90.3 | built-partial | gate PASSED; contract/results/live_check + mutation matrix committed (ae29f25a, "DEFAULT-OFF, ungraded"). Finish + ONE Q/A. After 90.1 and 90.5. |
 | 10 | 90.6 | build | research-gate launches must not consume the Q/A attempt ceiling. After 90.1. |
 | 11 | 89.3 | build | Agent-tool spawns get a correlation contract so the attempt gate sees them. |
-| 12 | 90.9 | grade-built | criterion-shape classifier built and self-verified (4165e67d), never evaluated. ONE Q/A. |
+| 12 | 90.9 | grade-built | criterion-shape classifier built and self-verified (4165e67d). A Q/A was IN FLIGHT at 12:00 on 2026-08-21 (verdict_wip_90.9__20260821T095922Z.md) -- read its outcome before spawning another. |
 | 13 | 86.98 | build + operator | verdict as a function of the criteria; criterion 7 needs an operator sign-off -- ask for it in the contract. |
 
 ### B. Diagnostic before any 87.x remediation -- 1 step
