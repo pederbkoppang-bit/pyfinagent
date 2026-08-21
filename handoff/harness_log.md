@@ -37085,3 +37085,73 @@ M18/M19 report KILLED while they genuinely SURVIVED: **a red control does not me
 invalidate a run, it manufactures kills.** Root cause of the latter: section I's source
 scans read the tracked file from disk and were therefore blind to every mutant -- they
 tested the repository, not the subject. `load()` now carries the subject source.
+
+
+## Cycle 201 -- 2026-08-21 -- phase=90.3 result=NO VERDICT (RESEARCH + PLAN + GENERATE, ungraded)
+
+**Research gate PASSED (enforced):** `wf_8f0a6091-2d0`, 10 sources read in full, 34 URLs,
+`self_report_disagreed: false`, `violations: []`. Contract written. Built. **No Q/A
+spawned; 90.3 stays `pending`.**
+
+**The gate found the central defect before a line of code existed.** Criterion 1's file set
+-- *declared masterplan paths UNION `git diff --name-only HEAD` UNION untracked* -- resolves
+on this repo to `handoff/audit/attempt_budget_audit.jsonl` (**tracked, written BY THE GATE on
+every launch**), `handoff/audit/pre_tool_use_audit.jsonl` (every tool call), and
+`.claude/agent-memory/researcher/MEMORY.md` (**written by the researcher during that very
+gate**). Three self-references in one union: without exclusions the digest advances by
+construction, which is **89.1's defect through a different door, in the step built to correct
+89.1**. Verified by me, not adopted. And *"declared masterplan paths"* has no source at all --
+**0 of 1222 steps carry a `files` or `paths` key**.
+
+**Ships DEFAULT-OFF** (`ATTEMPT_GATE_PROGRESS_DIGEST`). It adds a DENY path to a PreToolUse
+hook that runs on every Workflow launch and it has not been graded; an ungraded deny-capable
+gate that misfires blocks the whole harness. The self-test and matrix both set the flag, so
+the mechanism is exercised while the rail stays dark.
+
+Immutable command exits 0. Nine cells, control GREEN first, null mutant survived, QX ERROR;
+**D1** -- removing `handoff/audit/` from the exclusions -- is the cell this step exists for
+and it dies.
+
+**FOUR DEFECTS IN MAIN'S OWN HARNESS, found by building it:** the self-test tested the
+FUNCTIONS and not the WIRING (a rename inside `handle_hook` SURVIVED, because every cell
+called the pure functions directly); the sandbox was missing `verdict_ledger_write`, so the
+import failed, the function failed CLOSED exactly as designed, and the control went red for a
+reason unrelated to any mutation; the sandbox seeded the real 146-row verdict ledger,
+colliding with its own fixtures; and the ERROR discriminator went blind **one process
+boundary further out** than 90.12 fixed -- QX's `NameError` was printed inside the nested
+drive and invisible to the matrix, so it scored KILLED where the discipline requires ERROR.
+
+**DISCLOSED:** driving the mechanism by hand, `env $E` in zsh does not word-split, so the
+overrides never applied and a real escalation file was written into `handoff/current/`.
+Untracked, never committed, nothing overwritten; checked before removing. The exact
+containment failure the matrix guards against, committed by hand outside the matrix.
+
+**NOT DONE, and it is the largest gap:** criterion 5's grep test. As written it returns 1086
+lines over 111 files, overwhelmingly `.bak` copies of the criterion's own text -- *a grep that
+matches its own specification cannot go red for the right reason.* Criterion 5 is the
+load-bearing half of this step.
+
+---
+
+## SESSION SUMMARY -- 2026-08-21
+
+**Six research gates, all PASSED. FIVE found real defects, and four of those were in work
+Main had already called verified.** That is the session's finding, and it is an indictment of
+Main's judgement rather than of the gate's cost:
+
+| gate | step | what it caught |
+|---|---|---|
+| `wf_85906afa-8c5` | 90.14 | the probe family pinned `verdict: CONDITIONAL` on all four shapes, so a FAIL-gated drop survived 105 checks -- a FIFTH relocation, one commit from shipping |
+| `wf_7af57a73-cd4` | 90.15 | the fix closed the reconstruction seam but not the MUTATION seam; cells M18/M19 died to a text scan, not a guard |
+| `wf_69d5b66e-684` | 90.12 | `UnboundLocalError` missing from the type list -- it subclasses `NameError` but the printed name does not contain that substring |
+| `wf_8f0a6091-2d0` | 90.3 | the digest would have been vacuous by construction |
+
+**Two steps reached the budget's designed terminal state (90.1, 90.2)**, both with the
+PRODUCT verified and an EVIDENCE criterion relocating -- 90.1 four times, 90.2 four times.
+**Nothing was flipped.** Closing either requires an operator PASS-equivalent decision, and
+auto-pass on exhaustion is forbidden.
+
+**Operator corrections taken, both mid-session:** stop spending evaluation cycles while the
+harness's own filed defects are unfixed; and run the research phase, which is the phase that
+provides guidance. The second overruled Main's rationale for skipping it on three steps, and
+the gates then justified the operator on every one.
