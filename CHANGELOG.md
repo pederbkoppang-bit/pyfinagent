@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-21 | `f4f103c6` | phase-90.2: cycle-3 -- fix the two WARNs and three NOTEs from the cycle-2 CONDITIONAL |
 | 2026-08-21 | `ca656466` | phase-90.2: cycle-2 -- fix the two blockers the cycle-1 Q/A found |
 | 2026-08-21 | `c09bd96b` | phase-90.2: route the judge's WARN/NOTE severity caller-side, as a sibling |
 | 2026-08-21 | `b09b937b` | phase-90.1: cycle-5 FAIL transcribed, budget exhausted 5/5, escalated -- NOT flipped |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-20 | `d06e7288` | docs(goal): trim the 2026-08-20 goal prompt under the 4000-char paste limit |
 | 2026-08-20 | `ed99d1f2` | docs(goal): add 90.9 to the 2026-08-20 goal prompt, refresh commit ref |
 | 2026-08-20 | `37080397` | docs(goal): add 90.9 to the 2026-08-20 goal prompt, refresh commit ref |
-| 2026-08-20 | `252090a3` | feat(masterplan): file 90.9 -- the criteria themselves are the loop's fuel |
 
 ---
 
