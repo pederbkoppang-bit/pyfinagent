@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-21 | `049544b0` | phase-90.2: regenerate live_check from the cycle-4 run (87 checks, 19 cells) |
 | 2026-08-21 | `91626e61` | phase-90.2: cycle-4 -- stop criterion 6 clause 2 relocating, by guarding the CLASS |
 | 2026-08-21 | `f4f103c6` | phase-90.2: cycle-3 -- fix the two WARNs and three NOTEs from the cycle-2 CONDITIONAL |
 | 2026-08-21 | `ca656466` | phase-90.2: cycle-2 -- fix the two blockers the cycle-1 Q/A found |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-20 | `3bf0b0fe` | phase-90.1: give an attempt row an outcome and a token cost |
 | 2026-08-20 | `1c2f25b3` | docs(harness): flip 89.1/87.9 superseded, correct the stale attempt_budget wiring claim |
 | 2026-08-20 | `d06e7288` | docs(goal): trim the 2026-08-20 goal prompt under the 4000-char paste limit |
-| 2026-08-20 | `ed99d1f2` | docs(goal): add 90.9 to the 2026-08-20 goal prompt, refresh commit ref |
 
 ---
 
