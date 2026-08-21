@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-21 | `43b3bb17` | phase-90.3: harness_log cycle 201 + session summary |
 | 2026-08-21 | `ae29f25a` | phase-90.3: GENERATE -- progress digest built, DEFAULT-OFF, ungraded |
 | 2026-08-21 | `f4188124` | phase-90.1: record that 90.12 CLOSED the blocker that failed this step |
 | 2026-08-21 | `6720cb5e` | phase-90.3: research gate PASSED -- it caught a vacuous-by-construction digest pre-build |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-21 | `f4f103c6` | phase-90.2: cycle-3 -- fix the two WARNs and three NOTEs from the cycle-2 CONDITIONAL |
 | 2026-08-21 | `ca656466` | phase-90.2: cycle-2 -- fix the two blockers the cycle-1 Q/A found |
 | 2026-08-21 | `c09bd96b` | phase-90.2: route the judge's WARN/NOTE severity caller-side, as a sibling |
-| 2026-08-21 | `b09b937b` | phase-90.1: cycle-5 FAIL transcribed, budget exhausted 5/5, escalated -- NOT flipped |
 
 ---
 
